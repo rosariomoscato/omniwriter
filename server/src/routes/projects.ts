@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import * as mammoth from 'mammoth';
 
 const router = Router();
 
@@ -496,26 +497,26 @@ function parseTxtContent(content: string, filename: string): { title: string; ch
   return { title, chapters };
 }
 
-// Helper function to parse DOCX content (basic text extraction)
-function parseDocxContent(buffer: Buffer, filename: string): { title: string; chapters: Array<{ title: string; content: string }> } {
-  // For now, treat DOCX as text (strip XML tags)
-  // A production implementation would use a proper DOCX parser like mammoth.js
-  const text = buffer.toString('utf-8');
+// Helper function to parse DOCX content using mammoth
+async function parseDocxContent(buffer: Buffer, filename: string): Promise<{ title: string; chapters: Array<{ title: string; content: string }> }> {
+  try {
+    // Use mammoth to extract raw text from DOCX
+    const result = await mammoth.extractRawText({ buffer: buffer });
+    const plainText = result.value;
 
-  // Remove XML tags and extract plain text
-  const plainText = text
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&[^;]+;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    console.log('[Import] Extracted text from DOCX, length:', plainText.length);
 
-  // Use the same TXT parsing logic
-  return parseTxtContent(plainText, filename);
+    // Use the same TXT parsing logic to detect chapters
+    return parseTxtContent(plainText, filename);
+  } catch (error) {
+    console.error('[Import] DOCX parsing error:', error);
+    throw new Error('Failed to parse DOCX file. Please ensure it is a valid .docx file.');
+  }
 }
 
 // POST /api/projects/import - Import project from file
 // @ts-expect-error - AuthRequest type compatibility with router
-router.post('/import', authenticateToken, upload.single('file'), (req: AuthRequest, res: Response) => {
+router.post('/import', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     const db = getDatabase();
     const userId = req.user?.id;
@@ -530,28 +531,76 @@ router.post('/import', authenticateToken, upload.single('file'), (req: AuthReque
 
     console.log('[Projects] Importing file:', file.originalname, 'size:', file.size, 'type:', file.mimetype, 'area:', area);
 
+    // Validate file size (0 bytes = corrupted or empty)
+    if (file.size === 0) {
+      res.status(400).json({ message: 'The uploaded file is empty. Please upload a valid file with content.' });
+      return;
+    }
+
+    // Validate file size is reasonable (max 10MB already enforced by multer)
+    if (file.size > 10 * 1024 * 1024) {
+      res.status(400).json({ message: 'File is too large. Maximum size is 10MB.' });
+      return;
+    }
+
     // Validate area
     if (!['romanziere', 'saggista', 'redattore'].includes(area)) {
       res.status(400).json({ message: 'Invalid area. Must be romanziere, saggista, or redattore' });
       return;
     }
 
-    // Parse file content based on type
+    // Parse file content based on type with proper error handling
     let parsed: { title: string; chapters: Array<{ title: string; content: string }> };
 
-    if (file.mimetype === 'text/plain' || file.originalname.toLowerCase().endsWith('.txt')) {
-      const content = file.buffer.toString('utf-8');
-      parsed = parseTxtContent(content, file.originalname);
-    } else {
-      // Treat as DOCX (basic text extraction)
-      parsed = parseDocxContent(file.buffer, file.originalname);
+    try {
+      if (file.mimetype === 'text/plain' || file.originalname.toLowerCase().endsWith('.txt')) {
+        // Validate UTF-8 encoding
+        const content = file.buffer.toString('utf-8');
+        // Check for valid UTF-8 (replacement character indicates invalid encoding)
+        if (content.includes('\uFFFD')) {
+          throw new Error('File encoding is not valid UTF-8. Please save the file as UTF-8 text and try again.');
+        }
+        parsed = parseTxtContent(content, file.originalname);
+      } else {
+        // Treat as DOCX using mammoth parser
+        parsed = await parseDocxContent(file.buffer, file.originalname);
+      }
+    } catch (parseError) {
+      console.error('[Projects] File parsing error:', parseError instanceof Error ? parseError.message : 'Unknown error');
+      res.status(400).json({
+        message: parseError instanceof Error
+          ? parseError.message
+          : 'Failed to parse file. Please ensure it is a valid text or DOCX file.'
+      });
+      return;
     }
 
     console.log('[Projects] Parsed', parsed.chapters.length, 'chapters from file');
 
     if (parsed.chapters.length === 0) {
-      res.status(400).json({ message: 'Could not extract any content from the file. Please ensure the file contains text.' });
+      res.status(400).json({ message: 'Could not extract any content from the file. Please ensure the file contains readable text.' });
       return;
+    }
+
+    // Check for duplicate project titles and handle gracefully
+    let finalTitle = parsed.title;
+    const existingProject = db.prepare(
+      'SELECT id, title FROM projects WHERE user_id = ? AND title = ? COLLATE NOCASE'
+    ).get(userId, finalTitle) as { id: string; title: string } | undefined;
+
+    if (existingProject) {
+      // Duplicate found - generate a unique title
+      let counter = 2;
+      let newTitle = `${finalTitle} (${counter})`;
+
+      // Find next available number
+      while (db.prepare('SELECT id FROM projects WHERE user_id = ? AND title = ? COLLATE NOCASE').get(userId, newTitle)) {
+        counter++;
+        newTitle = `${finalTitle} (${counter})`;
+      }
+
+      finalTitle = newTitle;
+      console.log('[Projects] Duplicate title detected, renamed to:', finalTitle);
     }
 
     // Create project
@@ -562,13 +611,13 @@ router.post('/import', authenticateToken, upload.single('file'), (req: AuthReque
     ).run(
       projectId,
       userId,
-      parsed.title,
+      finalTitle,
       description,
       area,
       genre
     );
 
-    console.log('[Projects] Created project:', projectId, 'with title:', parsed.title);
+    console.log('[Projects] Created project:', projectId, 'with title:', finalTitle);
 
     // Create chapters
     let totalWordCount = 0;
@@ -600,10 +649,15 @@ router.post('/import', authenticateToken, upload.single('file'), (req: AuthReque
 
     console.log('[Projects] Import completed successfully:', projectId);
     res.status(201).json({
-      message: 'Project imported successfully',
+      message: existingProject
+        ? `Project imported as "${finalTitle}" (a project with that name already existed)`
+        : 'Project imported successfully',
       project,
       chaptersCreated: parsed.chapters.length,
-      totalWordCount
+      totalWordCount,
+      renamed: !!existingProject,
+      originalTitle: parsed.title,
+      finalTitle: finalTitle
     });
   } catch (error) {
     console.error('[Projects] Import error:', error instanceof Error ? error.message : 'Unknown error');

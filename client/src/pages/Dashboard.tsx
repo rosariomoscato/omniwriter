@@ -261,8 +261,12 @@ export default function Dashboard() {
       // Reload projects to show the imported one
       await loadProjects();
 
-      // Show success toast
-      toast.success(`Progetto importato con successo! ${result.chaptersCreated} capitoli creati, ${result.totalWordCount} parole totali`);
+      // Show success toast with rename info if applicable
+      if (result.renamed) {
+        toast.success(`Progetto importato come "${result.finalTitle}" (esisteva già un progetto con questo nome) - ${result.chaptersCreated} capitoli creati`);
+      } else {
+        toast.success(`Progetto importato con successo! ${result.chaptersCreated} capitoli creati, ${result.totalWordCount} parole totali`);
+      }
     } catch (err: any) {
       setImportError(err.message || 'Failed to import project');
       toast.error(err.message || 'Failed to import project');

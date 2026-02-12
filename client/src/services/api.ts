@@ -467,7 +467,7 @@ class ApiService {
     area: 'romanziere' | 'saggista' | 'redattore';
     genre?: string;
     description?: string;
-  }): Promise<{ project: Project; chaptersCreated: number; totalWordCount: number }> {
+  }): Promise<{ project: Project; chaptersCreated: number; totalWordCount: number; message: string; renamed?: boolean; originalTitle?: string; finalTitle?: string }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('area', options.area);

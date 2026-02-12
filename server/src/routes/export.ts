@@ -7,6 +7,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';
 
 const router = express.Router();
 
@@ -336,15 +337,83 @@ function escapeXmlDocx(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// Helper function to generate a simple DOCX file
-function generateDocx(title: string, description: string, chapters: any[]): Buffer {
-  const textContent = `${title}\n${'='.repeat(title.length)}\n\n${description ? description + '\n\n' : ''}${chapters.map((ch, i) => {
-    const chapterTitle = `${i + 1}. ${ch.title || 'Untitled'}`;
-    const separator = '-'.repeat(chapterTitle.length);
-    return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
-  }).join('\n\n')}`;
+// Helper function to generate a proper DOCX file
+async function generateDocx(title: string, description: string, chapters: any[]): Promise<Buffer> {
+  const children: any[] = [];
 
-  return Buffer.from(textContent, 'utf-8');
+  // Add title
+  children.push(
+    new Paragraph({
+      text: title,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 }
+    })
+  );
+
+  // Add description if present
+  if (description) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: description,
+            italics: true,
+            color: '666666'
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 600 }
+      })
+    );
+  }
+
+  // Add chapters
+  chapters.forEach((chapter, index) => {
+    // Chapter heading
+    children.push(
+      new Paragraph({
+        text: `${index + 1}. ${chapter.title || 'Untitled'}`,
+        heading: HeadingLevel.HEADING_1,
+        spacing: { before: 400, after: 200 }
+      })
+    );
+
+    // Chapter content - split by paragraphs and newlines
+    const paragraphs = (chapter.content || '').split('\n').filter(p => p.trim());
+    paragraphs.forEach(para => {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: para.trim(),
+              size: 24 // 12pt
+            })
+          ],
+          spacing: { after: 200 }
+        })
+      );
+    });
+
+    // Add page break between chapters (except last)
+    if (index < chapters.length - 1) {
+      children.push(
+        new Paragraph({
+          children: [new PageBreak()]
+        })
+      );
+    }
+  });
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: children
+    }]
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  return buffer;
 }
 
 // Helper function to generate TXT file
@@ -359,7 +428,7 @@ function generateTxt(title: string, description: string, chapters: any[]): Buffe
 }
 
 // POST /api/projects/:id/export - Export project
-router.post('/projects/:id/export', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id: projectId } = req.params;
     const { format = 'txt', metadata, coverImageId } = req.body;
@@ -424,7 +493,7 @@ router.post('/projects/:id/export', authenticateToken, (req: AuthRequest, res: R
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
-      content = generateDocx(project.title, project.description || '', chapters);
+      content = await generateDocx(project.title, project.description || '', chapters);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.docx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
@@ -563,7 +632,7 @@ router.get('/projects/:id/export/history', authenticateToken, (req: AuthRequest,
 });
 
 // POST /api/projects/:id/export/batch - Export multiple chapters
-router.post('/projects/:id/export/batch', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/projects/:id/export/batch', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id: projectId } = req.params;
     const { chapterIds, format = 'txt', metadata, coverImageId, combined = true } = req.body;
@@ -637,13 +706,8 @@ router.post('/projects/:id/export/batch', authenticateToken, (req: AuthRequest, 
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
-      // Combine all chapters into one document
-      const textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n${project.description ? project.description + '\n\n' : ''}${chapters.map((ch: any, i: number) => {
-        const chapterTitle = `Chapter ${ch.order_index}: ${ch.title || 'Untitled'}`;
-        const separator = '-'.repeat(chapterTitle.length);
-        return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
-      }).join('\n\n')}`;
-      content = Buffer.from(textContent, 'utf-8');
+      // Use proper DOCX generator
+      content = await generateDocx(project.title, project.description || '', chapters);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.docx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
