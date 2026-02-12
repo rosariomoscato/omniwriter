@@ -22,14 +22,27 @@ export default function ChapterEditor() {
   const [wordCount, setWordCount] = useState(0);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [comparisonVersions, setComparisonVersions] = useState<{ v1: ChapterVersion | null; v2: ChapterVersion | null }>({ v1: null, v2: null });
+  const [nextAutoSaveIn, setNextAutoSaveIn] = useState(30); // Countdown to next auto-save
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);
+  const periodicSaveIntervalRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (chapterId) {
       loadChapter();
     }
+
+    // Cleanup function to clear intervals on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      if (periodicSaveIntervalRef.current) {
+        clearInterval(periodicSaveIntervalRef.current);
+      }
+    };
   }, [chapterId]);
 
   useEffect(() => {
@@ -37,6 +50,51 @@ export default function ChapterEditor() {
       loadProject();
     }
   }, [projectId]);
+
+  // Set up periodic auto-save every 30 seconds (feature #55)
+  useEffect(() => {
+    // Clear any existing intervals
+    if (periodicSaveIntervalRef.current) {
+      clearInterval(periodicSaveIntervalRef.current);
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    // Reset countdown
+    setNextAutoSaveIn(30);
+
+    // Set up countdown timer (updates every second)
+    countdownIntervalRef.current = setInterval(() => {
+      setNextAutoSaveIn(prev => {
+        if (prev <= 1) {
+          // Reset to 30 when reaching 0 (just before save triggers)
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Set up periodic auto-save interval (every 30 seconds)
+    periodicSaveIntervalRef.current = setInterval(() => {
+      if (content && title) {
+        console.log('[Auto-save] Periodic save triggered (30 seconds)');
+        handleSave();
+        // Reset countdown after save
+        setNextAutoSaveIn(30);
+      }
+    }, 30000); // 30 seconds
+
+    // Cleanup on unmount
+    return () => {
+      if (periodicSaveIntervalRef.current) {
+        clearInterval(periodicSaveIntervalRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [content, title]); // Re-run when content or title changes
 
   useEffect(() => {
     // Calculate word count
@@ -314,11 +372,16 @@ export default function ChapterEditor() {
         <div>
           Status: <span className="font-medium">{chapter.status}</span>
         </div>
-        {lastSaved && (
-          <div>
-            Last saved: {lastSaved.toLocaleTimeString()}
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {saving ? (
+            <span className="text-blue-600 dark:text-blue-400">Saving...</span>
+          ) : lastSaved && (
+            <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+          )}
+          <span className="text-gray-400 dark:text-gray-500">
+            Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
+          </span>
+        </div>
       </div>
 
       {/* Version History Modal */}

@@ -762,17 +762,32 @@ export default function Dashboard() {
                 )}
 
                 {/* Tags */}
-                {project.tags && project.tags.length > 0 && (
-                  <div className="mb-3">
-                    <div className="flex flex-wrap gap-1">
+                <div className="mb-3">
+                  {project.tags && project.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
                       {project.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          onClick={(e) => handleTagFilterClick(tag)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleTagFilterClick(tag);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors group"
                         >
                           <TagIcon size={10} />
                           {tag}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveTag(project.id, tag, e);
+                            }}
+                            className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-opacity"
+                            title="Rimuovi tag"
+                          >
+                            <X size={10} />
+                          </button>
                         </span>
                       ))}
                       {project.tags.length > 3 && (
@@ -781,8 +796,56 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* Add Tag Input */}
+                  {tagInputProjectId === project.id ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nuovo tag..."
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newTagInput.trim()) {
+                            handleAddTag(project.id, newTagInput);
+                            setNewTagInput('');
+                            setTagInputProjectId(null);
+                          } else if (e.key === 'Escape') {
+                            setTagInputProjectId(null);
+                            setNewTagInput('');
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        autoFocus
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTagInputProjectId(null);
+                          setNewTagInput('');
+                        }}
+                        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                      >
+                        Annulla
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTagInputProjectId(project.id);
+                        setNewTagInput('');
+                      }}
+                      className="flex items-center gap-1 px-3 py-1 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+                    >
+                      <TagIcon size={12} />
+                      Aggiungi tag
+                    </button>
+                  )}
+                </div>
 
                 {/* Footer */}
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-gray-700">
