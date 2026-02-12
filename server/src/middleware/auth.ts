@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { getDatabase } from '../db/database';
 import { User } from '../models/User';
 
-export interface AuthRequest extends Request {
+export interface AuthRequest extends Omit<Request, 'user'> {
   user?: Pick<User, 'id' | 'email' | 'name' | 'role'>;
 }
 

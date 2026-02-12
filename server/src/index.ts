@@ -6,6 +6,8 @@ import { initializeDatabase } from './db/database';
 import healthRouter from './routes/health';
 import authRouter from './routes/auth';
 import projectsRouter from './routes/projects';
+import humanModelsRouter from './routes/human-models';
+import chaptersRouter from './routes/chapters';
 
 dotenv.config();
 
@@ -35,6 +37,8 @@ console.log('[Database] SQLite database connected successfully');
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
+app.use('/api/human-models', humanModelsRouter);
+app.use('/api', chaptersRouter);
 
 // Placeholder route groups - to be implemented by coding agents
 app.use('/api/users', (_req, res) => {

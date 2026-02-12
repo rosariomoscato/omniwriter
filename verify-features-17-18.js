@@ -61,7 +61,8 @@ const sqlite3 = require('/Users/rosario/CODICE/omniwriter/server/node_modules/be
 const dbPath = '/Users/rosario/CODICE/omniwriter/server/data/omniwriter.db';
 
 function cleanTestUsers() {
-  const db = new sqlite3(dbPath);
+  const Database = sqlite3.default || sqlite3;
+  const db = new Database(dbPath);
   db.prepare('DELETE FROM users WHERE email LIKE ?').run('test-17-18@%');
   db.prepare('DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)').run('test-17-18@%');
   db.close();
@@ -208,7 +209,8 @@ async function testFeature18() {
   // Verify only one user exists
   console.log(`\n[Test 3] Verify only one user exists in database`);
   try {
-    const db = new sqlite3.default(dbPath);
+    const Database = sqlite3.default || sqlite3;
+    const db = new Database(dbPath);
     const count = db.prepare('SELECT COUNT(*) as count FROM users WHERE email = ?').get(email);
     db.close();
 

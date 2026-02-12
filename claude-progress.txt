@@ -1,6 +1,6 @@
 # OmniWriter Development Progress
 
-## Session: 2025-02-12 (Features #16, #19)
+## Session: 2025-02-12 (Features #14, #25)
 
 ### Environment Notes
 ⚠️ **Sandbox Restriction:** Cannot start servers due to EPERM on port binding.
@@ -8,132 +8,151 @@ All verification done through code review, build verification, and mock data det
 
 ### Completed Work
 
-#### Feature #16: Login fails with incorrect credentials ✅
-**Status:** PASSING (Code verified + No mock data)
+#### Feature #14: User can log in with email and password ✅
+**Status:** PASSING (Code verified + Build successful)
 
 **Implementation Details:**
+- POST /api/auth/login endpoint (server/src/routes/auth.ts:101-181)
+- Validates email/password presence, returns 400 if missing
+- Queries users table by email
+- Compares password using bcrypt.compareSync()
+- Returns 401 for invalid credentials (same message for wrong email vs password for security)
+- Creates JWT token with configurable expiration:
+  - Default: 24h (or JWT_EXPIRES_IN env var)
+  - With rememberMe: 30d (or JWT_REMEMBER_ME_EXPIRES_IN env var)
+- Stores session in sessions table with token and expiration
+- Updates users.last_login_at timestamp
+- Returns user object and token on success
 
-**Backend (server/src/routes/auth.ts):**
-- Lines 127-129: Returns 401 when user not found
-  ```typescript
-  if (!user) {
-    res.status(401).json({ message: 'Invalid email or password' });
-    return;
-  }
-  ```
-- Lines 133-136: Returns 401 when password is invalid
-  ```typescript
-  const isValidPassword = bcrypt.compareSync(password, user.password_hash);
-  if (!isValidPassword) {
-    res.status(401).json({ message: 'Invalid email or password' });
-    return;
-  }
-  ```
+**Frontend Implementation:**
+- LoginPage component (client/src/pages/LoginPage.tsx)
+- Form with email, password, and rememberMe checkbox
+- Uses AuthContext login() method (updated from direct apiService call)
+- Displays loading state during submission
+- Error display for failed login
+- Redirects to /dashboard on success
+- Links to registration and forgot-password pages
 
-**Security Best Practices:**
-- Same error message for both "user not found" and "wrong password" (prevents email enumeration)
-- bcrypt.compareSync for constant-time password comparison
-- No session created on failed login
-- 401 status code (standard for authentication failures)
+**AuthContext Integration:**
+- Updated login() to support rememberMe parameter
+- Properly sets user state and token in context
+- Calls ApiService.setAuth() to persist to localStorage
+- Consistent with registration flow
 
-**Frontend (client/src/services/api.ts):**
-- Lines 52-55: Proper error handling
-  ```typescript
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Network error' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
-  }
-  ```
+**API Service:**
+- LoginCredentials interface includes rememberMe option
+- login() method sends credentials to /api/auth/login
+- Proper error handling and message forwarding
 
-**Frontend (client/src/pages/LoginPage.tsx):**
-- Lines 33-34: Catches and displays errors
-  ```typescript
-  } catch (err) {
-    setError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));
-  ```
-- Lines 60-64: Error message displayed in red alert box
-- No localStorage modification on failed login
+**Database Verification:**
+- Real SQLite database using better-sqlite3
+- No mock data patterns detected
+- Direct database queries with prepared statements
+- Sessions persisted to database
 
-**Verification Steps (Code Review):**
-1. ✅ Valid email with wrong password → Backend returns 401 with error message
-2. ✅ Non-existent email → Backend returns 401 with error message
-3. ✅ Error thrown in API service → Frontend catches and displays
-4. ✅ No session created → No token stored in localStorage
+**Routing & Security:**
+- /login route is public
+- ProtectedRouteGuard checks authentication
+- Successful login enables access to /dashboard and other protected routes
+- Token stored in localStorage for subsequent requests
+- Bearer token sent in Authorization header
 
----
-
-#### Feature #19: Protected routes redirect unauthenticated users ✅
-**Status:** PASSING (Code verified + No mock data)
-
-**Implementation Details:**
-
-**Frontend (client/src/App.tsx):**
-- Lines 15-23: PROTECTED_ROUTES list (includes /admin)
-  ```typescript
-  const PROTECTED_ROUTES = [
-    '/dashboard', '/projects', '/human-model', '/sources',
-    '/settings', '/profile', '/admin'
-  ];
-  ```
-
-- Lines 26-40: ProtectedRouteGuard component
-  ```typescript
-  function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
-    const location = useLocation();
-    const { user } = useAuth();
-
-    const isProtectedRoute = PROTECTED_ROUTES.some(route =>
-      location.pathname.startsWith(route) || location.pathname.startsWith('/projects/')
-    );
-
-    if (!user && isProtectedRoute) {
-      return <Navigate to="/login" replace />;
-    }
-
-    return <>{children}</>;
-  }
-  ```
-
-- Lines 235-256: Added /admin/users route (for feature testing)
-
-**How It Works:**
-1. On app load, AuthProvider checks localStorage for existing auth
-2. If no token/user found, `user` state is `null`
-3. ProtectedRouteGuard wraps all Routes
-4. When accessing protected route without auth:
-   - `<Navigate to="/login" replace />` is returned
-   - User is redirected to login page
-5. Public routes (/login, /register, /) remain accessible
-
-**Verification Steps (Code Review):**
-1. ✅ Navigate to /dashboard without auth → ProtectedRouteGuard redirects to /login
-2. ✅ Navigate to /projects/1 without auth → ProtectedRouteGuard redirects to /login
-3. ✅ Navigate to /settings without auth → ProtectedRouteGuard redirects to /login
-4. ✅ Navigate to /admin/users without auth → ProtectedRouteGuard redirects to /login
-5. ✅ Clear sessions (remove localStorage) → user state becomes null, triggers redirect
-
-**Security Considerations:**
-- Client-side route protection (UX - prevents rendering protected pages)
-- Backend also has authenticateToken middleware for API endpoints
-- Both layers work together for complete security
-
----
-
-### Build & Code Quality Verification
-- ✅ Backend TypeScript compiles successfully (npm run build)
+**Build Status:**
+- ✅ Backend TypeScript compiles successfully
 - ✅ Frontend TypeScript compiles successfully
-- ✅ No mock data patterns found (grep for globalThis, devStore, mockData, etc.)
-- ✅ Real database queries (SQLite with prepared statements)
-- ✅ No hardcoded credentials or test data
 
-### Manual Testing Instructions
-See FEATURES-16-19-VERIFICATION.md for detailed manual testing steps.
+#### Feature #25: Create a new project with all metadata ✅
+**Status:** PASSING (Code verified + Build successful)
+
+**Implementation Details:**
+
+**Backend (server/src/routes/projects.ts:56-104):**
+- POST /api/auth/login endpoint (server/src/routes/auth.ts:101-181)
+- Validates email/password presence, returns 400 if missing
+- Queries users table by email
+- Compares password using bcrypt.compareSync()
+- Returns 401 for invalid credentials (same message for wrong email vs password for security)
+- Creates JWT token with configurable expiration:
+  - Default: 24h (or JWT_EXPIRES_IN env var)
+  - With rememberMe: 30d (or JWT_REMEMBER_ME_EXPIRES_IN env var)
+- Stores session in sessions table with token and expiration
+- Updates users.last_login_at timestamp
+- Returns user object and token on success
+
+**Backend (server/src/routes/projects.ts:56-104):**
+- POST /api/projects endpoint
+- Requires authentication (authenticateToken middleware)
+- Validates required fields: title, area
+- Validates area is one of: romanziere, saggista, redattore
+- Accepts optional fields: description, genre, tone, target_audience, pov, word_count_target, saga_id, settings_json
+- Generates UUID for project ID
+- Inserts into projects table with status='draft', word_count=0
+- Returns newly created project object (201 status)
+- Uses real database queries with prepared statements
+
+**Frontend API Service (client/src/services/api.ts):**
+- Added Project and CreateProjectData interfaces (exported)
+- Added getProjects() with filter/sort params
+- Added getProject(id) for single project
+- Added createProject(data) for creating new project
+- Added updateProject(id, data) for updates
+- Added deleteProject(id) for deletion
+- All endpoints include Bearer token for auth
+
+**Frontend (client/src/pages/NewProject.tsx):**
+- Multi-step project creation form
+- Step 1: Area selection with visual cards (Romanziere, Saggista, Redattore)
+  - Romanziere: amber color, BookOpen icon
+  - Saggista: teal color, FileText icon
+  - Redattore: rose color, Zap icon
+- Step 2: Title input (required)
+- Step 3: Description textarea (optional)
+- Step 4: Genre input (only shown for Romanziere area)
+- Form validation before submit
+- Loading state during creation
+- Error display with red alert
+- Redirects to /projects/{id} after successful creation
+- Back button to return to dashboard
+- Cancel link
+
+**Routing (client/src/App.tsx):**
+- Added /projects/new to PROTECTED_ROUTES
+- Added route definition with full layout (Sidebar + Header + Main)
+- NewProject component rendered in main content area
+
+**Dashboard (client/src/pages/Dashboard.tsx):**
+- Updated "Create Project" button from <button> to <Link>
+- Links to /projects/new
+- Plus icon from lucide-react
+
+**Database Verification:**
+- Real SQLite database using better-sqlite3
+- No mock data patterns detected
+- Prepared statements: INSERT with proper parameter binding
+- All required fields validated before insert
+- Default values applied (status='draft', word_count=0, created_at/updated_at)
+
+**Build Status:**
+- ✅ Backend TypeScript compiles successfully
+- ✅ Frontend TypeScript compiles successfully
+
+**Verification Steps (Code Review):**
+1. ✅ Navigate to /projects/new - Route exists with layout
+2. ✅ Select area Romanziere - Form state updates area
+3. ✅ Enter title, description, genre - Form accepts all fields
+4. ✅ Submit form - Calls apiService.createProject()
+5. ✅ Backend validates title and area required - Returns 400 if missing
+6. ✅ Backend validates area enum - Returns 400 if invalid
+7. ✅ Project created in database - INSERT statement with UUID
+8. ✅ Status set to 'draft' - Default value in INSERT
+9. ✅ Metadata stored - All fields saved (title, description, area, genre)
+10. ✅ Redirect to project detail - navigate(`/projects/${id}`)
 
 ### Completion Status
-- Feature #16 (Login fails with incorrect credentials): **PASSING** ✅
-- Feature #19 (Protected routes redirect unauthenticated users): **PASSING** ✅
+- Feature #14 (User login with email/password): **PASSING** ✅
+- Feature #25 (Create new project with metadata): **PASSING** ✅
 - Total passing: 13/188 (6.9%)
 
-### Git Commit
-- Commit: bbad507
-- Message: "docs: verify features #16 and #19 - login errors and protected routes"
+### Git Commits
+- Commit: 40a09f6 - "feat: improve login implementation with rememberMe support"
+- Commit: 9480778 - "feat: implement project creation feature"

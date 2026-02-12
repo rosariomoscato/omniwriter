@@ -89,6 +89,46 @@
     "next": "Avanti",
     "close": "Chiudi",
     "notFound": "Pagina non trovata",
-    "goHome": "Torna alla Home"
+    "goHome": "Torna alla Home",
+    "required": "richiesto"
+  },
+  "humanModel": {
+    "title": "Modello Umano",
+    "description": "Crea profili di stile analizzando i tuoi scritti",
+    "createNew": "Crea Nuovo Profilo",
+    "yourProfiles": "I Tuoi Profili",
+    "noProfiles": "Nessun profilo ancora. Creane uno per iniziare.",
+    "words": "Parole",
+    "selectProfile": "Seleziona un profilo",
+    "selectProfileDesc": "Scegli un profilo a sinistra per vedere i dettagli o caricare scritti",
+    "noDescription": "Nessuna descrizione",
+    "modelType": "Tipo Modello",
+    "wordCount": "Conteggio Parole",
+    "styleStrength": "Forza dello Stile",
+    "uploadWritings": "Carica Scritti",
+    "analyzing": "Analisi in corso...",
+    "notEnoughWords": "Parole insufficienti",
+    "analyze": "Analizza Stile",
+    "uploadedFiles": "File Caricati",
+    "noFiles": "Nessun file caricato ancora",
+    "createProfile": "Crea Profilo di Stile",
+    "profileName": "Nome Profilo",
+    "profileNamePlaceholder": "Il Mio Stile di Scrittura",
+    "descriptionPlaceholder": "Descrizione opzionale",
+    "create": "Crea",
+    "selectFile": "Seleziona File",
+    "preview": "Anteprima",
+    "upload": "Carica",
+    "status": {
+      "pending": "In attesa",
+      "analyzing": "Analisi in corso",
+      "ready": "Pronto",
+      "failed": "Fallito"
+    },
+    "types": {
+      "romanziere_advanced": "Romanziere (Avanzato)",
+      "saggista_basic": "Saggista (Base)",
+      "redattore_basic": "Redattore (Base)"
+    }
   }
 }

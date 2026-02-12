@@ -2,8 +2,10 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { GenerationProgressProvider } from './contexts/GenerationProgressContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import GenerationProgress from './components/GenerationProgress';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,6 +13,7 @@ import LandingPage from './pages/LandingPage';
 import ProjectDetail from './pages/ProjectDetail';
 import NotFoundPage from './pages/NotFoundPage';
 import NewProject from './pages/NewProject';
+import HumanModelPage from './pages/HumanModelPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -45,7 +48,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <GenerationProgressProvider>
+          <AppContent />
+        </GenerationProgressProvider>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -143,7 +148,7 @@ function AppContent() {
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <HumanModelPage />
                     </main>
                   </>
                 }
@@ -311,6 +316,7 @@ function AppContent() {
           )}
         </Routes>
       </ProtectedRouteGuard>
+      <GenerationProgress />
     </div>
   );
 }

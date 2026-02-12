@@ -89,6 +89,46 @@
     "next": "Next",
     "close": "Close",
     "notFound": "Page not found",
-    "goHome": "Go Home"
+    "goHome": "Go Home",
+    "required": "required"
+  },
+  "humanModel": {
+    "title": "Human Model",
+    "description": "Create style profiles by analyzing your writing",
+    "createNew": "Create New Profile",
+    "yourProfiles": "Your Profiles",
+    "noProfiles": "No profiles yet. Create one to get started.",
+    "words": "Words",
+    "selectProfile": "Select a profile",
+    "selectProfileDesc": "Choose a profile from the left to view details or upload writings",
+    "noDescription": "No description",
+    "modelType": "Model Type",
+    "wordCount": "Word Count",
+    "styleStrength": "Style Strength",
+    "uploadWritings": "Upload Writings",
+    "analyzing": "Analyzing...",
+    "notEnoughWords": "Not enough words",
+    "analyze": "Analyze Style",
+    "uploadedFiles": "Uploaded Files",
+    "noFiles": "No files uploaded yet",
+    "createProfile": "Create Style Profile",
+    "profileName": "Profile Name",
+    "profileNamePlaceholder": "My Writing Style",
+    "descriptionPlaceholder": "Optional description",
+    "create": "Create",
+    "selectFile": "Select File",
+    "preview": "Preview",
+    "upload": "Upload",
+    "status": {
+      "pending": "Pending",
+      "analyzing": "Analyzing",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "types": {
+      "romanziere_advanced": "Novelist (Advanced)",
+      "saggista_basic": "Essayist (Basic)",
+      "redattore_basic": "Editor (Basic)"
+    }
   }
 }
