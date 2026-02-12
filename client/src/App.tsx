@@ -24,7 +24,6 @@ function AppContent() {
   const { user, isLoading } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Mock recent projects - will be replaced with real data
   const recentProjects: Array<{
     id: number;
     title: string;

@@ -7,8 +7,8 @@ console.log('Cleaning database at:', dbPath);
 const db = new Database(dbPath);
 
 // Delete test users
-const deleteStmt = db.prepare('DELETE FROM users WHERE email LIKE ?%example.com'');
-const result = deleteStmt.run('test');
+const deleteStmt = db.prepare("DELETE FROM users WHERE email LIKE '%example.com'");
+const result = deleteStmt.run();
 console.log('Deleted', result.changes, 'test users');
 
 db.close();
