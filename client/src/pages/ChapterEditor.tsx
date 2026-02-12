@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -24,11 +24,19 @@ export default function ChapterEditor() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [comparisonVersions, setComparisonVersions] = useState<{ v1: ChapterVersion | null; v2: ChapterVersion | null }>({ v1: null, v2: null });
   const [nextAutoSaveIn, setNextAutoSaveIn] = useState(30); // Countdown to next auto-save
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const periodicSaveIntervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
+
+  // Undo/Redo history stacks
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const isUndoRedoActionRef = useRef(false);
+  const lastContentRef = useRef<string>('');
 
   useEffect(() => {
     if (chapterId) {
@@ -108,8 +116,16 @@ export default function ChapterEditor() {
       setLoading(true);
       const response = await apiService.getChapter(chapterId!);
       setChapter(response.chapter);
-      setContent(response.chapter.content || '');
+      const chapterContent = response.chapter.content || '';
+      setContent(chapterContent);
       setTitle(response.chapter.title);
+
+      // Initialize history with loaded content
+      historyRef.current = [chapterContent];
+      historyIndexRef.current = 0;
+      lastContentRef.current = chapterContent;
+      setCanUndo(false);
+      setCanRedo(false);
     } catch (err: any) {
       setError(err.message || 'Failed to load chapter');
     } finally {
@@ -160,6 +176,31 @@ export default function ChapterEditor() {
   const handleContentChange = (value: string) => {
     setContent(value);
 
+    // Add to history for undo/redo (if not an undo/redo action)
+    // Only add to history when content actually changes
+    if (!isUndoRedoActionRef.current && value !== lastContentRef.current) {
+      const currentHistory = historyRef.current;
+      const currentIndex = historyIndexRef.current;
+
+      // Remove any redo history when making new changes
+      const newHistory = currentHistory.slice(0, currentIndex + 1);
+
+      // Only add if this is a new state (not same as last state)
+      const lastState = newHistory[newHistory.length - 1];
+      if (lastState !== value) {
+        newHistory.push(value);
+        historyRef.current = newHistory;
+        historyIndexRef.current = newHistory.length - 1;
+        lastContentRef.current = value;
+
+        // Update undo/redo button states
+        setCanUndo(newHistory.length > 1);
+        setCanRedo(false);
+      }
+    } else {
+      isUndoRedoActionRef.current = false;
+    }
+
     // Auto-save after 2 seconds of inactivity
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
@@ -193,9 +234,86 @@ export default function ChapterEditor() {
   const handleItalic = () => insertFormatting('*', '*');
   const handleHeading = () => insertFormatting('# ', '');
 
+  // Handle undo
+  const handleUndo = useCallback(() => {
+    const history = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      const previousContent = history[newIndex];
+
+      isUndoRedoActionRef.current = true;
+      setContent(previousContent);
+      historyIndexRef.current = newIndex;
+
+      // Update button states
+      setCanUndo(newIndex > 0);
+      setCanRedo(true);
+    }
+  }, []);
+
+  // Handle redo
+  const handleRedo = useCallback(() => {
+    const history = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+
+    if (currentIndex < history.length - 1) {
+      const newIndex = currentIndex + 1;
+      const nextContent = history[newIndex];
+
+      isUndoRedoActionRef.current = true;
+      setContent(nextContent);
+      historyIndexRef.current = newIndex;
+
+      // Update button states
+      setCanUndo(true);
+      setCanRedo(newIndex < history.length - 1);
+    }
+  }, []);
+
+  // Handle keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Detect Ctrl+Z (undo) and Ctrl+Shift+Z or Ctrl+Y (redo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          // Redo
+          e.preventDefault();
+          handleRedo();
+        } else {
+          // Undo
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        // Redo
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    textarea.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      textarea.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo, handleRedo]);
+
   const handleRestore = (restoredContent: string) => {
+    isUndoRedoActionRef.current = true; // Don't add to history on restore
     setContent(restoredContent);
     setShowVersionHistory(false);
+
+    // Update history
+    const newHistory = [...historyRef.current.slice(0, historyIndexRef.current + 1), restoredContent];
+    historyRef.current = newHistory;
+    historyIndexRef.current = newHistory.length - 1;
+
     // Auto-save the restored content
     setTimeout(() => handleSave(), 100);
   };
@@ -270,6 +388,22 @@ export default function ChapterEditor() {
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {wordCount} words
               </span>
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Redo (Ctrl+Shift+Z)"
+              >
+                <Redo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              </button>
               <button
                 onClick={() => setShowVersionHistory(true)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
