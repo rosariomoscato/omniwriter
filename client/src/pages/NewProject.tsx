@@ -187,6 +187,9 @@ function NewProject() {
         structure: 'popular',
       });
 
+      // Set flag to reset dashboard pagination to page 1
+      sessionStorage.setItem('justCreatedProject', 'true');
+
       // Redirect to newly created project (replace history to prevent back navigation to form)
       toast.success('Progetto creato con successo!');
       navigate(`/projects/${response.project.id}`, { replace: true });

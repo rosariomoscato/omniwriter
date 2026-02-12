@@ -276,7 +276,8 @@ class ApiService {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    retryCount = 0
+    retryCount = 0,
+    signal?: AbortSignal
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const token = localStorage.getItem('token');
@@ -296,13 +297,19 @@ class ApiService {
       response = await fetch(url, {
         ...options,
         headers,
+        signal, // Pass abort signal to fetch
       });
     } catch (error) {
+      // Check if request was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw error; // Re-throw abort error directly
+      }
+
       // Network error (TypeError indicates connection failure)
       if (error instanceof TypeError && retryCount < this.maxRetries) {
         console.warn(`[API] Network error, retrying... (${retryCount + 1}/${this.maxRetries})`);
         await this.delay(this.retryDelay * (retryCount + 1));
-        return this.request<T>(endpoint, options, retryCount + 1);
+        return this.request<T>(endpoint, options, retryCount + 1, signal);
       }
 
       // Final retry failed or non-network error
@@ -340,7 +347,7 @@ class ApiService {
       if (retryCount < this.maxRetries && (response.status >= 500 || response.status === 408)) {
         console.warn(`[API] Server error ${response.status}, retrying... (${retryCount + 1}/${this.maxRetries})`);
         await this.delay(this.retryDelay * (retryCount + 1));
-        return this.request<T>(endpoint, options, retryCount + 1);
+        return this.request<T>(endpoint, options, retryCount + 1, signal);
       }
 
       throw new Error(error.message || `HTTP ${response.status}`);
@@ -403,7 +410,7 @@ class ApiService {
     tag?: string;
     page?: number;
     limit?: number;
-  }): Promise<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }> {
+  }, signal?: AbortSignal): Promise<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }> {
     const queryParams = new URLSearchParams();
     if (params?.area) queryParams.append('area', params.area);
     if (params?.status) queryParams.append('status', params.status);
@@ -414,7 +421,7 @@ class ApiService {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const queryString = queryParams.toString();
-    return this.request<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }>(`/projects${queryString ? `?${queryString}` : ''}`);
+    return this.request<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }>(`/projects${queryString ? `?${queryString}` : ''}`, {}, 0, signal);
   }
 
   async getProject(id: string): Promise<{ project: Project }> {

@@ -30,8 +30,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Abort controller ref for cancelling in-flight requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    // Reset to page 1 if just created a project
+    const justCreated = sessionStorage.getItem('justCreatedProject');
+    if (justCreated === 'true') {
+      sessionStorage.removeItem('justCreatedProject');
+      return 1;
+    }
+    return 1;
+  });
   const [pagination, setPagination] = useState<{
     page: number;
     limit: number;
@@ -158,8 +169,26 @@ export default function Dashboard() {
     loadProjects();
   }, [currentPage]);
 
+  // Cleanup on unmount - abort any pending requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   // Load projects function
   const loadProjects = async () => {
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create a new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       setLoading(true);
       setError(null);
@@ -193,14 +222,27 @@ export default function Dashboard() {
         params.tag = filters.tag;
       }
 
-      const response = await apiService.getProjects(params);
-      setProjects(response.projects);
-      setPagination(response.pagination);
+      const response = await apiService.getProjects(params, abortController.signal);
+      // Only update state if request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setProjects(response.projects);
+        setPagination(response.pagination);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to load projects');
-      console.error('Dashboard error:', err);
+      // Don't update state if request was aborted due to navigation
+      if (err.name === 'AbortError' || abortController.signal.aborted) {
+        return;
+      }
+      // Only update error state if component is still mounted
+      if (!abortController.signal.aborted) {
+        setError(err.message || 'Failed to load projects');
+        console.error('Dashboard error:', err);
+      }
     } finally {
-      setLoading(false);
+      // Only clear loading if request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -295,6 +337,8 @@ export default function Dashboard() {
       setImportGenre('');
       setImportDescription('');
 
+      // Reset pagination to page 1 to show the newly imported project
+      setCurrentPage(1);
       // Reload projects to show the imported one
       await loadProjects();
 
