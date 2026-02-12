@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, FileText, Zap, AlertCircle } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
@@ -79,6 +79,7 @@ function NewProject() {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const isSubmittingRef = useRef(false);
 
   // Basic validation for title (always required)
   const validateField = (name: string, value: string) => {
@@ -121,6 +122,11 @@ function NewProject() {
     e.preventDefault();
     setServerError('');
 
+    // Prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     // Validate title (always required)
     if (!formData.title.trim()) {
       setFieldErrors(prev => ({ ...prev, title: 'Il titolo è obbligatorio' }));
@@ -134,6 +140,8 @@ function NewProject() {
       return;
     }
 
+    // Mark as submitting immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -188,6 +196,7 @@ function NewProject() {
       toast.error(errorMsg);
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -707,7 +716,7 @@ function NewProject() {
         <div className="flex items-center gap-4 pt-4">
           <button
             type="submit"
-            disabled={loading || !formData.area || !formData.title}
+            disabled={loading || isSubmittingRef.current || !formData.area || !formData.title}
             className="px-8 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-md transition-colors disabled:cursor-not-allowed text-lg"
           >
             {loading ? 'Creazione in corso...' : 'Crea Progetto'}

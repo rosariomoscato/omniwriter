@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, Mail } from 'lucide-react';
@@ -10,10 +10,19 @@ function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    // Mark as submitting immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -23,6 +32,7 @@ function ForgotPasswordPage() {
       setError(err instanceof Error ? err.message : 'Errore durante la richiesta di reset password');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -99,7 +109,7 @@ function ForgotPasswordPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isSubmittingRef.current}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Invio in corso...' : 'Invia email di reset'}

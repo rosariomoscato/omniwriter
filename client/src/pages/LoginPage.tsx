@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle } from 'lucide-react';
@@ -20,6 +20,7 @@ function LoginPage() {
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const validationRules: ValidationRules = {
     email: { required: true, email: true },
@@ -64,11 +65,18 @@ function LoginPage() {
     e.preventDefault();
     setServerError('');
 
+    // Prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     // Validate all fields
     if (!validateAll({ email: formData.email, password: formData.password })) {
       return;
     }
 
+    // Mark as submitting immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -98,6 +106,7 @@ function LoginPage() {
       setServerError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -201,7 +210,7 @@ function LoginPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isSubmittingRef.current}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading

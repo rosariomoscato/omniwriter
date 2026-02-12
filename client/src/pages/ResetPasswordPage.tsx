@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -19,6 +19,7 @@ function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [tokenValid, setTokenValid] = useState(!!token);
+  const isSubmittingRef = useRef(false);
 
   const passwordStrength = {
     hasMinLength: formData.password.length >= 8,
@@ -32,6 +33,11 @@ function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
 
     if (!token) {
       setError('Token di reset mancante. Richiedi un nuovo link di reset.');
@@ -48,6 +54,8 @@ function ResetPasswordPage() {
       return;
     }
 
+    // Mark as submitting immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -63,6 +71,7 @@ function ResetPasswordPage() {
       setError(err instanceof Error ? err.message : 'Errore durante il reset della password');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -204,7 +213,7 @@ function ResetPasswordPage() {
           <div>
             <button
               type="submit"
-              disabled={loading || !isPasswordValid || formData.password !== formData.confirmPassword}
+              disabled={loading || isSubmittingRef.current || !isPasswordValid || formData.password !== formData.confirmPassword}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Aggiornamento...' : 'Resetta Password'}

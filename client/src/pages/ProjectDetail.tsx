@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
@@ -14,6 +14,13 @@ export default function ProjectDetail() {
   const toast = useToastNotification();
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Refs to track ongoing delete operations
+  const deletingChapterIdRef = useRef<string | null>(null);
+  const deletingSourceIdRef = useRef<string | null>(null);
+  const deletingCharacterIdRef = useRef<string | null>(null);
+  const deletingLocationIdRef = useRef<string | null>(null);
+  const deletingPlotEventIdRef = useRef<string | null>(null);
 
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -268,9 +275,17 @@ export default function ProjectDetail() {
   };
 
   const handleDeleteLocation = async (locationId: string) => {
+    // Prevent rapid double-clicks
+    if (deletingLocationIdRef.current === locationId) {
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this location?')) {
       return;
     }
+
+    // Mark as deleting immediately
+    deletingLocationIdRef.current = locationId;
 
     try {
       await apiService.deleteLocation(locationId);
@@ -279,6 +294,8 @@ export default function ProjectDetail() {
     } catch (err: any) {
       setError(err.message || 'Failed to delete location');
       toast.error(err.message || 'Failed to delete location');
+    } finally {
+      deletingLocationIdRef.current = null;
     }
   };
 
@@ -334,15 +351,25 @@ export default function ProjectDetail() {
   };
 
   const handleDeletePlotEvent = async (plotEventId: string) => {
+    // Prevent rapid double-clicks
+    if (deletingPlotEventIdRef.current === plotEventId) {
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this plot event?')) {
       return;
     }
+
+    // Mark as deleting immediately
+    deletingPlotEventIdRef.current = plotEventId;
 
     try {
       await apiService.deletePlotEvent(plotEventId);
       setPlotEvents(plotEvents.filter(pe => pe.id !== plotEventId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete plot event');
+    } finally {
+      deletingPlotEventIdRef.current = null;
     }
   };
 
@@ -380,15 +407,25 @@ export default function ProjectDetail() {
   };
 
   const handleDeleteChapter = async (chapterId: string) => {
+    // Prevent rapid double-clicks
+    if (deletingChapterIdRef.current === chapterId) {
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this chapter?')) {
       return;
     }
+
+    // Mark as deleting immediately
+    deletingChapterIdRef.current = chapterId;
 
     try {
       await apiService.deleteChapter(chapterId);
       setChapters(chapters.filter(ch => ch.id !== chapterId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete chapter');
+    } finally {
+      deletingChapterIdRef.current = null;
     }
   };
 
@@ -423,15 +460,25 @@ export default function ProjectDetail() {
   };
 
   const handleDeleteSource = async (sourceId: string) => {
+    // Prevent rapid double-clicks
+    if (deletingSourceIdRef.current === sourceId) {
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this source?')) {
       return;
     }
+
+    // Mark as deleting immediately
+    deletingSourceIdRef.current = sourceId;
 
     try {
       await apiService.deleteSource(sourceId);
       setSources(sources.filter(s => s.id !== sourceId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete source');
+    } finally {
+      deletingSourceIdRef.current = null;
     }
   };
 
@@ -543,15 +590,25 @@ export default function ProjectDetail() {
   };
 
   const handleDeleteCharacter = async (characterId: string) => {
+    // Prevent rapid double-clicks
+    if (deletingCharacterIdRef.current === characterId) {
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this character?')) {
       return;
     }
+
+    // Mark as deleting immediately
+    deletingCharacterIdRef.current = characterId;
 
     try {
       await apiService.deleteCharacter(characterId);
       setCharacters(characters.filter(ch => ch.id !== characterId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete character');
+    } finally {
+      deletingCharacterIdRef.current = null;
     }
   };
 
@@ -699,6 +756,11 @@ export default function ProjectDetail() {
   };
 
   const handleDeleteProject = async () => {
+    // Prevent double-click - check both state and ref
+    if (deleting) {
+      return;
+    }
+
     try {
       setDeleting(true);
       setError('');
@@ -1269,7 +1331,7 @@ export default function ProjectDetail() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Title <span className="text-red-500">*</span>
+                      Title <span className="text-red-700 dark:text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -1282,7 +1344,7 @@ export default function ProjectDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Area <span className="text-red-500">*</span>
+                      Area <span className="text-red-700 dark:text-red-400">*</span>
                     </label>
                     <select
                       value={editForm.area}

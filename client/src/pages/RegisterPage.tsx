@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { apiService, ApiService } from '../services/api';
@@ -16,6 +16,7 @@ function RegisterPage() {
   });
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const validationRules: ValidationRules = {
     name: { required: true, minLength: 2 },
@@ -72,11 +73,18 @@ function RegisterPage() {
     e.preventDefault();
     setServerError('');
 
+    // Prevent double-click submission
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     // Validate all fields
     if (!validateAll(formData)) {
       return;
     }
 
+    // Mark as submitting immediately to prevent double-clicks
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -113,6 +121,7 @@ function RegisterPage() {
       setServerError(err instanceof Error ? err.message : t('auth.registerError') || 'Errore durante la registrazione');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -194,7 +203,7 @@ function RegisterPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isSubmittingRef.current}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
