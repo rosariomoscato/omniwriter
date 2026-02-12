@@ -298,6 +298,13 @@ class ApiService {
     });
   }
 
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+    await this.request<void>('/users/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Project endpoints
   async getProjects(params?: { area?: string; status?: string; search?: string; sort?: string }): Promise<{ projects: Project[]; count: number }> {
     const queryParams = new URLSearchParams();

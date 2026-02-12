@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Quote, Plus, Trash2, Edit2, FileText, BookOpen } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useToastNotification } from './Toast';
 
 interface Citation {
   id: string;
@@ -28,6 +29,7 @@ const CITATION_TYPES = [
 ];
 
 export default function Citations({ projectId }: CitationsProps) {
+  const toast = useToastNotification();
   const [citations, setCitations] = useState<Citation[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCitation, setEditingCitation] = useState<Citation | null>(null);
@@ -228,7 +230,7 @@ export default function Citations({ projectId }: CitationsProps) {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(bibliography.map((c, i) => `${i + 1}. ${c}`).join('\n'));
-                  alert('Bibliografia copiata negli appunti!');
+                  toast.success('Bibliografia copiata negli appunti!');
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >

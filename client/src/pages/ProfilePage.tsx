@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import { useToastNotification } from '../components/Toast';
 
 interface UserProfile {
   id: string | number;
@@ -22,6 +23,7 @@ interface UserProfile {
 export default function ProfilePage() {
   const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
+  const toast = useToastNotification();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   // Log auth user for debugging (helps with TypeScript check)
@@ -71,7 +73,7 @@ export default function ProfilePage() {
       });
 
       setProfile(response.user);
-      setSuccessMessage('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
       setIsEditing(false);
 
       // Update auth context user
@@ -84,6 +86,7 @@ export default function ProfilePage() {
     } catch (error: any) {
       console.error('Failed to update profile:', error);
       setErrorMessage(error.message || 'Failed to update profile. Please try again.');
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }

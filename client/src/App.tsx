@@ -21,6 +21,7 @@ import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
 import AdminUsersPage from './pages/AdminUsersPage';
 import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -211,7 +212,7 @@ function AppContent() {
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <SettingsPage />
                     </main>
                   </>
                 }

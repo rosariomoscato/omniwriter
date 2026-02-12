@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import { useToastNotification } from '../components/Toast';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
+  const toast = useToastNotification();
   const [models, setModels] = useState<HumanModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<HumanModel | null>(null);
   const [sources, setSources] = useState<HumanModelSource[]>([]);
@@ -88,8 +90,10 @@ export default function HumanModelPage() {
         setSelectedModel(null);
         setSources([]);
       }
+      toast.success('Style profile deleted successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete model');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete model');
     }
   };
 

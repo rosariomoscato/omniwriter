@@ -155,8 +155,10 @@ export default function ProjectDetail() {
       setLocations([...locations, response.location]);
       setLocationForm({ name: '', description: '', significance: '' });
       setShowAddLocation(false);
+      toast.success('Location created successfully');
     } catch (err: any) {
       setError(err.message || 'Failed to create location');
+      toast.error(err.message || 'Failed to create location');
     } finally {
       setCreating(false);
     }
@@ -174,8 +176,10 @@ export default function ProjectDetail() {
       setLocations(locations.map(l => l.id === editingLocation.id ? response.location : l));
       setEditingLocation(null);
       setLocationForm({ name: '', description: '', significance: '' });
+      toast.success('Location updated successfully');
     } catch (err: any) {
       setError(err.message || 'Failed to update location');
+      toast.error(err.message || 'Failed to update location');
     } finally {
       setCreating(false);
     }
