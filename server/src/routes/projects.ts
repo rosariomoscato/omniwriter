@@ -1046,4 +1046,238 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
   }
 });
 
+// POST /api/projects/:id/generate/outline - Generate full novel outline (Feature #179)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    console.log('[Projects] Generating outline for project:', projectId);
+
+    // Verify project belongs to user and is a Romanziere project
+    const project = db.prepare(`
+      SELECT id, title, area, settings_json, genre, tone, target_audience, pov, word_count_target
+      FROM projects WHERE id = ? AND user_id = ?
+    `).get(projectId, userId) as {
+      id: string;
+      title: string;
+      area: string;
+      settings_json: string;
+      genre: string;
+      tone: string;
+      target_audience: string;
+      pov: string;
+      word_count_target: number;
+    } | undefined;
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'romanziere') {
+      res.status(400).json({ message: 'Outline generation is only available for Romanziere projects' });
+      return;
+    }
+
+    // Parse project settings
+    let settings = {};
+    try {
+      settings = project.settings_json ? JSON.parse(project.settings_json) : {};
+    } catch (e) {
+      console.warn('[Projects] Failed to parse settings_json:', e);
+    }
+
+    // Determine number of chapters based on word count target
+    const wordCountTarget = project.word_count_target || 50000;
+    const avgChapterWords = 3000; // Average 3000 words per chapter
+    const numChapters = Math.max(10, Math.min(30, Math.ceil(wordCountTarget / avgChapterWords)));
+
+    // Generate chapter outline with summaries
+    const chapters: Array<{ title: string; summary: string }> = [];
+
+    // Story structure templates based on genre
+    const genreStructures: Record<string, string[]> = {
+      fantasy: [
+        'The Awakening',
+        'The Call to Adventure',
+        'Crossing the Threshold',
+        'The First Trial',
+        'Allies and Enemies',
+        'The Dark Forest',
+        'The Revelation',
+        'The Loss',
+        'The Final Stand',
+        'Resolution'
+      ],
+      romance: [
+        'The Encounter',
+        'First Impressions',
+        'Growing Closer',
+        'The Obstacle',
+        'Misunderstandings',
+        'The Rival',
+        'The Heartbreak',
+        'Realization',
+        'The Grand Gesture',
+        'Happily Ever After'
+      ],
+      thriller: [
+        'The Crime',
+        'The Investigation Begins',
+        'First Clues',
+        'The Red Herring',
+        'The Stakes Rise',
+        'A Close Call',
+        'The Twist',
+        'The Trap',
+        'Confrontation',
+        'Justice'
+      ],
+      mystery: [
+        'The Discovery',
+        'Gathering Evidence',
+        'Interviewing Witnesses',
+        'Secrets Revealed',
+        'The Second Body',
+        'Connecting the Dots',
+        'The Accusation',
+        'The Alibi',
+        'The Truth',
+        'Case Closed'
+      ],
+      scifi: [
+        'The Discovery',
+        'The Experiment',
+        'Something Goes Wrong',
+        'The New World',
+        'First Contact',
+        'The Conflict',
+        'The Journey',
+        'The Sacrifice',
+        'The Return',
+        'A New Beginning'
+      ],
+      historical: [
+        'Setting the Scene',
+        'The Catalyst',
+        'War Declared',
+        'The Home Front',
+        'The Battle',
+        'Aftermath',
+        'Personal Loss',
+        'The Turning Tide',
+        'Victory',
+        'Reconstruction'
+      ],
+      default: [
+        'Introduction',
+        'Inciting Incident',
+        'Rising Action',
+        'First Plot Point',
+        'The Journey',
+        'The Midpoint',
+        'Complications',
+        'The Climax',
+        'Falling Action',
+        'Resolution'
+      ]
+    };
+
+    // Get chapter titles based on genre
+    const genre = (project.genre || 'default').toLowerCase();
+    const chapterTitles = genreStructures[genre as keyof typeof genreStructures] || genreStructures.default;
+
+    // Generate chapter summaries based on tone
+    const toneAdjectives: Record<string, string> = {
+      dark: 'ominous',
+      light: 'hopeful',
+      serious: 'grave',
+      humorous: 'witty',
+      dramatic: 'intense',
+      romantic: 'passionate'
+    };
+
+    const tone = toneAdjectives[project.tone as keyof typeof toneAdjectives] || 'engaging';
+
+    // Generate outline chapters
+    for (let i = 0; i < numChapters; i++) {
+      const titleIndex = i % chapterTitles.length;
+      const title = chapterTitles[titleIndex];
+      const chapterNum = i + 1;
+
+      // Generate contextual summary
+      let summary = '';
+      if (i === 0) {
+        summary = `Introduce the main character and their world. Establish the ${tone} tone and the central conflict that will drive the narrative forward.`;
+      } else if (i === Math.floor(numChapters / 2)) {
+        summary = `The midpoint of the story. A major revelation or plot twist shifts the direction of the narrative. The stakes are raised significantly.`;
+      } else if (i === numChapters - 1) {
+        summary = `The conclusion. All plot threads are resolved. The character arc completes, and the thematic elements of the ${project.genre || 'story'} find fulfillment.`;
+      } else {
+        summary = `Develop the narrative with ${tone} pacing. Advance both plot and character development while building tension toward the story's climax.`;
+      }
+
+      chapters.push({ title, summary });
+    }
+
+    // Create chapters in database
+    const createdChapters: Array<{ id: string; title: string; summary: string }> = [];
+
+    for (let i = 0; i < chapters.length; i++) {
+      const { title, summary } = chapters[i];
+      const chapterId = uuidv4();
+
+      try {
+        // Check if chapter with this title already exists
+        const existing = db.prepare(
+          'SELECT id FROM chapters WHERE project_id = ? AND title = ?'
+        ).get(projectId, title);
+
+        if (existing) {
+          console.log('[Projects] Chapter already exists, skipping:', title);
+          continue;
+        }
+
+        db.prepare(
+          `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+        ).run(
+          chapterId,
+          projectId,
+          title,
+          `# ${title}\n\n**Outline Summary:**\n${summary}\n\n**Notes:**\nWrite this chapter focusing on character development and advancing the main plot. Use the ${tone} tone established in the project settings.\n\nTarget word count: ${avgChapterWords} words`
+        );
+
+        createdChapters.push({ id: chapterId, title, summary });
+        console.log('[Projects] Created outline chapter:', title);
+      } catch (err) {
+        console.warn('[Projects] Failed to create chapter:', title, err);
+      }
+    }
+
+    console.log('[Projects] Outline generation completed:', {
+      projectId,
+      totalChapters: chapters.length,
+      createdChapters: createdChapters.length
+    });
+
+    res.json({
+      message: 'Outline generated successfully',
+      outline: {
+        genre: project.genre,
+        tone: project.tone,
+        total_chapters: chapters.length,
+        chapters: createdChapters
+      },
+      created: createdChapters.length
+    });
+  } catch (error) {
+    console.error('[Projects] Generate outline error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to generate outline' });
+  }
+});
+
 export default router;

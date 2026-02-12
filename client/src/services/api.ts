@@ -848,6 +848,30 @@ class ApiService {
     });
   }
 
+  async generateOutline(projectId: string): Promise<{
+    message: string;
+    outline: {
+      genre: string;
+      tone: string;
+      total_chapters: number;
+      chapters: Array<{ id: string; title: string; summary: string }>;
+    };
+    created: number;
+  }> {
+    return this.request<{
+      message: string;
+      outline: {
+        genre: string;
+        tone: string;
+        total_chapters: number;
+        chapters: Array<{ id: string; title: string; summary: string }>;
+      };
+      created: number;
+    }>(`/projects/${projectId}/generate/outline`, {
+      method: 'POST',
+    });
+  }
+
   // Character endpoints
   async getProjectCharacters(projectId: string): Promise<{ characters: Character[]; count: number }> {
     return this.request<{ characters: Character[]; count: number }>(`/projects/${projectId}/characters`);

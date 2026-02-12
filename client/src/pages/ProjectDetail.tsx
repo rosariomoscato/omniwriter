@@ -1,12 +1,13 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw, Network } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
 import { ChapterListSkeleton } from '../components/Skeleton';
 import BulkSourceUpload from '../components/BulkSourceUpload';
+import RelationshipMap from '../components/RelationshipMap';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -37,6 +38,7 @@ export default function ProjectDetail() {
   const [showSourcePreview, setShowSourcePreview] = useState(false);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [showAddCharacter, setShowAddCharacter] = useState(false);
+  const [showRelationshipMap, setShowRelationshipMap] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAddPlotEvent, setShowAddPlotEvent] = useState(false);
   const [editingPlotEvent, setEditingPlotEvent] = useState<PlotEvent | null>(null);
@@ -115,6 +117,8 @@ export default function ProjectDetail() {
   const [showAnalyzeNovel, setShowAnalyzeNovel] = useState(false);
   const [analyzingNovel, setAnalyzingNovel] = useState(false);
   const [novelFile, setNovelFile] = useState<File | null>(null);
+  const [generatingOutline, setGeneratingOutline] = useState(false);
+  const [outlineGenerated, setOutlineGenerated] = useState(false);
   const [humanModels, setHumanModels] = useState<any[]>([]);
   const [loadingHumanModels, setLoadingHumanModels] = useState(false);
 
@@ -731,6 +735,37 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleGenerateOutline = async () => {
+    if (!project) return;
+
+    // Check if any chapters already exist
+    if (chapters.length > 0) {
+      if (!confirm('This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?')) {
+        return;
+      }
+    }
+
+    try {
+      setGeneratingOutline(true);
+      setError('');
+      toast.showInfo(`Generating outline for ${project.title}...`);
+
+      const response = await apiService.generateOutline(id!);
+
+      toast.success(`Outline generated: ${response.created} chapters created`);
+
+      // Reload chapters to show the newly created outline chapters
+      await loadChapters();
+
+      setOutlineGenerated(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate outline');
+      toast.showError(err.message || 'Failed to generate outline');
+    } finally {
+      setGeneratingOutline(false);
+    }
+  };
+
   const handleCreateCharacter = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -807,6 +842,49 @@ export default function ProjectDetail() {
       setError(err.message || 'Failed to delete character');
     } finally {
       deletingCharacterIdRef.current = null;
+    }
+  };
+
+  // Feature #181: Add relationship between characters
+  const handleAddRelationship = async (fromCharacterId: string, toCharacterId: string, relationshipType: string) => {
+    try {
+      // Get the from character and their current relationships
+      const fromCharacter = characters.find(ch => ch.id === fromCharacterId);
+      if (!fromCharacter) return;
+
+      // Parse existing relationships
+      let relationships = [];
+      if (fromCharacter.relationships_json) {
+        try {
+          relationships = JSON.parse(fromCharacter.relationships_json);
+        } catch {
+          relationships = [];
+        }
+      }
+
+      // Add new relationship
+      const newRelationship = {
+        characterId: fromCharacterId,
+        relatedCharacterId: toCharacterId,
+        relationshipType
+      };
+      relationships.push(newRelationship);
+
+      // Update character with new relationships
+      const response = await apiService.updateCharacter(fromCharacterId, {
+        name: fromCharacter.name,
+        description: fromCharacter.description,
+        traits: fromCharacter.traits,
+        backstory: fromCharacter.backstory,
+        role_in_story: fromCharacter.role_in_story,
+        relationships_json: JSON.stringify(relationships)
+      });
+
+      // Update local state
+      setCharacters(characters.map(ch => ch.id === fromCharacterId ? response.character : ch));
+      toast.success(`Relationship added: "${relationshipType}"`);
+    } catch (err: any) {
+      toast.showError(err.message || 'Failed to add relationship');
     }
   };
 
@@ -1824,6 +1902,18 @@ export default function ProjectDetail() {
                 Batch Export
               </button>
             )}
+            {/* Generate Outline button - Only for Romanziere projects (Feature #179) */}
+            {project?.area === 'romanziere' && (
+              <button
+                onClick={handleGenerateOutline}
+                disabled={generatingOutline}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Generate a full novel outline with chapter summaries"
+              >
+                <FileText className="w-4 h-4" />
+                {generatingOutline ? 'Generating...' : 'Generate Outline'}
+              </button>
+            )}
             <button
               onClick={() => setShowAddChapter(!showAddChapter)}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -2277,6 +2367,16 @@ export default function ProjectDetail() {
               </span>
             </div>
             <div className="flex gap-2">
+              {characters.length >= 2 && (
+                <button
+                  onClick={() => setShowRelationshipMap(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  title="View character relationship map"
+                >
+                  <Network className="w-4 h-4" />
+                  Relationship Map
+                </button>
+              )}
               <button
                 onClick={() => setShowAnalyzeNovel(!showAnalyzeNovel)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -3036,6 +3136,15 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Feature #181: Relationship Map */}
+      {showRelationshipMap && (
+        <RelationshipMap
+          characters={characters}
+          onClose={() => setShowRelationshipMap(false)}
+          onAddRelationship={handleAddRelationship}
+        />
       )}
     </div>
   );
