@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Layers, Users, Save, X, Target } from 'lucide-react';
 import { apiService, Project } from '../services/api';
+import Citations from './Citations';
 
 interface SaggistaConfigProps {
   project: Project;
@@ -102,64 +103,71 @@ export default function SaggistaConfig({ project, onUpdate }: SaggistaConfigProp
 
   if (!isOpen) {
     return (
-      <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-gray-700">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Configurazione Saggista
-            </h2>
+      <>
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Configurazione Saggista
+              </h2>
+            </div>
+            <button
+              onClick={() => setIsOpen(true)}
+              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Modifica
+            </button>
           </div>
-          <button
-            onClick={() => setIsOpen(true)}
-            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            Modifica
-          </button>
+
+          <div className="p-4 space-y-3">
+            {/* Topic */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <BookOpen className="w-4 h-4" />
+                <span className="font-medium">Argomento:</span>
+              </div>
+              <p className="text-gray-900 dark:text-gray-100 ml-6">
+                {settings.topic || <span className="text-gray-500 italic">Non impostato</span>}
+              </p>
+            </div>
+
+            {/* Depth */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <Layers className="w-4 h-4" />
+                <span className="font-medium">Profondità:</span>
+              </div>
+              <p className="text-gray-900 dark:text-gray-100 ml-6">{getDepthLabel()}</p>
+            </div>
+
+            {/* Target Audience */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <Users className="w-4 h-4" />
+                <span className="font-medium">Pubblico target:</span>
+              </div>
+              <p className="text-gray-900 dark:text-gray-100 ml-6">
+                {settings.targetAudience || <span className="text-gray-500 italic">Non impostato</span>}
+              </p>
+            </div>
+
+            {/* Structure */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <Target className="w-4 h-4" />
+                <span className="font-medium">Struttura:</span>
+              </div>
+              <p className="text-gray-900 dark:text-gray-100 ml-6">{getStructureLabel()}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="p-4 space-y-3">
-          {/* Topic */}
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <BookOpen className="w-4 h-4" />
-              <span className="font-medium">Argomento:</span>
-            </div>
-            <p className="text-gray-900 dark:text-gray-100 ml-6">
-              {settings.topic || <span className="text-gray-500 italic">Non impostato</span>}
-            </p>
-          </div>
-
-          {/* Depth */}
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <Layers className="w-4 h-4" />
-              <span className="font-medium">Profondità:</span>
-            </div>
-            <p className="text-gray-900 dark:text-gray-100 ml-6">{getDepthLabel()}</p>
-          </div>
-
-          {/* Target Audience */}
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <Users className="w-4 h-4" />
-              <span className="font-medium">Pubblico target:</span>
-            </div>
-            <p className="text-gray-900 dark:text-gray-100 ml-6">
-              {settings.targetAudience || <span className="text-gray-500 italic">Non impostato</span>}
-            </p>
-          </div>
-
-          {/* Structure */}
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <Target className="w-4 h-4" />
-              <span className="font-medium">Struttura:</span>
-            </div>
-            <p className="text-gray-900 dark:text-gray-100 ml-6">{getStructureLabel()}</p>
-          </div>
+        {/* Citations Section */}
+        <div className="mt-6">
+          <Citations projectId={project.id} />
         </div>
-      </div>
+      </>
     );
   }
 

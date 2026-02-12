@@ -293,6 +293,49 @@ class ApiService {
     });
   }
 
+  // Citation methods
+  async getProjectCitations(projectId: string): Promise<{ citations: any[]; count: number }> {
+    return this.request<{ citations: any[]; count: number }>(`/projects/${projectId}/citations`);
+  }
+
+  async createCitation(projectId: string, data: {
+    title: string;
+    authors?: string;
+    publication_year?: string;
+    publisher?: string;
+    url?: string;
+    page_numbers?: string;
+    citation_type?: 'book' | 'journal' | 'website' | 'report' | 'other';
+    notes?: string;
+  }): Promise<{ citation: any }> {
+    return this.request<{ citation: any }>(`/projects/${projectId}/citations`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCitation(citationId: string, data: {
+    title?: string;
+    authors?: string;
+    publication_year?: string;
+    publisher?: string;
+    url?: string;
+    page_numbers?: string;
+    citation_type?: 'book' | 'journal' | 'website' | 'report' | 'other';
+    notes?: string;
+  }): Promise<{ citation: any }> {
+    return this.request<{ citation: any }>(`/citations/${citationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCitation(citationId: string): Promise<void> {
+    await this.request<void>(`/citations/${citationId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async importProject(file: File, options: {
     area: 'romanziere' | 'saggista' | 'redattore';
     genre?: string;
