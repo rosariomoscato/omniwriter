@@ -8,6 +8,61 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';
+import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+
+// Configure Google Drive OAuth2
+const OAuth2 = OAuth2Client;
+
+// Google Drive scopes needed
+const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+
+// Helper function to get Google Drive client for a user
+async function getDriveClient(user: any) {
+  if (!user.google_access_token || !user.google_refresh_token) {
+    throw new Error('Google account not connected. Please connect your Google account first.');
+  }
+
+  const oauth2Client = new OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || '/api/auth/google/callback'
+  );
+
+  oauth2Client.setCredentials({
+    access_token: user.google_access_token,
+    refresh_token: user.google_refresh_token
+  });
+
+  // Refresh token if needed
+  oauth2Client.on('tokens', (tokens: any) => {
+    // Update tokens in database
+    const db = getDatabase();
+    if (tokens.access_token) {
+      db.prepare('UPDATE users SET google_access_token = ? WHERE id = ?')
+        .run(tokens.access_token, user.id);
+    }
+  });
+
+  return google.drive({ version: 'v3', auth: oauth2Client });
+}
+
+// Helper function to export project as buffer
+async function exportProjectAsBuffer(projectId: string, format: string): Promise<Buffer> {
+  const db = getDatabase();
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any;
+  const chapters = db.prepare(
+    'SELECT id, title, content FROM chapters WHERE project_id = ? ORDER BY order_index ASC'
+  ).all(projectId);
+
+  if (format === 'docx') {
+    return await generateDocx(project.title, project.description || '', chapters);
+  } else if (format === 'epub') {
+    return generateEpub(project.title, project.description || '', chapters);
+  } else {
+    return generateTxt(project.title, project.description || '', chapters);
+  }
+}
 
 const router = express.Router();
 
@@ -739,6 +794,248 @@ router.post('/projects/:id/export/batch', authenticateToken, async (req: AuthReq
   } catch (error) {
     console.error('[Batch Export] Error:', error);
     res.status(500).json({ message: 'Failed to export chapters' });
+  }
+});
+
+// POST /api/projects/:id/google-drive/save - Save project to Google Drive
+router.post('/projects/:id/google-drive/save', authenticateToken, requirePremium, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: projectId } = req.params;
+    const { format = 'docx' } = req.body;
+    const userId = (req as any).user?.id;
+    const db = getDatabase();
+
+    console.log('[Google Drive] Saving project:', projectId, 'as format:', format);
+
+    // Get user with Google tokens
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+
+    if (!user.google_access_token && !user.google_refresh_token) {
+      return res.status(400).json({
+        message: 'Google account not connected. Please connect your Google account first.',
+        code: 'GOOGLE_NOT_CONNECTED'
+      });
+    }
+
+    // Get project details
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as any;
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Get Drive client
+    const drive = await getDriveClient(user);
+
+    // Export project as buffer
+    const content = await exportProjectAsBuffer(projectId, format);
+    const filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.${format}`;
+
+    // Create file metadata
+    const fileMetadata = {
+      name: filename,
+      mimeType: format === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : format === 'epub'
+        ? 'application/epub+zip'
+        : 'text/plain',
+      description: `OmniWriter project: ${project.title}\n${project.description || ''}`
+    };
+
+    // Create file media
+    const media = {
+      mimeType: fileMetadata.mimeType,
+      body: content
+    };
+
+    // Upload to Google Drive
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id, name, webViewLink, webContentLink'
+    });
+
+    const file = response.data;
+
+    console.log('[Google Drive] File saved:', file.id);
+
+    res.json({
+      message: 'Project saved to Google Drive successfully',
+      file: {
+        id: file.id,
+        name: file.name,
+        viewUrl: file.webViewLink,
+        downloadUrl: file.webContentLink
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[Google Drive] Save error:', error);
+    if (error.message?.includes('not connected')) {
+      return res.status(400).json({ message: error.message, code: 'GOOGLE_NOT_CONNECTED' });
+    }
+    res.status(500).json({ message: 'Failed to save project to Google Drive' });
+  }
+});
+
+// POST /api/projects/:id/google-drive/load - Load project from Google Drive
+router.post('/projects/:id/google-drive/load', authenticateToken, requirePremium, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: projectId } = req.params;
+    const { fileId } = req.body;
+    const userId = (req as any).user?.id;
+    const db = getDatabase();
+
+    console.log('[Google Drive] Loading file:', fileId, 'for project:', projectId);
+
+    if (!fileId) {
+      return res.status(400).json({ message: 'Google Drive file ID is required' });
+    }
+
+    // Get user with Google tokens
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+
+    if (!user.google_access_token && !user.google_refresh_token) {
+      return res.status(400).json({
+        message: 'Google account not connected. Please connect your Google account first.',
+        code: 'GOOGLE_NOT_CONNECTED'
+      });
+    }
+
+    // Get Drive client
+    const drive = await getDriveClient(user);
+
+    // Download file from Google Drive
+    const response = await drive.files.get({
+      fileId: fileId,
+      alt: 'media'
+    }, { responseType: 'arraybuffer' });
+
+    const buffer = Buffer.from(response.data as any);
+    const file = response.data as any;
+
+    // Get file metadata to determine type
+    const metadata = await drive.files.get({
+      fileId: fileId,
+      fields: 'name, mimeType'
+    });
+
+    const fileName = (metadata.data as any).name;
+    const fileExt = fileName.split('.').pop()?.toLowerCase() || 'txt';
+
+    console.log('[Google Drive] Downloaded file:', fileName, 'size:', buffer.length);
+
+    // Parse the imported file based on type
+    let parsed: { title: string; chapters: Array<{ title: string; content: string }> };
+
+    if (fileExt === 'docx' || (metadata.data as any).mimeType.includes('wordprocessingml')) {
+      // Use mammoth to parse DOCX
+      const mammoth = await import('mammoth');
+      const result = await mammoth.extractRawText({ buffer: buffer });
+      parsed = parseTxtContent(result.value, fileName);
+    } else {
+      // Treat as plain text
+      const content = buffer.toString('utf-8');
+      parsed = parseTxtContent(content, fileName);
+    }
+
+    if (parsed.chapters.length === 0) {
+      return res.status(400).json({ message: 'Could not extract any content from the file' });
+    }
+
+    // Get existing project to update
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as any;
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Delete existing chapters
+    db.prepare('DELETE FROM chapters WHERE project_id = ?').run(projectId);
+
+    // Create new chapters from imported content
+    let totalWordCount = 0;
+    for (let i = 0; i < parsed.chapters.length; i++) {
+      const chapter = parsed.chapters[i];
+      const chapterId = uuidv4();
+      const wordCount = chapter.content.split(/\s+/).filter(w => w.length > 0).length;
+      totalWordCount += wordCount;
+
+      db.prepare(
+        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'imported', ?, datetime('now'), datetime('now'))`
+      ).run(chapterId, projectId, chapter.title, chapter.content, i);
+    }
+
+    // Update project word count
+    db.prepare('UPDATE projects SET word_count = ?, updated_at = datetime("now") WHERE id = ?')
+      .run(totalWordCount, projectId);
+
+    console.log('[Google Drive] Imported', parsed.chapters.length, 'chapters to project:', projectId);
+
+    res.json({
+      message: 'Project loaded from Google Drive successfully',
+      chaptersImported: parsed.chapters.length,
+      totalWordCount
+    });
+
+  } catch (error: any) {
+    console.error('[Google Drive] Load error:', error);
+    if (error.message?.includes('not connected')) {
+      return res.status(400).json({ message: error.message, code: 'GOOGLE_NOT_CONNECTED' });
+    }
+    res.status(500).json({ message: 'Failed to load project from Google Drive' });
+  }
+});
+
+// GET /api/google-drive/files - List user's Google Drive files
+router.get('/google-drive/files', authenticateToken, requirePremium, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const db = getDatabase();
+
+    // Get user with Google tokens
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+
+    if (!user.google_access_token && !user.google_refresh_token) {
+      return res.status(400).json({
+        message: 'Google account not connected. Please connect your Google account first.',
+        code: 'GOOGLE_NOT_CONNECTED'
+      });
+    }
+
+    // Get Drive client
+    const drive = await getDriveClient(user);
+
+    // List files from Google Drive
+    const response = await drive.files.list({
+      q: "name contains 'omniwriter' or trashed=false",
+      fields: 'files(id, name, mimeType, createdTime, modifiedTime, size, webViewLink, webContentLink)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 20
+    });
+
+    const files = (response.data.files || []).map((file: any) => ({
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      createdTime: file.createdTime,
+      modifiedTime: file.modifiedTime,
+      size: file.size,
+      viewUrl: file.webViewLink,
+      downloadUrl: file.webContentLink
+    }));
+
+    console.log('[Google Drive] Found', files.length, 'files');
+
+    res.json({ files });
+
+  } catch (error: any) {
+    console.error('[Google Drive] List files error:', error);
+    if (error.message?.includes('not connected')) {
+      return res.status(400).json({ message: error.message, code: 'GOOGLE_NOT_CONNECTED' });
+    }
+    res.status(500).json({ message: 'Failed to list Google Drive files' });
   }
 });
 

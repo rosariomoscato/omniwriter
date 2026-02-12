@@ -377,9 +377,11 @@ passport.use(
         const existingUser = db.prepare('SELECT * FROM users WHERE google_id = ?').get(profile.id) as any;
 
         if (existingUser) {
-          // User exists, log them in
+          // User exists, update tokens and log them in
           console.log('[Google OAuth] Existing user found:', existingUser.id);
-          return done(null, existingUser);
+          db.prepare('UPDATE users SET google_access_token = ?, google_refresh_token = ? WHERE id = ?')
+            .run(accessToken, refreshToken, existingUser.id);
+          return done(null, { ...existingUser, google_access_token: accessToken, google_refresh_token: refreshToken });
         }
 
         // Check if user exists with the same email (merge accounts)
@@ -389,8 +391,9 @@ passport.use(
           if (emailUser) {
             // Link Google account to existing user
             console.log('[Google OAuth] Linking Google to existing user:', emailUser.id);
-            db.prepare('UPDATE users SET google_id = ? WHERE id = ?').run(profile.id, emailUser.id);
-            return done(null, { ...emailUser, google_id: profile.id });
+            db.prepare('UPDATE users SET google_id = ?, google_access_token = ?, google_refresh_token = ? WHERE id = ?')
+              .run(profile.id, accessToken, refreshToken, emailUser.id);
+            return done(null, { ...emailUser, google_id: profile.id, google_access_token: accessToken, google_refresh_token: refreshToken });
           }
         }
 
@@ -402,9 +405,9 @@ passport.use(
 
         console.log('[Google OAuth] Creating new user from Google:', userId);
         db.prepare(
-          `INSERT INTO users (id, email, name, avatar_url, google_id, role, preferred_language, theme_preference, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
-        ).run(userId, email, name, avatarUrl, profile.id);
+          `INSERT INTO users (id, email, name, avatar_url, google_id, google_access_token, google_refresh_token, role, preferred_language, theme_preference, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
+        ).run(userId, email, name, avatarUrl, profile.id, accessToken, refreshToken);
 
         const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
         return done(null, newUser);

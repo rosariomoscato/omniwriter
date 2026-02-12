@@ -52,6 +52,8 @@ function runMigrations(db: Database.Database): void {
       preferred_language TEXT NOT NULL DEFAULT 'it' CHECK(preferred_language IN ('it', 'en')),
       theme_preference TEXT NOT NULL DEFAULT 'light' CHECK(theme_preference IN ('light', 'dark')),
       google_id TEXT UNIQUE,
+      google_access_token TEXT,
+      google_refresh_token TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_login_at TEXT
