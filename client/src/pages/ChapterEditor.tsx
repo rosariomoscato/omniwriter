@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, SpellCheck } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, SpellCheck, MessageSquare } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -9,6 +9,7 @@ import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
 import SpellCheckSuggestions, { Suggestion as SpellCheckSuggestion } from '../components/SpellCheckSuggestions';
+import CommentsPanel from '../components/CommentsPanel';
 
 export default function ChapterEditor() {
   const toast = useToastNotification();
@@ -40,6 +41,12 @@ export default function ChapterEditor() {
   } | null>(null);
   const [showReadabilityPanel, setShowReadabilityPanel] = useState(false);
   const [showSpellCheck, setShowSpellCheck] = useState(false);
+
+  // Comments state
+  const [showComments, setShowComments] = useState(false);
+  const [highlightedComment, setHighlightedComment] = useState<string | null>(null);
+  const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [commentText, setCommentText] = useState('');
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -686,6 +693,35 @@ export default function ChapterEditor() {
     }
   };
 
+  // Handle adding comment
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !selectionRange || !chapterId) {
+      return;
+    }
+
+    try {
+      await apiService.createChapterComment(chapterId, {
+        text: commentText,
+        start_pos: selectionRange.start,
+        end_pos: selectionRange.end
+      });
+      toast.success('Comment added');
+      setCommentText('');
+      setShowCommentDialog(false);
+      setSelectionRange(null);
+      setSelectedText('');
+    } catch (error: any) {
+      console.error('Error adding comment:', error);
+      toast.error(error.message || 'Failed to add comment');
+    }
+  };
+
+  const handleCommentFromSelection = () => {
+    if (!selectedText || !selectionRange) return;
+    setShowCommentDialog(true);
+    setShowReviseMenu(false); // Hide AI revise menu
+  };
+
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
     let html = content;
@@ -842,6 +878,18 @@ export default function ChapterEditor() {
                 title="Spelling and Grammar Check"
               >
                 <SpellCheck className={`w-4 h-4 ${showSpellCheck ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} />
+              </button>
+              <button
+                onClick={() => setShowComments(!showComments)}
+                className={`p-2 rounded-lg border transition-colors ${
+                  showComments
+                    ? 'bg-purple-50 border-purple-500'
+                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                aria-label="Comments"
+                title="Comments"
+              >
+                <MessageSquare className={`w-4 h-4 ${showComments ? 'text-purple-600 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'}`} />
               </button>
               <button
                 onClick={() => setIsPreview(!isPreview)}
@@ -1166,6 +1214,13 @@ export default function ChapterEditor() {
               )}
             </button>
             <button
+              onClick={handleCommentFromSelection}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <MessageSquare className="w-3 h-3" />
+              Comment
+            </button>
+            <button
               onClick={() => setShowReviseMenu(false)}
               className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             >
@@ -1224,6 +1279,60 @@ export default function ChapterEditor() {
           onApplySuggestion={handleApplySuggestion}
           onDismiss={handleDismissSuggestion}
         />
+      )}
+
+      {/* Comments Panel (Feature #159) */}
+      {showComments && !isPreview && (
+        <div className="fixed right-0 top-0 h-full w-96 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto z-40 shadow-xl">
+          <CommentsPanel
+            chapterId={chapterId || ''}
+            content={content}
+            highlightedComment={highlightedComment}
+            onHighlightComment={setHighlightedComment}
+          />
+        </div>
+      )}
+
+      {/* Add Comment Dialog */}
+      {showCommentDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Add Comment</h3>
+              <div className="mb-4">
+                <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-md mb-4 text-sm italic">
+                  "{selectedText}"
+                </div>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white resize-y"
+                  rows={4}
+                  placeholder="Enter your comment..."
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowCommentDialog(false);
+                    setCommentText('');
+                  }}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddComment}
+                  disabled={!commentText.trim()}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-md font-medium"
+                >
+                  Add Comment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

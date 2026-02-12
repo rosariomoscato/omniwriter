@@ -117,20 +117,38 @@ router.get('/chapters/:id', authenticateToken, (req, res) => {
 router.put('/chapters/:id', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content, status } = req.body;
+    const { title, content, status, expected_updated_at } = req.body;
     const userId = (req as any).user.id;
     const db = getDatabase();
 
     // Verify chapter exists and belongs to user's project
     const existingChapter = db.prepare(`
-      SELECT c.id, c.content, c.title
+      SELECT c.id, c.content, c.title, c.updated_at
       FROM chapters c
       JOIN projects p ON c.project_id = p.id
       WHERE c.id = ? AND p.user_id = ?
-    `).get(id, userId) as { id: string; content: string; title: string } | undefined;
+    `).get(id, userId) as { id: string; content: string; title: string; updated_at: string } | undefined;
 
     if (!existingChapter) {
       return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Check for concurrent edit conflict
+    if (expected_updated_at && existingChapter.updated_at !== expected_updated_at) {
+      // Return 409 Conflict with current chapter data
+      const currentChapter = db.prepare(`
+        SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+        FROM chapters WHERE id = ?
+      `).get(id);
+
+      console.log(`[Chapters] Concurrent edit detected for chapter ${id}`);
+      return res.status(409).json({
+        error: 'CONCURRENT_EDIT',
+        message: 'This chapter was modified by another session',
+        current: currentChapter,
+        expected: expected_updated_at,
+        actual: existingChapter.updated_at
+      });
     }
 
     const updates: string[] = [];
