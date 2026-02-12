@@ -734,6 +734,26 @@ class ApiService {
     });
   }
 
+  async analyzeNovel(projectId: string, file: File): Promise<{
+    message: string;
+    extracted: {
+      characters: number;
+      locations: number;
+      plotEvents: number;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.request<{
+      message: string;
+      extracted: { characters: number; locations: number; plotEvents: number };
+    }>(`/projects/${projectId}/analyze-novel`, {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let browser set Content-Type for FormData
+    });
+  }
+
   // Character endpoints
   async getProjectCharacters(projectId: string): Promise<{ characters: Character[]; count: number }> {
     return this.request<{ characters: Character[]; count: number }>(`/projects/${projectId}/characters`);

@@ -717,4 +717,220 @@ router.delete('/:id/tags/:tagName', authenticateToken, (req: AuthRequest, res: R
   }
 });
 
+// Helper function to extract text from uploaded file
+async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<string> {
+  if (file.mimetype === 'text/plain' || file.originalname.toLowerCase().endsWith('.txt')) {
+    return file.buffer.toString('utf-8');
+  } else {
+    // For DOCX, extract text (basic implementation)
+    const text = file.buffer.toString('utf-8');
+    return text
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[^;]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+}
+
+// Helper function to extract entities using simple pattern matching
+// In production, this would use AI for more accurate extraction
+function extractEntities(novelContent: string): {
+  characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string }>;
+  locations: Array<{ name: string; description: string; significance: string }>;
+  plotEvents: Array<{ title: string; description: string; event_type: string }>;
+} {
+  const characters: any[] = [];
+  const locations: any[] = [];
+  const plotEvents: any[] = [];
+
+  // Simple extraction using pattern matching
+  // This is a basic implementation - production should use AI
+
+  // Extract potential character names (capitalized words followed by descriptions)
+  const characterPattern = /([A-Z][a-z]+)\s+(said|asked|replied|thought|walked|ran|looked|felt)/g;
+  const characterMatches = new Set();
+  let match;
+  while ((match = characterPattern.exec(novelContent)) !== null) {
+    characterMatches.add(match[1]);
+  }
+
+  // Convert to character objects
+  characterMatches.forEach((name: any) => {
+    characters.push({
+      name,
+      description: `Character extracted from uploaded novel`,
+      traits: '',
+      backstory: '',
+      role_in_story: 'Character'
+    });
+  });
+
+  // Extract locations (words following 'in', 'at', 'to')
+  const locationPattern = /\b(in|at|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g;
+  const locationMatches = new Set();
+  while ((match = locationPattern.exec(novelContent)) !== null) {
+    locationMatches.add(match[2]);
+  }
+
+  // Convert to location objects (limit to reasonable number)
+  locationMatches.forEach((name: any) => {
+    if (locations.length < 20) {
+      locations.push({
+        name,
+        description: `Location extracted from uploaded novel`,
+        significance: 'Setting'
+      });
+    }
+  });
+
+  // Extract plot events (sentences with action verbs)
+  const eventPattern = /([A-Z][^!?]*?\b(?:discovered|realized|found|lost|won|escaped|died|fought|kissed|married|betrayed|saved)\b[^!?]*[!?])/g;
+  while ((match = eventPattern.exec(novelContent)) !== null) {
+    if (plotEvents.length < 30) {
+      plotEvents.push({
+        title: match[1].substring(0, 50) + (match[1].length > 50 ? '...' : ''),
+        description: match[1],
+        event_type: 'plot_event'
+      });
+    }
+  }
+
+  return { characters, locations, plotEvents };
+}
+
+// POST /api/projects/:id/analyze-novel - Analyze uploaded novel to extract characters, locations, and plot events
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const file = req.file;
+
+    if (!file) {
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
+    }
+
+    console.log('[Projects] Analyzing novel file:', file.originalname, 'size:', file.size, 'type:', file.mimetype);
+
+    // Verify project belongs to user and is a Romanziere project
+    const project = db.prepare('SELECT id, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; area: string } | undefined;
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'romanziere') {
+      res.status(400).json({ message: 'Novel analysis is only available for Romanziere projects' });
+      return;
+    }
+
+    // Extract text from uploaded file
+    const novelContent = await extractTextFromUploadedFile(file);
+
+    if (novelContent.length < 100) {
+      res.status(400).json({ message: 'File content is too short for analysis. Please upload a file with more content.' });
+      return;
+    }
+
+    console.log('[Projects] Extracted text length:', novelContent.length, 'characters');
+
+    // Extract entities using pattern matching
+    const { characters, locations, plotEvents } = extractEntities(novelContent);
+
+    console.log('[Projects] Extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+
+    // Clear existing extracted entities for this project
+    db.prepare('DELETE FROM characters WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);
+    db.prepare('DELETE FROM locations WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);
+    db.prepare('DELETE FROM plot_events WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);
+
+    // Insert extracted characters
+    let charactersCreated = 0;
+    for (const character of characters) {
+      try {
+        const characterId = uuidv4();
+        db.prepare(
+          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
+        ).run(
+          characterId,
+          projectId,
+          character.name,
+          character.description,
+          character.traits,
+          character.backstory,
+          character.role_in_story
+        );
+        charactersCreated++;
+      } catch (err) {
+        // Skip duplicates
+        console.warn('[Projects] Failed to insert character:', character.name, err);
+      }
+    }
+
+    // Insert extracted locations
+    let locationsCreated = 0;
+    for (const location of locations) {
+      try {
+        const locationId = uuidv4();
+        db.prepare(
+          `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, NULL, ?, ?, ?, 1, datetime('now'), datetime('now'))`
+        ).run(
+          locationId,
+          projectId,
+          location.name,
+          location.description,
+          location.significance
+        );
+        locationsCreated++;
+      } catch (err) {
+        // Skip duplicates
+        console.warn('[Projects] Failed to insert location:', location.name, err);
+      }
+    }
+
+    // Insert extracted plot events
+    let plotEventsCreated = 0;
+    for (const event of plotEvents) {
+      try {
+        const eventId = uuidv4();
+        db.prepare(
+          `INSERT INTO plot_events (id, project_id, saga_id, title, description, chapter_id, order_index, event_type, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, NULL, ?, ?, NULL, ?, ?, 1, datetime('now'), datetime('now'))`
+        ).run(
+          eventId,
+          projectId,
+          event.title,
+          event.description,
+          plotEventsCreated
+        );
+        plotEventsCreated++;
+      } catch (err) {
+        console.warn('[Projects] Failed to insert plot event:', event.title, err);
+      }
+    }
+
+    console.log('[Projects] Novel analysis completed:', {
+      characters: charactersCreated,
+      locations: locationsCreated,
+      plotEvents: plotEventsCreated
+    });
+
+    res.json({
+      message: 'Novel analyzed successfully',
+      extracted: {
+        characters: charactersCreated,
+        locations: locationsCreated,
+        plotEvents: plotEventsCreated
+      }
+    });
+  } catch (error) {
+    console.error('[Projects] Analyze novel error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to analyze novel' });
+  }
+});
+
 export default router;

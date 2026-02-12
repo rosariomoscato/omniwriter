@@ -110,6 +110,9 @@ export default function ProjectDetail() {
   const [webSearchUrl, setWebSearchUrl] = useState('');
   const [webSearchTitle, setWebSearchTitle] = useState('');
   const [webSearchContent, setWebSearchContent] = useState('');
+  const [showAnalyzeNovel, setShowAnalyzeNovel] = useState(false);
+  const [analyzingNovel, setAnalyzingNovel] = useState(false);
+  const [novelFile, setNovelFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -617,6 +620,37 @@ export default function ProjectDetail() {
       toast.success('Web search result saved as source');
     } catch (err: any) {
       setError(err.message || 'Failed to save web search result');
+    }
+  };
+
+  const handleAnalyzeNovel = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!novelFile) {
+      setError('Please select a file to analyze');
+      return;
+    }
+
+    try {
+      setAnalyzingNovel(true);
+      setError('');
+      const response = await apiService.analyzeNovel(id!, novelFile);
+
+      toast.success(`Novel analyzed: ${response.extracted.characters} characters, ${response.extracted.locations} locations, ${response.extracted.plotEvents} plot events`);
+
+      // Reload characters, locations, and plot events
+      await Promise.all([
+        loadCharacters(),
+        loadLocations(),
+        loadPlotEvents()
+      ]);
+
+      setShowAnalyzeNovel(false);
+      setNovelFile(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze novel');
+    } finally {
+      setAnalyzingNovel(false);
     }
   };
 
@@ -2106,18 +2140,29 @@ export default function ProjectDetail() {
                 ({characters.length})
               </span>
             </div>
-            <button
-              onClick={() => {
-                setShowAddCharacter(!showAddCharacter);
-                setEditingCharacter(null);
-                setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
-                setError('');
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Character
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAnalyzeNovel(!showAnalyzeNovel)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                title="Upload a novel file to extract characters, locations, and plot events"
+              >
+                <FileText className="w-4 h-4" />
+                Analyze Novel
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddCharacter(!showAddCharacter);
+                  setEditingCharacter(null);
+                  setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
+                  setError('');
+                  setShowAnalyzeNovel(false);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Character
+              </button>
+            </div>
           </div>
 
           {/* Add/Edit Character Form */}
@@ -2181,6 +2226,63 @@ export default function ProjectDetail() {
                       setShowAddCharacter(false);
                       setEditingCharacter(null);
                       setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Analyze Novel Form */}
+          {showAnalyzeNovel && (
+            <form onSubmit={handleAnalyzeNovel} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/20">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Analyze Novel for Characters, Locations & Plot Events
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Upload a novel file (TXT or DOCX) and the system will extract characters, locations, and plot events automatically.
+              </p>
+              <div className="space-y-3">
+                <label className="flex-1">
+                  <div className="flex items-center justify-center w-full h-24 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-purple-500 focus:outline-none">
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {analyzingNovel ? 'Analyzing...' : novelFile ? novelFile.name : 'Click to upload or drag and drop'}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        TXT, DOCX (Max 10MB)
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".txt,.docx,.doc"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setNovelFile(file);
+                      }}
+                      disabled={analyzingNovel}
+                    />
+                  </div>
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={analyzingNovel || !novelFile}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {analyzingNovel ? 'Analyzing...' : 'Analyze Novel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAnalyzeNovel(false);
+                      setNovelFile(null);
                       setError('');
                     }}
                     className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
