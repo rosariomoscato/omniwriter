@@ -217,6 +217,26 @@ router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) 
       return;
     }
 
+    // Validate file type for Human Model uploads
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'application/rtf',
+      'text/plain',
+    ];
+    const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
+    const fileExtension = path.extname(file_name).toLowerCase();
+
+    const isValidMimeType = allowedTypes.includes(file_type);
+    const isValidExtension = validExtensions.includes(fileExtension);
+
+    if (!isValidMimeType && !isValidExtension) {
+      return res.status(400).json({
+        message: 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'
+      });
+    }
+
     const sourceId = uuidv4();
     const wordCount = countWords(content_text);
     const uploadDir = path.join(__dirname, '../../data/human-model-sources');

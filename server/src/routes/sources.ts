@@ -35,10 +35,22 @@ const upload = multer({
       'application/rtf',
       'text/plain',
     ];
-    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(txt|rtf)$/i)) {
+    const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+
+    // Check both MIME type and file extension
+    const isValidMimeType = allowedTypes.includes(file.mimetype);
+    const isValidExtension = validExtensions.includes(fileExtension);
+
+    if (isValidMimeType || isValidExtension) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'));
+      // Create a specific error for unsupported file types
+      const error = new Error('INVALID_FILE_TYPE');
+      (error as any).status = 400;
+      (error as any).code = 'LIMIT_FILE_TYPE';
+      (error as any).message = 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.';
+      cb(error);
     }
   },
 });
@@ -101,7 +113,24 @@ router.get('/projects/:id/sources', authenticateToken, (req: AuthRequest, res: R
 router.post(
   '/projects/:id/sources/upload',
   authenticateToken,
-  upload.single('file'),
+  (req, res, next) => {
+    // Custom multer error handling
+    upload.single('file')(req, res, (err: any) => {
+      if (err) {
+        // Handle multer errors
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'File too large. Maximum size is 25MB.' });
+        }
+        if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
+          return res.status(400).json({
+            message: 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'
+          });
+        }
+        return res.status(400).json({ message: err.message || 'File upload failed' });
+      }
+      next();
+    });
+  },
   async (req: any, res) => {
     const db = getDatabase();
     const userId = req.user.id;
@@ -213,7 +242,24 @@ router.post(
   '/sagas/:id/sources/upload',
   authenticateToken,
   requirePremium,
-  upload.single('file'),
+  (req, res, next) => {
+    // Custom multer error handling
+    upload.single('file')(req, res, (err: any) => {
+      if (err) {
+        // Handle multer errors
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'File too large. Maximum size is 25MB.' });
+        }
+        if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
+          return res.status(400).json({
+            message: 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'
+          });
+        }
+        return res.status(400).json({ message: err.message || 'File upload failed' });
+      }
+      next();
+    });
+  },
   async (req: AuthRequest, res: Response) => {
     const db = getDatabase();
     const userId = req.user?.id;
@@ -303,6 +349,85 @@ router.get('/sagas/:id/sources', authenticateToken, requirePremium, (req: AuthRe
   } catch (error) {
     console.error('[Sources] Error fetching saga sources:', error);
     res.status(500).json({ message: 'Failed to fetch sources' });
+  }
+});
+
+// PUT /api/sources/:id/tags - Update source tags
+router.put('/sources/:id/tags', authenticateToken, (req: any, res) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+  const sourceId = req.params.id;
+  const { tags } = req.body;
+
+  // Validate tags is an array
+  if (!Array.isArray(tags)) {
+    return res.status(400).json({ message: 'Tags must be an array' });
+  }
+
+  // Validate each tag is a string
+  for (const tag of tags) {
+    if (typeof tag !== 'string') {
+      return res.status(400).json({ message: 'Each tag must be a string' });
+    }
+  }
+
+  try {
+    // Verify source belongs to user
+    const source: any = db
+      .prepare('SELECT id FROM sources WHERE id = ? AND user_id = ?')
+      .get(sourceId, userId);
+
+    if (!source) {
+      return res.status(404).json({ message: 'Source not found' });
+    }
+
+    // Update tags
+    const tagsJson = JSON.stringify(tags);
+    db.prepare('UPDATE sources SET tags_json = ? WHERE id = ?').run(tagsJson, sourceId);
+
+    console.log(`[Sources] Updated tags for source ${sourceId}:`, tags);
+
+    // Fetch updated source
+    const updatedSource = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
+
+    res.json({ source: updatedSource });
+  } catch (error) {
+    console.error('[Sources] Error updating tags:', error);
+    res.status(500).json({ message: 'Failed to update tags' });
+  }
+});
+
+// GET /api/sources/tags - Get all tags for a user's sources
+router.get('/sources/tags', authenticateToken, (req: any, res) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+
+  try {
+    // Get all sources for user
+    const sources: any[] = db
+      .prepare('SELECT tags_json FROM sources WHERE user_id = ?')
+      .all(userId);
+
+    // Collect all unique tags
+    const tagSet = new Set<string>();
+    for (const source of sources) {
+      try {
+        const tags = JSON.parse(source.tags_json || '[]');
+        for (const tag of tags) {
+          if (typeof tag === 'string' && tag.trim()) {
+            tagSet.add(tag.trim());
+          }
+        }
+      } catch (e) {
+        // Skip invalid JSON
+      }
+    }
+
+    const tags = Array.from(tagSet).sort();
+    res.json({ tags });
+  } catch (error) {
+    console.error('[Sources] Error fetching tags:', error);
+    res.status(500).json({ message: 'Failed to fetch tags' });
   }
 });
 
