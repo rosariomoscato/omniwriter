@@ -135,5 +135,5 @@ See FEATURES-16-19-VERIFICATION.md for detailed manual testing steps.
 - Total passing: 13/188 (6.9%)
 
 ### Git Commit
-- Commit: (pending)
-- Message: "docs: features #16 and #19 - login error handling and protected routes"
+- Commit: bbad507
+- Message: "docs: verify features #16 and #19 - login errors and protected routes"
