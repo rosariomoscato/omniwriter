@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2 } from 'lucide-react';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2, Edit3 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -24,7 +24,70 @@ interface FilterState {
 export default function Dashboard() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const toast = useToastNotification();
+
+  // Detect if we're on an area-specific page (/projects?area=xxx) vs generic dashboard (/dashboard)
+  const isProjectsRoute = location.pathname === '/projects';
+  const urlArea = searchParams.get('area') as 'romanziere' | 'saggista' | 'redattore' | null;
+  const isAreaPage = isProjectsRoute && urlArea !== null && ['romanziere', 'saggista', 'redattore'].includes(urlArea);
+  const activeArea = isAreaPage ? urlArea : null;
+
+  // Area-specific icon component
+  const getAreaPageIcon = (area: string) => {
+    switch (area) {
+      case 'romanziere':
+        return <BookOpen className="w-8 h-8" />;
+      case 'saggista':
+        return <FileText className="w-8 h-8" />;
+      case 'redattore':
+        return <Edit3 className="w-8 h-8" />;
+      default:
+        return <FileText className="w-8 h-8" />;
+    }
+  };
+
+  // Area-specific icon color classes
+  const getAreaIconColor = (area: string) => {
+    switch (area) {
+      case 'romanziere':
+        return 'text-amber-600 dark:text-amber-400';
+      case 'saggista':
+        return 'text-teal-600 dark:text-teal-400';
+      case 'redattore':
+        return 'text-rose-600 dark:text-rose-400';
+      default:
+        return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
+  // Area-specific accent/border color
+  const getAreaAccentColor = (area: string) => {
+    switch (area) {
+      case 'romanziere':
+        return 'border-amber-400 dark:border-amber-600';
+      case 'saggista':
+        return 'border-teal-400 dark:border-teal-600';
+      case 'redattore':
+        return 'border-rose-400 dark:border-rose-600';
+      default:
+        return 'border-gray-300 dark:border-gray-600';
+    }
+  };
+
+  // Area-specific button color
+  const getAreaButtonColor = (area: string) => {
+    switch (area) {
+      case 'romanziere':
+        return 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700';
+      case 'saggista':
+        return 'bg-teal-600 hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-700';
+      case 'redattore':
+        return 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-600 dark:hover:bg-rose-700';
+      default:
+        return 'bg-primary-600 hover:bg-primary-700';
+    }
+  };
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,14 +198,14 @@ export default function Dashboard() {
     [filters]
   );
 
-  // Show onboarding for new users (no projects and hasn't seen guide)
+  // Show onboarding for new users (no projects and hasn't seen guide) - NOT on area pages
   useEffect(() => {
-    if (!loading && projects.length === 0 && !hasSeenOnboarding && !hasActiveFilters) {
+    if (!loading && projects.length === 0 && !hasSeenOnboarding && !hasActiveFilters && !isAreaPage) {
       setShowOnboarding(true);
     } else {
       setShowOnboarding(false);
     }
-  }, [loading, projects.length, hasSeenOnboarding, hasActiveFilters]);
+  }, [loading, projects.length, hasSeenOnboarding, hasActiveFilters, isAreaPage]);
 
   // Listen for import modal open event
   useEffect(() => {
@@ -503,23 +566,43 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       <Breadcrumbs />
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          {t('dashboard.title')}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {t('dashboard.subtitle')}
-        </p>
-      </div>
+
+      {/* Area-specific header */}
+      {isAreaPage && activeArea ? (
+        <div className={`mb-6 border-l-4 ${getAreaAccentColor(activeArea)} pl-4`}>
+          <div className="flex items-center gap-3 mb-2">
+            <span className={getAreaIconColor(activeArea)}>
+              {getAreaPageIcon(activeArea)}
+            </span>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {t(`dashboard.areaPage.${activeArea}.title`)}
+            </h1>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">
+            {t(`dashboard.areaPage.${activeArea}.description`)}
+          </p>
+        </div>
+      ) : (
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            {t('dashboard.title')}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {t('dashboard.subtitle')}
+          </p>
+        </div>
+      )}
 
       {/* Quick Create Button */}
       <div className="flex gap-3 mb-6">
         <Link
-          to="/projects/new"
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+          to={isAreaPage && activeArea ? `/projects/new?area=${activeArea}` : '/projects/new'}
+          className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors font-medium ${
+            isAreaPage && activeArea ? getAreaButtonColor(activeArea) : 'bg-primary-600 hover:bg-primary-700'
+          }`}
         >
           <Plus size={20} />
-          {t('dashboard.createProject')}
+          {isAreaPage ? t('dashboard.areaPage.createProject') : t('dashboard.createProject')}
         </Link>
         <button
           onClick={openImportModal}
@@ -528,14 +611,16 @@ export default function Dashboard() {
           <Upload size={20} />
           {t('dashboard.importProject')}
         </button>
-        <button
-          onClick={() => setShowLayoutSettings(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
-          title={t('dashboard.layout.customizeDashboard')}
-        >
-          <Settings size={20} />
-          {t('dashboard.customize')}
-        </button>
+        {!isAreaPage && (
+          <button
+            onClick={() => setShowLayoutSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
+            title={t('dashboard.layout.customizeDashboard')}
+          >
+            <Settings size={20} />
+            {t('dashboard.customize')}
+          </button>
+        )}
       </div>
 
       {/* Import Modal */}
@@ -860,8 +945,8 @@ export default function Dashboard() {
       {/* Empty State */}
       {!loading && projects.length === 0 && (
         <>
-          {/* Onboarding Guide for new users */}
-          {showOnboarding && !hasActiveFilters && (
+          {/* Onboarding Guide for new users - NOT shown on area pages */}
+          {showOnboarding && !hasActiveFilters && !isAreaPage && (
             <OnboardingGuide
               onClose={() => {
                 setShowOnboarding(false);
@@ -871,44 +956,85 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Empty state message */}
-          <div className="text-center py-16">
-            <div className="inline-block p-6 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          {/* Area-specific empty state */}
+          {isAreaPage && activeArea ? (
+            <div className="text-center py-16">
+              <div className={`inline-block p-6 rounded-full mb-4 ${
+                activeArea === 'romanziere' ? 'bg-amber-50 dark:bg-amber-900/30' :
+                activeArea === 'saggista' ? 'bg-teal-50 dark:bg-teal-900/30' :
+                'bg-rose-50 dark:bg-rose-900/30'
+              }`}>
+                <span className={getAreaIconColor(activeArea)}>
+                  {getAreaPageIcon(activeArea)}
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                {filters.search
+                  ? t('dashboard.noSearchResults')
+                  : t(`dashboard.areaPage.${activeArea}.emptyTitle`)}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {filters.search
+                  ? t('dashboard.noSearchResultsText', { search: filters.search.slice(0, 50) + (filters.search.length > 50 ? '...' : '') })
+                  : t(`dashboard.areaPage.${activeArea}.emptyDescription`)}
+              </p>
+              {filters.search ? (
+                <button
+                  onClick={() => updateFilters({ search: '' })}
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  {t('dashboard.clearFilters')}
+                </button>
+              ) : (
+                <Link
+                  to={`/projects/new?area=${activeArea}`}
+                  className={`inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg transition-colors font-medium ${getAreaButtonColor(activeArea)}`}
+                >
+                  <Plus size={20} />
+                  {t(`dashboard.areaPage.${activeArea}.createButton`)}
+                </Link>
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-              {hasActiveFilters
-                ? (filters.search ? t('dashboard.noSearchResults') : t('dashboard.noProjectResults'))
-                : t('dashboard.emptyState.noProjects')}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {hasActiveFilters
-                ? (filters.search
-                    ? t('dashboard.noSearchResultsText', { search: filters.search.slice(0, 50) + (filters.search.length > 50 ? '...' : '') })
-                    : t('dashboard.tryDifferentFilters'))
-                : !showOnboarding
-                  ? t('dashboard.createFirstProject')
-                  : ''}
-            </p>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                {t('dashboard.clearFilters')}
-              </button>
-            )}
-            {!hasActiveFilters && !showOnboarding && hasSeenOnboarding && (
-              <button
-                onClick={() => setShowOnboarding(true)}
-                className="mx-2 px-6 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900 rounded-lg transition-colors"
-              >
-                {t('dashboard.showGuide')}
-              </button>
-            )}
-          </div>
+          ) : (
+            /* Generic empty state message */
+            <div className="text-center py-16">
+              <div className="inline-block p-6 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                {hasActiveFilters
+                  ? (filters.search ? t('dashboard.noSearchResults') : t('dashboard.noProjectResults'))
+                  : t('dashboard.emptyState.noProjects')}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {hasActiveFilters
+                  ? (filters.search
+                      ? t('dashboard.noSearchResultsText', { search: filters.search.slice(0, 50) + (filters.search.length > 50 ? '...' : '') })
+                      : t('dashboard.tryDifferentFilters'))
+                  : !showOnboarding
+                    ? t('dashboard.createFirstProject')
+                    : ''}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  {t('dashboard.clearFilters')}
+                </button>
+              )}
+              {!hasActiveFilters && !showOnboarding && hasSeenOnboarding && (
+                <button
+                  onClick={() => setShowOnboarding(true)}
+                  className="mx-2 px-6 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900 rounded-lg transition-colors"
+                >
+                  {t('dashboard.showGuide')}
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 

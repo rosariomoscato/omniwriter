@@ -5,7 +5,11 @@ import fs from 'fs';
 let db: Database.Database;
 
 export function initializeDatabase(): Database.Database {
-  const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/omniwriter.db');
+  // Resolve DATABASE_PATH relative to the server root directory (where .env lives)
+  // to ensure consistent database location regardless of CWD
+  const serverRoot = path.resolve(__dirname, '../..');
+  const rawDbPath = process.env.DATABASE_PATH || './data/omniwriter.db';
+  const dbPath = path.isAbsolute(rawDbPath) ? rawDbPath : path.resolve(serverRoot, rawDbPath);
   const dbDir = path.dirname(dbPath);
 
   // Ensure data directory exists

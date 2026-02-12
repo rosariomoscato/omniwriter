@@ -190,6 +190,30 @@
       "noProjectsWithFilters": "Nessun progetto trovato con i filtri attuali",
       "noProjectsWithSearch": "Nessun risultato di ricerca"
     },
+    "areaPage": {
+      "createProject": "Crea nuovo progetto",
+      "romanziere": {
+        "title": "Romanziere",
+        "description": "Scrivi romanzi completi capitolo per capitolo. Gestisci personaggi, luoghi, trame e saghe complesse.",
+        "emptyTitle": "Nessun romanzo ancora",
+        "emptyDescription": "Non hai ancora creato nessun romanzo. Inizia ora!",
+        "createButton": "Crea il tuo primo romanzo"
+      },
+      "saggista": {
+        "title": "Saggista",
+        "description": "Crea saggi approfonditi con gestione avanzata delle fonti e citazioni accademiche.",
+        "emptyTitle": "Nessun saggio ancora",
+        "emptyDescription": "Non hai ancora creato nessun saggio. Inizia ora!",
+        "createButton": "Crea il tuo primo saggio"
+      },
+      "redattore": {
+        "title": "Redattore",
+        "description": "Genera articoli, comunicati stampa e contenuti SEO-ottimizzati in pochi minuti.",
+        "emptyTitle": "Nessun articolo ancora",
+        "emptyDescription": "Non hai ancora creato nessun articolo. Inizia ora!",
+        "createButton": "Crea il tuo primo articolo"
+      }
+    },
     "onboarding": {
       "welcome": "Benvenuto in OmniWriter!",
       "subtitle": "La tua piattaforma di scrittura professionale con AI. Scegli un'area per iniziare il tuo primo progetto.",
@@ -420,6 +444,110 @@
     "unsavedChangesMessage": "Vuoi salvare le modifiche prima di uscire?",
     "stay": "Rimani",
     "leaveWithoutSaving": "Esci senza salvare"
+  },
+  "newProject": {
+    "backToDashboard": "Torna alla Dashboard",
+    "title": "Crea un nuovo progetto",
+    "subtitle": "Scegli l'area e configura il tuo progetto di scrittura",
+    "areas": {
+      "romanziere": {
+        "name": "Romanziere",
+        "description": "Scrivi romanzi con personaggi complessi, trame articolate e mondi immaginari"
+      },
+      "saggista": {
+        "name": "Saggista",
+        "description": "Approfondisci temi con analisi dettagliate, fonti e citazioni"
+      },
+      "redattore": {
+        "name": "Redattore",
+        "description": "Crea articoli veloci, ottimizzati per la lettura e il web"
+      }
+    },
+    "stepSelectArea": "1. Seleziona l'area del progetto *",
+    "stepTitle": "2. Titolo del progetto *",
+    "stepDescription": "3. Descrizione (opzionale)",
+    "titlePlaceholder": "Il mio romanzo, Il mio saggio, Il mio articolo...",
+    "descriptionPlaceholder": "Descrivi brevemente di cosa tratta il progetto...",
+    "validation": {
+      "titleRequired": "Il titolo è obbligatorio",
+      "areaRequired": "Seleziona un'area per il progetto"
+    },
+    "romanziere": {
+      "sectionTitle": "Configurazione Romanziere",
+      "genreLabel": "4. Genere letterario",
+      "genrePlaceholder": "Fantasy, Thriller, Romance, Sci-Fi...",
+      "toneLabel": "5. Tono narrativo",
+      "toneSelectPlaceholder": "Seleziona un tono...",
+      "toneSerious": "Serio / Drammatico",
+      "toneLight": "Leggero / Divertente",
+      "toneIronic": "Ironico / Satirico",
+      "toneRomantic": "Romantico",
+      "toneThrilling": "Tensione / Suspense",
+      "toneDark": "Dark / Oscuro",
+      "toneAdventurous": "Avventuroso",
+      "tonePoetic": "Poetico / Letterario",
+      "povLabel": "6. Punto di vista (POV)",
+      "povFirstPerson": "Prima persona (Io)",
+      "povFirstPersonDesc": "\"Io camminai per strada...\"",
+      "povThirdLimited": "Terza persona limitata",
+      "povThirdLimitedDesc": "Focus su un personaggio",
+      "povThirdOmniscient": "Terza persona onnisciente",
+      "povThirdOmniscientDesc": "Tutti i pensieri visibili",
+      "povAlternate": "Alternato",
+      "povAlternateDesc": "Più POV alternati",
+      "targetAudienceLabel": "7. Pubblico target",
+      "targetAudiencePlaceholder": "Giovani adulti, appassionati del fantasy, lettori contemporanei...",
+      "wordCountLabel": "8. Lunghezza target (parole)",
+      "wordCountHint": "Target indicativo: Romanzo breve (~50K), Standard (~80K), Lungo (~100K+)"
+    },
+    "saggista": {
+      "sectionTitle": "Configurazione Saggista",
+      "topicLabel": "4. Argomento del saggio",
+      "topicPlaceholder": "es: Il cambiamento climatico, La storia di Roma...",
+      "topicHint": "Descrivi l'argomento principale del saggio",
+      "depthLabel": "5. Tipo di approfondimento",
+      "depthDeepDive": "Approfondimento (Deep Dive)",
+      "depthDeepDiveDesc": "Analisi dettagliata e approfondita di un argomento specifico",
+      "depthOverview": "Panoramica (Overview)",
+      "depthOverviewDesc": "Visione d'insieme ampia con più temi correlati",
+      "targetAudienceLabel": "6. Pubblico target",
+      "targetAudiencePlaceholder": "es: Studenti universitari, Generale, Esperti del settore...",
+      "targetAudienceHint": "Chi è il pubblico previsto per questo saggio?",
+      "structureLabel": "7. Struttura del saggio",
+      "structurePopular": "Divulgativo",
+      "structureAcademic": "Accademico",
+      "structureJournalistic": "Giornalistico",
+      "structureTechnical": "Tecnico",
+      "structureHint": "Scegli lo stile e la struttura del saggio"
+    },
+    "redattore": {
+      "sectionTitle": "Configurazione Redattore",
+      "articleTypeLabel": "4. Tipo di articolo",
+      "articleTypeSelectPlaceholder": "Seleziona tipo di articolo",
+      "articleTypeBlogPost": "Blog Post",
+      "articleTypeNewsArticle": "Articolo giornalistico",
+      "articleTypePressRelease": "Comunicato stampa",
+      "articleTypeProductReview": "Recensione prodotto",
+      "articleTypeHowTo": "Guida tutorial (How-to)",
+      "articleTypeListicle": "Listicle (elenco puntato)",
+      "articleTypeOpinionPiece": "Articolo di opinione",
+      "articleTypeInterview": "Intervista",
+      "seoKeywordsLabel": "5. Parole chiave SEO (separate da virgola)",
+      "seoKeywordsPlaceholder": "es: tecnologia, innovazione, intelligenza artificiale",
+      "seoKeywordsHint": "Inserisci fino a 5 parole chiave per ottimizzare l'articolo per i motori di ricerca",
+      "wordCountLabel": "6. Lunghezza target (parole)",
+      "wordCountHint": "Numero di parole target per l'articolo (100-5000)"
+    },
+    "buttons": {
+      "creating": "Creazione in corso...",
+      "create": "Crea Progetto",
+      "reset": "Reset",
+      "cancel": "Annulla"
+    },
+    "toast": {
+      "success": "Progetto creato con successo!",
+      "error": "Errore durante la creazione del progetto"
+    }
   },
   "sources": {
     "title": "Fonti",

@@ -190,6 +190,30 @@
       "noProjectsWithFilters": "No projects found with current filters",
       "noProjectsWithSearch": "No search results"
     },
+    "areaPage": {
+      "createProject": "Create new project",
+      "romanziere": {
+        "title": "Novelist",
+        "description": "Write complete novels chapter by chapter. Manage characters, locations, plots and complex sagas.",
+        "emptyTitle": "No novels yet",
+        "emptyDescription": "You haven't created any novels yet. Start now!",
+        "createButton": "Create your first novel"
+      },
+      "saggista": {
+        "title": "Essayist",
+        "description": "Create in-depth essays with advanced source management and academic citations.",
+        "emptyTitle": "No essays yet",
+        "emptyDescription": "You haven't created any essays yet. Start now!",
+        "createButton": "Create your first essay"
+      },
+      "redattore": {
+        "title": "Editor",
+        "description": "Generate articles, press releases and SEO-optimized content in minutes.",
+        "emptyTitle": "No articles yet",
+        "emptyDescription": "You haven't created any articles yet. Start now!",
+        "createButton": "Create your first article"
+      }
+    },
     "onboarding": {
       "welcome": "Welcome to OmniWriter!",
       "subtitle": "Your professional AI writing platform. Choose an area to start your first project.",
@@ -420,6 +444,110 @@
     "unsavedChangesMessage": "Do you want to save your changes before leaving?",
     "stay": "Stay",
     "leaveWithoutSaving": "Leave without saving"
+  },
+  "newProject": {
+    "backToDashboard": "Back to Dashboard",
+    "title": "Create a new project",
+    "subtitle": "Choose the area and configure your writing project",
+    "areas": {
+      "romanziere": {
+        "name": "Novelist",
+        "description": "Write novels with complex characters, intricate plots and imaginary worlds"
+      },
+      "saggista": {
+        "name": "Essayist",
+        "description": "Explore topics with detailed analysis, sources and citations"
+      },
+      "redattore": {
+        "name": "Editor",
+        "description": "Create quick articles, optimized for reading and the web"
+      }
+    },
+    "stepSelectArea": "1. Select the project area *",
+    "stepTitle": "2. Project title *",
+    "stepDescription": "3. Description (optional)",
+    "titlePlaceholder": "My novel, My essay, My article...",
+    "descriptionPlaceholder": "Briefly describe what the project is about...",
+    "validation": {
+      "titleRequired": "Title is required",
+      "areaRequired": "Select an area for the project"
+    },
+    "romanziere": {
+      "sectionTitle": "Novelist Configuration",
+      "genreLabel": "4. Literary genre",
+      "genrePlaceholder": "Fantasy, Thriller, Romance, Sci-Fi...",
+      "toneLabel": "5. Narrative tone",
+      "toneSelectPlaceholder": "Select a tone...",
+      "toneSerious": "Serious / Dramatic",
+      "toneLight": "Light / Fun",
+      "toneIronic": "Ironic / Satirical",
+      "toneRomantic": "Romantic",
+      "toneThrilling": "Tension / Suspense",
+      "toneDark": "Dark / Gloomy",
+      "toneAdventurous": "Adventurous",
+      "tonePoetic": "Poetic / Literary",
+      "povLabel": "6. Point of view (POV)",
+      "povFirstPerson": "First person (I)",
+      "povFirstPersonDesc": "\"I walked down the street...\"",
+      "povThirdLimited": "Third person limited",
+      "povThirdLimitedDesc": "Focus on one character",
+      "povThirdOmniscient": "Third person omniscient",
+      "povThirdOmniscientDesc": "All thoughts visible",
+      "povAlternate": "Alternate",
+      "povAlternateDesc": "Multiple alternating POVs",
+      "targetAudienceLabel": "7. Target audience",
+      "targetAudiencePlaceholder": "Young adults, fantasy lovers, contemporary readers...",
+      "wordCountLabel": "8. Target length (words)",
+      "wordCountHint": "Indicative target: Short novel (~50K), Standard (~80K), Long (~100K+)"
+    },
+    "saggista": {
+      "sectionTitle": "Essayist Configuration",
+      "topicLabel": "4. Essay topic",
+      "topicPlaceholder": "e.g., Climate change, The history of Rome...",
+      "topicHint": "Describe the main topic of the essay",
+      "depthLabel": "5. Type of analysis",
+      "depthDeepDive": "Deep Dive",
+      "depthDeepDiveDesc": "Detailed and in-depth analysis of a specific topic",
+      "depthOverview": "Overview",
+      "depthOverviewDesc": "Broad overview with multiple related themes",
+      "targetAudienceLabel": "6. Target audience",
+      "targetAudiencePlaceholder": "e.g., University students, General, Industry experts...",
+      "targetAudienceHint": "Who is the intended audience for this essay?",
+      "structureLabel": "7. Essay structure",
+      "structurePopular": "Popular/Accessible",
+      "structureAcademic": "Academic",
+      "structureJournalistic": "Journalistic",
+      "structureTechnical": "Technical",
+      "structureHint": "Choose the style and structure of the essay"
+    },
+    "redattore": {
+      "sectionTitle": "Editor Configuration",
+      "articleTypeLabel": "4. Article type",
+      "articleTypeSelectPlaceholder": "Select article type",
+      "articleTypeBlogPost": "Blog Post",
+      "articleTypeNewsArticle": "News article",
+      "articleTypePressRelease": "Press release",
+      "articleTypeProductReview": "Product review",
+      "articleTypeHowTo": "How-to guide",
+      "articleTypeListicle": "Listicle",
+      "articleTypeOpinionPiece": "Opinion piece",
+      "articleTypeInterview": "Interview",
+      "seoKeywordsLabel": "5. SEO keywords (comma-separated)",
+      "seoKeywordsPlaceholder": "e.g., technology, innovation, artificial intelligence",
+      "seoKeywordsHint": "Enter up to 5 keywords to optimize the article for search engines",
+      "wordCountLabel": "6. Target length (words)",
+      "wordCountHint": "Target word count for the article (100-5000)"
+    },
+    "buttons": {
+      "creating": "Creating...",
+      "create": "Create Project",
+      "reset": "Reset",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "success": "Project created successfully!",
+      "error": "Error creating the project"
+    }
   },
   "sources": {
     "title": "Sources",

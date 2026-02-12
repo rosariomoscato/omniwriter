@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, BookOpen, FileText, Zap, AlertCircle } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -8,8 +9,8 @@ type AreaType = 'romanziere' | 'saggista' | 'redattore';
 
 interface AreaOption {
   id: AreaType;
-  name: string;
-  description: string;
+  nameKey: string;
+  descriptionKey: string;
   icon: React.ElementType;
   color: string;
 }
@@ -17,22 +18,22 @@ interface AreaOption {
 const AREAS: AreaOption[] = [
   {
     id: 'romanziere',
-    name: 'Romanziere',
-    description: 'Scrivi romanzi con personaggi complessi, trame articolate e mondi immaginari',
+    nameKey: 'newProject.areas.romanziere.name',
+    descriptionKey: 'newProject.areas.romanziere.description',
     icon: BookOpen,
     color: 'bg-amber-500',
   },
   {
     id: 'saggista',
-    name: 'Saggista',
-    description: 'Approfondisci temi con analisi dettagliate, fonti e citazioni',
+    nameKey: 'newProject.areas.saggista.name',
+    descriptionKey: 'newProject.areas.saggista.description',
     icon: FileText,
     color: 'bg-teal-500',
   },
   {
     id: 'redattore',
-    name: 'Redattore',
-    description: 'Crea articoli veloci, ottimizzati per la lettura e il web',
+    nameKey: 'newProject.areas.redattore.name',
+    descriptionKey: 'newProject.areas.redattore.description',
     icon: Zap,
     color: 'bg-rose-500',
   },
@@ -41,6 +42,7 @@ const AREAS: AreaOption[] = [
 function NewProject() {
   const navigate = useNavigate();
   const toast = useToastNotification();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -86,7 +88,7 @@ function NewProject() {
     let error = '';
 
     if (name === 'title' && !value.trim()) {
-      error = 'Il titolo è obbligatorio';
+      error = t('newProject.validation.titleRequired');
     }
 
     setFieldErrors(prev => ({ ...prev, [name]: error }));
@@ -129,14 +131,14 @@ function NewProject() {
 
     // Validate title (always required)
     if (!formData.title.trim()) {
-      setFieldErrors(prev => ({ ...prev, title: 'Il titolo è obbligatorio' }));
+      setFieldErrors(prev => ({ ...prev, title: t('newProject.validation.titleRequired') }));
       setTouchedFields(prev => ({ ...prev, title: true }));
       return;
     }
 
     // Validate area selection
     if (!formData.area) {
-      setFieldErrors(prev => ({ ...prev, area: 'Seleziona un\'area per il progetto' }));
+      setFieldErrors(prev => ({ ...prev, area: t('newProject.validation.areaRequired') }));
       return;
     }
 
@@ -191,10 +193,10 @@ function NewProject() {
       sessionStorage.setItem('justCreatedProject', 'true');
 
       // Redirect to newly created project (replace history to prevent back navigation to form)
-      toast.success('Progetto creato con successo!');
+      toast.success(t('newProject.toast.success'));
       navigate(`/projects/${response.project.id}`, { replace: true });
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Errore durante la creazione del progetto';
+      const errorMsg = err instanceof Error ? err.message : t('newProject.toast.error');
       setServerError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -234,13 +236,13 @@ function NewProject() {
           className="inline-flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-4"
         >
           <ArrowLeft size={20} className="mr-2" />
-          Torna alla Dashboard
+          {t('newProject.backToDashboard')}
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          Crea un nuovo progetto
+          {t('newProject.title')}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Scegli l'area e configura il tuo progetto di scrittura
+          {t('newProject.subtitle')}
         </p>
       </div>
 
@@ -254,7 +256,7 @@ function NewProject() {
         {/* Area Selection */}
         <div>
           <label className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            1. Seleziona l'area del progetto *
+            {t('newProject.stepSelectArea')}
           </label>
           {fieldErrors.area && (
             <p className="text-red-600 dark:text-red-400 text-sm mb-2 flex items-center gap-1">
@@ -281,10 +283,10 @@ function NewProject() {
                 >
                   <div className="flex items-center mb-3">
                     <Icon size={28} className={isSelected ? 'text-white' : 'text-gray-700 dark:text-gray-300'} />
-                    <span className="ml-3 text-xl font-bold">{areaOption.name}</span>
+                    <span className="ml-3 text-xl font-bold">{t(areaOption.nameKey)}</span>
                   </div>
                   <p className={`text-sm ${isSelected ? 'text-white/90' : 'text-gray-600 dark:text-gray-400'}`}>
-                    {areaOption.description}
+                    {t(areaOption.descriptionKey)}
                   </p>
                 </button>
               );
@@ -295,7 +297,7 @@ function NewProject() {
         {/* Title */}
         <div>
           <label htmlFor="title" className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            2. Titolo del progetto *
+            {t('newProject.stepTitle')}
           </label>
           <input
             id="title"
@@ -305,7 +307,7 @@ function NewProject() {
             value={formData.title}
             onChange={handleChange}
             onBlur={handleBlur}
-            placeholder="Il mio romanzo, Il mio saggio, Il mio articolo..."
+            placeholder={t('newProject.titlePlaceholder')}
             className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 dark:text-white text-lg ${
               touchedFields.title && fieldErrors.title
                 ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500 dark:bg-red-900/10'
@@ -324,14 +326,14 @@ function NewProject() {
         {/* Description */}
         <div>
           <label htmlFor="description" className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            3. Descrizione (opzionale)
+            {t('newProject.stepDescription')}
           </label>
           <textarea
             id="description"
             name="description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Descrivi brevemente di cosa tratta il progetto..."
+            placeholder={t('newProject.descriptionPlaceholder')}
             rows={4}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white text-lg resize-none"
           />
@@ -341,13 +343,13 @@ function NewProject() {
         {formData.area === 'romanziere' && (
           <div className="space-y-6 p-6 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Configurazione Romanziere
+              {t('newProject.romanziere.sectionTitle')}
             </h3>
 
             {/* Genre */}
             <div>
               <label htmlFor="genre" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                4. Genere letterario
+                {t('newProject.romanziere.genreLabel')}
               </label>
               <input
                 id="genre"
@@ -355,7 +357,7 @@ function NewProject() {
                 type="text"
                 value={formData.genre}
                 onChange={handleChange}
-                placeholder="Fantasy, Thriller, Romance, Sci-Fi..."
+                placeholder={t('newProject.romanziere.genrePlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
               />
             </div>
@@ -363,7 +365,7 @@ function NewProject() {
             {/* Tone */}
             <div>
               <label htmlFor="tone" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                5. Tono narrativo
+                {t('newProject.romanziere.toneLabel')}
               </label>
               <select
                 id="tone"
@@ -372,22 +374,22 @@ function NewProject() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
               >
-                <option value="">Seleziona un tono...</option>
-                <option value="serio">Serio / Drammatico</option>
-                <option value="leggero">Leggero / Divertente</option>
-                <option value="ironico">Ironico / Satirico</option>
-                <option value="romantico">Romantico</option>
-                <option value="thrilling">Tensione / Suspense</option>
-                <option value="dark">Dark / Oscuro</option>
-                <option value="avventuroso">Avventuroso</option>
-                <option value="poetico">Poetico / Letterario</option>
+                <option value="">{t('newProject.romanziere.toneSelectPlaceholder')}</option>
+                <option value="serio">{t('newProject.romanziere.toneSerious')}</option>
+                <option value="leggero">{t('newProject.romanziere.toneLight')}</option>
+                <option value="ironico">{t('newProject.romanziere.toneIronic')}</option>
+                <option value="romantico">{t('newProject.romanziere.toneRomantic')}</option>
+                <option value="thrilling">{t('newProject.romanziere.toneThrilling')}</option>
+                <option value="dark">{t('newProject.romanziere.toneDark')}</option>
+                <option value="avventuroso">{t('newProject.romanziere.toneAdventurous')}</option>
+                <option value="poetico">{t('newProject.romanziere.tonePoetic')}</option>
               </select>
             </div>
 
             {/* POV (Point of View) */}
             <div>
               <label className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                6. Punto di vista (POV)
+                {t('newProject.romanziere.povLabel')}
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -404,8 +406,8 @@ function NewProject() {
                     className="mr-2"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Prima persona (Io)</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">"Io camminai per strada..."</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.romanziere.povFirstPerson')}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t('newProject.romanziere.povFirstPersonDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -422,8 +424,8 @@ function NewProject() {
                     className="mr-2"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Terza persona limitata</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Focus su un personaggio</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.romanziere.povThirdLimited')}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t('newProject.romanziere.povThirdLimitedDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -440,8 +442,8 @@ function NewProject() {
                     className="mr-2"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Terza persona onnisciente</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Tutti i pensieri visibili</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.romanziere.povThirdOmniscient')}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t('newProject.romanziere.povThirdOmniscientDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -458,8 +460,8 @@ function NewProject() {
                     className="mr-2"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Alternato</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Più POV alternati</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.romanziere.povAlternate')}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t('newProject.romanziere.povAlternateDesc')}</div>
                   </div>
                 </label>
               </div>
@@ -468,7 +470,7 @@ function NewProject() {
             {/* Target Audience */}
             <div>
               <label htmlFor="targetAudience" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                7. Pubblico target
+                {t('newProject.romanziere.targetAudienceLabel')}
               </label>
               <input
                 id="targetAudience"
@@ -476,7 +478,7 @@ function NewProject() {
                 type="text"
                 value={formData.targetAudience}
                 onChange={handleChange}
-                placeholder="Giovani adulti, appassionati del fantasy, lettori contemporanei..."
+                placeholder={t('newProject.romanziere.targetAudiencePlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
               />
             </div>
@@ -484,7 +486,7 @@ function NewProject() {
             {/* Word Count Target (Length) */}
             <div>
               <label htmlFor="word_count_target" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                8. Lunghezza target (parole)
+                {t('newProject.romanziere.wordCountLabel')}
               </label>
               <div className="flex items-center gap-4">
                 <input
@@ -522,7 +524,7 @@ function NewProject() {
                 </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Target indicativo: Romanzo breve (~50K), Standard (~80K), Lungo (~100K+)
+                {t('newProject.romanziere.wordCountHint')}
               </p>
             </div>
           </div>
@@ -532,13 +534,13 @@ function NewProject() {
         {formData.area === 'saggista' && (
           <div className="space-y-6 p-6 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Configurazione Saggista
+              {t('newProject.saggista.sectionTitle')}
             </h3>
 
             {/* Topic */}
             <div>
               <label htmlFor="topic" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                4. Argomento del saggio
+                {t('newProject.saggista.topicLabel')}
               </label>
               <input
                 id="topic"
@@ -546,18 +548,18 @@ function NewProject() {
                 type="text"
                 value={formData.topic}
                 onChange={handleChange}
-                placeholder="es: Il cambiamento climatico, La storia di Roma..."
+                placeholder={t('newProject.saggista.topicPlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
               />
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Descrivi l'argomento principale del saggio
+                {t('newProject.saggista.topicHint')}
               </p>
             </div>
 
             {/* Depth */}
             <div>
               <label className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                5. Tipo di approfondimento
+                {t('newProject.saggista.depthLabel')}
               </label>
               <div className="space-y-3">
                 <label className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -574,8 +576,8 @@ function NewProject() {
                     className="mt-1 mr-3"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Approfondimento (Deep Dive)</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Analisi dettagliata e approfondita di un argomento specifico</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.saggista.depthDeepDive')}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('newProject.saggista.depthDeepDiveDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -592,8 +594,8 @@ function NewProject() {
                     className="mt-1 mr-3"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Panoramica (Overview)</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Visione d'insieme ampia con più temi correlati</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('newProject.saggista.depthOverview')}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('newProject.saggista.depthOverviewDesc')}</div>
                   </div>
                 </label>
               </div>
@@ -602,7 +604,7 @@ function NewProject() {
             {/* Target Audience */}
             <div>
               <label htmlFor="targetAudience" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                6. Pubblico target
+                {t('newProject.saggista.targetAudienceLabel')}
               </label>
               <input
                 id="targetAudience"
@@ -610,18 +612,18 @@ function NewProject() {
                 type="text"
                 value={formData.targetAudience}
                 onChange={handleChange}
-                placeholder="es: Studenti universitari, Generale, Esperti del settore..."
+                placeholder={t('newProject.saggista.targetAudiencePlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
               />
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Chi è il pubblico previsto per questo saggio?
+                {t('newProject.saggista.targetAudienceHint')}
               </p>
             </div>
 
             {/* Structure */}
             <div>
               <label htmlFor="structure" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                7. Struttura del saggio
+                {t('newProject.saggista.structureLabel')}
               </label>
               <select
                 id="structure"
@@ -630,13 +632,13 @@ function NewProject() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
               >
-                <option value="popular">Divulgativo</option>
-                <option value="academic">Accademico</option>
-                <option value="journalistic">Giornalistico</option>
-                <option value="technical">Tecnico</option>
+                <option value="popular">{t('newProject.saggista.structurePopular')}</option>
+                <option value="academic">{t('newProject.saggista.structureAcademic')}</option>
+                <option value="journalistic">{t('newProject.saggista.structureJournalistic')}</option>
+                <option value="technical">{t('newProject.saggista.structureTechnical')}</option>
               </select>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Scegli lo stile e la struttura del saggio
+                {t('newProject.saggista.structureHint')}
               </p>
             </div>
           </div>
@@ -646,13 +648,13 @@ function NewProject() {
         {formData.area === 'redattore' && (
           <div className="space-y-6 p-6 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Configurazione Redattore
+              {t('newProject.redattore.sectionTitle')}
             </h3>
 
             {/* Article Type */}
             <div>
               <label htmlFor="articleType" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                4. Tipo di articolo
+                {t('newProject.redattore.articleTypeLabel')}
               </label>
               <select
                 id="articleType"
@@ -661,22 +663,22 @@ function NewProject() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
               >
-                <option value="">Seleziona tipo di articolo</option>
-                <option value="blog_post">Blog Post</option>
-                <option value="news_article">Articolo giornalistico</option>
-                <option value="press_release">Comunicato stampa</option>
-                <option value="product_review">Recensione prodotto</option>
-                <option value="how_to">Guida tutorial (How-to)</option>
-                <option value="listicle">Listicle (elenco puntato)</option>
-                <option value="opinion_piece">Articolo di opinione</option>
-                <option value="interview">Intervista</option>
+                <option value="">{t('newProject.redattore.articleTypeSelectPlaceholder')}</option>
+                <option value="blog_post">{t('newProject.redattore.articleTypeBlogPost')}</option>
+                <option value="news_article">{t('newProject.redattore.articleTypeNewsArticle')}</option>
+                <option value="press_release">{t('newProject.redattore.articleTypePressRelease')}</option>
+                <option value="product_review">{t('newProject.redattore.articleTypeProductReview')}</option>
+                <option value="how_to">{t('newProject.redattore.articleTypeHowTo')}</option>
+                <option value="listicle">{t('newProject.redattore.articleTypeListicle')}</option>
+                <option value="opinion_piece">{t('newProject.redattore.articleTypeOpinionPiece')}</option>
+                <option value="interview">{t('newProject.redattore.articleTypeInterview')}</option>
               </select>
             </div>
 
             {/* SEO Keywords */}
             <div>
               <label htmlFor="seoKeywords" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                5. Parole chiave SEO (separate da virgola)
+                {t('newProject.redattore.seoKeywordsLabel')}
               </label>
               <input
                 id="seoKeywords"
@@ -684,18 +686,18 @@ function NewProject() {
                 type="text"
                 value={formData.seoKeywords}
                 onChange={handleChange}
-                placeholder="es: tecnologia, innovazione, intelligenza artificiale"
+                placeholder={t('newProject.redattore.seoKeywordsPlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
               />
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Inserisci fino a 5 parole chiave per ottimizzare l'articolo per i motori di ricerca
+                {t('newProject.redattore.seoKeywordsHint')}
               </p>
             </div>
 
             {/* Word Count Target */}
             <div>
               <label htmlFor="redattoreWordCount" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                6. Lunghezza target (parole)
+                {t('newProject.redattore.wordCountLabel')}
               </label>
               <input
                 id="redattoreWordCount"
@@ -709,7 +711,7 @@ function NewProject() {
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
               />
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Numero di parole target per l'articolo (100-5000)
+                {t('newProject.redattore.wordCountHint')}
               </p>
             </div>
           </div>
@@ -722,20 +724,20 @@ function NewProject() {
             disabled={loading || isSubmittingRef.current || !formData.area || !formData.title}
             className="px-8 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-md transition-colors disabled:cursor-not-allowed text-lg"
           >
-            {loading ? 'Creazione in corso...' : 'Crea Progetto'}
+            {loading ? t('newProject.buttons.creating') : t('newProject.buttons.create')}
           </button>
           <button
             type="button"
             onClick={handleReset}
             className="px-8 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            Reset
+            {t('newProject.buttons.reset')}
           </button>
           <Link
             to="/dashboard"
             className="px-8 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium"
           >
-            Annulla
+            {t('newProject.buttons.cancel')}
           </Link>
         </div>
       </form>
