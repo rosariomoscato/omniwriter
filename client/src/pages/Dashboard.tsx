@@ -30,6 +30,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  } | null>(null);
+
   // Import state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -137,8 +147,15 @@ export default function Dashboard() {
 
   // Load projects with filters
   useEffect(() => {
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
     loadProjects();
   }, [filters]);
+
+  // Reload when page changes
+  useEffect(() => {
+    loadProjects();
+  }, [currentPage]);
 
   // Load projects function
   const loadProjects = async () => {
@@ -152,7 +169,12 @@ export default function Dashboard() {
         search?: string;
         sort?: string;
         tag?: string;
-      } = {};
+        page?: number;
+        limit?: number;
+      } = {
+        page: currentPage,
+        limit: 20 // Default to 20 projects per page for performance
+      };
 
       if (filters.area !== 'all') {
         params.area = filters.area;
@@ -172,6 +194,7 @@ export default function Dashboard() {
 
       const response = await apiService.getProjects(params);
       setProjects(response.projects);
+      setPagination(response.pagination);
     } catch (err: any) {
       setError(err.message || 'Failed to load projects');
       console.error('Dashboard error:', err);
@@ -961,6 +984,68 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+
+        {/* Pagination Controls */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {t('showing_projects', 'Showing {{count}} of {{total}} projects', {
+                count: projects.length,
+                total: pagination.total
+              })}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Previous Button */}
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={pagination.page === 1}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('previous', 'Previous')}
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.page - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`min-w-[40px] px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        pagination.page === pageNum
+                          ? 'bg-primary-600 text-white'
+                          : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Button */}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                disabled={!pagination.hasMore}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('next', 'Next')}
+              </button>
+            </div>
+          </div>
+        )}
       )}
     </div>
   );

@@ -364,16 +364,26 @@ class ApiService {
   }
 
   // Project endpoints
-  async getProjects(params?: { area?: string; status?: string; search?: string; sort?: string; tag?: string }): Promise<{ projects: Project[]; count: number }> {
+  async getProjects(params?: {
+    area?: string;
+    status?: string;
+    search?: string;
+    sort?: string;
+    tag?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }> {
     const queryParams = new URLSearchParams();
     if (params?.area) queryParams.append('area', params.area);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.search) queryParams.append('search', params.search);
     if (params?.sort) queryParams.append('sort', params.sort);
     if (params?.tag) queryParams.append('tag', params.tag);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const queryString = queryParams.toString();
-    return this.request<{ projects: Project[]; count: number }>(`/projects${queryString ? `?${queryString}` : ''}`);
+    return this.request<{ projects: Project[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }>(`/projects${queryString ? `?${queryString}` : ''}`);
   }
 
   async getProject(id: string): Promise<{ project: Project }> {

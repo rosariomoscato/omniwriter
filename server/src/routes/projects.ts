@@ -31,27 +31,42 @@ const upload = multer({
   },
 });
 
-// GET /api/projects - List user's projects
+// GET /api/projects - List user's projects with pagination
 // @ts-expect-error - AuthRequest type compatibility with router
 router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const db = getDatabase();
     const userId = req.user?.id;
 
-    // Get query parameters for filtering
-    const { area, status, search, sort, tag } = req.query;
+    // Get query parameters for filtering and pagination
+    const { area, status, search, sort, tag, page = '1', limit = '20' } = req.query;
 
+    // Parse pagination parameters with defaults
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 20)); // Max 100 per page
+    const offset = (pageNum - 1) * limitNum;
+
+    // Count query - gets total matching projects
+    let countQuery = 'SELECT COUNT(*) as total FROM projects WHERE user_id = ?';
+    const countParams: (string | undefined)[] = [userId];
+
+    // Main query - fetches paginated projects
     let query = 'SELECT * FROM projects WHERE user_id = ?';
     const params: (string | undefined)[] = [userId];
 
+    // Apply filters to both queries
     if (area && typeof area === 'string') {
       query += ' AND area = ?';
+      countQuery += ' AND area = ?';
       params.push(area);
+      countParams.push(area);
     }
 
     if (status && typeof status === 'string') {
       query += ' AND status = ?';
+      countQuery += ' AND status = ?';
       params.push(status);
+      countParams.push(status);
     }
 
     if (search && typeof search === 'string') {
@@ -65,14 +80,18 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
           str.replace(/%/g, '\\%').replace(/_/g, '\\_');
         const escapedSearch = escapeLikeString(sanitizedSearch);
         query += ' AND (title LIKE ? OR description LIKE ?) ESCAPE \'\\\'';
+        countQuery += ' AND (title LIKE ? OR description LIKE ?) ESCAPE \'\\\'';
         params.push(`%${escapedSearch}%`, `%${escapedSearch}%`);
+        countParams.push(`%${escapedSearch}%`, `%${escapedSearch}%`);
       }
     }
 
     // Tag filtering - use subquery
     if (tag && typeof tag === 'string') {
       query += ` AND id IN (SELECT project_id FROM project_tags WHERE tag_name = ?)`;
+      countQuery += ` AND id IN (SELECT project_id FROM project_tags WHERE tag_name = ?)`;
       params.push(tag.trim());
+      countParams.push(tag.trim());
     }
 
     // Sorting
@@ -84,20 +103,48 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
       query += ' ORDER BY updated_at DESC'; // default: most recent
     }
 
-    console.log('[Projects] Fetching projects for user:', userId);
-    const projects = db.prepare(query).all(...params);
+    // Add pagination
+    query += ' LIMIT ? OFFSET ?';
+    params.push(limitNum, offset);
 
-    // Fetch tags for each project
-    const projectsWithTags = (projects as any[]).map(project => {
-      const tags = db.prepare('SELECT tag_name FROM project_tags WHERE project_id = ? ORDER BY tag_name ASC').all(project.id);
-      return {
-        ...project,
-        tags: tags.map((t: any) => t.tag_name)
-      };
+    console.log('[Projects] Fetching projects for user:', userId, 'page:', pageNum, 'limit:', limitNum);
+
+    // Get total count for pagination metadata
+    const totalResult = db.prepare(countQuery).get(...countParams) as { total: number };
+    const totalProjects = totalResult.total;
+
+    // Fetch paginated projects with tags in a single query (fixes N+1 problem)
+    const projectsQuery = `
+      SELECT
+        p.*,
+        GROUP_CONCAT(pt.tag_name, ',') as tags
+      FROM (${query}) as p
+      LEFT JOIN project_tags pt ON p.id = pt.project_id
+      GROUP BY p.id
+      ORDER BY p.updated_at DESC
+    `;
+
+    const projects = db.prepare(projectsQuery).all(...params);
+
+    // Parse the comma-separated tags
+    const projectsWithTags = (projects as any[]).map(project => ({
+      ...project,
+      tags: project.tags ? project.tags.split(',').filter((t: string) => t) : []
+    }));
+
+    const totalPages = Math.ceil(totalProjects / limitNum);
+
+    console.log('[Projects] Found', projects.length, 'of', totalProjects, 'projects');
+    res.json({
+      projects: projectsWithTags,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalProjects,
+        totalPages: totalPages,
+        hasMore: pageNum < totalPages
+      }
     });
-
-    console.log('[Projects] Found', (projects as unknown[]).length, 'projects');
-    res.json({ projects: projectsWithTags, count: (projects as unknown[]).length });
   } catch (error) {
     console.error('[Projects] List error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
