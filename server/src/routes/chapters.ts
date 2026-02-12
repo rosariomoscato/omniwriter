@@ -671,19 +671,28 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
       }
     }
 
+    // Feature #177: Fetch project sources for generation
+    const projectSources = db.prepare(`
+      SELECT id, file_name, content_text, file_type, source_type, url
+      FROM sources
+      WHERE project_id = ? AND content_text IS NOT NULL AND content_text != ''
+      ORDER BY created_at DESC
+    `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[] | undefined;
+
     // Track token usage (Feature #156)
     // Simulate token counts for generation
-    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0)) / 4);
+    const sourceTokens = projectSources ? projectSources.reduce((acc, s) => acc + (s.content_text?.length || 0), 0) : 0;
+    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
     const estimatedOutputTokens = Math.ceil(chapter.title.length * 15); // Rough estimate for chapter content
 
-    // Generate baseline content (without Human Model)
+    // Feature #177: Generate baseline content (without Human Model)
     // In a real implementation, this would call an AI API
-    const baselineContent = generateMockContent(chapter.title, chapter.area, prompt_context, null);
+    const baselineContent = generateMockContent(chapter.title, chapter.area, prompt_context, null, projectSources);
     const baselineTokens = Math.ceil(baselineContent.length / 4);
 
-    // Generate styled content (with Human Model, if provided)
+    // Feature #177: Generate styled content (with Human Model, if provided)
     const styledContent = humanModel
-      ? generateMockContent(chapter.title, chapter.area, prompt_context, humanModel)
+      ? generateMockContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources)
       : baselineContent;
     const styledTokens = humanModel ? Math.ceil(styledContent.length / 4) : 0;
 
@@ -734,8 +743,19 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
 });
 
 // Helper function to generate mock content (simulates AI generation)
-function generateMockContent(title: string, area: string, context: string, humanModel: any): string {
-  const baseContent = `Questo è un contenuto generato per "${title}" nell'area ${area}.`;
+// Feature #177: Added sources parameter to use uploaded sources in generation
+function generateMockContent(title: string, area: string, context: string, humanModel: any, sources?: any[]): string {
+  let baseContent = `Questo è un contenuto generato per "${title}" nell'area ${area}.`;
+
+  // Feature #177: Include source references in generated content
+  if (sources && sources.length > 0) {
+    const sourceReferences = sources.map(s => {
+      const shortContent = s.content_text ? s.content_text.substring(0, 100) + '...' : '(no content)';
+      return `[Fonte: ${s.file_name} - "${shortContent}"]`;
+    }).join('\n\n');
+
+    baseContent += `\n\n\nContenuto basato sulle seguenti fonti caricate:\n\n${sourceReferences}\n\nIl contenuto generato sopra integra e sintetizza le informazioni provenienti da queste fonti.`;
+  }
 
   if (!humanModel) {
     return `${baseContent} Questo testo è stato generato senza l'applicazione di alcun modello stilistico umano. Lo stile è neutro e standard, adatto per una prima bozza o per avere un punto di partenza pulito.`;
@@ -880,6 +900,14 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
       }
     }
 
+    // Feature #177: Fetch project sources for generation
+    const projectSources = db.prepare(`
+      SELECT id, file_name, content_text, file_type, source_type, url
+      FROM sources
+      WHERE project_id = ? AND content_text IS NOT NULL AND content_text != ''
+      ORDER BY created_at DESC
+    `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[] | undefined;
+
     // Get all chapters in the project to ensure we only regenerate this one
     const allChapters = db.prepare(`
       SELECT id, title, content, order_index
@@ -889,10 +917,11 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
     `).all(chapter.project_id) as { id: string; title: string; content: string; order_index: number }[];
 
     // Track token usage (Feature #156)
-    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0)) / 4);
+    const sourceTokens = projectSources ? projectSources.reduce((acc, s) => acc + (s.content_text?.length || 0), 0) : 0;
+    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
 
-    // Generate new content for this chapter only
-    const newContent = generateMockContent(chapter.title, chapter.area, prompt_context, humanModel);
+    // Feature #177: Pass sources to generation function
+    const newContent = generateMockContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
     const outputTokens = Math.ceil(newContent.length / 4);
     const totalTokens = inputTokens + outputTokens;
 
