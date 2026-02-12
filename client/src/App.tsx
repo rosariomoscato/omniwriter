@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import GenerationProgress from './components/GenerationProgress';
 import SessionExpiredBanner from './components/SessionExpiredBanner';
+import PreferencesSync from './components/PreferencesSync';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -88,6 +89,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
       <SessionExpiredBanner />
+      <PreferencesSync />
       <ProtectedRouteGuard>
         <Routes>
           {/* Public Routes */}

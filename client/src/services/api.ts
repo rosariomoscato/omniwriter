@@ -615,6 +615,19 @@ class ApiService {
     });
   }
 
+  async updateProfile(data: {
+    name?: string;
+    bio?: string;
+    avatar_url?: string;
+    preferred_language?: 'it' | 'en';
+    theme_preference?: 'light' | 'dark';
+  }): Promise<{ user: any }> {
+    return this.request<{ user: any }>('/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Helper to store auth data
   static setAuth(user: AuthResponse['user'], token: string) {
     localStorage.setItem('user', JSON.stringify(user));

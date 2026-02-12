@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Globe, Moon, Sun, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { apiService } from '../services/api';
 
 interface HeaderProps {
   isSidebarCollapsed: boolean;
@@ -10,8 +11,8 @@ interface HeaderProps {
 
 export default function Header({ isSidebarCollapsed }: HeaderProps) {
   const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user, logout, updateUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -28,10 +29,35 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleLanguage = () => {
+  const toggleLanguage = async () => {
     const newLang = i18n.language === 'it' ? 'en' : 'it';
     i18n.changeLanguage(newLang);
     localStorage.setItem('language', newLang);
+
+    // Save to backend if user is logged in
+    if (user) {
+      try {
+        await apiService.updateProfile({ preferred_language: newLang });
+        updateUser({ preferred_language: newLang });
+      } catch (error) {
+        console.error('Failed to save language preference:', error);
+      }
+    }
+  };
+
+  const handleThemeToggle = async () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+
+    // Save to backend if user is logged in
+    if (user) {
+      try {
+        await apiService.updateProfile({ theme_preference: newTheme });
+        updateUser({ theme_preference: newTheme });
+      } catch (error) {
+        console.error('Failed to save theme preference:', error);
+      }
+    }
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -90,7 +116,7 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
 
         {/* Theme Toggle */}
         <button
-          onClick={toggleTheme}
+          onClick={handleThemeToggle}
           className="
             p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
             transition-colors duration-200

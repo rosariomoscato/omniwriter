@@ -14,6 +14,7 @@ import exportRouter from './routes/export';
 import sagasRouter from './routes/sagas';
 import adminRouter from './routes/admin';
 import usersRouter from './routes/users';
+import citationsRouter from './routes/citations';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/sagas', sagasRouter);
 app.use('/api', chaptersRouter);
 app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
+app.use('/api', citationsRouter);
 app.use('/api', exportRouter);
 app.use('/api/admin', adminRouter);
 

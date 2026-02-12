@@ -218,6 +218,23 @@ function runMigrations(db: Database.Database): void {
       tag_name TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS citations (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      chapter_id TEXT REFERENCES chapters(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      authors TEXT DEFAULT '',
+      publication_year TEXT,
+      publisher TEXT DEFAULT '',
+      url TEXT DEFAULT '',
+      page_numbers TEXT DEFAULT '',
+      citation_type TEXT NOT NULL DEFAULT 'book' CHECK(citation_type IN ('book', 'journal', 'website', 'report', 'other')),
+      notes TEXT DEFAULT '',
+      order_index INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS export_history (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -255,6 +272,8 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_human_models_user_id ON human_models(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_citations_project_id ON citations(project_id);
+    CREATE INDEX IF NOT EXISTS idx_citations_chapter_id ON citations(chapter_id);
   `);
 
   console.log('[Database] Migrations completed successfully');
