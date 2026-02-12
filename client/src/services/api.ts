@@ -123,6 +123,7 @@ export interface Source {
   source_type: 'upload' | 'web_search';
   url: string | null;
   tags_json: string;
+  tags: string[]; // Parsed tags for easier use
   relevance_score: number;
   created_at: string;
 }
@@ -553,6 +554,17 @@ class ApiService {
     await this.request<void>(`/sources/${sourceId}`, {
       method: 'DELETE',
     });
+  }
+
+  async updateSourceTags(sourceId: string, tags: string[]): Promise<{ source: Source }> {
+    return this.request<{ source: Source }>(`/sources/${sourceId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tags }),
+    });
+  }
+
+  async getSourceTags(): Promise<{ tags: string[] }> {
+    return this.request<{ tags: string[] }>('/sources/tags');
   }
 
   // Character endpoints

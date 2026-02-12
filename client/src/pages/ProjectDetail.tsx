@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -88,6 +88,10 @@ export default function ProjectDetail() {
     area: 'romanziere' as 'romanziere' | 'saggista' | 'redattore'
   });
   const [draggedChapterIndex, setDraggedChapterIndex] = useState<number | null>(null);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [editingSourceTags, setEditingSourceTags] = useState<string | null>(null);
+  const [newTagInput, setNewTagInput] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -168,9 +172,24 @@ export default function ProjectDetail() {
   const loadSources = async () => {
     try {
       const response = await apiService.getProjectSources(id!);
-      setSources(response.sources);
+      // Parse tags_json to tags array for each source
+      const sourcesWithTags = response.sources.map(source => ({
+        ...source,
+        tags: JSON.parse(source.tags_json || '[]')
+      }));
+      setSources(sourcesWithTags);
+      await loadAllTags();
     } catch (err) {
       console.error('Failed to load sources:', err);
+    }
+  };
+
+  const loadAllTags = async () => {
+    try {
+      const response = await apiService.getSourceTags();
+      setAllTags(response.tags);
+    } catch (err) {
+      console.error('Failed to load tags:', err);
     }
   };
 
@@ -411,6 +430,48 @@ export default function ProjectDetail() {
       setSources(sources.filter(s => s.id !== sourceId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete source');
+    }
+  };
+
+  const handleAddTag = async (sourceId: string, tag: string) => {
+    const trimmedTag = tag.trim();
+    if (!trimmedTag) return;
+
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
+
+    // Check if tag already exists
+    if (source.tags.includes(trimmedTag)) {
+      setNewTagInput('');
+      return;
+    }
+
+    try {
+      const updatedTags = [...source.tags, trimmedTag];
+      const response = await apiService.updateSourceTags(sourceId, updatedTags);
+      const updatedSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
+      setSources(sources.map(s => s.id === sourceId ? updatedSource : s));
+      await loadAllTags();
+      setNewTagInput('');
+      toast.success('Tag added');
+    } catch (err: any) {
+      setError(err.message || 'Failed to add tag');
+    }
+  };
+
+  const handleRemoveTag = async (sourceId: string, tagToRemove: string) => {
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
+
+    try {
+      const updatedTags = source.tags.filter(tag => tag !== tagToRemove);
+      const response = await apiService.updateSourceTags(sourceId, updatedTags);
+      const updatedSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
+      setSources(sources.map(s => s.id === sourceId ? updatedSource : s));
+      await loadAllTags();
+      toast.success('Tag removed');
+    } catch (err: any) {
+      setError(err.message || 'Failed to remove tag');
     }
   };
 
@@ -1669,6 +1730,22 @@ export default function ProjectDetail() {
             <span className="text-sm text-gray-500 dark:text-gray-400">
               ({sources.length})
             </span>
+            {/* Tag Filter */}
+            {allTags.length > 0 && (
+              <div className="ml-4 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-gray-400" />
+                <select
+                  value={selectedTagFilter}
+                  onChange={(e) => setSelectedTagFilter(e.target.value)}
+                  className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Tags</option>
+                  {allTags.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowAddSource(!showAddSource)}
@@ -1725,7 +1802,9 @@ export default function ProjectDetail() {
               <p className="text-sm">Upload reference materials to use in your project</p>
             </div>
           ) : (
-            sources.map((source) => (
+            sources
+              .filter(source => selectedTagFilter === 'all' || (source.tags && source.tags.includes(selectedTagFilter)))
+              .map((source) => (
               <div
                 key={source.id}
                 className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
@@ -1736,7 +1815,7 @@ export default function ProjectDetail() {
                     <h3 className="text-gray-900 dark:text-gray-100 font-medium">
                       {source.file_name}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
                         {source.file_type.split('/')[1] || 'file'}
                       </span>
@@ -1750,16 +1829,77 @@ export default function ProjectDetail() {
                       }`}>
                         {source.source_type === 'upload' ? 'Upload' : 'Web Search'}
                       </span>
+                      {/* Tags display */}
+                      {source.tags && source.tags.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {source.tags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => handleRemoveTag(source.id, tag)}
+                                className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    {/* Add Tag Input */}
+                    {editingSourceTags === source.id && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newTagInput.trim()) {
+                              handleAddTag(source.id, newTagInput);
+                            } else if (e.key === 'Escape') {
+                              setEditingSourceTags(null);
+                              setNewTagInput('');
+                            }
+                          }}
+                          placeholder="Add tag and press Enter..."
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => {
+                            setEditingSourceTags(null);
+                            setNewTagInput('');
+                          }}
+                          className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteSource(source.id)}
-                  className="ml-4 p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete source"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={() => {
+                      setEditingSourceTags(editingSourceTags === source.id ? null : source.id);
+                      setNewTagInput('');
+                    }}
+                    className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Add tag"
+                  >
+                    <Tag className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSource(source.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Delete source"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))
           )}
