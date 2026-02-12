@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+server/data/
+
+# Uploads
+server/uploads/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Temp
+tmp/
+temp/
+
+# OS
+Thumbs.db
+ehthumbs.db
+
+# Autoforge
+.autoforge/
+features.db

@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "OmniWriter",
+    "tagline": "Piattaforma di scrittura professionale basata su AI"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Progetti",
+    "romanziere": "Romanziere",
+    "saggista": "Saggista",
+    "redattore": "Redattore",
+    "humanModel": "Modello Umano",
+    "sources": "Fonti",
+    "settings": "Impostazioni",
+    "profile": "Profilo",
+    "admin": "Amministrazione",
+    "logout": "Esci"
+  },
+  "auth": {
+    "login": "Accedi",
+    "register": "Registrati",
+    "forgotPassword": "Password dimenticata?",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "name": "Nome",
+    "rememberMe": "Ricordami",
+    "loginWithGoogle": "Accedi con Google",
+    "noAccount": "Non hai un account?",
+    "hasAccount": "Hai già un account?"
+  },
+  "landing": {
+    "hero": "Scrivi con l'intelligenza artificiale",
+    "subtitle": "Genera romanzi, saggi e articoli giornalistici con l'aiuto dell'AI",
+    "startFree": "Inizia Gratis",
+    "login": "Accedi"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "recentProjects": "Progetti recenti",
+    "createProject": "Nuovo progetto",
+    "noProjects": "Non hai ancora nessun progetto. Creane uno!",
+    "filterByArea": "Filtra per area",
+    "sortBy": "Ordina per",
+    "search": "Cerca progetti..."
+  },
+  "project": {
+    "title": "Titolo",
+    "description": "Descrizione",
+    "area": "Area",
+    "genre": "Genere",
+    "status": "Stato",
+    "draft": "Bozza",
+    "inProgress": "In corso",
+    "completed": "Completato",
+    "archived": "Archiviato",
+    "create": "Crea progetto",
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "duplicate": "Duplica",
+    "archive": "Archivia",
+    "confirmDelete": "Sei sicuro di voler eliminare questo progetto?"
+  },
+  "common": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "create": "Crea",
+    "search": "Cerca",
+    "filter": "Filtra",
+    "sort": "Ordina",
+    "loading": "Caricamento...",
+    "error": "Errore",
+    "success": "Successo",
+    "confirm": "Conferma",
+    "back": "Indietro",
+    "next": "Avanti",
+    "close": "Chiudi",
+    "notFound": "Pagina non trovata",
+    "goHome": "Torna alla Home"
+  }
+}

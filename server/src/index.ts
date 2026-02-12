@@ -1,0 +1,58 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import dotenv from 'dotenv';
+import { initializeDatabase } from './db/database';
+import healthRouter from './routes/health';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Initialize database
+const db = initializeDatabase();
+console.log('[Database] SQLite database connected successfully');
+
+// Routes
+app.use('/api/health', healthRouter);
+
+// Placeholder route groups - to be implemented by coding agents
+app.use('/api/auth', (_req, res) => {
+  res.status(501).json({ message: 'Auth routes not yet implemented' });
+});
+
+app.use('/api/users', (_req, res) => {
+  res.status(501).json({ message: 'User routes not yet implemented' });
+});
+
+app.use('/api/projects', (_req, res) => {
+  res.status(501).json({ message: 'Project routes not yet implemented' });
+});
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Error handler
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[Error]', err.message);
+  res.status(500).json({ message: 'Internal server error' });
+});
+
+app.listen(PORT, () => {
+  console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
+  console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
+});
+
+export default app;
