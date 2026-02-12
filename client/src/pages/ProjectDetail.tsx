@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw, Network } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw, Network, CheckCircle, Lightbulb } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -3256,6 +3256,222 @@ export default function ProjectDetail() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature #182: Plot Hole Detection Results */}
+      {showPlotHolesResults && plotHolesResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full my-8 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-rose-50 dark:bg-rose-900/20">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Plot Hole Detection Results
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {plotHolesResults.length} issue{plotHolesResults.length !== 1 ? 's' : ''} found
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPlotHolesResults(false);
+                  setPlotHolesResults(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {plotHolesResults.length === 0 ? (
+                <div className="text-center py-12">
+                  <RefreshCw className="w-16 h-16 mx-auto mb-4 text-green-500" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    No Plot Holes Detected!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Your story appears to be consistent and well-structured.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {plotHolesResults.map((hole: any, index: number) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        hole.severity === 'high'
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                          : hole.severity === 'medium'
+                          ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                            hole.severity === 'high'
+                              ? 'bg-red-500 text-white'
+                              : hole.severity === 'medium'
+                              ? 'bg-yellow-500 text-white'
+                              : 'bg-blue-500 text-white'
+                          }`}>
+                            {hole.severity.toUpperCase()}
+                          </span>
+                          <span className="px-2 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                            {hole.type}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        {hole.description}
+                      </h4>
+
+                      {hole.chapter_references && hole.chapter_references.length > 0 && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Referenced chapters:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {hole.chapter_references.map((ref: string, i: number) => (
+                              <span
+                                key={i}
+                                className="px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600"
+                              >
+                                {ref}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {hole.suggestion && (
+                        <div className="p-3 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-start gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <strong>Suggestion:</strong> {hole.suggestion}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature #183: Consistency Check Results */}
+      {showConsistencyResults && consistencyResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full my-8 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-teal-50 dark:bg-teal-900/20">
+              <div className="flex items-center gap-3">
+                <Network className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Consistency Check Results
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {consistencyResults.length} issue{consistencyResults.length !== 1 ? 's' : ''} found
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowConsistencyResults(false);
+                  setConsistencyResults(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {consistencyResults.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    No Inconsistencies Detected!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Your story is consistent across all chapters.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {consistencyResults.map((issue: any, index: number) => (
+                    <div
+                      key={index}
+                      className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${
+                            issue.type === 'character'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                              : issue.type === 'location'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                              : issue.type === 'timeline'
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                              : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                          }`}>
+                            {issue.type.toUpperCase()}
+                          </span>
+                          {issue.entity_name && (
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              "{issue.entity_name}"
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-gray-700 dark:text-gray-300 mb-3">
+                        {issue.description}
+                      </p>
+
+                      {issue.chapter_references && issue.chapter_references.length > 0 && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Referenced chapters:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {issue.chapter_references.map((ref: string, i: number) => (
+                              <span
+                                key={i}
+                                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600"
+                              >
+                                {ref}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {issue.suggestion && (
+                        <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded border border-teal-200 dark:border-teal-800">
+                          <div className="flex items-start gap-2">
+                            <Lightbulb className="w-4 h-4 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <strong>Suggestion:</strong> {issue.suggestion}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

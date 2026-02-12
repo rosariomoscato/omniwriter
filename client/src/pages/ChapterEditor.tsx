@@ -56,6 +56,16 @@ export default function ChapterEditor() {
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [revising, setRevising] = useState(false);
 
+  // Dialogue Enhancement state (Feature #188)
+  const [enhancingDialogue, setEnhancingDialogue] = useState(false);
+  const [showEnhancementDialog, setShowEnhancementDialog] = useState(false);
+  const [enhancementData, setEnhancementData] = useState<{
+    originalText: string;
+    enhancedText: string;
+    explanation: string;
+    alternatives: Array<{ id: string; text: string; explanation: string }>;
+  } | null>(null);
+
   // Unsaved changes warning state (feature #170)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
@@ -715,6 +725,86 @@ export default function ChapterEditor() {
     }
   };
 
+  // Handle dialogue enhancement request (Feature #188)
+  const handleEnhanceDialogue = async () => {
+    if (!selectedText || !selectionRange || !chapterId) return;
+
+    try {
+      setEnhancingDialogue(true);
+      setShowReviseMenu(false);
+
+      const response = await fetch(`/api/chapters/${chapterId}/enhance-dialogue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          selectedText,
+          start: selectionRange.start,
+          end: selectionRange.end
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to enhance dialogue' }));
+        toast.error(errorData.message || 'Failed to enhance dialogue');
+        setEnhancingDialogue(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      // Show enhancement dialog with accept/reject options
+      setEnhancementData({
+        originalText: data.originalText,
+        enhancedText: data.enhancedText,
+        explanation: data.explanation,
+        alternatives: data.alternatives || []
+      });
+      setShowEnhancementDialog(true);
+    } catch (err: any) {
+      console.error('Dialogue enhancement error:', err);
+      toast.error(err.message || 'Failed to enhance dialogue');
+    } finally {
+      setEnhancingDialogue(false);
+    }
+  };
+
+  // Accept enhanced dialogue
+  const handleAcceptEnhancement = () => {
+    if (!enhancementData || !selectionRange) return;
+
+    const newContent = content.substring(0, selectionRange.start) +
+                    enhancementData.enhancedText +
+                    content.substring(selectionRange.end);
+    setContent(newContent);
+    toast.success('Dialogue enhanced successfully');
+
+    // Close dialog and clear selection
+    setShowEnhancementDialog(false);
+    setEnhancementData(null);
+    setSelectedText('');
+    setSelectionRange(null);
+  };
+
+  // Reject enhanced dialogue
+  const handleRejectEnhancement = () => {
+    setShowEnhancementDialog(false);
+    setEnhancementData(null);
+    toast.info('Enhancement rejected');
+  };
+
+  // Select alternative enhancement
+  const handleSelectAlternative = (alternative: { id: string; text: string; explanation: string }) => {
+    if (!enhancementData) return;
+    setEnhancementData({
+      ...enhancementData,
+      enhancedText: alternative.text,
+      explanation: alternative.explanation
+    });
+  };
+
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
     let html = content;
@@ -1190,7 +1280,7 @@ export default function ChapterEditor() {
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
               <button
                 onClick={handleAIRevise}
-                disabled={revising}
+                disabled={revising || enhancingDialogue}
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 {revising ? (
@@ -1205,6 +1295,27 @@ export default function ChapterEditor() {
                   </>
                 )}
               </button>
+              {/* Dialogue Enhancement button (Feature #188) - only for Romanziere */}
+              {project?.area === 'romanziere' && (
+                <button
+                  onClick={handleEnhanceDialogue}
+                  disabled={enhancingDialogue || revising}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                  title="Enhance dialogue for better flow and character voice"
+                >
+                  {enhancingDialogue ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Enhancing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3" />
+                      Enhance Dialogue
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => setShowReviseMenu(false)}
                 className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
@@ -1256,6 +1367,109 @@ export default function ChapterEditor() {
           version2={comparisonVersions.v2}
           onClose={() => setComparisonVersions({ v1: null, v2: null })}
         />
+      )}
+
+      {/* Dialogue Enhancement Dialog (Feature #188) */}
+      {showEnhancementDialog && enhancementData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-surface rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-600" />
+                    Dialogue Enhancement
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    AI-suggested improvements to make dialogue more natural and engaging
+                  </p>
+                </div>
+                <button
+                  onClick={handleRejectEnhancement}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Original */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Original</h4>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-serif">
+                      {enhancementData.originalText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Enhanced */}
+                <div>
+                  <h4 className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
+                    <Sparkles className="w-4 h-4" />
+                    Enhanced Version
+                  </h4>
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-serif">
+                      {enhancementData.enhancedText}
+                    </p>
+                  </div>
+                  {enhancementData.explanation && (
+                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-800 dark:text-blue-300">
+                        <span className="font-medium">Why this works:</span> {enhancementData.explanation}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alternatives */}
+              {enhancementData.alternatives && enhancementData.alternatives.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Alternative Enhancements</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {enhancementData.alternatives.map((alt) => (
+                      <button
+                        key={alt.id}
+                        onClick={() => handleSelectAlternative(alt)}
+                        className="p-3 text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-600 transition-colors"
+                      >
+                        <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-serif mb-2">
+                          {alt.text}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {alt.explanation}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
+              <button
+                onClick={handleRejectEnhancement}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors"
+              >
+                Reject
+              </button>
+              <button
+                onClick={handleAcceptEnhancement}
+                className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Apply Enhancement
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
