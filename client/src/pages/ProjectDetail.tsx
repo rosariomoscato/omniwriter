@@ -458,6 +458,54 @@ export default function ProjectDetail() {
     }
   };
 
+  // Feature #178: Regenerate a single chapter
+  const [regeneratingChapterId, setRegeneratingChapterId] = useState<string | null>(null);
+  const regeneratingChapterIdRef = useRef<string | null>(null);
+
+  const handleRegenerateChapter = async (chapterId: string) => {
+    // Prevent rapid double-clicks
+    if (regeneratingChapterIdRef.current === chapterId) {
+      return;
+    }
+
+    const chapter = chapters.find(ch => ch.id === chapterId);
+    if (!chapter) return;
+
+    if (!confirm(`Are you sure you want to regenerate chapter "${chapter.title}"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged.`)) {
+      return;
+    }
+
+    // Mark as regenerating immediately
+    regeneratingChapterIdRef.current = chapterId;
+    setRegeneratingChapterId(chapterId);
+
+    try {
+      toast.showInfo(`Regenerating chapter "${chapter.title}"...`);
+      const response = await apiService.regenerateChapter(
+        chapterId,
+        project?.human_model_id || undefined,
+        undefined // prompt_context
+      );
+
+      // Update only this chapter in the list
+      setChapters(chapters.map(ch =>
+        ch.id === chapterId ? response.chapter : ch
+      ));
+
+      toast.showSuccess(response.message || `Chapter "${chapter.title}" regenerated successfully`);
+
+      // Log which chapters were unchanged for verification
+      if (response.other_chapters_unchanged && response.other_chapters_unchanged.length > 0) {
+        console.log('[Regenerate] Other chapters unchanged:', response.other_chapters_unchanged);
+      }
+    } catch (err: any) {
+      toast.showError(err.message || 'Failed to regenerate chapter');
+    } finally {
+      regeneratingChapterIdRef.current = null;
+      setRegeneratingChapterId(null);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1941,16 +1989,29 @@ export default function ProjectDetail() {
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteChapter(chapter.id);
-                  }}
-                  className="ml-4 p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete chapter"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRegenerateChapter(chapter.id);
+                    }}
+                    disabled={regeneratingChapterId === chapter.id}
+                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Regenerate chapter"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${regeneratingChapterId === chapter.id ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteChapter(chapter.id);
+                    }}
+                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete chapter"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))
           )}

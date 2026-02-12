@@ -1030,11 +1030,10 @@ export default function ChapterEditor() {
                   </ul>
                 </div>
               )}
-              )}
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Formatting Toolbar */}
         {!isPreview && (
@@ -1106,6 +1105,7 @@ export default function ChapterEditor() {
       </div>
 
       {/* AI Revision Floating Menu (Feature #96) */}
+      <div>
         {showReviseMenu && !isPreview && menuPosition && (
           <div
             className="absolute z-50 bg-white dark:bg-dark-surface rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 animate-in fade-in zoom-in duration-200"
@@ -1147,6 +1147,7 @@ export default function ChapterEditor() {
             </div>
           </div>
         )}
+      </div>
 
       {/* Footer - hidden in full-screen mode */}
       {!isFullScreen && (
@@ -1189,6 +1190,7 @@ export default function ChapterEditor() {
           onClose={() => setComparisonVersions({ v1: null, v2: null })}
         />
       )}
+      </div>
     </div>
   );
 }

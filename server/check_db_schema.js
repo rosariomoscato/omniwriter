@@ -6,7 +6,8 @@ const db = new Database(dbPath);
 const expectedTables = [
   'users', 'sessions', 'projects', 'sagas', 'chapters', 'chapter_versions',
   'characters', 'locations', 'plot_events', 'human_models', 'human_model_sources',
-  'sources', 'generation_logs', 'project_tags', 'export_history', 'user_preferences'
+  'sources', 'generation_logs', 'project_tags', 'export_history', 'user_preferences',
+  'citations', 'password_reset_tokens', 'chapter_comments'
 ];
 
 console.log('Checking database schema...\n');
@@ -51,7 +52,7 @@ if (usersMissing.length > 0) {
 const projectsCols = db.prepare("PRAGMA table_info(projects)").all();
 const projectsColNames = projectsCols.map(c => c.name);
 console.log('projects table columns:', projectsColNames.join(', '));
-const projectsRequired = ['id', 'title', 'description', 'author_id', 'created_at'];
+const projectsRequired = ['id', 'title', 'description', 'user_id', 'created_at'];
 const projectsMissing = projectsRequired.filter(r => !projectsColNames.includes(r));
 if (projectsMissing.length > 0) {
   console.log('❌ projects missing columns:', projectsMissing);
@@ -63,7 +64,7 @@ if (projectsMissing.length > 0) {
 const chaptersCols = db.prepare("PRAGMA table_info(chapters)").all();
 const chaptersColNames = chaptersCols.map(c => c.name);
 console.log('chapters table columns:', chaptersColNames.join(', '));
-const chaptersRequired = ['id', 'title', 'content', 'project_id', 'order', 'created_at'];
+const chaptersRequired = ['id', 'title', 'content', 'project_id', 'order_index', 'created_at'];
 const chaptersMissing = chaptersRequired.filter(r => !chaptersColNames.includes(r));
 if (chaptersMissing.length > 0) {
   console.log('❌ chapters missing columns:', chaptersMissing);
