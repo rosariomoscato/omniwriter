@@ -63,7 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
-      ApiService.setAuth(updatedUser, token);
+      if (token) {
+        ApiService.setAuth(updatedUser, token);
+      }
     }
   };
 

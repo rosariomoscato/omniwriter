@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 
@@ -23,6 +23,16 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importArea, setImportArea] = useState<'romanziere' | 'saggista' | 'redattore'>('romanziere');
+  const [importGenre, setImportGenre] = useState('');
+  const [importDescription, setImportDescription] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter state - sync with URL params
   const [filters, setFilters] = useState<FilterState>(() => {
@@ -118,6 +128,65 @@ export default function Dashboard() {
   };
 
   const hasActiveFilters = filters.area !== 'all' || filters.status !== 'all' || filters.search;
+
+  // Import handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validExtensions = ['.txt', '.docx', '.doc'];
+      const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      if (!validExtensions.includes(fileExtension)) {
+        setImportError('Solo file DOCX, DOC e TXT sono consentiti');
+        setImportFile(null);
+        return;
+      }
+      setImportFile(file);
+      setImportError(null);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      setImportError('Seleziona un file da importare');
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      setImportError(null);
+
+      const result = await apiService.importProject(importFile, {
+        area: importArea,
+        genre: importGenre,
+        description: importDescription,
+      });
+
+      // Close modal and reset form
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportGenre('');
+      setImportDescription('');
+
+      // Reload projects to show the imported one
+      await loadProjects();
+
+      // Show success message
+      alert(`Progetto importato con successo!\n\n${result.chaptersCreated} capitoli creati\n${result.totalWordCount} parole totali`);
+    } catch (err: any) {
+      setImportError(err.message || 'Failed to import project');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const openImportModal = () => {
+    setShowImportModal(true);
+    setImportFile(null);
+    setImportGenre('');
+    setImportDescription('');
+    setImportError(null);
+  };
 
   const getAreaIcon = (area: string) => {
     switch (area) {

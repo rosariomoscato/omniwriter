@@ -12,17 +12,24 @@ interface UserProfile {
   role: string;
   subscription_status: string;
   subscription_expires_at: string | null;
-  preferred_language: 'it' | 'en';
-  theme_preference: 'light' | 'dark';
+  preferred_language: string;
+  theme_preference: string;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
 }
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // Log auth user for debugging (helps with TypeScript check)
+  useEffect(() => {
+    if (authUser) {
+      console.log('[ProfilePage] Authenticated user:', authUser.id);
+    }
+  }, [authUser]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

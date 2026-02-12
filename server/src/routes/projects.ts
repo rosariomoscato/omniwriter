@@ -1,9 +1,34 @@
 import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+// Configure multer for file uploads (stored in memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    // Accept DOCX and TXT files
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'text/plain', // .txt
+      'application/msword', // .doc (legacy)
+    ];
+    const allowedExtensions = ['.docx', '.txt', '.doc'];
+    const fileExtension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only DOCX, DOC, and TXT files are allowed'));
+    }
+  },
+});
 
 // GET /api/projects - List user's projects
 // @ts-expect-error - AuthRequest type compatibility with router
@@ -202,6 +227,183 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('[Projects] Delete error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Helper function to parse TXT content
+function parseTxtContent(content: string, filename: string): { title: string; chapters: Array<{ title: string; content: string }> } {
+  const lines = content.split('\n');
+  const chapters: Array<{ title: string; content: string }> = [];
+  let currentChapter: { title: string; content: string } | null = null;
+  let currentContent: string[] = [];
+
+  // Extract title from first non-empty line or use filename
+  let title = filename.replace(/\.(txt|docx?)$/i, '').replace(/[_-]/g, ' ');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Detect chapter headers (common patterns)
+    const chapterPattern = /^(chapter|capitolo|parte|part)\s+\d+[:\.\s]/i;
+    const romanPattern = /^(chapter|capitolo)?\s*[IVXLCDM]+[:\.\s]/i;
+    const numberPattern = /^#\s+\d+/;
+
+    if (chapterPattern.test(trimmed) || romanPattern.test(trimmed) || numberPattern.test(trimmed)) {
+      // Save previous chapter
+      if (currentChapter) {
+        currentChapter.content = currentContent.join('\n').trim();
+        chapters.push(currentChapter);
+      }
+
+      // Start new chapter
+      currentChapter = { title: trimmed, content: '' };
+      currentContent = [];
+    } else if (currentChapter) {
+      // Add to current chapter content
+      currentContent.push(line);
+    } else if (trimmed && !title.includes(trimmed)) {
+      // Still looking for first chapter, collect content
+      currentContent.push(line);
+    }
+  }
+
+  // Don't forget the last chapter
+  if (currentChapter) {
+    currentChapter.content = currentContent.join('\n').trim();
+    chapters.push(currentChapter);
+  }
+
+  // If no chapters were detected, create a single chapter with all content
+  if (chapters.length === 0) {
+    const fullContent = currentContent.join('\n').trim();
+    if (fullContent) {
+      chapters.push({ title: 'Chapter 1', content: fullContent });
+    }
+  }
+
+  // Use first line of content as title if title wasn't explicitly set
+  if (chapters.length > 0 && currentContent.length > 0) {
+    const firstLine = currentContent[0].trim();
+    if (firstLine.length > 3 && firstLine.length < 100) {
+      title = firstLine;
+    }
+  }
+
+  return { title, chapters };
+}
+
+// Helper function to parse DOCX content (basic text extraction)
+function parseDocxContent(buffer: Buffer, filename: string): { title: string; chapters: Array<{ title: string; content: string }> } {
+  // For now, treat DOCX as text (strip XML tags)
+  // A production implementation would use a proper DOCX parser like mammoth.js
+  const text = buffer.toString('utf-8');
+
+  // Remove XML tags and extract plain text
+  const plainText = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[^;]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Use the same TXT parsing logic
+  return parseTxtContent(plainText, filename);
+}
+
+// POST /api/projects/import - Import project from file
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/import', authenticateToken, upload.single('file'), (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const file = req.file;
+
+    if (!file) {
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
+    }
+
+    const { area = 'romanziere', genre = '', description = '' } = req.body;
+
+    console.log('[Projects] Importing file:', file.originalname, 'size:', file.size, 'type:', file.mimetype, 'area:', area);
+
+    // Validate area
+    if (!['romanziere', 'saggista', 'redattore'].includes(area)) {
+      res.status(400).json({ message: 'Invalid area. Must be romanziere, saggista, or redattore' });
+      return;
+    }
+
+    // Parse file content based on type
+    let parsed: { title: string; chapters: Array<{ title: string; content: string }> };
+
+    if (file.mimetype === 'text/plain' || file.originalname.toLowerCase().endsWith('.txt')) {
+      const content = file.buffer.toString('utf-8');
+      parsed = parseTxtContent(content, file.originalname);
+    } else {
+      // Treat as DOCX (basic text extraction)
+      parsed = parseDocxContent(file.buffer, file.originalname);
+    }
+
+    console.log('[Projects] Parsed', parsed.chapters.length, 'chapters from file');
+
+    if (parsed.chapters.length === 0) {
+      res.status(400).json({ message: 'Could not extract any content from the file. Please ensure the file contains text.' });
+      return;
+    }
+
+    // Create project
+    const projectId = uuidv4();
+    db.prepare(
+      `INSERT INTO projects (id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov, word_count_target, status, settings_json, word_count, created_at, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, '', '', '', 0, 'draft', '{}', 0, datetime('now'), datetime('now'))`
+    ).run(
+      projectId,
+      userId,
+      parsed.title,
+      description,
+      area,
+      genre
+    );
+
+    console.log('[Projects] Created project:', projectId, 'with title:', parsed.title);
+
+    // Create chapters
+    let totalWordCount = 0;
+    for (let i = 0; i < parsed.chapters.length; i++) {
+      const chapter = parsed.chapters[i];
+      const chapterId = uuidv4();
+      const wordCount = chapter.content.split(/\s+/).filter(w => w.length > 0).length;
+      totalWordCount += wordCount;
+
+      db.prepare(
+        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'imported', ?, datetime('now'), datetime('now'))`
+      ).run(
+        chapterId,
+        projectId,
+        chapter.title,
+        chapter.content,
+        i
+      );
+    }
+
+    console.log('[Projects] Created', parsed.chapters.length, 'chapters');
+
+    // Update project word count
+    db.prepare('UPDATE projects SET word_count = ? WHERE id = ?').run(totalWordCount, projectId);
+
+    // Fetch and return the created project
+    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+
+    console.log('[Projects] Import completed successfully:', projectId);
+    res.status(201).json({
+      message: 'Project imported successfully',
+      project,
+      chaptersCreated: parsed.chapters.length,
+      totalWordCount
+    });
+  } catch (error) {
+    console.error('[Projects] Import error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to import project' });
   }
 });
 
