@@ -12,7 +12,7 @@ interface HeaderProps {
 export default function Header({ isSidebarCollapsed }: HeaderProps) {
   const { t, i18n } = useTranslation();
   const { user, logout, updateUser } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -46,11 +46,11 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
   };
 
   const handleThemeToggle = async () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
+    toggleTheme();
 
     // Save to backend if user is logged in
     if (user) {
+      const newTheme = theme === 'light' ? 'dark' : 'light';
       try {
         await apiService.updateProfile({ theme_preference: newTheme });
         updateUser({ theme_preference: newTheme });

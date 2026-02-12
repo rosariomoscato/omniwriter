@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -15,6 +15,7 @@ interface FilterState {
   status: FilterStatus;
   search: string;
   sort: SortOption;
+  tag: string;
 }
 
 export default function Dashboard() {
@@ -35,6 +36,11 @@ export default function Dashboard() {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Tag editing state
+  const [editingTagsProjectId, setEditingTagsProjectId] = useState<string | null>(null);
+  const [newTagInput, setNewTagInput] = useState('');
+  const [tagInputProjectId, setTagInputProjectId] = useState<string | null>(null);
 
   // Filter state - sync with URL params
   const [filters, setFilters] = useState<FilterState>(() => {
@@ -57,6 +63,7 @@ export default function Dashboard() {
       status: (searchParams.get('status') as FilterStatus) || 'all',
       search: searchParams.get('search') || '',
       sort: (searchParams.get('sort') as SortOption) || 'recent',
+      tag: searchParams.get('tag') || '',
     };
   });
 
@@ -78,6 +85,7 @@ export default function Dashboard() {
         status?: string;
         search?: string;
         sort?: string;
+        tag?: string;
       } = {};
 
       if (filters.area !== 'all') {
@@ -91,6 +99,9 @@ export default function Dashboard() {
       }
       if (filters.sort !== 'recent') {
         params.sort = filters.sort;
+      }
+      if (filters.tag) {
+        params.tag = filters.tag;
       }
 
       const response = await apiService.getProjects(params);
@@ -112,6 +123,11 @@ export default function Dashboard() {
       updated.search = updated.search.trim().slice(0, 500); // Limit to 500 chars
     }
 
+    // Sanitize tag input
+    if (updated.tag !== undefined) {
+      updated.tag = updated.tag.trim().slice(0, 50);
+    }
+
     setFilters(updated);
 
     // Update URL params for persistence
@@ -120,6 +136,7 @@ export default function Dashboard() {
     if (updated.status !== 'all') params.status = updated.status;
     if (updated.search) params.search = updated.search;
     if (updated.sort !== 'recent') params.sort = updated.sort;
+    if (updated.tag) params.tag = updated.tag;
 
     setSearchParams(params);
   };
@@ -130,12 +147,13 @@ export default function Dashboard() {
       status: 'all',
       search: '',
       sort: 'recent',
+      tag: '',
     };
     setFilters(defaultFilters);
     setSearchParams({});
   };
 
-  const hasActiveFilters = filters.area !== 'all' || filters.status !== 'all' || filters.search;
+  const hasActiveFilters = filters.area !== 'all' || filters.status !== 'all' || filters.search || filters.tag;
 
   // Import handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,6 +213,51 @@ export default function Dashboard() {
     setImportGenre('');
     setImportDescription('');
     setImportError(null);
+  };
+
+  // Tag handlers
+  const handleAddTag = async (projectId: string, tagName: string) => {
+    if (!tagName.trim()) return;
+
+    try {
+      await apiService.addProjectTag(projectId, tagName.trim());
+      // Reload projects to get updated tags
+      loadProjects();
+      toast.showSuccess('Tag aggiunto con successo');
+    } catch (err: any) {
+      toast.showError(err.message || 'Failed to add tag');
+    }
+  };
+
+  const handleRemoveTag = async (projectId: string, tagName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      await apiService.removeProjectTag(projectId, tagName);
+      // Reload projects to get updated tags
+      loadProjects();
+      toast.showSuccess('Tag rimosso con successo');
+    } catch (err: any) {
+      toast.showError(err.message || 'Failed to remove tag');
+    }
+  };
+
+  const handleTagFilterClick = (tagName: string) => {
+    if (filters.tag === tagName) {
+      // Toggle off if clicking the same tag
+      updateFilters({ tag: '' });
+    } else {
+      updateFilters({ tag: tagName });
+    }
+  };
+
+  const getAllTags = () => {
+    const tagSet = new Set<string>();
+    projects.forEach(p => {
+      p.tags?.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
   };
 
   const getAreaIcon = (area: string) => {
@@ -542,6 +605,60 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
+
+            {/* Tag Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Tag
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {getAllTags().length > 0 ? (
+                  <>
+                    <button
+                      onClick={() => updateFilters({ tag: '' })}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        !filters.tag
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Tutti
+                    </button>
+                    {getAllTags().map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => handleTagFilterClick(tag)}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          filters.tag === tag
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        <TagIcon size={14} className="inline mr-1" />
+                        {tag}
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Nessun tag disponibile
+                  </span>
+                )}
+              </div>
+              {filters.tag && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Filtrando per tag: <strong>{filters.tag}</strong>
+                  </span>
+                  <button
+                    onClick={() => updateFilters({ tag: '' })}
+                    className="text-sm text-primary-600 hover:text-primary-700"
+                  >
+                    Cancella
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -642,6 +759,29 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-500 dark:text-gray-500 mb-3">
                     <span className="font-medium">Genere:</span> {project.genre}
                   </p>
+                )}
+
+                {/* Tags */}
+                {project.tags && project.tags.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex flex-wrap gap-1">
+                      {project.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          onClick={(e) => handleTagFilterClick(tag)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors"
+                        >
+                          <TagIcon size={10} />
+                          {tag}
+                        </span>
+                      ))}
+                      {project.tags.length > 3 && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                          +{project.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {/* Footer */}

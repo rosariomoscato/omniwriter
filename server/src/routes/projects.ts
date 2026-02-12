@@ -38,7 +38,7 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
 
     // Get query parameters for filtering
-    const { area, status, search, sort } = req.query;
+    const { area, status, search, sort, tag } = req.query;
 
     let query = 'SELECT * FROM projects WHERE user_id = ?';
     const params: (string | undefined)[] = [userId];
@@ -68,6 +68,12 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Tag filtering - use subquery
+    if (tag && typeof tag === 'string') {
+      query += ` AND id IN (SELECT project_id FROM project_tags WHERE tag_name = ?)`;
+      params.push(tag.trim());
+    }
+
     // Sorting
     if (sort === 'alphabetical') {
       query += ' ORDER BY title ASC';
@@ -80,8 +86,17 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     console.log('[Projects] Fetching projects for user:', userId);
     const projects = db.prepare(query).all(...params);
 
+    // Fetch tags for each project
+    const projectsWithTags = (projects as any[]).map(project => {
+      const tags = db.prepare('SELECT tag_name FROM project_tags WHERE project_id = ? ORDER BY tag_name ASC').all(project.id);
+      return {
+        ...project,
+        tags: tags.map((t: any) => t.tag_name)
+      };
+    });
+
     console.log('[Projects] Found', (projects as unknown[]).length, 'projects');
-    res.json({ projects, count: (projects as unknown[]).length });
+    res.json({ projects: projectsWithTags, count: (projects as unknown[]).length });
   } catch (error) {
     console.error('[Projects] List error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
@@ -154,7 +169,14 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json({ project });
+    // Fetch tags for this project
+    const tags = db.prepare('SELECT tag_name FROM project_tags WHERE project_id = ? ORDER BY tag_name ASC').all(projectId);
+    const projectWithTags = {
+      ...project,
+      tags: tags.map((t: any) => t.tag_name)
+    };
+
+    res.json({ project: projectWithTags });
   } catch (error) {
     console.error('[Projects] Get error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });

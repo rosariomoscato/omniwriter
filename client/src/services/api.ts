@@ -300,12 +300,13 @@ class ApiService {
   }
 
   // Project endpoints
-  async getProjects(params?: { area?: string; status?: string; search?: string; sort?: string }): Promise<{ projects: Project[]; count: number }> {
+  async getProjects(params?: { area?: string; status?: string; search?: string; sort?: string; tag?: string }): Promise<{ projects: Project[]; count: number }> {
     const queryParams = new URLSearchParams();
     if (params?.area) queryParams.append('area', params.area);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.search) queryParams.append('search', params.search);
     if (params?.sort) queryParams.append('sort', params.sort);
+    if (params?.tag) queryParams.append('tag', params.tag);
 
     const queryString = queryParams.toString();
     return this.request<{ projects: Project[]; count: number }>(`/projects${queryString ? `?${queryString}` : ''}`);

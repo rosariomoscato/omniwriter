@@ -13,6 +13,7 @@ import ToastContainer from './components/Toast';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import LandingPage from './pages/LandingPage';
 import ProjectDetail from './pages/ProjectDetail';
 import NotFoundPage from './pages/NotFoundPage';
@@ -103,6 +104,7 @@ function AppContent() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
           {/* Protected Routes - With Layout */}
           {user ? (

@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import passport from 'passport';
+import session from 'express-session';
 import { initializeDatabase } from './db/database';
 import healthRouter from './routes/health';
 import authRouter from './routes/auth';
@@ -31,6 +33,20 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Passport and session middleware for OAuth
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'omniwriter-session-secret-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Request logging middleware - logs all API requests
 app.use('/api', (req, _res, next) => {

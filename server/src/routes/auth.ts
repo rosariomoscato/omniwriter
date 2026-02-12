@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
@@ -262,5 +264,120 @@ router.post('/forgot-password', (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+// ============================================================================
+// GOOGLE OAUTH CONFIGURATION
+// ============================================================================
+
+// Google OAuth Strategy configuration
+const googleClientId = process.env.GOOGLE_CLIENT_ID || 'your-google-client-id';
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || 'your-google-client-secret';
+const callbackURL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback';
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: googleClientId,
+      clientSecret: googleClientSecret,
+      callbackURL: callbackURL,
+    },
+    (accessToken, refreshToken, profile, done) => {
+      try {
+        const db = getDatabase();
+
+        // Check if user exists with this Google ID
+        const existingUser = db.prepare('SELECT * FROM users WHERE google_id = ?').get(profile.id) as any;
+
+        if (existingUser) {
+          // User exists, log them in
+          console.log('[Google OAuth] Existing user found:', existingUser.id);
+          return done(null, existingUser);
+        }
+
+        // Check if user exists with the same email (merge accounts)
+        if (profile.emails && profile.emails[0]) {
+          const emailUser = db.prepare('SELECT * FROM users WHERE email = ?').get(profile.emails[0].value) as any;
+
+          if (emailUser) {
+            // Link Google account to existing user
+            console.log('[Google OAuth] Linking Google to existing user:', emailUser.id);
+            db.prepare('UPDATE users SET google_id = ? WHERE id = ?').run(profile.id, emailUser.id);
+            return done(null, { ...emailUser, google_id: profile.id });
+          }
+        }
+
+        // Create new user from Google profile
+        const userId = uuidv4();
+        const email = profile.emails?.[0]?.value || `${profile.id}@google.temp`;
+        const name = profile.displayName || profile.name?.givenName || 'Google User';
+        const avatarUrl = profile.photos?.[0]?.value || null;
+
+        console.log('[Google OAuth] Creating new user from Google:', userId);
+        db.prepare(
+          `INSERT INTO users (id, email, name, avatar_url, google_id, role, preferred_language, theme_preference, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
+        ).run(userId, email, name, avatarUrl, profile.id);
+
+        const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+        return done(null, newUser);
+      } catch (error) {
+        console.error('[Google OAuth] Strategy error:', error);
+        return done(error as Error);
+      }
+    }
+  )
+);
+
+// GET /api/auth/google
+// Initiate Google OAuth flow
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+}));
+
+// GET /api/auth/google/callback
+// Google OAuth callback
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login?error=oauth_failed' }),
+  (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+
+      if (!user) {
+        res.redirect('/login?error=no_user');
+        return;
+      }
+
+      // Create JWT token
+      const secret = process.env.JWT_SECRET || 'omniwriter-dev-jwt-secret-2024';
+      // @ts-expect-error - expiresIn type compatibility issue with jsonwebtoken types
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        secret,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      );
+
+      // Store session
+      const db = getDatabase();
+      const sessionId = uuidv4();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      db.prepare(
+        `INSERT INTO sessions (id, user_id, token, expires_at, created_at)
+         VALUES (?, ?, ?, ?, datetime('now'))`
+      ).run(sessionId, user.id, token, expiresAt);
+
+      // Update last login
+      db.prepare('UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?').run(user.id);
+
+      console.log('[Google OAuth] Login successful for user:', user.id);
+
+      // Redirect to frontend with token
+      res.redirect(`http://localhost:3000/auth/callback?token=${token}&userId=${user.id}`);
+    } catch (error) {
+      console.error('[Google OAuth] Callback error:', error);
+      res.redirect('/login?error=callback_failed');
+    }
+  }
+);
 
 export default router;
