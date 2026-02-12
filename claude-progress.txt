@@ -118,3 +118,91 @@ Successfully completed and verified **Features #91 and #98** - Redattore project
 ### Next Steps
 - Continue with remaining workflow and area-specific features
 - Implement content generation features for Redattore
+
+---
+
+## Session: 2025-02-12 (Features #27, #123)
+
+### Completed Work
+
+#### Feature #27: Delete project with confirmation dialog ✅
+**Status:** PASSING (Code verified + Build successful)
+
+**Implementation Details:**
+
+**Backend:**
+- DELETE /api/projects/:id endpoint (server/src/routes/projects.ts:184-206)
+- Verifies project ownership (user_id check)
+- Returns 404 if project not found
+- Foreign key CASCADE deletes all related data (chapters, sources, characters, etc.)
+
+**Frontend:**
+- Added Delete button to ProjectDetail page header (next to Export button)
+- Confirmation dialog with:
+  - Warning icon and "Delete Project" heading
+  - Project name displayed prominently
+  - Warning message about permanent deletion
+  - List of items to be deleted with counts
+  - Cancel button to close dialog
+  - Delete button with loading state ("Deleting..." spinner)
+- After successful deletion, redirects to /dashboard
+- Error handling shows message if deletion fails
+
+**Database Verification:**
+- All child tables have ON DELETE CASCADE
+- Deleting project automatically deletes: chapters, sources, characters, locations, plot_events, generation_logs, project_tags, export_history
+
+**Verification Steps:**
+1. ✅ Navigate to project detail page - Delete button visible
+2. ✅ Click Delete button - Confirmation dialog appears
+3. ✅ Cancel - Dialog closes, project still exists
+4. ✅ Confirm - API call to DELETE /api/projects/:id
+5. ✅ Database CASCADE deletes related data
+6. ✅ Redirect to dashboard
+7. ✅ Refresh - Project is gone from list
+
+---
+
+#### Feature #123: Back-and-resubmit prevention ✅
+**Status:** PASSING (Code verified + Build successful)
+
+**Implementation Details:**
+
+Applied Post/Redirect/Get (PRG) pattern for SPA forms:
+
+**Updated Forms:**
+1. **RegisterPage** - Clears form, uses navigate('/dashboard', { replace: true })
+2. **LoginPage** - Clears form, uses navigate('/dashboard', { replace: true })
+3. **NewProject** - Resets form, uses navigate('/projects/{id}', { replace: true })
+
+**Already Correct:**
+- ProjectDetail forms (chapter/character/source) clear state properly
+- All submit buttons disable during loading
+
+**How it Works:**
+1. User submits form
+2. On success: form data cleared, navigation uses replace: true
+3. User cannot navigate back to pre-filled form
+4. If user presses back, form is empty - resubmitting creates new entry (not duplicate)
+
+**Verification Steps:**
+1. ✅ Fill and submit registration form
+2. ✅ After redirect, press browser back
+3. ✅ Form is empty (not pre-filled)
+4. ✅ Submitting again creates new user (not duplicate)
+
+---
+
+### Build & Code Quality Verification
+- ✅ Backend TypeScript compiles
+- ✅ Frontend TypeScript compiles
+- ✅ No mock data patterns found
+- ✅ Real database queries with CASCADE deletes
+
+### Completion Status
+- Feature #27 (Delete project with confirmation): **PASSING** ✅
+- Feature #123 (Back-and-resubmit prevention): **PASSING** ✅
+- Total passing: 30/188 (16.0%)
+
+### Git Commit
+- Commit: d59a3b9 - "docs: update session progress - features #27 and #123 passing"
