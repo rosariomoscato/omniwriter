@@ -1,13 +1,82 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Globe, Moon, Sun } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function LandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+
+  // Get current language, default to Italian if not set
+  const currentLang = i18n.language || 'it';
+
+  const toggleLanguage = async () => {
+    const newLang = currentLang === 'it' ? 'en' : 'it';
+    await i18n.changeLanguage(newLang);
+    localStorage.setItem('language', newLang);
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg">
+      {/* Landing Page Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="text-2xl font-bold text-primary-600 dark:text-primary-500">
+              {t('app.name')}
+            </Link>
+
+            {/* Right Actions - Language & Theme Switchers */}
+            <div className="flex items-center gap-2">
+              {/* Language Switcher */}
+              <button
+                onClick={toggleLanguage}
+                className="
+                  p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                  transition-colors duration-200
+                  flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200
+                "
+                aria-label={`Switch to ${currentLang === 'it' ? 'English' : 'Italiano'}`}
+                title={`Switch to ${currentLang === 'it' ? 'English' : 'Italiano'}`}
+              >
+                <Globe size={18} />
+                <span className="hidden sm:inline">{currentLang.toUpperCase()}</span>
+              </button>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="
+                  p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
+                  transition-colors duration-200
+                  text-gray-700 dark:text-gray-200
+                "
+                aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              >
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
+
+              {/* Login/Register Buttons */}
+              <Link
+                to="/login"
+                className="ml-4 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-500 transition-colors"
+              >
+                {t('landing.login')}
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                {t('landing.startFree')}
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-primary-50 to-white dark:from-dark-surface dark:to-dark-bg">
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary-50 to-white dark:from-dark-surface dark:to-dark-bg pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 dark:text-white tracking-tight">
