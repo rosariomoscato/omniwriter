@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon, Settings } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 import OnboardingGuide from '../components/OnboardingGuide';
+import DashboardLayoutSettings, { DashboardLayout } from '../components/DashboardLayoutSettings';
 import { ProjectCardSkeleton } from '../components/Skeleton';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
@@ -48,10 +49,36 @@ export default function Dashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
 
+  // Layout customization state
+  const [showLayoutSettings, setShowLayoutSettings] = useState(false);
+  const [dashboardLayout, setDashboardLayout] = useState<DashboardLayout>({
+    viewMode: 'grid',
+    cardSize: 'medium',
+    showMetadata: true,
+    showWordCount: true,
+    showLastModified: true,
+  });
+
   // Check if user has seen onboarding
   useEffect(() => {
     const seen = localStorage.getItem('hasSeenOnboarding');
     setHasSeenOnboarding(!!seen);
+  }, []);
+
+  // Load dashboard layout preferences
+  useEffect(() => {
+    const loadLayoutPreferences = async () => {
+      try {
+        const response = await apiService.getUserPreferences();
+        if (response.preferences?.dashboard_layout_json) {
+          const savedLayout = JSON.parse(response.preferences.dashboard_layout_json) as DashboardLayout;
+          setDashboardLayout(savedLayout);
+        }
+      } catch (error) {
+        console.error('Failed to load layout preferences:', error);
+      }
+    };
+    loadLayoutPreferences();
   }, []);
 
   // Filter state - sync with URL params
@@ -411,6 +438,14 @@ export default function Dashboard() {
           <Upload size={20} />
           Importa progetto
         </button>
+        <button
+          onClick={() => setShowLayoutSettings(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
+          title="Personalizza dashboard"
+        >
+          <Settings size={20} />
+          Personalizza
+        </button>
       </div>
 
       {/* Import Modal */}
@@ -530,6 +565,14 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Layout Settings Modal */}
+      <DashboardLayoutSettings
+        isOpen={showLayoutSettings}
+        onClose={() => setShowLayoutSettings(false)}
+        onApply={(layout) => setDashboardLayout(layout)}
+        currentLayout={dashboardLayout}
+      />
 
       {/* Search and Filters */}
       <div className="mb-6 space-y-4">
