@@ -108,6 +108,7 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
             transition-colors duration-200
             flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200
           "
+          aria-label={`Switch to ${i18n.language === 'it' ? 'English' : 'Italiano'}`}
           title={`Switch to ${i18n.language === 'it' ? 'English' : 'Italiano'}`}
         >
           <Globe size={18} />
@@ -122,6 +123,7 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
             transition-colors duration-200
             text-gray-700 dark:text-gray-200
           "
+          aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
         >
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}

@@ -640,6 +640,7 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setIsFullScreen(!isFullScreen)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                aria-label={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen'}
                 title={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen'}
               >
                 {isFullScreen ? <Minimize className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
@@ -647,6 +648,7 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setShowFindReplace(!showFindReplace)}
                 className={`p-2 rounded-lg border transition-colors ${showFindReplace ? 'bg-blue-50 border-blue-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                aria-label="Find & Replace (Ctrl+F)"
                 title="Find & Replace (Ctrl+F)"
               >
                 <Search className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -655,6 +657,7 @@ export default function ChapterEditor() {
                 onClick={handleUndo}
                 disabled={!canUndo}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Undo (Ctrl+Z)"
                 title="Undo (Ctrl+Z)"
               >
                 <Undo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -663,6 +666,7 @@ export default function ChapterEditor() {
                 onClick={handleRedo}
                 disabled={!canRedo}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Redo (Ctrl+Shift+Z)"
                 title="Redo (Ctrl+Shift+Z)"
               >
                 <Redo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -670,6 +674,7 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setShowVersionHistory(true)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Version History"
                 title="Version History"
               >
                 <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -677,6 +682,7 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                aria-label={isPreview ? 'Edit' : 'Preview'}
                 title={isPreview ? 'Edit' : 'Preview'}
               >
                 {isPreview ? <Edit className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -730,6 +736,7 @@ export default function ChapterEditor() {
                     onClick={handleFindPrevious}
                     disabled={matchCount === 0}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
+                    aria-label="Find Previous"
                     title="Find Previous"
                   >
                     <ChevronUp className="w-4 h-4" />
@@ -738,6 +745,7 @@ export default function ChapterEditor() {
                     onClick={handleFindNext}
                     disabled={matchCount === 0}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
+                    aria-label="Find Next"
                     title="Find Next"
                   >
                     <ChevronDown className="w-4 h-4" />
@@ -759,6 +767,7 @@ export default function ChapterEditor() {
                     setReplaceText('');
                   }}
                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                  aria-label="Close"
                   title="Close"
                 >
                   <X className="w-4 h-4 text-gray-500" />
@@ -799,6 +808,7 @@ export default function ChapterEditor() {
             <button
               onClick={handleHeading}
               className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Heading"
               title="Heading"
             >
               <Heading1 className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -806,6 +816,7 @@ export default function ChapterEditor() {
             <button
               onClick={handleBold}
               className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-bold"
+              aria-label="Bold"
               title="Bold"
             >
               <Bold className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -813,6 +824,7 @@ export default function ChapterEditor() {
             <button
               onClick={handleItalic}
               className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors italic"
+              aria-label="Italic"
               title="Italic"
             >
               <Italic className="w-4 h-4 text-gray-700 dark:text-gray-300" />

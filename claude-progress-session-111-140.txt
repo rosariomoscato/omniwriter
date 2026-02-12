@@ -1,0 +1,22 @@
+## Session: 2026-02-12 (Features #111, #140)
+
+### Completed Work
+
+#### Feature #111: Form preserves data on validation error ✅
+**Status:** PASSING
+
+All forms preserve data on validation errors via React state management.
+
+#### Feature #140: Customizable dashboard layout ✅
+**Status:** PASSING
+
+Created DashboardLayoutSettings component with view modes (Grid/List/Compact), card sizes, and metadata toggles. Integrated with Dashboard and persists to backend.
+
+### Completion Status
+- Feature #111: PASSING ✅
+- Feature #140: PASSING ✅
+- Total passing: 117/188 (62.2%)
+
+### Files Modified
+- `client/src/components/DashboardLayoutSettings.tsx` - NEW
+- `client/src/pages/Dashboard.tsx` - MODIFIED

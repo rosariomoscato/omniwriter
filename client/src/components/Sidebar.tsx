@@ -68,7 +68,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-6">
+      <nav className="flex-1 overflow-y-auto p-3 space-y-6" aria-label="Main navigation">
         {/* Main Navigation */}
         <div>
           {!isCollapsed && (
@@ -87,6 +87,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     transition-colors duration-200
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
+                  aria-label={isCollapsed ? item.label : undefined}
                   title={isCollapsed ? item.label : undefined}
                 >
                   <item.icon size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
@@ -120,6 +121,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                       transition-colors duration-200
                       ${isCollapsed ? 'justify-center' : ''}
                     `}
+                    aria-label={isCollapsed ? item.label : undefined}
                     title={isCollapsed ? item.label : undefined}
                   >
                     <item.icon size={20} className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
@@ -153,6 +155,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     transition-colors duration-200
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
+                  aria-label={isCollapsed ? area.label : undefined}
                   title={isCollapsed ? area.label : undefined}
                 >
                   <area.icon size={20} className={`${area.color} flex-shrink-0`} />
@@ -182,6 +185,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                   <button
                     onClick={() => navigate(`/projects/${project.id}`)}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label={isCollapsed ? project.title : undefined}
                     title={isCollapsed ? project.title : undefined}
                   >
                     {!isCollapsed && (
@@ -218,6 +222,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             transition-colors duration-200
             ${isCollapsed ? 'justify-center' : ''}
           `}
+          aria-label={isCollapsed ? t('nav.profile') : undefined}
           title={isCollapsed ? t('nav.profile') : undefined}
         >
           <User size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
