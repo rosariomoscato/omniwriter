@@ -366,6 +366,61 @@ class ApiService {
     });
   }
 
+  // Character endpoints
+  async getProjectCharacters(projectId: string): Promise<{ characters: Character[]; count: number }> {
+    return this.request<{ characters: Character[]; count: number }>(`/projects/${projectId}/characters`);
+  }
+
+  async getCharacter(id: string): Promise<{ character: Character }> {
+    return this.request<{ character: Character }>(`/characters/${id}`);
+  }
+
+  async createCharacter(projectId: string, data: CreateCharacterData): Promise<{ character: Character }> {
+    return this.request<{ character: Character }>(`/projects/${projectId}/characters`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCharacter(id: string, data: Partial<CreateCharacterData>): Promise<{ character: Character }> {
+    return this.request<{ character: Character }>(`/characters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCharacter(id: string): Promise<void> {
+    await this.request<void>(`/characters/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Export endpoints
+  async exportProject(projectId: string, format: 'txt' | 'docx' = 'txt'): Promise<Blob> {
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/projects/${projectId}/export`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ format }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.blob();
+  }
+
+  async getExportHistory(projectId: string): Promise<{ history: any[] }> {
+    return this.request<{ history: any[] }>(`/projects/${projectId}/export/history`);
+  }
+
   // Helper to store auth data
   static setAuth(user: AuthResponse['user'], token: string) {
     localStorage.setItem('user', JSON.stringify(user));

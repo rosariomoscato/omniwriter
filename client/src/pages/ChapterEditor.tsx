@@ -20,7 +20,7 @@ export default function ChapterEditor() {
   const [wordCount, setWordCount] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (chapterId) {

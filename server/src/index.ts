@@ -10,6 +10,7 @@ import humanModelsRouter from './routes/human-models';
 import chaptersRouter from './routes/chapters';
 import sourcesRouter from './routes/sources';
 import charactersRouter from './routes/characters';
+import exportRouter from './routes/export';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/human-models', humanModelsRouter);
 app.use('/api', chaptersRouter);
 app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
+app.use('/api', exportRouter);
 
 // Placeholder route groups - to be implemented by coding agents
 app.use('/api/users', (_req, res) => {

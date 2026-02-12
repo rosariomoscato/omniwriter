@@ -94,6 +94,16 @@ function NewProject() {
     }
   };
 
+  const handleReset = () => {
+    setFormData({
+      title: '',
+      description: '',
+      area: null,
+      genre: '',
+    });
+    setError('');
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
@@ -214,6 +224,13 @@ function NewProject() {
             className="px-8 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-md transition-colors disabled:cursor-not-allowed text-lg"
           >
             {loading ? 'Creazione in corso...' : 'Crea Progetto'}
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-8 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Reset
           </button>
           <Link
             to="/dashboard"
