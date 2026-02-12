@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon, Settings, Share2 } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -62,7 +62,6 @@ export default function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tag editing state
-  const [editingTagsProjectId, setEditingTagsProjectId] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState('');
   const [tagInputProjectId, setTagInputProjectId] = useState<string | null>(null);
 
@@ -291,10 +290,10 @@ export default function Dashboard() {
       const url = window.location.href;
       await navigator.clipboard.writeText(url);
       setCopiedUrl(true);
-      toast.success('URL copiato negli appunti!');
+      toast.success(t('dashboard.urlCopied'));
       setTimeout(() => setCopiedUrl(false), 2000);
     } catch (err) {
-      toast.error('Impossibile copiare l\'URL');
+      toast.error(t('common.error'));
     }
   };
 
@@ -306,7 +305,7 @@ export default function Dashboard() {
       const validExtensions = ['.txt', '.docx', '.doc'];
       const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
       if (!validExtensions.includes(fileExtension)) {
-        setImportError('Solo file DOCX, DOC e TXT sono consentiti');
+        setImportError(t('dashboard.import.errorFileType'));
         setImportFile(null);
         return;
       }
@@ -317,7 +316,7 @@ export default function Dashboard() {
 
   const handleImport = async () => {
     if (!importFile) {
-      setImportError('Seleziona un file da importare');
+      setImportError(t('dashboard.import.errorSelectFile'));
       return;
     }
 
@@ -344,9 +343,15 @@ export default function Dashboard() {
 
       // Show success toast with rename info if applicable
       if (result.renamed) {
-        toast.success(`Progetto importato come "${result.finalTitle}" (esisteva già un progetto con questo nome) - ${result.chaptersCreated} capitoli creati`);
+        toast.success(t('dashboard.import.successRenamed', {
+          title: result.finalTitle,
+          chapters: result.chaptersCreated
+        }));
       } else {
-        toast.success(`Progetto importato con successo! ${result.chaptersCreated} capitoli creati, ${result.totalWordCount} parole totali`);
+        toast.success(t('dashboard.import.success', {
+          chapters: result.chaptersCreated,
+          words: result.totalWordCount.toLocaleString()
+        }));
       }
     } catch (err: any) {
       setImportError(err.message || 'Failed to import project');
@@ -372,7 +377,7 @@ export default function Dashboard() {
       await apiService.addProjectTag(projectId, tagName.trim());
       // Reload projects to get updated tags
       loadProjects();
-      toast.success('Tag aggiunto con successo');
+      toast.success(t('dashboard.addTag'));
     } catch (err: any) {
       toast.error(err.message || 'Failed to add tag');
     }
@@ -386,7 +391,7 @@ export default function Dashboard() {
       await apiService.removeProjectTag(projectId, tagName);
       // Reload projects to get updated tags
       loadProjects();
-      toast.success('Tag rimosso con successo');
+      toast.success(t('dashboard.removeTag'));
     } catch (err: any) {
       toast.error(err.message || 'Failed to remove tag');
     }
@@ -485,11 +490,11 @@ export default function Dashboard() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
-      return 'Oggi';
+      return t('dashboard.today');
     } else if (diffDays === 1) {
-      return 'Ieri';
+      return t('dashboard.yesterday');
     } else if (diffDays < 7) {
-      return `${diffDays} giorni fa`;
+      return t('dashboard.daysAgo', { days: diffDays });
     } else {
       return date.toLocaleDateString('it-IT');
     }
@@ -503,7 +508,7 @@ export default function Dashboard() {
           {t('dashboard.title')}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Bentornato! Ecco una panoramica dei tuoi progetti.
+          {t('dashboard.subtitle')}
         </p>
       </div>
 
@@ -521,15 +526,15 @@ export default function Dashboard() {
           className="flex items-center gap-2 px-4 py-2 bg-secondary-600 text-white rounded-lg hover:bg-secondary-700 transition-colors font-medium"
         >
           <Upload size={20} />
-          Importa progetto
+          {t('dashboard.importProject')}
         </button>
         <button
           onClick={() => setShowLayoutSettings(true)}
           className="flex items-center gap-2 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
-          title="Personalizza dashboard"
+          title={t('dashboard.layout.customizeDashboard')}
         >
           <Settings size={20} />
-          Personalizza
+          {t('dashboard.customize')}
         </button>
       </div>
 
@@ -540,7 +545,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <FileUp className="w-5 h-5" />
-                Importa progetto
+                {t('dashboard.import.title')}
               </h2>
               <button
                 onClick={() => setShowImportModal(false)}
@@ -554,7 +559,7 @@ export default function Dashboard() {
               {/* File input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Seleziona file *
+                  {t('dashboard.import.selectFile')}
                 </label>
                 <input
                   ref={fileInputRef}
@@ -564,36 +569,36 @@ export default function Dashboard() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Formati supportati: TXT, DOCX, DOC (max 10MB)
+                  {t('dashboard.import.supportedFormats')}
                 </p>
               </div>
 
               {/* Area selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Area *
+                  {t('dashboard.import.area')}
                 </label>
                 <select
                   value={importArea}
                   onChange={(e) => setImportArea(e.target.value as 'romanziere' | 'saggista' | 'redattore')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="romanziere">Romanziere</option>
-                  <option value="saggista">Saggista</option>
-                  <option value="redattore">Redattore</option>
+                  <option value="romanziere">{t('dashboard.import.romanziere')}</option>
+                  <option value="saggista">{t('dashboard.import.saggista')}</option>
+                  <option value="redattore">{t('dashboard.import.redattore')}</option>
                 </select>
               </div>
 
               {/* Genre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Genere (opzionale)
+                  {t('dashboard.import.genre')}
                 </label>
                 <input
                   type="text"
                   value={importGenre}
                   onChange={(e) => setImportGenre(e.target.value)}
-                  placeholder="es. Fantasy, Thriller, Saggio storico"
+                  placeholder={t('dashboard.import.genrePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -601,12 +606,12 @@ export default function Dashboard() {
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Descrizione (opzionale)
+                  {t('dashboard.import.description')}
                 </label>
                 <textarea
                   value={importDescription}
                   onChange={(e) => setImportDescription(e.target.value)}
-                  placeholder="Breve descrizione del progetto..."
+                  placeholder={t('dashboard.import.descriptionPlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
                 />
@@ -626,7 +631,7 @@ export default function Dashboard() {
                   disabled={importLoading}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                 >
-                  Annulla
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleImport}
@@ -636,12 +641,12 @@ export default function Dashboard() {
                   {importLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Importazione...
+                      {t('dashboard.import.importing')}
                     </>
                   ) : (
                     <>
                       <Upload size={18} />
-                      Importa
+                      {t('dashboard.import.importButton')}
                     </>
                   )}
                 </button>
@@ -666,7 +671,7 @@ export default function Dashboard() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Cerca progetti..."
+            placeholder={t('dashboard.search')}
             value={filters.search}
             onChange={(e) => updateFilters({ search: e.target.value })}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -680,7 +685,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
           >
             <Filter size={18} />
-            Filtri
+            {t('dashboard.filters')}
             {hasActiveFilters && (
               <span className="w-2 h-2 bg-primary-600 rounded-full" />
             )}
@@ -692,7 +697,7 @@ export default function Dashboard() {
               className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <X size={18} />
-              Cancella filtri
+              {t('dashboard.clearFilters')}
             </button>
           )}
 
@@ -704,10 +709,10 @@ export default function Dashboard() {
                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
-            title={copiedUrl ? 'Copiato!' : 'Copia URL con filtri'}
+            title={copiedUrl ? t('dashboard.urlCopied') : t('dashboard.copyUrlWithFilters')}
           >
             <Share2 size={18} />
-            {copiedUrl ? 'Copiato!' : 'Copia URL'}
+            {copiedUrl ? t('dashboard.urlCopied') : t('dashboard.copyUrl')}
           </button>
 
           {/* Sort */}
@@ -716,14 +721,14 @@ export default function Dashboard() {
             onChange={(e) => updateFilters({ sort: e.target.value as SortOption })}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary-500"
           >
-            <option value="recent">Più recenti</option>
-            <option value="oldest">Più vecchi</option>
-            <option value="alphabetical">Alfabetico</option>
+            <option value="recent">{t('dashboard.mostRecent')}</option>
+            <option value="oldest">{t('dashboard.oldest')}</option>
+            <option value="alphabetical">{t('dashboard.alphabetical')}</option>
           </select>
 
           {/* Results count */}
           <span className="text-sm text-gray-600 dark:text-gray-400 ml-auto">
-            {projects.length} {projects.length === 1 ? 'progetto' : 'progetti'}
+            {t('dashboard.projectCount', { count: projects.length })}
           </span>
         </div>
 
@@ -733,14 +738,14 @@ export default function Dashboard() {
             {/* Area Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Area
+                {t('project.area')}
               </label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { value: 'all', label: 'Tutte' },
-                  { value: 'romanziere', label: 'Romanziere' },
-                  { value: 'saggista', label: 'Saggista' },
-                  { value: 'redattore', label: 'Redattore' },
+                  { value: 'all', label: t('dashboard.allAreas') },
+                  { value: 'romanziere', label: t('nav.romanziere') },
+                  { value: 'saggista', label: t('nav.saggista') },
+                  { value: 'redattore', label: t('nav.redattore') },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -760,15 +765,15 @@ export default function Dashboard() {
             {/* Status Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Stato
+                {t('project.status')}
               </label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { value: 'all', label: 'Tutti' },
-                  { value: 'draft', label: 'Bozza' },
-                  { value: 'in_progress', label: 'In corso' },
-                  { value: 'completed', label: 'Completato' },
-                  { value: 'archived', label: 'Archiviato' },
+                  { value: 'all', label: t('dashboard.allStatuses') },
+                  { value: 'draft', label: t('project.draft') },
+                  { value: 'in_progress', label: t('project.inProgress') },
+                  { value: 'completed', label: t('project.completed') },
+                  { value: 'archived', label: t('project.archived') },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -788,7 +793,7 @@ export default function Dashboard() {
             {/* Tag Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Tag
+                {t('common.tag')}
               </label>
               <div className="flex flex-wrap gap-2">
                 {getAllTags().length > 0 ? (
@@ -801,7 +806,7 @@ export default function Dashboard() {
                           : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                       }`}
                     >
-                      Tutti
+                      {t('dashboard.allAreas')}
                     </button>
                     {getAllTags().map((tag) => (
                       <button
@@ -820,20 +825,20 @@ export default function Dashboard() {
                   </>
                 ) : (
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Nessun tag disponibile
+                    {t('dashboard.noTagsAvailable')}
                   </span>
                 )}
               </div>
               {filters.tag && (
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Filtrando per tag: <strong>{filters.tag}</strong>
+                    {t('dashboard.filteringByTag', { tag: filters.tag })}
                   </span>
                   <button
                     onClick={() => updateFilters({ tag: '' })}
                     className="text-sm text-primary-600 hover:text-primary-700"
                   >
-                    Cancella
+                    {t('dashboard.clearTagFilter')}
                   </button>
                 </div>
               )}
@@ -875,16 +880,16 @@ export default function Dashboard() {
             </div>
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
               {hasActiveFilters
-                ? (filters.search ? 'Nessun risultato di ricerca' : 'Nessun progetto trovato')
-                : 'Nessun progetto'}
+                ? (filters.search ? t('dashboard.noSearchResults') : t('dashboard.noProjectResults'))
+                : t('dashboard.emptyState.noProjects')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {hasActiveFilters
                 ? (filters.search
-                    ? `Nessun progetto corrisponde a "${filters.search.slice(0, 50)}${filters.search.length > 50 ? '...' : ''}". Prova con termini diversi o controlla l'ortografia.`
-                    : 'Prova a cambiare i filtri di ricerca')
+                    ? t('dashboard.noSearchResultsText', { search: filters.search.slice(0, 50) + (filters.search.length > 50 ? '...' : '') })
+                    : t('dashboard.tryDifferentFilters'))
                 : !showOnboarding
-                  ? 'Crea il tuo primo progetto per iniziare'
+                  ? t('dashboard.createFirstProject')
                   : ''}
             </p>
             {hasActiveFilters && (
@@ -892,7 +897,7 @@ export default function Dashboard() {
                 onClick={clearFilters}
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
-                Cancella filtri
+                {t('dashboard.clearFilters')}
               </button>
             )}
             {!hasActiveFilters && !showOnboarding && hasSeenOnboarding && (
@@ -900,7 +905,7 @@ export default function Dashboard() {
                 onClick={() => setShowOnboarding(true)}
                 className="mx-2 px-6 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900 rounded-lg transition-colors"
               >
-                Mostra guida inizi
+                {t('dashboard.showGuide')}
               </button>
             )}
           </div>
@@ -956,7 +961,7 @@ export default function Dashboard() {
                 {/* Genre */}
                 {project.genre && (
                   <p className="text-sm text-gray-500 dark:text-gray-500 mb-3 truncate" title={project.genre}>
-                    <span className="font-medium">Genere:</span> {project.genre}
+                    <span className="font-medium">{t('project.genre')}:</span> {project.genre}
                   </p>
                 )}
 
@@ -983,7 +988,7 @@ export default function Dashboard() {
                               handleRemoveTag(project.id, tag, e);
                             }}
                             className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-opacity"
-                            title="Rimuovi tag"
+                            title={t('dashboard.removeTag')}
                           >
                             <X size={10} />
                           </button>
@@ -1002,7 +1007,7 @@ export default function Dashboard() {
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Nuovo tag..."
+                        placeholder={t('dashboard.newTag')}
                         value={newTagInput}
                         onChange={(e) => setNewTagInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1027,7 +1032,7 @@ export default function Dashboard() {
                         }}
                         className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                       >
-                        Annulla
+                        {t('common.cancel')}
                       </button>
                     </div>
                   ) : (
@@ -1041,16 +1046,16 @@ export default function Dashboard() {
                       className="flex items-center gap-1 px-3 py-1 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                     >
                       <TagIcon size={12} />
-                      Aggiungi tag
+                      {t('dashboard.addTag')}
                     </button>
                   )}
                 </div>
 
                 {/* Footer */}
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <span>Aggiornato {formatDate(project.updated_at)}</span>
+                  <span>{t('dashboard.updated', { date: formatDate(project.updated_at) })}</span>
                   {project.word_count > 0 && (
-                    <span>{project.word_count.toLocaleString()} parole</span>
+                    <span>{project.word_count.toLocaleString()} {t('dashboard.words')}</span>
                   )}
                 </div>
               </div>
@@ -1062,7 +1067,7 @@ export default function Dashboard() {
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {projects.length} of {pagination.total} projects
+              {t('dashboard.showingResults', { count: projects.length, total: pagination.total })}
             </div>
 
             <div className="flex items-center gap-2">
