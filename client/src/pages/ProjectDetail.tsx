@@ -1925,6 +1925,25 @@ export default function ProjectDetail() {
           </form>
         )}
 
+        {/* Project Not Found (404) */}
+        {projectNotFound && (
+          <div className="p-8 text-center">
+            <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+            <h2 className="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">
+              Project not found
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              The project you're looking for doesn't exist or has been deleted.
+            </p>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-400 text-sm">
