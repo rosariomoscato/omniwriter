@@ -73,7 +73,7 @@ async function extractTextContent(filePath: string, fileType: string): Promise<s
 }
 
 // GET /api/projects/:id/sources - Get project sources
-router.get('/projects/:id/sources', authenticateToken, (req: AuthRequest, res: Response) => {
+router.get('/projects/:id/sources', authenticateToken, (req: AuthRequest, res: any) => {
   const db = getDatabase();
   const userId = req.user?.id;
   const projectId = req.params.id;
@@ -110,7 +110,8 @@ router.get('/projects/:id/sources', authenticateToken, (req: AuthRequest, res: R
 });
 
 // GET /api/sources - Get all sources for authenticated user
-router.get('/sources', authenticateToken, (req: AuthRequest, res: Response) => {
+router.get('/sources', authenticateToken, (req: AuthRequest, res: any) => {
+  console.log('[Sources] GET /api/sources - Route handler called!');
   const db = getDatabase();
   const userId = req.user?.id;
 
@@ -378,7 +379,7 @@ router.post(
       next();
     });
   },
-  async (req: AuthRequest, res: Response) => {
+  async (req: AuthRequest, res: any) => {
     const db = getDatabase();
     const userId = req.user?.id;
     const sagaId = req.params.id;
@@ -442,7 +443,7 @@ router.post(
 );
 
 // GET /api/sagas/:id/sources - Get sources for a saga (shared sources)
-router.get('/sagas/:id/sources', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.get('/sagas/:id/sources', authenticateToken, requirePremium, (req: AuthRequest, res: any) => {
   const db = getDatabase();
   const userId = req.user?.id;
   const sagaId = req.params.id;
