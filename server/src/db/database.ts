@@ -13,7 +13,7 @@ export function initializeDatabase(): Database.Database {
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  db = new Database(dbPath, { verbose: console.log });
+  db = new Database(dbPath);
 
   // Enable WAL mode for better concurrent access
   db.pragma('journal_mode = WAL');
