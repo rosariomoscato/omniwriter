@@ -16,6 +16,7 @@ import adminRouter from './routes/admin';
 import usersRouter from './routes/users';
 import citationsRouter from './routes/citations';
 import locationsRouter from './routes/locations';
+import plotEventsRouter from './routes/plot-events';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use('/api', chaptersRouter);
 app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
 app.use('/api', locationsRouter);
+app.use('/api', plotEventsRouter);
 app.use('/api', citationsRouter);
 app.use('/api', exportRouter);
 app.use('/api/admin', adminRouter);
@@ -73,7 +75,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
   console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
 });

@@ -148,6 +148,45 @@ export interface CreateCharacterData {
   relationships_json?: string;
 }
 
+export interface Location {
+  id: string;
+  project_id: string;
+  saga_id: string | null;
+  name: string;
+  description: string;
+  significance: string;
+  extracted_from_upload: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLocationData {
+  name: string;
+  description?: string;
+  significance?: string;
+}
+
+export interface PlotEvent {
+  id: string;
+  project_id: string;
+  saga_id: string | null;
+  title: string;
+  description: string;
+  chapter_id: string | null;
+  order_index: number;
+  event_type: string;
+  extracted_from_upload: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePlotEventData {
+  title: string;
+  description?: string;
+  chapter_id?: string;
+  event_type?: string;
+}
+
 export interface Saga {
   id: string;
   user_id: string;
@@ -517,6 +556,64 @@ class ApiService {
 
   async deleteCharacter(id: string): Promise<void> {
     await this.request<void>(`/characters/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Location endpoints
+  async getProjectLocations(projectId: string): Promise<{ locations: Location[]; count: number }> {
+    return this.request<{ locations: Location[]; count: number }>(`/projects/${projectId}/locations`);
+  }
+
+  async getLocation(id: string): Promise<{ location: Location }> {
+    return this.request<{ location: Location }>(`/locations/${id}`);
+  }
+
+  async createLocation(projectId: string, data: CreateLocationData): Promise<{ location: Location }> {
+    return this.request<{ location: Location }>(`/projects/${projectId}/locations`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLocation(id: string, data: Partial<CreateLocationData>): Promise<{ location: Location }> {
+    return this.request<{ location: Location }>(`/locations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    await this.request<void>(`/locations/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Plot Event endpoints
+  async getProjectPlotEvents(projectId: string): Promise<{ plotEvents: PlotEvent[]; count: number }> {
+    return this.request<{ plotEvents: PlotEvent[]; count: number }>(`/projects/${projectId}/plot-events`);
+  }
+
+  async getPlotEvent(id: string): Promise<{ plotEvent: PlotEvent }> {
+    return this.request<{ plotEvent: PlotEvent }>(`/plot-events/${id}`);
+  }
+
+  async createPlotEvent(projectId: string, data: CreatePlotEventData): Promise<{ plotEvent: PlotEvent }> {
+    return this.request<{ plotEvent: PlotEvent }>(`/projects/${projectId}/plot-events`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePlotEvent(id: string, data: Partial<CreatePlotEventData>): Promise<{ plotEvent: PlotEvent }> {
+    return this.request<{ plotEvent: PlotEvent }>(`/plot-events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlotEvent(id: string): Promise<void> {
+    await this.request<void>(`/plot-events/${id}`, {
       method: 'DELETE',
     });
   }
