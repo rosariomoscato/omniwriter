@@ -1,3 +1,41 @@
+## Session: 2026-02-13 01:12 CET - Feature #200 Completion
+
+**Status: ALL 200 FEATURES COMPLETE (100%)**
+
+### Feature #200 - Fix NewProject page hardcoded Italian text - add i18n translations - PASSING
+
+**Summary:**
+The NewProject page (client/src/pages/NewProject.tsx) had ALL text hardcoded in Italian and did not use the i18next translation system (useTranslation/t()). When the user selected English language, the page continued to display entirely in Italian.
+
+**Changes Made:**
+
+1. **client/src/pages/NewProject.tsx** - Complete i18n conversion:
+   - Added `import { useTranslation } from 'react-i18next'` and `const { t } = useTranslation()`
+   - Converted AREAS constant to use translation keys (`nameKey`/`descriptionKey`) instead of hardcoded strings
+   - Replaced ALL hardcoded Italian text with `t()` calls:
+     - Header texts (Back to Dashboard, title, subtitle)
+     - Step labels (1-8)
+     - Placeholders for all input fields
+     - Validation messages
+     - Romanziere config: section title, genre, tone options (8), POV options (4) with descriptions, target audience, word count
+     - Saggista config: section title, topic, depth options (2) with descriptions, target audience, structure options (4)
+     - Redattore config: section title, article type options (8), SEO keywords, word count
+     - Button texts (Create, Reset, Cancel, Creating...)
+     - Toast messages (success, error)
+
+2. **client/src/i18n/locales/it.json** - Added `newProject` key with complete Italian translations
+
+3. **client/src/i18n/locales/en.json** - Added `newProject` key with complete English translations
+
+**Verification:**
+- Page displays correctly in Italian (default) - all text translated
+- Page displays correctly when switching to English - ALL text translated
+- All three area configs verified: Novelist, Essayist, Editor
+- Zero console errors
+- No mock data patterns in codebase
+
+---
+
 ## Session: 2026-02-13 00:15 CET - Feature #3 Re-verification
 
 **Status: Feature #3 re-verified and marked PASSING**
@@ -112,13 +150,13 @@ The Sources page (/sources) showed "Route not found" toast error popups when nav
 
 ---
 
-## PROJECT COMPLETE - ALL 199 FEATURES PASSING!
+## PROJECT COMPLETE - ALL 200 FEATURES PASSING!
 
 ### Final Statistics
-- **Total Features:** 199
-- **Passing:** 199 (100%)
+- **Total Features:** 200
+- **Passing:** 200 (100%)
 - **In Progress:** 0
 - **Remaining:** 0
 
 ### Application Status:
-The OmniWriter platform is feature-complete with all 199 specified features implemented, tested, and verified as passing.
+The OmniWriter platform is feature-complete with all 200 specified features implemented, tested, and verified as passing.
