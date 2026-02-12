@@ -19,6 +19,12 @@ interface GenerationContextType {
   failGeneration: (error: string) => void;
   resetGeneration: () => void;
   cancelGeneration: () => void;
+  retryGeneration: () => void;
+  lastGenerationRequest?: {
+    projectId?: string;
+    chapterId?: string;
+    type?: 'chapter' | 'outline' | 'analysis';
+  } | null;
 }
 
 const GenerationProgressContext = createContext<GenerationContextType | undefined>(undefined);
@@ -33,9 +39,29 @@ const INITIAL_PROGRESS: GenerationProgress = {
 
 // Global abort controller for canceling generation
 let generationAbortController: AbortController | null = null;
+// Store last generation request for retry functionality
+let lastGenerationRequest: {
+  projectId?: string;
+  chapterId?: string;
+  type?: 'chapter' | 'outline' | 'analysis';
+  config?: any;
+} | null = null;
 
 export function setGenerationAbortController(controller: AbortController | null) {
   generationAbortController = controller;
+}
+
+export function setLastGenerationRequest(request: {
+  projectId?: string;
+  chapterId?: string;
+  type?: 'chapter' | 'outline' | 'analysis';
+  config?: any;
+}) {
+  lastGenerationRequest = request;
+}
+
+export function getLastGenerationRequest() {
+  return lastGenerationRequest;
 }
 
 export function abortGeneration() {
@@ -93,6 +119,26 @@ export function GenerationProgressProvider({ children }: { children: React.React
     setProgress(INITIAL_PROGRESS);
   }, []);
 
+  const retryGeneration = useCallback(() => {
+    if (!lastGenerationRequest) {
+      console.warn('[Generation] No previous generation request to retry');
+      return;
+    }
+
+    // Reset to starting state
+    setProgress({
+      phase: 'structure',
+      currentStep: 1,
+      totalSteps: 3,
+      message: 'Retrying generation...',
+      percentage: 10,
+    });
+
+    // Trigger a custom event that components can listen to
+    const retryEvent = new CustomEvent('generationRetry', { detail: lastGenerationRequest });
+    window.dispatchEvent(retryEvent);
+  }, []);
+
   const value: GenerationContextType = {
     progress,
     startGeneration,
@@ -101,6 +147,8 @@ export function GenerationProgressProvider({ children }: { children: React.React
     failGeneration,
     resetGeneration,
     cancelGeneration,
+    retryGeneration,
+    lastGenerationRequest,
   };
 
   return (

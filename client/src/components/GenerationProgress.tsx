@@ -36,7 +36,7 @@ const PHASE_CONFIG = {
 };
 
 export default function GenerationProgress() {
-  const { progress, cancelGeneration } = useGenerationProgress();
+  const { progress, cancelGeneration, retryGeneration, lastGenerationRequest } = useGenerationProgress();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   if (progress.phase === 'idle') {
@@ -209,10 +209,12 @@ export default function GenerationProgress() {
         )}
         {isFailed && (
           <button
-            onClick={() => window.location.reload()}
-            className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            onClick={retryGeneration}
+            disabled={!lastGenerationRequest}
+            className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
-            Try Again
+            <Edit3 className="w-4 h-4" />
+            {lastGenerationRequest ? 'Retry Generation' : 'No Previous Request'}
           </button>
         )}
         {isCompleted && (
