@@ -15,6 +15,13 @@ export default function HumanModelPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Comparison feature states
+  const [showComparison, setShowComparison] = useState(false);
+  const [comparisonData, setComparisonData] = useState<any>(null);
+  const [comparing, setComparing] = useState(false);
+  const [testProjectId, setTestProjectId] = useState('');
+  const [testChapterId, setTestChapterId] = useState('');
+
   // Form state for creating a new model
   const [newModel, setNewModel] = useState<CreateHumanModelData>({
     name: '',
@@ -196,6 +203,31 @@ export default function HumanModelPage() {
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start analysis');
+    }
+  };
+
+  const handleTestComparison = async () => {
+    if (!selectedModel || !testProjectId || !testChapterId) {
+      toast.error('Please select a model and enter a project/chapter ID for testing');
+      return;
+    }
+
+    try {
+      setComparing(true);
+      setError(null);
+      const response = await apiService.generateChapterComparison(
+        testChapterId,
+        selectedModel.id,
+        'Test comparison with current model'
+      );
+      setComparisonData(response);
+      setShowComparison(true);
+      toast.success('Comparison generated successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate comparison');
+      toast.error(err instanceof Error ? err.message : 'Failed to generate comparison');
+    } finally {
+      setComparing(false);
     }
   };
 
@@ -505,6 +537,159 @@ export default function HumanModelPage() {
                         );
                       }
                     })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Style Comparison Test Section */}
+              {selectedModel && selectedModel.training_status === 'ready' && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {t('humanModel.styleComparison', 'Style Comparison Test')}
+                    </h3>
+                  </div>
+                  <div className="p-6">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      {t('humanModel.comparisonDesc', 'Test how this style profile affects AI-generated content. Enter a chapter ID to see a side-by-side comparison.')}
+                    </p>
+
+                    {!showComparison ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              {t('humanModel.testProjectId', 'Test Project ID')}
+                            </label>
+                            <input
+                              type="text"
+                              value={testProjectId}
+                              onChange={e => setTestProjectId(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                              placeholder="uuid"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              {t('humanModel.testChapterId', 'Test Chapter ID')}
+                            </label>
+                            <input
+                              type="text"
+                              value={testChapterId}
+                              onChange={e => setTestChapterId(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                              placeholder="uuid"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleTestComparison}
+                          disabled={comparing || !testProjectId || !testChapterId}
+                          className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {comparing
+                            ? t('humanModel.generating', 'Generating Comparison...')
+                            : t('humanModel.generateComparison', 'Generate Style Comparison')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Comparison Summary */}
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                            {t('humanModel.comparisonSummary', 'Comparison Summary')}
+                          </h4>
+                          {comparisonData?.differences && (
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600 dark:text-gray-400">{t('humanModel.wordCountChange', 'Word Count Change')}:</span>
+                                <span className={`font-medium ${comparisonData.differences.word_count_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {comparisonData.differences.word_count_change > 0 ? '+' : ''}{comparisonData.differences.word_count_change} words
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600 dark:text-gray-400">{t('humanModel.percentageChange', 'Percentage Change')}:</span>
+                                <span className={`font-medium ${comparisonData.differences.percentage_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {comparisonData.differences.percentage_change > 0 ? '+' : ''}{comparisonData.differences.percentage_change}%
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Side by Side Comparison */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Baseline (No Human Model) */}
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                            <div className="bg-gray-100 dark:bg-gray-700 p-3 border-b border-gray-200 dark:border-gray-700">
+                              <h5 className="font-medium text-gray-700 dark:text-gray-300">
+                                {t('humanModel.withoutStyle', 'Without Style Profile')}
+                              </h5>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {comparisonData?.baseline?.word_count} words
+                              </p>
+                            </div>
+                            <div className="p-4">
+                              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                {comparisonData?.baseline?.content}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Styled (With Human Model) */}
+                          <div className="border border-blue-200 dark:border-blue-900 rounded-lg overflow-hidden">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 border-b border-blue-200 dark:border-blue-900">
+                              <h5 className="font-medium text-blue-700 dark:text-blue-300">
+                                {t('humanModel.withStyle', 'With Style Profile')}
+                              </h5>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                {comparisonData?.styled?.word_count} words
+                              </p>
+                            </div>
+                            <div className="p-4">
+                              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                {comparisonData?.styled?.content}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Style Elements Applied */}
+                        {comparisonData?.differences?.style_elements_applied && comparisonData.differences.style_elements_applied.length > 0 && (
+                          <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+                            <h5 className="font-medium text-purple-700 dark:text-purple-300 mb-2">
+                              {t('humanModel.styleElementsApplied', 'Style Elements Applied')}
+                            </h5>
+                            <ul className="space-y-1">
+                              {comparisonData.differences.style_elements_applied.map((element: any, idx: number) => (
+                                <li key={idx} className="text-sm text-purple-600 dark:text-purple-400">
+                                  <span className="font-medium">{element.element}:</span> {element.description}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <button
+                            onClick={() => {
+                              setShowComparison(false);
+                              setComparisonData(null);
+                            }}
+                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            {t('common.close', 'Close')}
+                          </button>
+                          <button
+                            onClick={() => setShowComparison(false)}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            {t('humanModel.newTest', 'New Test')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

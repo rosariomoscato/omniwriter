@@ -1907,13 +1907,22 @@ export default function ProjectDetail() {
               </div>
             )}
           </div>
-          <button
-            onClick={() => setShowBulkUpload(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            Upload Sources
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowWebSearch(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Globe className="w-4 h-4" />
+              Web Search
+            </button>
+            <button
+              onClick={() => setShowBulkUpload(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Sources
+            </button>
+          </div>
         </div>
 
         {/* Upload Source Form */}
@@ -2543,6 +2552,169 @@ export default function ProjectDetail() {
           onUploadComplete={handleBulkUploadComplete}
           onCancel={() => setShowBulkUpload(false)}
         />
+      )}
+
+      {/* Web Search Dialog */}
+      {showWebSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Web Search
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowWebSearch(false);
+                  setWebSearchQuery('');
+                  setWebSearchResults([]);
+                  setWebSearchUrl('');
+                  setWebSearchTitle('');
+                  setWebSearchContent('');
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {/* Search Form */}
+              <form onSubmit={handleWebSearch} className="mb-6">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={webSearchQuery}
+                    onChange={(e) => setWebSearchQuery(e.target.value)}
+                    placeholder="Enter search query..."
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <button
+                    type="submit"
+                    disabled={webSearchSearching}
+                    className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <Search className="w-4 h-4" />
+                    {webSearchSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Search Results */}
+              {webSearchResults.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Search Results</h4>
+                  {webSearchResults.map((result) => (
+                    <div
+                      key={result.id}
+                      onClick={() => {
+                        setWebSearchUrl(result.url);
+                        setWebSearchTitle(result.title);
+                        setWebSearchContent(result.snippet || '');
+                      }}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        webSearchUrl === result.url
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <FileText className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-1 truncate">
+                            {result.title}
+                          </h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
+                            {result.snippet}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
+                              {result.source}
+                            </span>
+                            <span className="truncate">{result.url}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Manual Entry Form (when result is selected) */}
+              {webSearchUrl && (
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">Save Search Result</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={webSearchTitle}
+                        onChange={(e) => setWebSearchTitle(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        URL <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="url"
+                        value={webSearchUrl}
+                        onChange={(e) => setWebSearchUrl(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Content/Notes
+                      </label>
+                      <textarea
+                        value={webSearchContent}
+                        onChange={(e) => setWebSearchContent(e.target.value)}
+                        rows={4}
+                        placeholder="Add notes or excerpt from the page..."
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowWebSearch(false);
+                  setWebSearchQuery('');
+                  setWebSearchResults([]);
+                  setWebSearchUrl('');
+                  setWebSearchTitle('');
+                  setWebSearchContent('');
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveWebSearchResult}
+                disabled={!webSearchUrl || !webSearchTitle}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Save as Source
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Source Preview Dialog */}

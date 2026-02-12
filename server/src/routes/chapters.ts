@@ -584,4 +584,174 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, async (
   }
 });
 
+// POST /api/chapters/:id/generate-with-comparison - Generate content with and without Human Model for comparison
+router.post('/chapters/:id/generate-with-comparison', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { human_model_id, prompt_context } = req.body;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, c.project_id, p.area, p.settings_json
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as { id: string; title: string; content: string; project_id: string; area: string; settings_json: string } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // If human_model_id is provided, verify it exists and belongs to user
+    let humanModel = null;
+    if (human_model_id) {
+      humanModel = db.prepare(
+        'SELECT * FROM human_models WHERE id = ? AND user_id = ?'
+      ).get(human_model_id, userId) as { id: string; name: string; analysis_result_json: string; style_strength: number } | undefined;
+
+      if (!humanModel) {
+        return res.status(404).json({ message: 'Human Model not found' });
+      }
+
+      if (humanModel.analysis_result_json) {
+        try {
+          humanModel.analysis_result_json = JSON.parse(humanModel.analysis_result_json);
+        } catch {
+          humanModel.analysis_result_json = {};
+        }
+      }
+    }
+
+    // Generate baseline content (without Human Model)
+    // In a real implementation, this would call an AI API
+    const baselineContent = generateMockContent(chapter.title, chapter.area, prompt_context, null);
+
+    // Generate styled content (with Human Model, if provided)
+    const styledContent = humanModel
+      ? generateMockContent(chapter.title, chapter.area, prompt_context, humanModel)
+      : baselineContent;
+
+    // Calculate style differences
+    const differences = calculateStyleDifferences(baselineContent, styledContent, humanModel);
+
+    console.log(`[Comparison] Generated comparison for chapter ${id}`);
+    res.json({
+      chapter_id: id,
+      human_model: humanModel ? {
+        id: humanModel.id,
+        name: humanModel.name,
+        style_strength: humanModel.style_strength,
+        analysis: humanModel.analysis_result_json
+      } : null,
+      baseline: {
+        content: baselineContent,
+        word_count: baselineContent.split(/\s+/).filter(w => w.length > 0).length,
+        generated_at: new Date().toISOString()
+      },
+      styled: humanModel ? {
+        content: styledContent,
+        word_count: styledContent.split(/\s+/).filter(w => w.length > 0).length,
+        generated_at: new Date().toISOString()
+      } : null,
+      differences
+    });
+  } catch (error) {
+    console.error('[Comparison] Error generating comparison:', error);
+    res.status(500).json({ message: 'Failed to generate comparison' });
+  }
+});
+
+// Helper function to generate mock content (simulates AI generation)
+function generateMockContent(title: string, area: string, context: string, humanModel: any): string {
+  const baseContent = `Questo è un contenuto generato per "${title}" nell'area ${area}.`;
+
+  if (!humanModel) {
+    return `${baseContent} Questo testo è stato generato senza l'applicazione di alcun modello stilistico umano. Lo stile è neutro e standard, adatto per una prima bozza o per avere un punto di partenza pulito.`;
+  }
+
+  // Apply style based on Human Model analysis
+  const analysis = humanModel.analysis_result_json || {};
+  const styleStrength = humanModel.style_strength || 50;
+
+  let styledContent = baseContent;
+
+  // Apply tone
+  if (analysis.tone) {
+    styledContent += ` Il tono adottato è: ${analysis.tone}.`;
+  }
+
+  // Apply sentence structure influence
+  if (analysis.sentence_structure) {
+    styledContent += ` La struttura delle frasi segue: ${analysis.sentence_structure}.`;
+  }
+
+  // Apply vocabulary influence
+  if (analysis.vocabulary) {
+    styledContent += ` Il vocabolario utilizzato è: ${analysis.vocabulary}.`;
+  }
+
+  // Apply writing patterns based on style strength
+  if (analysis.patterns && Array.isArray(analysis.patterns) && analysis.patterns.length > 0) {
+    const influence = Math.min(styleStrength / 100, 1);
+    styledContent += `\n\nPattern stilistici applicati (influenza: ${Math.round(influence * 100)}%):\n`;
+    analysis.patterns.forEach((pattern: string, idx: number) => {
+      styledContent += `- ${pattern}\n`;
+    });
+  }
+
+  return styledContent;
+}
+
+// Helper function to calculate style differences
+function calculateStyleDifferences(baseline: string, styled: string, humanModel: any): any {
+  if (!humanModel) {
+    return null;
+  }
+
+  const baselineWords = baseline.split(/\s+/).filter(w => w.length > 0);
+  const styledWords = styled.split(/\s+/).filter(w => w.length > 0);
+
+  const differences = {
+    word_count_change: styledWords.length - baselineWords.length,
+    percentage_change: baselineWords.length > 0
+      ? Math.round(((styledWords.length - baselineWords.length) / baselineWords.length) * 100)
+      : 0,
+    style_elements_applied: []
+  };
+
+  const analysis = humanModel.analysis_result_json || {};
+
+  if (analysis.tone) {
+    differences.style_elements_applied.push({
+      element: 'Tone',
+      description: analysis.tone
+    });
+  }
+
+  if (analysis.sentence_structure) {
+    differences.style_elements_applied.push({
+      element: 'Sentence Structure',
+      description: analysis.sentence_structure
+    });
+  }
+
+  if (analysis.vocabulary) {
+    differences.style_elements_applied.push({
+      element: 'Vocabulary',
+      description: analysis.vocabulary
+    });
+  }
+
+  if (analysis.patterns && Array.isArray(analysis.patterns)) {
+    differences.style_elements_applied.push({
+      element: 'Writing Patterns',
+      description: `${analysis.patterns.length} patterns applied`
+    });
+  }
+
+  return differences;
+}
+
 export default router;

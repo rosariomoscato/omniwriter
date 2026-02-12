@@ -431,4 +431,74 @@ router.get('/sources/tags', authenticateToken, (req: any, res) => {
   }
 });
 
+// POST /api/sources/web-search - Save web search result as source
+router.post('/sources/web-search', authenticateToken, async (req: any, res) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+  const { projectId, url, title, content, tags } = req.body;
+
+  // Validate required fields
+  if (!url || !title) {
+    return res.status(400).json({ message: 'URL and title are required' });
+  }
+
+  if (!projectId) {
+    return res.status(400).json({ message: 'Project ID is required' });
+  }
+
+  try {
+    // Verify project belongs to user
+    const project = db
+      .prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?')
+      .get(projectId, userId);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (e) {
+      return res.status(400).json({ message: 'Invalid URL format' });
+    }
+
+    // Generate source ID
+    const sourceId = Buffer.from(`${projectId}-${Date.now()}`).toString('base64').slice(0, 36);
+
+    // Insert web search source into database
+    db.prepare(
+      `INSERT INTO sources (
+        id, project_id, user_id, file_name, file_path, file_type,
+        file_size, content_text, source_type, url, tags_json, relevance_score
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      sourceId,
+      projectId,
+      userId,
+      title,
+      null, // no file path for web sources
+      'text/html',
+      0, // no file size for web sources
+      content || '', // content text from web search
+      'web_search',
+      url,
+      JSON.stringify(tags || []),
+      0.0
+    );
+
+    // Fetch created source
+    const source = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
+
+    console.log(`[Sources] Web search result saved: ${title} for project ${projectId}`);
+
+    res.status(201).json({ source });
+  } catch (error: any) {
+    console.error('[Sources] Error saving web search result:', error);
+    res.status(500).json({
+      message: error.message || 'Failed to save web search result',
+    });
+  }
+});
+
 export default router;

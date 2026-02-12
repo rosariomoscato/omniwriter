@@ -615,6 +615,69 @@ class ApiService {
     });
   }
 
+  // Generate chapter content with and without Human Model for comparison
+  async generateChapterComparison(chapterId: string, humanModelId: string | null, promptContext?: string): Promise<{
+    chapter_id: string;
+    human_model: {
+      id: string;
+      name: string;
+      style_strength: number;
+      analysis: any;
+    } | null;
+    baseline: {
+      content: string;
+      word_count: number;
+      generated_at: string;
+    };
+    styled: {
+      content: string;
+      word_count: number;
+      generated_at: string;
+    } | null;
+    differences: {
+      word_count_change: number;
+      percentage_change: number;
+      style_elements_applied: Array<{
+        element: string;
+        description: string;
+      }>;
+    } | null;
+  }> {
+    return this.request<{
+      chapter_id: string;
+      human_model: {
+        id: string;
+        name: string;
+        style_strength: number;
+        analysis: any;
+      } | null;
+      baseline: {
+        content: string;
+        word_count: number;
+        generated_at: string;
+      };
+      styled: {
+        content: string;
+        word_count: number;
+        generated_at: string;
+      } | null;
+      differences: {
+        word_count_change: number;
+        percentage_change: number;
+        style_elements_applied: Array<{
+          element: string;
+          description: string;
+        }>;
+      } | null;
+    }>(`/chapters/${chapterId}/generate-with-comparison`, {
+      method: 'POST',
+      body: JSON.stringify({
+        human_model_id: humanModelId,
+        prompt_context: promptContext
+      }),
+    });
+  }
+
   // Source endpoints
   async getProjectSources(projectId: string): Promise<{ sources: Source[]; count: number }> {
     return this.request<{ sources: Source[]; count: number }>(`/projects/${projectId}/sources`);
@@ -656,6 +719,19 @@ class ApiService {
 
   async getSourceTags(): Promise<{ tags: string[] }> {
     return this.request<{ tags: string[] }>('/sources/tags');
+  }
+
+  async saveWebSearchResult(data: {
+    projectId: string;
+    url: string;
+    title: string;
+    content?: string;
+    tags?: string[];
+  }): Promise<{ source: Source }> {
+    return this.request<{ source: Source }>('/sources/web-search', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Character endpoints
