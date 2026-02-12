@@ -106,6 +106,12 @@ export default function Dashboard() {
   // Update URL when filters change (for persistence)
   const updateFilters = (newFilters: Partial<FilterState>) => {
     const updated = { ...filters, ...newFilters };
+
+    // Sanitize search input: trim and limit length
+    if (updated.search !== undefined) {
+      updated.search = updated.search.trim().slice(0, 500); // Limit to 500 chars
+    }
+
     setFilters(updated);
 
     // Update URL params for persistence
@@ -564,11 +570,15 @@ export default function Dashboard() {
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-            {hasActiveFilters ? 'Nessun progetto trovato' : 'Nessun progetto'}
+            {hasActiveFilters
+              ? (filters.search ? 'Nessun risultato di ricerca' : 'Nessun progetto trovato')
+              : 'Nessun progetto'}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             {hasActiveFilters
-              ? 'Prova a cambiare i filtri di ricerca'
+              ? (filters.search
+                  ? `Nessun progetto corrisponde a "${filters.search.slice(0, 50)}${filters.search.length > 50 ? '...' : ''}". Prova con termini diversi o controlla l'ortografia.`
+                  : 'Prova a cambiare i filtri di ricerca')
               : 'Crea il tuo primo progetto per iniziare'}
           </p>
           {hasActiveFilters && (

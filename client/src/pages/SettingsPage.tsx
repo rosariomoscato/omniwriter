@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useToastNotification } from '../components/Toast';
-import { Lock, Key, User, Shield, LogOut } from 'lucide-react';
+import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -17,6 +17,12 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Password validation
   const [passwordValidations, setPasswordValidations] = useState({
@@ -108,6 +114,46 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Password is required to delete your account');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setDeleteError('');
+
+      await apiService.deleteAccount(deletePassword);
+
+      // Logout and redirect to login after successful deletion
+      toast.success('Account deleted successfully');
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (error: any) {
+      console.error('Delete account error:', error);
+      if (error.message && error.message.includes('Password is incorrect')) {
+        setDeleteError('Incorrect password. Please try again.');
+      } else {
+        setDeleteError(error.message || 'Failed to delete account. Please try again.');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setShowDeleteDialog(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setShowDeleteDialog(false);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
   const navigateToProfile = () => {
     navigate('/profile');
   };
@@ -150,6 +196,14 @@ export default function SettingsPage() {
               >
                 <LogOut className="w-5 h-5" />
                 <span>Logout</span>
+              </button>
+
+              <button
+                onClick={openDeleteDialog}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 transition-colors"
+              >
+                <Trash2 className="w-5 h-5" />
+                <span>Delete Account</span>
               </button>
             </div>
           </div>
@@ -294,6 +348,74 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Delete Account?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Are you sure you want to permanently delete your account? This will:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <li>Delete all your projects and content</li>
+                <li>Delete all your sources and uploads</li>
+                <li>Delete your Human Model profiles</li>
+                <li>Remove all your data from our servers</li>
+                <li className="text-red-600 dark:text-red-400 font-medium">This action is irreversible</li>
+              </ul>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="deletePassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Enter your password to confirm
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="deletePassword"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter your password"
+                  autoFocus
+                />
+              </div>
+              {deleteError && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={closeDeleteDialog}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeleting || !deletePassword}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

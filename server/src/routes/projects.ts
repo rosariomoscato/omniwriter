@@ -54,8 +54,18 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     }
 
     if (search && typeof search === 'string') {
-      query += ' AND (title LIKE ? OR description LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      // Trim and limit search length to prevent abuse
+      const sanitizedSearch = search.trim().slice(0, 500);
+
+      // Only search if there's actual content after sanitization
+      if (sanitizedSearch.length > 0) {
+        // Escape SQL LIKE wildcards (%) and (_) to prevent them from being interpreted
+        const escapeLikeString = (str: string) =>
+          str.replace(/%/g, '\\%').replace(/_/g, '\\_');
+        const escapedSearch = escapeLikeString(sanitizedSearch);
+        query += ' AND (title LIKE ? OR description LIKE ?) ESCAPE \'\\\'';
+        params.push(`%${escapedSearch}%`, `%${escapedSearch}%`);
+      }
     }
 
     // Sorting
