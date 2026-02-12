@@ -246,7 +246,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const { title, description, genre, tone, target_audience, pov, word_count_target, status, settings_json } = req.body;
+    const { title, description, genre, tone, target_audience, pov, word_count_target, status, settings_json, human_model_id } = req.body;
 
     console.log('[Projects] Updating project:', projectId);
     db.prepare(
@@ -260,6 +260,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
         word_count_target = COALESCE(?, word_count_target),
         status = COALESCE(?, status),
         settings_json = COALESCE(?, settings_json),
+        human_model_id = COALESCE(?, human_model_id),
         updated_at = datetime('now')
        WHERE id = ? AND user_id = ?`
     ).run(
@@ -272,6 +273,7 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
       word_count_target || null,
       status || null,
       settings_json || null,
+      human_model_id || null,
       projectId,
       userId
     );

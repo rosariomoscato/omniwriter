@@ -97,7 +97,8 @@ export default function ProjectDetail() {
     pov: '',
     word_count_target: '',
     status: 'draft' as 'draft' | 'in_progress' | 'completed' | 'archived',
-    area: 'romanziere' as 'romanziere' | 'saggista' | 'redattore'
+    area: 'romanziere' as 'romanziere' | 'saggista' | 'redattore',
+    human_model_id: '' as string | null
   });
   const [draggedChapterIndex, setDraggedChapterIndex] = useState<number | null>(null);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
@@ -113,6 +114,8 @@ export default function ProjectDetail() {
   const [showAnalyzeNovel, setShowAnalyzeNovel] = useState(false);
   const [analyzingNovel, setAnalyzingNovel] = useState(false);
   const [novelFile, setNovelFile] = useState<File | null>(null);
+  const [humanModels, setHumanModels] = useState<any[]>([]);
+  const [loadingHumanModels, setLoadingHumanModels] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -131,6 +134,20 @@ export default function ProjectDetail() {
       setProject(response.project);
     } catch (err) {
       console.error('Failed to load project:', err);
+    }
+  };
+
+  const loadHumanModels = async () => {
+    try {
+      setLoadingHumanModels(true);
+      const response = await apiService.getHumanModels();
+      // Filter only ready models that match the project's area
+      const readyModels = response.models.filter((m: any) => m.training_status === 'ready');
+      setHumanModels(readyModels);
+    } catch (err) {
+      console.error('Failed to load human models:', err);
+    } finally {
+      setLoadingHumanModels(false);
     }
   };
 
@@ -897,8 +914,10 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = async () => {
     if (project) {
+      // Load human models when opening edit dialog
+      await loadHumanModels();
       setEditForm({
         title: project.title,
         description: project.description || '',
@@ -908,7 +927,8 @@ export default function ProjectDetail() {
         pov: project.pov || '',
         word_count_target: project.word_count_target?.toString() || '',
         status: project.status,
-        area: project.area
+        area: project.area,
+        human_model_id: project.human_model_id || null
       });
       setShowEditDialog(true);
     }
@@ -931,7 +951,8 @@ export default function ProjectDetail() {
         pov: editForm.pov || undefined,
         word_count_target: editForm.word_count_target ? parseInt(editForm.word_count_target) : undefined,
         status: editForm.status,
-        area: editForm.area
+        area: editForm.area,
+        human_model_id: editForm.human_model_id || undefined
       };
 
       const response = await apiService.updateProject(id!, updateData);
@@ -1590,6 +1611,29 @@ export default function ProjectDetail() {
                     </div>
                   </>
                 )}
+
+                {/* Human Model (Style Profile) Selector - Feature #136 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Style Profile (Human Model)
+                  </label>
+                  <select
+                    value={editForm.human_model_id || ''}
+                    onChange={(e) => setEditForm({ ...editForm, human_model_id: e.target.value || null })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={creating || loadingHumanModels}
+                  >
+                    <option value="">None (Default AI Style)</option>
+                    {humanModels.map((model: any) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name} {model.model_type !== 'romanziere_advanced' ? '(Basic)' : '(Advanced)'} - {model.style_strength}% strength
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Apply a trained writing style to AI generation. Create style profiles in the Human Model section.
+                  </p>
+                </div>
 
                 {/* Error Message */}
                 {error && (

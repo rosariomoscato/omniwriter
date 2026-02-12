@@ -56,6 +56,7 @@ export interface CreateProjectData {
   word_count_target?: number;
   saga_id?: string;
   settings_json?: string;
+  human_model_id?: string | null;
 }
 
 export interface HumanModel {
