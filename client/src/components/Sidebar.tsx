@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Project {
@@ -38,6 +38,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
 
   const adminNav = [
     { id: 'admin-users', label: 'Gestione Utenti', icon: Shield, path: '/admin/users' },
+    { id: 'admin-stats', label: 'Statistiche', icon: BarChart3, path: '/admin/stats' },
   ];
 
   return (

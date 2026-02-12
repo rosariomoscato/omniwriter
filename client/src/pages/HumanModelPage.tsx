@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
-import { HumanModelCardSkeleton } from '../components/Skeleton';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
@@ -11,12 +10,22 @@ export default function HumanModelPage() {
   const [selectedModel, setSelectedModel] = useState<HumanModel | null>(null);
   const [sources, setSources] = useState<HumanModelSource[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Form state for creating a new model
   const [newModel, setNewModel] = useState<CreateHumanModelData>({
+    name: '',
+    description: '',
+    model_type: 'romanziere_advanced',
+    style_strength: 50,
+  });
+
+  // Form state for editing a model
+  const [editModel, setEditModel] = useState<Partial<CreateHumanModelData> & { id: string }>({
+    id: '',
     name: '',
     description: '',
     model_type: 'romanziere_advanced',
@@ -74,8 +83,41 @@ export default function HumanModelPage() {
         model_type: 'romanziere_advanced',
         style_strength: 50,
       });
+      toast.success('Style profile created successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create model');
+      toast.error(err instanceof Error ? err.message : 'Failed to create model');
+    }
+  };
+
+  const handleEditClick = (model: HumanModel) => {
+    setEditModel({
+      id: model.id,
+      name: model.name,
+      description: model.description,
+      model_type: model.model_type,
+      style_strength: model.style_strength,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleEditModel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModel.id) return;
+
+    try {
+      setError(null);
+      const { id, ...updateData } = editModel;
+      const response = await apiService.updateHumanModel(id, updateData);
+      setModels(models.map(m => m.id === id ? response.model : m));
+      if (selectedModel?.id === id) {
+        setSelectedModel(response.model);
+      }
+      setShowEditDialog(false);
+      toast.success('Style profile updated successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update model');
+      toast.error(err instanceof Error ? err.message : 'Failed to update model');
     }
   };
 
@@ -277,8 +319,18 @@ export default function HumanModelPage() {
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedModel.name}</h2>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedModel.description || t('humanModel.noDescription', 'No description')}</p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteModel(selectedModel.id)}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditClick(selectedModel)}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 p-1"
+                      title="Edit profile"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteModel(selectedModel.id)}
                     className="text-red-600 hover:text-red-700 dark:text-red-400"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -286,6 +338,7 @@ export default function HumanModelPage() {
                     </svg>
                   </button>
                 </div>
+              </div>
 
                 <div className="grid grid-cols-3 gap-4 mt-6">
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
@@ -437,6 +490,91 @@ export default function HumanModelPage() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   {t('humanModel.create', 'Create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      {showEditDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {t('humanModel.editProfile', 'Edit Style Profile')}
+            </h3>
+            <form onSubmit={handleEditModel} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('humanModel.profileName', 'Profile Name')} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editModel.name || ''}
+                  onChange={e => setEditModel({ ...editModel, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder={t('humanModel.profileNamePlaceholder', 'My Writing Style')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('humanModel.description', 'Description')}
+                </label>
+                <textarea
+                  value={editModel.description || ''}
+                  onChange={e => setEditModel({ ...editModel, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  rows={3}
+                  placeholder={t('humanModel.descriptionPlaceholder', 'Optional description')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('humanModel.modelType', 'Model Type')} *
+                </label>
+                <select
+                  value={editModel.model_type || 'romanziere_advanced'}
+                  onChange={e => setEditModel({ ...editModel, model_type: e.target.value as CreateHumanModelData['model_type'] })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="romanziere_advanced">{t('humanModel.types.romanziere_advanced', 'Novelist (Advanced)')}</option>
+                  <option value="saggista_basic">{t('humanModel.types.saggista_basic', 'Essayist (Basic)')}</option>
+                  <option value="redattore_basic">{t('humanModel.types.redattore_basic', 'Editor (Basic)')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('humanModel.styleStrength', 'Style Strength')}: {editModel.style_strength || 50}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={editModel.style_strength || 50}
+                  onChange={e => setEditModel({ ...editModel, style_strength: parseInt(e.target.value) })}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <span>0% ({t('humanModel.minStrength', 'Minimal')})</span>
+                  <span>50% ({t('humanModel.balanced', 'Balanced')})</span>
+                  <span>100% ({t('humanModel.maxStrength', 'Maximum')})</span>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditDialog(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {t('humanModel.save', 'Save Changes')}
                 </button>
               </div>
             </form>

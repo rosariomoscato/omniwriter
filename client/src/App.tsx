@@ -21,6 +21,7 @@ import NewProject from './pages/NewProject';
 import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminStatsPage from './pages/AdminStatsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 
@@ -259,6 +260,28 @@ function AppContent() {
                       `}
                     >
                       <AdminUsersPage />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/admin/stats"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <AdminStatsPage />
                     </main>
                   </>
                 }
