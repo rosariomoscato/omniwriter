@@ -136,10 +136,15 @@ export default function ProjectDetail() {
       setProjectNotFound(false);
     } catch (err: any) {
       console.error('Failed to load project:', err);
+      console.error('Error message:', err.message);
+      console.error('Error status:', err.status);
+      console.error('Error includes not found:', err.message?.includes('not found'));
       // If 404 error, show not found state
-      if (err.message?.includes('not found') || err.status === 404) {
+      if (err.message?.includes('not found') || err.status === 404 || !err.message) {
+        console.log('Setting projectNotFound to true');
         setProjectNotFound(true);
         setProject(null);
+        setLoading(false);
       }
     }
   };
@@ -1953,7 +1958,7 @@ export default function ProjectDetail() {
 
         {/* Chapters List */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {loading ? (
+          {loading && !projectNotFound ? (
             <ChapterListSkeleton count={5} />
           ) : chapters.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
