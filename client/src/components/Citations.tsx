@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Quote, Plus, Trash2, Edit2, FileText, BookOpen } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useToastNotification } from './Toast';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 interface Citation {
   id: string;
@@ -38,6 +39,7 @@ export default function Citations({ projectId }: CitationsProps) {
   const [error, setError] = useState('');
   const [bibliography, setBibliography] = useState<string[]>([]);
   const [showBibliography, setShowBibliography] = useState(false);
+  const bibliographyModalRef = useFocusTrapSimple(showBibliography);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -198,10 +200,21 @@ export default function Citations({ projectId }: CitationsProps) {
 
       {/* Bibliography Modal */}
       {showBibliography && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          ref={bibliographyModalRef}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bibliography-title"
+        >
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bibliografia Generata</h3>
+              <h3
+                id="bibliography-title"
+                className="text-xl font-bold text-gray-900 dark:text-gray-100"
+              >
+                Bibliografia Generata
+              </h3>
               <button
                 onClick={() => setShowBibliography(false)}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"

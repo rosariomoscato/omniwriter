@@ -744,7 +744,7 @@ export default function ChapterEditor() {
           {/* Back button and actions */}
           <div className="flex items-center justify-between mb-4">
             <button
-              onClick={() => navigate(`/projects/${projectId}`)}
+              onClick={handleBackClick}
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
