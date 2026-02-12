@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -26,6 +26,8 @@ export default function ChapterEditor() {
   const [nextAutoSaveIn, setNextAutoSaveIn] = useState(30); // Countdown to next auto-save
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [readingTime, setReadingTime] = useState(0); // in minutes
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -118,6 +120,10 @@ export default function ChapterEditor() {
     // Calculate word count
     const words = content.trim().split(/\s+/).filter(w => w.length > 0);
     setWordCount(words.length);
+
+    // Calculate reading time (average reading speed: 200 words per minute)
+    const readingMinutes = Math.ceil(words.length / 200);
+    setReadingTime(readingMinutes);
   }, [content]);
 
   // Update matches when find text or content changes
@@ -410,6 +416,12 @@ export default function ChapterEditor() {
         e.preventDefault();
         setShowFindReplace(true);
       }
+
+      // ESC key to exit full screen
+      if (e.key === 'Escape' && isFullScreen) {
+        e.preventDefault();
+        setIsFullScreen(false);
+      }
     };
 
     textarea.addEventListener('keydown', handleKeyDown);
@@ -417,7 +429,7 @@ export default function ChapterEditor() {
     return () => {
       textarea.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, isFullScreen]);
 
   const handleRestore = (restoredContent: string) => {
     isUndoRedoActionRef.current = true; // Don't add to history on restore
@@ -483,8 +495,8 @@ export default function ChapterEditor() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-dark-bg">
-      <Breadcrumbs />
+    <div className={`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}>
+      {!isFullScreen && <Breadcrumbs />}
 
       {/* Editor Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface">
@@ -503,6 +515,18 @@ export default function ChapterEditor() {
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {wordCount} words
               </span>
+              {wordCount > 0 && (
+                <span className="text-sm text-gray-400 dark:text-gray-500">
+                  • {readingTime} min read
+                </span>
+              )}
+              <button
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                title={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen'}
+              >
+                {isFullScreen ? <Minimize className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
+              </button>
               <button
                 onClick={() => setShowFindReplace(!showFindReplace)}
                 className={`p-2 rounded-lg border transition-colors ${showFindReplace ? 'bg-blue-50 border-blue-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -708,8 +732,9 @@ export default function ChapterEditor() {
         )}
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+      {/* Footer - hidden in full-screen mode */}
+      {!isFullScreen && (
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <div>
           Status: <span className="font-medium">{chapter.status}</span>
         </div>
@@ -723,7 +748,8 @@ export default function ChapterEditor() {
             Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
           </span>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Version History Modal */}
       {showVersionHistory && (
