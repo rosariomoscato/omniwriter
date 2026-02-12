@@ -12,6 +12,7 @@ import sourcesRouter from './routes/sources';
 import charactersRouter from './routes/characters';
 import exportRouter from './routes/export';
 import sagasRouter from './routes/sagas';
+import adminRouter from './routes/admin';
 
 dotenv.config();
 
@@ -37,6 +38,12 @@ app.use('/api', (req, _res, next) => {
 const db = initializeDatabase();
 console.log('[Database] SQLite database connected successfully');
 
+// Middleware to attach database to request
+app.use('/api/admin', (req, res, next) => {
+  (req as any).db = db;
+  next();
+});
+
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
@@ -47,6 +54,7 @@ app.use('/api', chaptersRouter);
 app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
 app.use('/api', exportRouter);
+app.use('/api/admin', adminRouter);
 
 // Placeholder route groups - to be implemented by coding agents
 app.use('/api/users', (_req, res) => {

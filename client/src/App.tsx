@@ -15,6 +15,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import NewProject from './pages/NewProject';
 import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
