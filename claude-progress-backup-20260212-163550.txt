@@ -1,0 +1,68 @@
+## Session: 2026-02-12 (Features #137, #138)
+
+### Status Summary
+
+**BLOCKER RESOLVED: ChapterEditor.tsx syntax error fixed**
+- Issue: `Lightbulb` icon was used but not imported
+- Solution: Added `Lightbulb` to imports from lucide-react
+- File restored from .bak to full functionality
+- Committed: cd25c4b
+
+### Current Status
+
+**Feature #137 - Novel Analysis from Upload:** NOT STARTED
+- Now unblocked - ChapterEditor.tsx is fixed
+- Requires implementation of novel analysis UI in ChapterEditor
+- Backend endpoint POST /api/projects/:id/analyze-novel needs to exist
+- Need to add file upload dialog and results display
+
+**Feature #138 - Saggista Bibliography Generation:** NOT STARTED
+- Can be implemented after #137 or in parallel
+
+### Technical Blocker Identified
+
+**Sandbox EPERM Errors:**
+- Server startup fails with `Error: listen EPERM: operation not permitted 127.0.0.1:5000`
+- This is a sandbox restriction preventing network binding
+- Cannot start backend server for testing
+- Cannot verify features through browser automation
+
+**Workaround Options:**
+1. Implement features without live testing (code-only approach)
+2. Wait for sandbox restrictions to be lifted
+3. Use alternative testing methods
+
+### Next Steps
+
+1. **Verify backend endpoint exists** for novel analysis:
+   - Check if POST /api/projects/:id/analyze-novel is implemented
+   - If not, implement the endpoint
+
+2. **Implement Feature #137 UI:**
+   - Add "Analyze Novel" button to ChapterEditor (for Romanziere projects)
+   - Add file upload dialog for TXT/DOCX novel files
+   - Display extraction results (characters, locations, plot events)
+   - Store extracted elements in database
+
+3. **Implement Feature #138:**
+   - Add bibliography generation for Saggista projects
+   - Citation management and formatting
+
+### Files Modified This Session
+
+1. **client/src/pages/ChapterEditor.tsx**
+   - Added `Lightbulb` to lucide-react imports
+   - Restored full functionality from .bak file
+   - Committed: cd25c4b
+
+### Progress
+- Passing: 143/188 (76.1%)
+- In Progress: 2 (#137, #138)
+- Blocked by: Sandbox EPERM errors (testing), now unblocked for development
+
+---
+
+## Previous Sessions (Summary)
+
+[Previous sessions' content continues below...]
+
