@@ -589,4 +589,110 @@ router.post('/import', authenticateToken, upload.single('file'), (req: AuthReque
   }
 });
 
+// GET /api/projects/:id/tags - Get all tags for a project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/:id/tags', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    // Verify project belongs to user
+    const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Get all tags for this project
+    const tags = db.prepare('SELECT tag_name FROM project_tags WHERE project_id = ? ORDER BY tag_name ASC').all(projectId);
+    const tagNames = tags.map((t: any) => t.tag_name);
+
+    console.log('[Projects] Fetched', tagNames.length, 'tags for project:', projectId);
+    res.json({ tags: tagNames });
+  } catch (error) {
+    console.error('[Projects] Get tags error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/projects/:id/tags - Add a tag to a project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/tags', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const { tag_name } = req.body;
+
+    if (!tag_name || typeof tag_name !== 'string') {
+      res.status(400).json({ message: 'Tag name is required' });
+      return;
+    }
+
+    // Trim and validate tag name
+    const trimmedTag = tag_name.trim().slice(0, 50); // Limit to 50 chars
+    if (trimmedTag.length === 0) {
+      res.status(400).json({ message: 'Tag name cannot be empty' });
+      return;
+    }
+
+    // Verify project belongs to user
+    const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Check if tag already exists
+    const existing = db.prepare('SELECT id FROM project_tags WHERE project_id = ? AND tag_name = ?').get(projectId, trimmedTag);
+    if (existing) {
+      res.json({ tag: trimmedTag }); // Tag already exists, return it
+      return;
+    }
+
+    // Add tag
+    const tagId = uuidv4();
+    db.prepare('INSERT INTO project_tags (id, project_id, tag_name) VALUES (?, ?, ?)').run(tagId, projectId, trimmedTag);
+
+    console.log('[Projects] Added tag:', trimmedTag, 'to project:', projectId);
+    res.status(201).json({ tag: trimmedTag });
+  } catch (error) {
+    console.error('[Projects] Add tag error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// DELETE /api/projects/:id/tags/:tagName - Remove a tag from a project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.delete('/:id/tags/:tagName', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const tagName = decodeURIComponent(req.params.tagName);
+
+    // Verify project belongs to user
+    const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Delete tag
+    const result = db.prepare('DELETE FROM project_tags WHERE project_id = ? AND tag_name = ?').run(projectId, tagName);
+
+    if (result.changes === 0) {
+      res.status(404).json({ message: 'Tag not found' });
+      return;
+    }
+
+    console.log('[Projects] Removed tag:', tagName, 'from project:', projectId);
+    res.json({ message: 'Tag removed successfully' });
+  } catch (error) {
+    console.error('[Projects] Remove tag error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;

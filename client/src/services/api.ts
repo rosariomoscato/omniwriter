@@ -42,6 +42,7 @@ export interface Project {
   word_count: number;
   created_at: string;
   updated_at: string;
+  tags: string[]; // Array of tag names
 }
 
 export interface CreateProjectData {
@@ -789,6 +790,24 @@ class ApiService {
     return this.request<{ message: string }>('/users/account', {
       method: 'DELETE',
       body: JSON.stringify({ password }),
+    });
+  }
+
+  // Tag endpoints
+  async getProjectTags(projectId: string): Promise<{ tags: string[] }> {
+    return this.request<{ tags: string[] }>(`/projects/${projectId}/tags`);
+  }
+
+  async addProjectTag(projectId: string, tagName: string): Promise<{ tag: string }> {
+    return this.request<{ tag: string }>(`/projects/${projectId}/tags`, {
+      method: 'POST',
+      body: JSON.stringify({ tag_name: tagName }),
+    });
+  }
+
+  async removeProjectTag(projectId: string, tagName: string): Promise<void> {
+    await this.request<void>(`/projects/${projectId}/tags/${encodeURIComponent(tagName)}`, {
+      method: 'DELETE',
     });
   }
 
