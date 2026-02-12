@@ -23,6 +23,7 @@ export default function ProjectDetail() {
   const deletingPlotEventIdRef = useRef<string | null>(null);
 
   const [project, setProject] = useState<Project | null>(null);
+  const [projectNotFound, setProjectNotFound] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -132,8 +133,14 @@ export default function ProjectDetail() {
     try {
       const response = await apiService.getProject(id!);
       setProject(response.project);
-    } catch (err) {
+      setProjectNotFound(false);
+    } catch (err: any) {
       console.error('Failed to load project:', err);
+      // If 404 error, show not found state
+      if (err.message?.includes('not found') || err.status === 404) {
+        setProjectNotFound(true);
+        setProject(null);
+      }
     }
   };
 

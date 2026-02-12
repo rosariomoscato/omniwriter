@@ -66,6 +66,44 @@ export default function ChapterEditor() {
   const isUndoRedoActionRef = useRef(false);
   const lastContentRef = useRef<string>('');
 
+  // Handle text selection for AI revision (feature #96)
+  // Must be defined before useEffect that uses it
+  const handleTextSelection = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || isPreview) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (start !== end) {
+      // Text is selected
+      const selected = content.substring(start, end);
+      if (selected.trim().length > 0) {
+        setSelectedText(selected);
+        setSelectionRange({ start, end });
+
+        // Calculate position for floating menu
+        const textBeforeCursor = content.substring(0, start);
+        const lines = textBeforeCursor.split('\n');
+        const lineHeight = 24; // Approximate line height
+        const charWidth = 8; // Approximate character width
+        const lineHeightAdjust = 32; // Toolbar height
+
+        // Position menu above selection
+        setMenuPosition({
+          top: lines.length * lineHeight - lineHeightAdjust - 10,
+          left: Math.min((lines[lines.length - 1]?.length || 0) * charWidth, 300)
+        });
+        setShowReviseMenu(true);
+      }
+    } else {
+      // No text selected
+      setSelectedText('');
+      setSelectionRange(null);
+      setShowReviseMenu(false);
+    }
+  }, [content, isPreview]);
+
   useEffect(() => {
     if (chapterId) {
       loadChapter();
@@ -581,43 +619,6 @@ export default function ChapterEditor() {
     setComparisonVersions({ v1: version1, v2: version2 });
     setShowVersionHistory(false);
   };
-
-  // Handle text selection for AI revision (feature #96)
-  const handleTextSelection = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea || isPreview) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    if (start !== end) {
-      // Text is selected
-      const selected = content.substring(start, end);
-      if (selected.trim().length > 0) {
-        setSelectedText(selected);
-        setSelectionRange({ start, end });
-
-        // Calculate position for floating menu
-        const textBeforeCursor = content.substring(0, start);
-        const lines = textBeforeCursor.split('\n');
-        const lineHeight = 24; // Approximate line height
-        const charWidth = 8; // Approximate character width
-        const lineHeightAdjust = 32; // Toolbar height
-
-        // Position menu above the selection
-        setMenuPosition({
-          top: lines.length * lineHeight - lineHeightAdjust - 10,
-          left: Math.min((lines[lines.length - 1]?.length || 0) * charWidth, 300)
-        });
-        setShowReviseMenu(true);
-      }
-    } else {
-      // No text selected
-      setSelectedText('');
-      setSelectionRange(null);
-      setShowReviseMenu(false);
-    }
-  }, [content, isPreview]);
 
   // Handle AI revision request
   const handleAIRevise = async () => {
