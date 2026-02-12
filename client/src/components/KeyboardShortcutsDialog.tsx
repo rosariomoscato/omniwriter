@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Keyboard, Save, Undo, RotateCcw, Download, Upload, Search, Settings, User, FileText, BookOpen, Newspaper } from 'lucide-react';
 import { registerModal, unregisterModal, openModals } from './NetworkErrorDialog';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 interface ShortcutGroup {
   category: string;
@@ -15,6 +16,7 @@ interface ShortcutGroup {
 export default function KeyboardShortcutsDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const modalId = useState(() => `keyboard-shortcuts-${Math.random().toString(36).substring(2, 9)}`)[0];
+  const modalRef = useFocusTrapSimple(isOpen);
 
   useEffect(() => {
     const handleOpen = () => setIsOpen(true);
@@ -105,6 +107,7 @@ export default function KeyboardShortcutsDialog() {
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       role="dialog"
       aria-modal="true"

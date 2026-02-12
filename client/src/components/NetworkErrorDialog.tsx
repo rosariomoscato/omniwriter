@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw, WifiOff } from 'lucide-react';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 // Track open modals for Escape key handling
 export const openModals = new Set<string>();
@@ -49,6 +50,7 @@ interface NetworkErrorDialogProps {
 export default function NetworkErrorDialog({ error, onRetry, onDismiss }: NetworkErrorDialogProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const modalId = useState(() => `network-error-${Math.random().toString(36).substring(2, 9)}`)[0];
+  const modalRef = useFocusTrapSimple(true); // Focus trap is always active when dialog is rendered
 
   const isNetworkError = error.isNetworkError;
   const isAuthError = error.isAuthError;
@@ -105,7 +107,13 @@ export default function NetworkErrorDialog({ error, onRetry, onDismiss }: Networ
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      ref={modalRef}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="network-error-title"
+    >
       <div className="bg-white dark:bg-dark-surface rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -117,7 +125,10 @@ export default function NetworkErrorDialog({ error, onRetry, onDismiss }: Networ
             )}
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+            <h3
+              id="network-error-title"
+              className="font-semibold text-lg text-gray-900 dark:text-gray-100"
+            >
               {isNetworkError ? 'Network Error' : 'Error'}
             </h3>
           </div>

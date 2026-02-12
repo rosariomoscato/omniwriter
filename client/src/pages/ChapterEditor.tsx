@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -54,6 +54,13 @@ export default function ChapterEditor() {
   const [showReviseMenu, setShowReviseMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [revising, setRevising] = useState(false);
+
+  // Unsaved changes warning state (feature #170)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const lastSavedTitleRef = useRef<string>('');
+  const lastSavedContentRef = useRef<string>('');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);
@@ -319,8 +326,14 @@ export default function ChapterEditor() {
       const response = await apiService.getChapter(chapterId!);
       setChapter(response.chapter);
       const chapterContent = response.chapter.content || '';
+      const chapterTitle = response.chapter.title;
       setContent(chapterContent);
-      setTitle(response.chapter.title);
+      setTitle(chapterTitle);
+
+      // Store initial values for unsaved changes tracking (feature #170)
+      lastSavedTitleRef.current = chapterTitle;
+      lastSavedContentRef.current = chapterContent;
+      setHasUnsavedChanges(false);
 
       // Initialize history with loaded content
       historyRef.current = [chapterContent];
@@ -366,6 +379,11 @@ export default function ChapterEditor() {
           updated_at: new Date().toISOString()
         });
       }
+
+      // Update saved refs for unsaved changes tracking (feature #170)
+      lastSavedTitleRef.current = title.trim();
+      lastSavedContentRef.current = content;
+      setHasUnsavedChanges(false);
 
       setLastSaved(new Date());
     } catch (err: any) {

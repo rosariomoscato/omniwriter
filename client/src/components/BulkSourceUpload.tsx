@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 interface UploadProgress {
   fileName: string;
@@ -20,6 +21,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
   const [overallProgress, setOverallProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useFocusTrapSimple(true);
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -124,13 +126,22 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div
+      ref={modalRef}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-upload-title"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <h2
+                id="bulk-upload-title"
+                className="text-xl font-semibold text-gray-900 dark:text-gray-100"
+              >
                 Upload Sources
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">

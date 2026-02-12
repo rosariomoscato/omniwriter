@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGenerationProgress } from '../contexts/GenerationProgressContext';
 import { Loader2, CheckCircle2, XCircle, FileText, Edit3, Sparkles, X, AlertTriangle } from 'lucide-react';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 const PHASE_CONFIG = {
   structure: {
@@ -38,6 +39,7 @@ const PHASE_CONFIG = {
 export default function GenerationProgress() {
   const { progress, cancelGeneration, retryGeneration, lastGenerationRequest } = useGenerationProgress();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const modalRef = useFocusTrapSimple(progress.phase !== 'idle');
 
   if (progress.phase === 'idle') {
     return null;
@@ -51,7 +53,13 @@ export default function GenerationProgress() {
   const Icon = currentConfig.icon;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      ref={modalRef}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="generation-progress-title"
+    >
       <div className="bg-white dark:bg-dark-surface rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -67,11 +75,14 @@ export default function GenerationProgress() {
             }`} />
           </div>
           <div className="flex-1">
-            <h3 className={`font-semibold text-lg ${
-              isCompleted ? 'text-green-900 dark:text-green-100' :
-              isFailed ? 'text-red-900 dark:text-red-100' :
-              'text-gray-900 dark:text-gray-100'
-            }`}>
+            <h3
+              id="generation-progress-title"
+              className={`font-semibold text-lg ${
+                isCompleted ? 'text-green-900 dark:text-green-100' :
+                isFailed ? 'text-red-900 dark:text-red-100' :
+                'text-gray-900 dark:text-gray-100'
+              }`}
+            >
               {currentConfig.label}
             </h3>
             {isActive && (

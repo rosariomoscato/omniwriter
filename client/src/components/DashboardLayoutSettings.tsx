@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, X } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 export type ViewMode = 'grid' | 'list' | 'compact';
 export type CardSize = 'small' | 'medium' | 'large';
@@ -37,6 +38,7 @@ export function DashboardLayoutSettings({
   const [layout, setLayout] = useState<DashboardLayout>(currentLayout);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const modalRef = useFocusTrapSimple(isOpen);
 
   useEffect(() => {
     setLayout(currentLayout);
@@ -68,7 +70,13 @@ export function DashboardLayoutSettings({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      ref={modalRef}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dashboard-layout-title"
+    >
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -77,7 +85,10 @@ export function DashboardLayoutSettings({
               <Settings className="w-5 h-5 text-primary-600 dark:text-primary-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <h2
+                id="dashboard-layout-title"
+                className="text-xl font-bold text-gray-900 dark:text-gray-100"
+              >
                 Personalizza Dashboard
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">

@@ -1,5 +1,6 @@
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { ChapterVersion } from '../services/api';
+import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
 interface VersionComparisonProps {
   version1: ChapterVersion;
@@ -43,6 +44,7 @@ function computeDiff(oldText: string, newText: string) {
 
 export default function VersionComparison({ version1, version2, onClose }: VersionComparisonProps) {
   const diff = computeDiff(version1.content, version2.content);
+  const modalRef = useFocusTrapSimple(true);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -54,11 +56,20 @@ export default function VersionComparison({ version1, version2, onClose }: Versi
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      ref={modalRef}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="version-comparison-title"
+    >
       <div className="bg-white dark:bg-dark-surface rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3
+            id="version-comparison-title"
+            className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+          >
             Compare Versions
           </h3>
           <button
