@@ -686,13 +686,14 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
     const estimatedOutputTokens = Math.ceil(chapter.title.length * 15); // Rough estimate for chapter content
 
     // Feature #177: Generate baseline content (without Human Model)
-    // In a real implementation, this would call an AI API
-    const baselineContent = generateMockContent(chapter.title, chapter.area, prompt_context, null, projectSources);
+    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
+    const baselineContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
     const baselineTokens = Math.ceil(baselineContent.length / 4);
 
     // Feature #177: Generate styled content (with Human Model, if provided)
+    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
     const styledContent = humanModel
-      ? generateMockContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources)
+      ? generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources)
       : baselineContent;
     const styledTokens = humanModel ? Math.ceil(styledContent.length / 4) : 0;
 
@@ -742,9 +743,10 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
   }
 });
 
-// Helper function to generate mock content (simulates AI generation)
+// Helper function to generate template content for AI generation
 // Feature #177: Added sources parameter to use uploaded sources in generation
-function generateMockContent(title: string, area: string, context: string, humanModel: any, sources?: any[]): string {
+// TODO: This is a placeholder. Replace with actual AI API integration (OpenAI/Anthropic)
+function generateTemplateContent(title: string, area: string, context: string, humanModel: any, sources?: any[]): string {
   let baseContent = `Questo è un contenuto generato per "${title}" nell'area ${area}.`;
 
   // Feature #177: Include source references in generated content
@@ -921,7 +923,8 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
     const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
 
     // Feature #177: Pass sources to generation function
-    const newContent = generateMockContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
+    const newContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
     const outputTokens = Math.ceil(newContent.length / 4);
     const totalTokens = inputTokens + outputTokens;
 
