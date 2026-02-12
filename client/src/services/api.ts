@@ -594,7 +594,7 @@ class ApiService {
     });
   }
 
-  async updateChapter(id: string, data: { title?: string; content?: string; status?: string }): Promise<{ chapter: Chapter }> {
+  async updateChapter(id: string, data: { title?: string; content?: string; status?: string; expected_updated_at?: string }): Promise<{ chapter: Chapter }> {
     return this.request<{ chapter: Chapter }>(`/chapters/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -745,6 +745,29 @@ class ApiService {
       body: JSON.stringify({
         human_model_id: humanModelId,
         prompt_context: promptContext
+      }),
+    });
+  }
+
+  // Regenerate a single chapter (Feature #178)
+  async regenerateChapter(chapterId: string, humanModelId?: string, promptContext?: string): Promise<{
+    chapter: Chapter;
+    message: string;
+    regenerated_chapter_id: string;
+    other_chapters_unchanged: Array<{ id: string; title: string; order_index: number }>;
+    token_usage?: TokenUsage;
+  }> {
+    return this.request<{
+      chapter: Chapter;
+      message: string;
+      regenerated_chapter_id: string;
+      other_chapters_unchanged: Array<{ id: string; title: string; order_index: number }>;
+      token_usage?: TokenUsage;
+    }>(`/chapters/${chapterId}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        human_model_id: humanModelId || null,
+        prompt_context: promptContext || ''
       }),
     });
   }

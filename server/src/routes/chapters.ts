@@ -824,4 +824,138 @@ function calculateStyleDifferences(baseline: string, styled: string, humanModel:
   return differences;
 }
 
+// POST /api/chapters/:id/regenerate - Regenerate a single chapter (Feature #178)
+router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { human_model_id, prompt_context } = req.body;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, c.project_id, c.order_index, c.status,
+             p.area, p.settings_json, p.title as project_title
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as {
+      id: string;
+      title: string;
+      content: string;
+      project_id: string;
+      order_index: number;
+      status: string;
+      area: string;
+      settings_json: string;
+      project_title: string;
+    } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // If human_model_id is provided, verify it exists and belongs to user
+    let humanModel = null;
+    if (human_model_id) {
+      humanModel = db.prepare(
+        'SELECT * FROM human_models WHERE id = ? AND user_id = ?'
+      ).get(human_model_id, userId) as {
+        id: string;
+        name: string;
+        analysis_result_json: string;
+        style_strength: number;
+      } | undefined;
+
+      if (!humanModel) {
+        return res.status(404).json({ message: 'Human Model not found' });
+      }
+
+      if (humanModel.analysis_result_json) {
+        try {
+          humanModel.analysis_result_json = JSON.parse(humanModel.analysis_result_json);
+        } catch {
+          humanModel.analysis_result_json = {};
+        }
+      }
+    }
+
+    // Get all chapters in the project to ensure we only regenerate this one
+    const allChapters = db.prepare(`
+      SELECT id, title, content, order_index
+      FROM chapters
+      WHERE project_id = ?
+      ORDER BY order_index ASC
+    `).all(chapter.project_id) as { id: string; title: string; content: string; order_index: number }[];
+
+    // Track token usage (Feature #156)
+    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0)) / 4);
+
+    // Generate new content for this chapter only
+    const newContent = generateMockContent(chapter.title, chapter.area, prompt_context, humanModel);
+    const outputTokens = Math.ceil(newContent.length / 4);
+    const totalTokens = inputTokens + outputTokens;
+
+    // Calculate cost (GPT-4 pricing: $0.03/1K input tokens, $0.06/1K output tokens)
+    const inputCost = (inputTokens / 1000) * 0.03;
+    const outputCost = (outputTokens / 1000) * 0.06;
+    const estimatedCost = inputCost + outputCost;
+
+    // Update only this chapter's content
+    const now = new Date().toISOString();
+    const newWordCount = newContent.split(/\s+/).filter(w => w.length > 0).length;
+
+    db.prepare(`
+      UPDATE chapters
+      SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+      WHERE id = ?
+    `).run(newContent, newWordCount, now, id);
+
+    // Log generation (Feature #156)
+    const logId = uuidv4();
+    db.prepare(`
+      INSERT INTO generation_logs (id, project_id, chapter_id, model_used, phase, tokens_input, tokens_output, duration_ms, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      logId,
+      chapter.project_id,
+      id,
+      humanModel ? `${humanModel.name} (GPT-4)` : 'GPT-4',
+      'regeneration',
+      inputTokens,
+      outputTokens,
+      500, // Simulated duration
+      'completed',
+      now
+    );
+
+    console.log(`[Regenerate] Regenerated chapter "${chapter.title}" (order ${chapter.order_index}) in project "${chapter.project_title}"`);
+
+    // Return the updated chapter and confirm other chapters are unchanged
+    const updatedChapter = db.prepare(`
+      SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+      FROM chapters
+      WHERE id = ?
+    `).get(id);
+
+    res.json({
+      chapter: updatedChapter,
+      message: `Chapter "${chapter.title}" regenerated successfully. Other ${allChapters.length - 1} chapters unchanged.`,
+      regenerated_chapter_id: id,
+      other_chapters_unchanged: allChapters
+        .filter((ch, idx) => allChapters[idx].id !== id)
+        .map(ch => ({ id: ch.id, title: ch.title, order_index: ch.order_index })),
+      token_usage: {
+        tokens_input: inputTokens,
+        tokens_output: outputTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost
+      }
+    });
+  } catch (error) {
+    console.error('[Regenerate] Error regenerating chapter:', error);
+    res.status(500).json({ message: 'Failed to regenerate chapter' });
+  }
+});
+
 export default router;

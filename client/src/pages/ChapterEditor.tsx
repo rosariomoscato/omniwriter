@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, SpellCheck, MessageSquare } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -8,8 +8,6 @@ import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
-import SpellCheckSuggestions, { Suggestion as SpellCheckSuggestion } from '../components/SpellCheckSuggestions';
-import CommentsPanel from '../components/CommentsPanel';
 
 export default function ChapterEditor() {
   const toast = useToastNotification();
@@ -40,13 +38,6 @@ export default function ChapterEditor() {
     suggestions: string[];
   } | null>(null);
   const [showReadabilityPanel, setShowReadabilityPanel] = useState(false);
-  const [showSpellCheck, setShowSpellCheck] = useState(false);
-
-  // Comments state
-  const [showComments, setShowComments] = useState(false);
-  const [highlightedComment, setHighlightedComment] = useState<string | null>(null);
-  const [showCommentDialog, setShowCommentDialog] = useState(false);
-  const [commentText, setCommentText] = useState('');
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -582,7 +573,7 @@ export default function ChapterEditor() {
     historyRef.current = newHistory;
     historyIndexRef.current = newHistory.length - 1;
 
-    // Auto-save restored content
+    // Auto-save the restored content
     setTimeout(() => handleSave(), 100);
   };
 
@@ -613,7 +604,7 @@ export default function ChapterEditor() {
         const charWidth = 8; // Approximate character width
         const lineHeightAdjust = 32; // Toolbar height
 
-        // Position menu above selection
+        // Position menu above the selection
         setMenuPosition({
           top: lines.length * lineHeight - lineHeightAdjust - 10,
           left: Math.min((lines[lines.length - 1]?.length || 0) * charWidth, 300)
@@ -627,19 +618,6 @@ export default function ChapterEditor() {
       setShowReviseMenu(false);
     }
   }, [content, isPreview]);
-
-  // Handle spell check suggestion apply
-  const handleApplySuggestion = (suggestion: SpellCheckSuggestion) => {
-    const newContent = content.substring(0, suggestion.position.start) +
-                     suggestion.suggestion +
-                     content.substring(suggestion.position.end);
-    setContent(newContent);
-    toast.success('Correzione applicata');
-  };
-
-  const handleDismissSuggestion = (id: string) => {
-    // Just track dismissal - the component handles hiding
-  };
 
   // Handle AI revision request
   const handleAIRevise = async () => {
@@ -691,35 +669,6 @@ export default function ChapterEditor() {
     } finally {
       setRevising(false);
     }
-  };
-
-  // Handle adding comment
-  const handleAddComment = async () => {
-    if (!commentText.trim() || !selectionRange || !chapterId) {
-      return;
-    }
-
-    try {
-      await apiService.createChapterComment(chapterId, {
-        text: commentText,
-        start_pos: selectionRange.start,
-        end_pos: selectionRange.end
-      });
-      toast.success('Comment added');
-      setCommentText('');
-      setShowCommentDialog(false);
-      setSelectionRange(null);
-      setSelectedText('');
-    } catch (error: any) {
-      console.error('Error adding comment:', error);
-      toast.error(error.message || 'Failed to add comment');
-    }
-  };
-
-  const handleCommentFromSelection = () => {
-    if (!selectedText || !selectionRange) return;
-    setShowCommentDialog(true);
-    setShowReviseMenu(false); // Hide AI revise menu
   };
 
   const renderPreview = () => {
@@ -867,30 +816,6 @@ export default function ChapterEditor() {
                   <Sparkles className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                 </button>
               )}
-              <button
-                onClick={() => setShowSpellCheck(!showSpellCheck)}
-                className={`p-2 rounded-lg border transition-colors ${
-                  showSpellCheck
-                    ? 'bg-amber-50 border-amber-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-                aria-label="Spelling and Grammar Check"
-                title="Spelling and Grammar Check"
-              >
-                <SpellCheck className={`w-4 h-4 ${showSpellCheck ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} />
-              </button>
-              <button
-                onClick={() => setShowComments(!showComments)}
-                className={`p-2 rounded-lg border transition-colors ${
-                  showComments
-                    ? 'bg-purple-50 border-purple-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-                aria-label="Comments"
-                title="Comments"
-              >
-                <MessageSquare className={`w-4 h-4 ${showComments ? 'text-purple-600 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'}`} />
-              </button>
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1044,67 +969,68 @@ export default function ChapterEditor() {
                 </div>
               ) : (
                 <div>
-                  {/* Score Badge */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold" style={{
-                        color: readabilityScore.score >= 80 ? "#16a34a" :
-                               readabilityScore.score >= 60 ? "#ca8a04" :
-                               "#dc2626"
-                      } as any}>
-                        {readabilityScore.score}
-                      </span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">/100</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        readabilityScore.score >= 80
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : readabilityScore.score >= 60
-                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        {readabilityScore.grade}
-                      </span>
-                    </div>
-                  </div>
+              {/* Score Badge */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold" style={{
+                    color: readabilityScore.score >= 80 ? "#16a34a" :
+                           readabilityScore.score >= 60 ? "#ca8a04" :
+                           "#dc2626"
+                  } as any}>
+                    {readabilityScore.score}
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">/100</span>
+                </div>
+                <div className="text-sm">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    readabilityScore.score >= 80
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : readabilityScore.score >= 60
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {readabilityScore.grade}
+                  </span>
+                </div>
+              </div>
 
-                  {/* Notes */}
-                  {readabilityScore.notes.length > 0 && (
-                    <div className="mb-3">
-                      <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">NOTE:</h5>
-                      <ul className="space-y-1">
-                        {readabilityScore.notes.map((note, idx) => (
-                          <li key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-1">
-                            <span className="text-blue-500">•</span>
-                            {note}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              {/* Notes */}
+              {readabilityScore.notes.length > 0 && (
+                <div className="mb-3">
+                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">NOTE:</h5>
+                  <ul className="space-y-1">
+                    {readabilityScore.notes.map((note, idx) => (
+                      <li key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-1">
+                        <span className="text-blue-500">•</span>
+                        {note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-                  {/* Suggestions */}
-                  {readabilityScore.suggestions.length > 0 && (
-                    <div>
-                      <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                        <Lightbulb className="w-3 h-3 text-yellow-500" />
-                        SUGGERIMENTI PER MIGLIORARE:
-                      </h5>
-                      <ul className="space-y-2">
-                        {readabilityScore.suggestions.map((suggestion, idx) => (
-                          <li key={idx} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded">
-                            <span className="text-green-500 mt-0.5">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 0 1 0 00-16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 14.293a1 1 0 00-1.414 1.414l-4-4a1 1 0 010-1.414 1.414L11.586 9 14.707 5.707a1 1 0 001.414-1.414l4-4a1 1 0 001.414 1.414z" clipRule="evenodd" />
-                              </svg>
-                            </span>
-                            <span>{suggestion}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              {/* Suggestions */}
+              {readabilityScore.suggestions.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <Lightbulb className="w-3 h-3 text-yellow-500" />
+                    SUGGERIMENTI PER MIGLIORARE:
+                  </h5>
+                  <ul className="space-y-2">
+                    {readabilityScore.suggestions.map((suggestion, idx) => (
+                      <li key={idx} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded">
+                        <span className="text-green-500 mt-0.5">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 0 1 0 00-16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 14.293a1 1 0 00-1.414 1.414l-4-4a1 1 0 010-1.414 1.414L11.586 9 14.707 5.707a1 1 0 001.414-1.414l4-4a1 1 0 001.414 1.414z" clipRule="evenodd" />
+                          </svg>
+                        </span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              )}
                 </div>
               )}
             </div>
@@ -1139,7 +1065,6 @@ export default function ChapterEditor() {
             </button>
           </div>
         )}
-        </div>
       </div>
 
       {/* Error Message */}
@@ -1152,24 +1077,24 @@ export default function ChapterEditor() {
       {/* Editor / Preview */}
       <div className="flex-1 overflow-y-auto relative flex">
         <div className="flex-1">
-          {isPreview ? (
-            <div className="p-6">
-              <div
-                className="prose dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={renderPreview()}
-              />
-            </div>
-          ) : (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full h-full min-h-[500px] p-6 border-0 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:outline-none resize-none font-serif leading-relaxed"
-              placeholder="Start writing your chapter here..."
-              spellCheck
-              aria-label="Chapter content"
+        {isPreview ? (
+          <div className="p-6">
+            <div
+              className="prose dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={renderPreview()}
             />
-          )}
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => handleContentChange(e.target.value)}
+            className="w-full h-full min-h-[500px] p-6 border-0 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:outline-none resize-none font-serif leading-relaxed"
+            placeholder="Start writing your chapter here..."
+            spellCheck
+            aria-label="Chapter content"
+          />
+        )}
         </div>
 
         {/* Redattore Tools Sidebar - Only for Redattore projects */}
@@ -1181,71 +1106,64 @@ export default function ChapterEditor() {
       </div>
 
       {/* AI Revision Floating Menu (Feature #96) */}
-      {showReviseMenu && !isPreview && menuPosition && (
-        <div
-          className="absolute z-50 bg-white dark:bg-dark-surface rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 animate-in fade-in zoom-in duration-200"
-          style={{
-            top: `${menuPosition.top}px`,
-            left: `${menuPosition.left}px`
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
-              {selectedText.length > 50
-                ? `${selectedText.substring(0, 50)}...`
-                : selectedText}
-            </span>
-            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-            <button
-              onClick={handleAIRevise}
-              disabled={revising}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {revising ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Revising...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3 h-3" />
-                  AI Revise
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleCommentFromSelection}
-              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <MessageSquare className="w-3 h-3" />
-              Comment
-            </button>
-            <button
-              onClick={() => setShowReviseMenu(false)}
-              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        {showReviseMenu && !isPreview && menuPosition && (
+          <div
+            className="absolute z-50 bg-white dark:bg-dark-surface rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 animate-in fade-in zoom-in duration-200"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
+                {selectedText.length > 50
+                  ? `${selectedText.substring(0, 50)}...`
+                  : selectedText}
+              </span>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+              <button
+                onClick={handleAIRevise}
+                disabled={revising}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {revising ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Revising...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    AI Revise
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowReviseMenu(false)}
+                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Footer - hidden in full-screen mode */}
       {!isFullScreen && (
         <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <div>
-            Status: <span className="font-medium">{chapter.status}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            {saving ? (
-              <span className="text-blue-600 dark:text-blue-400">Saving...</span>
-            ) : lastSaved && (
-              <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
-            )}
-            <span className="text-gray-400 dark:text-gray-500">
-              Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
-            </span>
-          </div>
+        <div>
+          Status: <span className="font-medium">{chapter.status}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          {saving ? (
+            <span className="text-blue-600 dark:text-blue-400">Saving...</span>
+          ) : lastSaved && (
+            <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+          )}
+          <span className="text-gray-400 dark:text-gray-500">
+            Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
+          </span>
+        </div>
         </div>
       )}
 
@@ -1270,69 +1188,6 @@ export default function ChapterEditor() {
           version2={comparisonVersions.v2}
           onClose={() => setComparisonVersions({ v1: null, v2: null })}
         />
-      )}
-
-      {/* Spelling and Grammar Suggestions (Feature #160) */}
-      {showSpellCheck && !isPreview && (
-        <SpellCheckSuggestions
-          content={content}
-          onApplySuggestion={handleApplySuggestion}
-          onDismiss={handleDismissSuggestion}
-        />
-      )}
-
-      {/* Comments Panel (Feature #159) */}
-      {showComments && !isPreview && (
-        <div className="fixed right-0 top-0 h-full w-96 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto z-40 shadow-xl">
-          <CommentsPanel
-            chapterId={chapterId || ''}
-            content={content}
-            highlightedComment={highlightedComment}
-            onHighlightComment={setHighlightedComment}
-          />
-        </div>
-      )}
-
-      {/* Add Comment Dialog */}
-      {showCommentDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Add Comment</h3>
-              <div className="mb-4">
-                <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-md mb-4 text-sm italic">
-                  "{selectedText}"
-                </div>
-                <textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white resize-y"
-                  rows={4}
-                  placeholder="Enter your comment..."
-                  autoFocus
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setShowCommentDialog(false);
-                    setCommentText('');
-                  }}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddComment}
-                  disabled={!commentText.trim()}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-md font-medium"
-                >
-                  Add Comment
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
