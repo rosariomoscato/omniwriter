@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
+import { HumanModelCardSkeleton } from '../components/Skeleton';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
@@ -206,9 +207,14 @@ export default function HumanModelPage() {
             </div>
             <div className="p-4 space-y-2">
               {loading ? (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                  {t('common.loading', 'Loading...')}
-                </p>
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg animate-pulse">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
               ) : models.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-4">
                   {t('humanModel.noProfiles', 'No profiles yet. Create one to get started.')}

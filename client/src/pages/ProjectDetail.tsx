@@ -5,6 +5,7 @@ import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User,
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
+import { ChapterListSkeleton } from '../components/Skeleton';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -1479,9 +1480,7 @@ export default function ProjectDetail() {
         {/* Chapters List */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {loading ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              Loading chapters...
-            </div>
+            <ChapterListSkeleton count={5} />
           ) : chapters.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />

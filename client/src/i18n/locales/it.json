@@ -53,7 +53,23 @@
     "sortBy": "Ordina per",
     "search": "Cerca progetti...",
     "welcome": "Benvenuto, {{name}}!",
-    "createFirst": "Inizia creando il tuo primo progetto."
+    "createFirst": "Inizia creando il tuo primo progetto.",
+    "onboarding": {
+      "welcome": "Benvenuto in OmniWriter!",
+      "subtitle": "La tua piattaforma di scrittura professionale con AI. Scegli un'area per iniziare il tuo primo progetto.",
+      "gettingStarted": "Come iniziare",
+      "step1": "Crea il tuo primo progetto",
+      "step1Desc": "Scegli un'area e configura le impostazioni base",
+      "step2": "Carica le tue fonti",
+      "step2Desc": "Importa documenti o usa la ricerca web per contesto",
+      "step3": "Genera con AI",
+      "step3Desc": "Lascia che l'IA crei i contenuti mentre controlli il processo",
+      "chooseArea": "Scegli la tua area",
+      "importOption": "Hai già un documento?",
+      "importDesc": "Importa file TXT, DOCX o DOC per continuare a lavorare sui tuoi contenuti esistenti",
+      "importProject": "Importa progetto",
+      "showGuide": "Mostra guida inizi"
+    }
   },
   "project": {
     "title": "Titolo",

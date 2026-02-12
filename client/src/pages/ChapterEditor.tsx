@@ -4,6 +4,7 @@ import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock } fr
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
+import { EditorSkeleton } from '../components/Skeleton';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 
 export default function ChapterEditor() {
@@ -227,10 +228,12 @@ export default function ChapterEditor() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          Loading chapter...
+      <div className="h-full flex flex-col bg-white dark:bg-dark-bg">
+        <Breadcrumbs />
+        <div className="flex-grow p-6">
+          <div className="max-w-4xl mx-auto">
+            <EditorSkeleton />
+          </div>
         </div>
       </div>
     );

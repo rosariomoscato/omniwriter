@@ -53,7 +53,23 @@
     "sortBy": "Sort by",
     "search": "Search projects...",
     "welcome": "Welcome, {{name}}!",
-    "createFirst": "Start by creating your first project."
+    "createFirst": "Start by creating your first project.",
+    "onboarding": {
+      "welcome": "Welcome to OmniWriter!",
+      "subtitle": "Your professional AI writing platform. Choose an area to start your first project.",
+      "gettingStarted": "Getting Started",
+      "step1": "Create your first project",
+      "step1Desc": "Choose an area and configure basic settings",
+      "step2": "Upload your sources",
+      "step2Desc": "Import documents or use web search for context",
+      "step3": "Generate with AI",
+      "step3Desc": "Let AI create content while you control the process",
+      "chooseArea": "Choose your area",
+      "importOption": "Already have a document?",
+      "importDesc": "Import TXT, DOCX or DOC files to continue working on your existing content",
+      "importProject": "Import project",
+      "showGuide": "Show getting started guide"
+    }
   },
   "project": {
     "title": "Title",
