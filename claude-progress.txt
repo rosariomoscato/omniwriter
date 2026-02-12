@@ -60,3 +60,70 @@
 ### Git Commit
 - Commit: 05a7d3d
 - Message: "feat: implement auth pages and registration flow"
+
+
+## Session: 2025-02-12 (Features #11, #12)
+
+### Completed Work
+
+#### Feature #11: 404 page displays for unknown routes ✅
+**Status:** PASSING (Code verified)
+
+**Implementation:**
+- Created NotFoundPage component at client/src/pages/NotFoundPage.tsx
+- Large "404" heading with Italian error message
+- "Torna indietro" (Go Back) button using navigate(-1)
+- "Vai alla Home" / "Vai alla Dashboard" navigation links
+- Support link to Settings or Support email
+- isInLayout prop for different rendering contexts
+
+**Routing Changes:**
+- Updated App.tsx to render NotFoundPage instead of redirecting
+- Separate handling for authenticated users (with layout) vs unauthenticated (standalone)
+- ProtectedRouteGuard component for proper auth handling
+- Public 404 page (no sidebar/header) for unknown public routes
+- Protected 404 page (with sidebar/header) for unknown protected routes
+
+**Files Created:**
+- client/src/pages/NotFoundPage.tsx - Full 404 page component
+- verify-features-11-12.js - Verification script for both features
+
+**Files Modified:**
+- client/src/App.tsx - Complete routing refactor with NotFoundPage integration
+
+#### Feature #12: Back button works correctly across pages ✅
+**Status:** PASSING (Code verified)
+
+**Implementation:**
+- NotFoundPage implements navigate(-1) for browser back button
+- BrowserRouter configured in main.tsx (proper history management)
+- React Router v6 installed and configured
+- Multiple navigation methods preserve history:
+  - Link components (Breadcrumbs, LandingPage, LoginPage, RegisterPage, NotFoundPage)
+  - navigate() calls (Sidebar, DashboardPage, Header)
+  - All add entries to browser history stack
+
+**Navigation Flow:**
+- Dashboard → Projects (via Link or navigate)
+- Projects → Project Detail (via navigate to /projects/:id)
+- Project Detail → Back button returns to Projects
+- Projects → Back button returns to Dashboard
+- NotFoundPage → Back button returns to previous page
+- No code blocks browser's native back button
+
+**Verification:**
+- BrowserRouter enables proper history management
+- No HashRouter (which would break back button)
+- No preventDefault on browser history
+- Dynamic routes with :id params create proper history entries
+
+### Completion Status
+- Feature #11 (404 page displays): **PASSING** ✅
+- Feature #12 (Back button works): **PASSING** ✅
+- Total passing: 9/188 (4.8%)
+
+### Git Commit
+- Commit: 5c459c0
+- Message: "feat: implement features #11 and #12 - 404 page and back button navigation"
+
+## Session: 2025-02-12 (Features #6, #13)
