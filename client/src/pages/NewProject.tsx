@@ -46,6 +46,11 @@ function NewProject() {
     description: string;
     area: AreaType | null;
     genre: string;
+    // Romanziere-specific fields
+    tone: string;
+    pov: string;
+    targetAudience: string;
+    wordCountTarget: number;
     // Redattore-specific fields
     articleType: string;
     seoKeywords: string;
@@ -53,19 +58,21 @@ function NewProject() {
     // Saggista-specific fields
     topic: string;
     depth: 'deep_dive' | 'panoramic_overview';
-    targetAudience: string;
     structure: string;
   }>({
     title: '',
     description: '',
     area: null,
     genre: '',
+    tone: '',
+    pov: '',
+    targetAudience: '',
+    wordCountTarget: 50000,
     articleType: '',
     seoKeywords: '',
     redattoreWordCount: 500,
     topic: '',
     depth: 'deep_dive',
-    targetAudience: '',
     structure: 'popular',
   });
   const [error, setError] = useState('');
@@ -99,8 +106,12 @@ function NewProject() {
         title: formData.title,
         description: formData.description || undefined,
         area: formData.area,
-        genre: formData.genre || undefined,
-        // Redattore-specific settings in settings_json
+        genre: formData.area === 'romanziere' ? formData.genre || undefined : undefined,
+        tone: formData.area === 'romanziere' ? formData.tone || undefined : undefined,
+        target_audience: formData.area === 'romanziere' ? formData.targetAudience || undefined : undefined,
+        pov: formData.area === 'romanziere' ? formData.pov || undefined : undefined,
+        word_count_target: formData.area === 'romanziere' ? formData.wordCountTarget : formData.area === 'redattore' ? formData.redattoreWordCount : undefined,
+        // Area-specific settings in settings_json
         settings_json: formData.area === 'redattore' ? JSON.stringify({
           articleType: formData.articleType,
           seoKeywords: formData.seoKeywords,
@@ -111,7 +122,6 @@ function NewProject() {
           targetAudience: formData.targetAudience,
           structure: formData.structure,
         }) : undefined,
-        word_count_target: formData.area === 'redattore' ? formData.redattoreWordCount : undefined,
       };
 
       const response = await apiService.createProject(projectData);
@@ -122,12 +132,15 @@ function NewProject() {
         description: '',
         area: null,
         genre: '',
+        tone: '',
+        pov: '',
+        targetAudience: '',
+        wordCountTarget: 50000,
         articleType: '',
         seoKeywords: '',
         redattoreWordCount: 500,
         topic: '',
         depth: 'deep_dive',
-        targetAudience: '',
         structure: 'popular',
       });
 
@@ -254,21 +267,194 @@ function NewProject() {
           />
         </div>
 
-        {/* Genre (for Romanziere) */}
+        {/* Romanziere-specific configuration */}
         {formData.area === 'romanziere' && (
-          <div>
-            <label htmlFor="genre" className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              4. Genere letterario (opzionale)
-            </label>
-            <input
-              id="genre"
-              name="genre"
-              type="text"
-              value={formData.genre}
-              onChange={handleChange}
-              placeholder="Fantasy, Thriller, Romance, Sci-Fi..."
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white text-lg"
-            />
+          <div className="space-y-6 p-6 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Configurazione Romanziere
+            </h3>
+
+            {/* Genre */}
+            <div>
+              <label htmlFor="genre" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                4. Genere letterario
+              </label>
+              <input
+                id="genre"
+                name="genre"
+                type="text"
+                value={formData.genre}
+                onChange={handleChange}
+                placeholder="Fantasy, Thriller, Romance, Sci-Fi..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+            </div>
+
+            {/* Tone */}
+            <div>
+              <label htmlFor="tone" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                5. Tono narrativo
+              </label>
+              <select
+                id="tone"
+                name="tone"
+                value={formData.tone}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
+              >
+                <option value="">Seleziona un tono...</option>
+                <option value="serio">Serio / Drammatico</option>
+                <option value="leggero">Leggero / Divertente</option>
+                <option value="ironico">Ironico / Satirico</option>
+                <option value="romantico">Romantico</option>
+                <option value="thrilling">Tensione / Suspense</option>
+                <option value="dark">Dark / Oscuro</option>
+                <option value="avventuroso">Avventuroso</option>
+                <option value="poetico">Poetico / Letterario</option>
+              </select>
+            </div>
+
+            {/* POV (Point of View) */}
+            <div>
+              <label className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                6. Punto di vista (POV)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.pov === 'first_person'
+                    ? 'border-amber-500 bg-amber-100 dark:bg-amber-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pov"
+                    value="first_person"
+                    checked={formData.pov === 'first_person'}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Prima persona (Io)</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">"Io camminai per strada..."</div>
+                  </div>
+                </label>
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.pov === 'third_person_limited'
+                    ? 'border-amber-500 bg-amber-100 dark:bg-amber-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pov"
+                    value="third_person_limited"
+                    checked={formData.pov === 'third_person_limited'}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Terza persona limitata</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Focus su un personaggio</div>
+                  </div>
+                </label>
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.pov === 'third_person_omniscient'
+                    ? 'border-amber-500 bg-amber-100 dark:bg-amber-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pov"
+                    value="third_person_omniscient"
+                    checked={formData.pov === 'third_person_omniscient'}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Terza persona onnisciente</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Tutti i pensieri visibili</div>
+                  </div>
+                </label>
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.pov === 'alternate'
+                    ? 'border-amber-500 bg-amber-100 dark:bg-amber-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="pov"
+                    value="alternate"
+                    checked={formData.pov === 'alternate'}
+                    onChange={handleChange}
+                    className="mr-2"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Alternato</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Più POV alternati</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Target Audience */}
+            <div>
+              <label htmlFor="targetAudience" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                7. Pubblico target
+              </label>
+              <input
+                id="targetAudience"
+                name="targetAudience"
+                type="text"
+                value={formData.targetAudience}
+                onChange={handleChange}
+                placeholder="Giovani adulti, appassionati del fantasy, lettori contemporanei..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+            </div>
+
+            {/* Word Count Target (Length) */}
+            <div>
+              <label htmlFor="word_count_target" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                8. Lunghezza target (parole)
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  id="word_count_target"
+                  name="word_count_target"
+                  type="number"
+                  value={formData.wordCountTarget}
+                  onChange={(e) => setFormData({ ...formData, wordCountTarget: parseInt(e.target.value) || 0 })}
+                  min="1000"
+                  step="1000"
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 dark:bg-gray-800 dark:text-white text-lg"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, wordCountTarget: 50000 })}
+                    className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    50K
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, wordCountTarget: 80000 })}
+                    className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    80K
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, wordCountTarget: 100000 })}
+                    className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    100K
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Target indicativo: Romanzo breve (~50K), Standard (~80K), Lungo (~100K+)
+              </p>
+            </div>
           </div>
         )}
 
