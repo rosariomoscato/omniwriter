@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, RefreshCw, WifiOff } from 'lucide-react';
 
 // Track open modals for Escape key handling
-const openModals = new Set<string>();
+export const openModals = new Set<string>();
 
 export function registerModal(id: string) {
   openModals.add(id);
