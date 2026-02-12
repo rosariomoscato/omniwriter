@@ -1,13 +1,27 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
 
 interface Breadcrumb {
   label: string;
   path?: string;
+  isDashboard?: boolean;
 }
 
 export default function Breadcrumbs() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleDashboardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    // Restore filters from sessionStorage if available
+    const stored = sessionStorage.getItem('dashboardFilters');
+    if (stored) {
+      // Navigate with filters already in sessionStorage
+      navigate('/dashboard');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   const breadcrumbs = useMemo(() => {
     const pathSegments = location.pathname.split('/').filter(Boolean);
@@ -15,7 +29,7 @@ export default function Breadcrumbs() {
 
     // Always add Dashboard as first item if not on landing page
     if (pathSegments.length > 0) {
-      crumbs.push({ label: 'Dashboard', path: '/dashboard' });
+      crumbs.push({ label: 'Dashboard', path: '/dashboard', isDashboard: true });
     }
 
     // Build breadcrumbs based on route
@@ -74,12 +88,22 @@ export default function Breadcrumbs() {
             </svg>
           )}
           {crumb.path ? (
-            <Link
-              to={crumb.path}
-              className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-500 transition-colors"
-            >
-              {crumb.label}
-            </Link>
+            crumb.isDashboard ? (
+              <Link
+                to={crumb.path}
+                onClick={handleDashboardClick}
+                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-500 transition-colors"
+              >
+                {crumb.label}
+              </Link>
+            ) : (
+              <Link
+                to={crumb.path}
+                className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-500 transition-colors"
+              >
+                {crumb.label}
+              </Link>
+            )
           ) : (
             <span className="text-gray-900 dark:text-white font-medium">{crumb.label}</span>
           )}
