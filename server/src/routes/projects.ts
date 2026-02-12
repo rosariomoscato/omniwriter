@@ -452,8 +452,13 @@ function parseTxtContent(content: string, filename: string): { title: string; ch
     const chapterPattern = /^(chapter|capitolo|parte|part)\s+\d+[:\.\s]/i;
     const romanPattern = /^(chapter|capitolo)?\s*[IVXLCDM]+[:\.\s]/i;
     const numberPattern = /^#\s+\d+/;
+    // Match "1. Chapter Title" format (from our export)
+    const numberedTitlePattern = /^\d+\.\s+(.+)$/;
+    // Match lines followed by dashes (chapter header with separator)
+    const nextLineIsDash = lines.indexOf(line) < lines.length - 1 && lines[lines.indexOf(line) + 1].trim().match(/^-+$/);
 
-    if (chapterPattern.test(trimmed) || romanPattern.test(trimmed) || numberPattern.test(trimmed)) {
+    if (chapterPattern.test(trimmed) || romanPattern.test(trimmed) || numberPattern.test(trimmed) ||
+        (numberedTitlePattern.test(trimmed) && nextLineIsDash)) {
       // Save previous chapter
       if (currentChapter) {
         currentChapter.content = currentContent.join('\n').trim();

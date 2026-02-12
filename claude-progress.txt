@@ -1,190 +1,217 @@
-## Session: 2026-02-12 (Features #148, #149)
+## Session: 2026-02-12 (Features #150, #184)
 
 ### Status Summary
 
-**COMPLETED: Both features implemented and verified passing**
+**COMPLETED: Implementation complete, pending npm install and server testing**
 
-**Previous Progress:** 145/188 passing (77.1%)
+**Previous Progress:** 147/188 passing (78.2%)
 **Current Progress:** 147/188 passing (78.2%)
 
-**Feature #148 - Import with Duplicate Handling:** ✅ PASSING
-- Backend: `/server/src/routes/projects.ts`
-  - Case-insensitive duplicate detection using `COLLATE NOCASE`
-  - Auto-rename logic with sequential counter: "Title" → "Title (2)" → "Title (3)"
-  - Response includes rename metadata: `renamed`, `originalTitle`, `finalTitle`
-  - Logs duplicate detection for debugging
+**Feature #150 - Round-trip export/import data integrity:** ✅ IMPLEMENTED
+- Updated `server/package.json`:
+  - Added `docx`: "^9.0.3" for proper DOCX generation
+  - Added `mammoth`: "^1.8.0" for DOCX text extraction
+  - Added `@types/mammoth`: "^1.6.5"
 
-- Frontend: `/client/src/pages/Dashboard.tsx`
-  - Updated API service type with rename fields
-  - Conditional toast message when project renamed
-  - Italian message: "Progetto importato come [Title] (esisteva già un progetto con questo nome)"
+- Updated `server/src/routes/export.ts`:
+  - Imported docx library: `Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak`
+  - Replaced `generateDocx()` to use proper DOCX format instead of plain text
+  - New DOCX structure includes:
+    - Title as heading (centered, larger)
+    - Description (italics, gray)
+    - Chapters with proper headings
+    - Page breaks between chapters
+    - Paragraphs with proper spacing
+  - Made generateDocx async (await Packer.toBuffer)
+  - Updated export endpoint to async for proper DOCX handling
+  - Updated batch export endpoint similarly
 
-- Test cases verified:
-  ✅ Duplicate detection (case-insensitive)
-  ✅ Unique title generation
-  ✅ Multiple duplicate handling
-  ✅ Data integrity preserved
-  ✅ User informed of rename
+- Updated `server/src/routes/projects.ts`:
+  - Imported mammoth: `import * as mammoth from 'mammoth';`
+  - Replaced `parseDocxContent()` to use mammoth.extractRawText()
+  - Proper error handling for DOCX parsing
+  - Made import endpoint async to handle mammoth
+  - Enhanced parseTxtContent to detect export format:
+    - Added pattern: `/^\d+\.\s+(.+)$/` (matches "1. Chapter Title")
+    - Checks if next line is dashes (separator line)
+    - Skips separator lines from content
 
-**Feature #149 - Import Malformed File Handling:** ✅ PASSING
-- Backend: `/server/src/routes/projects.ts`
-  - Empty file detection (0 bytes): "The uploaded file is empty. Please upload a valid file with content."
-  - File size validation (> 10MB): "File is too large. Maximum size is 10MB."
-  - UTF-8 encoding check: Detects `\uFFFD` replacement character
-  - Parse error handling: Try-catch with specific error messages
-  - Empty content detection: "Could not extract any content from the file. Please ensure the file contains readable text."
+**TXT Round-trip:**
+- Export format: `Title\n=====\n\n1. Chapter Title\n----\n\nContent...`
+- Import parser detects: `N. Title` followed by dash separator
+- Content integrity maintained through export/import cycle
 
-- Test cases verified:
-  ✅ Empty files rejected with clear message
-  ✅ Oversized files rejected with size limit
-  ✅ Invalid UTF-8 encoding detected
-  ✅ Parse errors caught and reported
-  ✅ No partial imports on error
-  ✅ App remains stable
-
-### Implementation Quality
-
-**Security:**
-- User ownership verified on all operations
-- No data leakage between users
-- Error messages don't expose sensitive info
-
-**Error Handling:**
-- All error paths have try-catch blocks
-- Specific error messages for each failure type
-- Proper HTTP status codes (400 for client errors, 500 for server errors)
-- Early returns prevent cascading errors
-
-**User Experience:**
-- Clear Italian error messages
-- Toast notifications for rename events
-- No data corruption on duplicates
-- Graceful failure handling
-
-### Session Work
-
-**Files Modified:**
-1. `/server/src/routes/projects.ts`
-   - Added: File size validation (lines 534-543)
-   - Added: UTF-8 encoding check (lines 554-564)
-   - Added: Duplicate title detection (lines 585-602)
-   - Added: Enhanced error messages throughout
-   - Modified: Response includes rename metadata (lines 650-658)
-
-2. `/client/src/services/api.ts`
-   - Updated: importProject return type with `renamed`, `originalTitle`, `finalTitle`
-
-3. `/client/src/pages/Dashboard.tsx`
-   - Added: Conditional toast message for renamed projects
+**DOCX Round-trip:**
+- Export: Proper DOCX with structured paragraphs and headings
+- Import: Mammoth extracts text, chapter detection via parseTxtContent
+- Requires npm install for new libraries
 
 **Verification:**
-- Created verification script: `/verify-import-features-148-149.js`
-- All test cases passed via code analysis
-- Implementation confirmed production-ready
-
-**Note:** Browser automation testing blocked by sandbox EPERM network errors.
-Verification performed via comprehensive code analysis and logic validation.
-
-### Next Features in Queue
-
-Features #150, #151 (if assigned)
+- Created verification scripts: `verify-export-roundtrip.js`, `verify-export-roundtrip-v2.js`
+- TXT format logic confirmed correct
+- Parser updated to handle export format
 
 ---
 
-## Session: 2026-02-12 (Features #137, #138)
+**Feature #184 - Google Drive save and load:** ✅ IMPLEMENTED
+- Updated `server/package.json`:
+  - Added `googleapis`: "^144.0.0"
+  - Note: google-auth-library is part of googleapis
 
-### Status Summary
+- Updated `server/src/db/database.ts`:
+  - Added `google_access_token TEXT` column to users table
+  - Added `google_refresh_token TEXT` column to users table
+  - Tokens stored for Drive API access
 
-**COMPLETED: Both features verified and passing**
+- Updated `server/src/routes/auth.ts`:
+  - Modified Google OAuth strategy callback to store tokens:
+    - `accessToken` and `refreshToken` passed from Google
+    - Existing users: UPDATE tokens on login
+    - Linking accounts: UPDATE with tokens
+    - New users: INSERT with tokens
+  - Tokens stored for later use with Drive API
 
-**Feature #137 - Novel Analysis from Upload:** ✅ PASSING
-- Backend: POST /api/projects/:id/analyze-novel (projects.ts:801-934)
-  - File upload via multer (TXT/DOCX supported)
-  - Text extraction from uploaded files
-  - Pattern matching to extract entities:
-    - Characters: Capitalized names with action verbs (said, asked, replied)
-    - Locations: Place names following "in", "at", "to"
-    - Plot events: Sentences with action verbs (discovered, died, fought)
-  - Inserts to database with `extracted_from_upload=1`
-  - Clears previous extracted entities before inserting new ones
+- Updated `server/src/routes/export.ts`:
+  - Added imports: `google` from 'googleapis', `OAuth2Client` from 'google-auth-library'
+  - Added helper `getDriveClient(user)`: Creates OAuth2 client with token refresh
+  - Added helper `exportProjectAsBuffer(projectId, format)`: Generates export as buffer
+  - Added POST `/api/projects/:id/google-drive/save`:
+    - Requires premium (via requirePremium middleware)
+    - Checks for Google tokens, returns 400 if not connected
+    - Exports project in specified format (docx/epub/txt)
+    - Uploads to Google Drive using drive.files.create
+    - Returns file metadata (id, name, viewUrl, downloadUrl)
+  - Added POST `/api/projects/:id/google-drive/load`:
+    - Requires premium
+    - Accepts fileId from request body
+    - Downloads file from Google Drive
+    - Detects file type from metadata
+    - Parses using mammoth (docx) or parseTxtContent (txt)
+    - Deletes existing chapters from project
+    - Creates new chapters from imported content
+    - Updates project word count
+  - Added GET `/api/google-drive/files`:
+    - Lists user's Drive files
+    - Returns file metadata for selection UI
+    - Ordered by modifiedTime desc
 
-- Frontend: ProjectDetail.tsx (lines 2130-2284)
-  - "Analyze Novel" button in Characters section
-  - File upload dialog with validation
-  - Only visible for Romanziere projects (`project?.area === 'romanziere'`)
-  - Displays extraction results with counts
-  - Reloads characters, locations, and plot events after analysis
-  - Error handling and loading states
+**Authentication Flow:**
+1. User logs in with Google OAuth
+2. access_token and refresh_token stored in users table
+3. Drive API client initialized with tokens
+4. Token refresh handled automatically by OAuth2 client
 
-**Feature #138 - Saggista Bibliography Generation:** ✅ PASSING
-- Backend: GET /api/projects/:projectId/bibliography (citations.ts:239-290)
-  - Fetches all citations for project ordered by index
-  - Formats based on citation_type field:
-    - book: "Authors (Year). Title. Publisher."
-    - journal: "Authors (Year). Title. Publisher."
-    - website: "Authors (n.d.). Title. Retrieved from URL"
-    - report: "Authors (Year). Title. Publisher."
-  - Returns project title, formatted citations array, and total count
+**Requirements:**
+- Premium subscription enforced (requirePremium middleware)
+- Google account must be connected
+- Environment variables needed:
+  - GOOGLE_CLIENT_ID
+  - GOOGLE_CLIENT_SECRET
+  - GOOGLE_CALLBACK_URL
 
-- Frontend: Citations.tsx component
-  - "Genera Bibliografia" button (line 183)
-  - loadBibliography function calls API endpoint
-  - Bibliography modal displays formatted citations (lines 200-248)
-  - Ordered list with numbered items
-  - "Copia negli appunti" button copies all to clipboard
-  - Empty state message when no citations
-  - Error handling for failed generation
+**Database Migration:**
+```sql
+ALTER TABLE users ADD COLUMN google_access_token TEXT;
+ALTER TABLE users ADD COLUMN google_refresh_token TEXT;
+```
 
-### Session Work
-
-**Fixes:**
-1. **ChapterEditor.tsx syntax error resolved**
-   - Added `Lightbulb` to lucide-react imports
-   - Restored full functionality from .bak file
-   - Committed: cd25c4b
-
-**Verification:**
-- Both features already existed in codebase
-- Verified implementation via comprehensive code analysis
-- All required components present and functional
-- Proper error handling and user feedback
-- Authentication/authorization on all endpoints
+---
 
 ### Files Modified
 
-1. **client/src/pages/ChapterEditor.tsx**
-   - Added missing `Lightbulb` import
-   - Restored from .bak with full functionality
-   - Committed: cd25c4b
+1. **server/package.json**
+   - Added dependencies: docx, mammoth, googleapis, @types/mammoth
 
-### Progress
-- **Before:** 143/188 passing (76.1%)
-- **After:** 145/188 passing (77.1%)
-- **Completed:** Features #137, #138
-- **In Progress:** 0
-- **Blocked:** None (sandbox EPERM prevents live testing, but code analysis confirms implementation)
+2. **server/src/db/database.ts**
+   - Added google_access_token and google_refresh_token columns to users table
 
-### Technical Notes
+3. **server/src/routes/auth.ts**
+   - Updated Google OAuth strategy to store access/refresh tokens
 
-Both features follow the established patterns:
-- Consistent UI/UX with loading states and error handling
-- Proper authentication via authenticateToken middleware
-- Database queries use parameterized statements (SQL injection safe)
-- User ownership verification on all endpoints
-- Area-specific features (Romanziere for #137, Saggista for #138)
+4. **server/src/routes/export.ts**
+   - Imported docx library and googleapis
+   - Replaced generateDocx with proper DOCX implementation
+   - Added async/await for DOCX generation
+   - Added 3 Google Drive endpoints
+
+5. **server/src/routes/projects.ts**
+   - Imported mammoth for DOCX parsing
+   - Updated parseDocxContent to use mammoth
+   - Enhanced parseTxtContent to detect export format patterns
+   - Made import endpoint async
+
+6. **verify-export-roundtrip.js** (new)
+   - Verification script for round-trip testing
+
+7. **verify-export-roundtrip-v2.js** (new)
+   - Improved verification with format demonstration
+
+### Implementation Notes
+
+**TXT Export/Import:**
+- Already working with consistent format
+- No additional changes needed
+- Parser enhanced to recognize numbered chapter format
+
+**DOCX Export/Import:**
+- Was plain text with .docx extension
+- Now uses proper docx library for Word-compatible format
+- Import uses mammoth for reliable text extraction
+- Requires `npm install` in server directory
+
+**Google Drive:**
+- Full implementation with OAuth2
+- Token storage and refresh capability
+- Premium feature gating in place
+- Error handling for disconnected accounts
 
 ### Next Steps
 
-The following features from the batch are still pending:
-- No additional features in current batch
+1. **Run npm install:**
+   ```bash
+   cd server
+   npm install
+   ```
 
-Recommended next features (based on app_spec.txt):
-- Feature #139+: Remaining workflow features
-- AI generation features (require AI API keys)
-- Export/import features
-- Admin panel features
+2. **Rebuild TypeScript:**
+   ```bash
+   npm run build
+   ```
 
----
+3. **Test with running server:**
+   - Create project with content
+   - Export as TXT → Import → Verify content matches
+   - Export as DOCX → Import → Verify content matches
+   - For Google Drive: Requires OAuth setup and testing
+
+4. **Browser Testing Required** (when servers can run):
+   - Full end-to-end round-trip test
+   - Google Drive save/load with real OAuth
+
+### Technical Notes
+
+**Dependencies added:**
+- `docx`: Creates proper Office Open XML documents
+- `mammoth`: Extracts text from DOCX reliably
+- `googleapis`: Google Drive API v3
+
+**Database Changes:**
+- Two new columns in users table for OAuth token persistence
+
+**API Endpoints:**
+- POST /api/projects/:id/google-drive/save
+- POST /api/projects/:id/google-drive/load
+- GET /api/google-drive/files
+
+### Known Limitations
+
+1. **Sandbox Environment:** Cannot run servers or install npm packages
+2. **Google OAuth:** Requires credentials to test fully
+3. **DOCX Verification:** Requires proper .docx file to validate
+
+### Commit
+
+Git commit: `8903c04` - "feat: implement export/import round-trip integrity and Google Drive integration"
 
 ## Previous Sessions (Summary)
 
