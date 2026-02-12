@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { HomeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Home, ArrowLeft } from 'lucide-react';
 
 interface NotFoundPageProps {
   /**
@@ -57,7 +57,7 @@ export default function NotFoundPage({ isInLayout = false }: NotFoundPageProps) 
               hover:bg-gray-50 dark:hover:bg-dark-card
               transition-colors duration-200"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" />
             <span>Torna indietro</span>
           </button>
 
@@ -70,7 +70,7 @@ export default function NotFoundPage({ isInLayout = false }: NotFoundPageProps) 
                 text-white rounded-lg
                 transition-colors duration-200"
             >
-              <HomeIcon className="w-5 h-5" />
+              <Home className="w-5 h-5" />
               <span>Vai alla Dashboard</span>
             </Link>
           )}
@@ -84,7 +84,7 @@ export default function NotFoundPage({ isInLayout = false }: NotFoundPageProps) 
                 text-white rounded-lg
                 transition-colors duration-200"
             >
-              <HomeIcon className="w-5 h-5" />
+              <Home className="w-5 h-5" />
               <span>Vai alla Home</span>
             </Link>
           )}

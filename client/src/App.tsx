@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -9,6 +9,34 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import LandingPage from './pages/LandingPage';
 import ProjectDetail from './pages/ProjectDetail';
+import NotFoundPage from './pages/NotFoundPage';
+
+// List of protected routes that require authentication
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/projects',
+  '/human-model',
+  '/sources',
+  '/settings',
+  '/profile'
+];
+
+// Helper component to check if route is protected
+function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { user } = useAuth();
+
+  // Check if current path starts with any protected route
+  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
+    location.pathname.startsWith(route) || location.pathname.startsWith('/projects/')
+  );
+
+  if (!user && isProtectedRoute) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -41,50 +69,201 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+      <ProtectedRouteGuard>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Protected Routes - With Layout */}
-        {user ? (
-          <Route
-            path="/*"
-            element={
-              <>
-                <Sidebar
-                  isCollapsed={isSidebarCollapsed}
-                  onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  recentProjects={recentProjects}
-                />
-                <Header isSidebarCollapsed={isSidebarCollapsed} />
-                <main
-                  className={`
-                    fixed top-16 right-0 bottom-0 overflow-y-auto
-                    transition-all duration-300 bg-white dark:bg-dark-bg
-                    ${isSidebarCollapsed ? 'left-16' : 'left-64'}
-                  `}
-                >
-                  <Routes>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/projects" element={<Dashboard />} />
-                    <Route path="/human-model" element={<Dashboard />} />
-                    <Route path="/sources" element={<Dashboard />} />
-                    <Route path="/settings" element={<Dashboard />} />
-                    <Route path="/profile" element={<Dashboard />} />
-                    <Route path="/projects/:id" element={<ProjectDetail />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </main>
-              </>
-            }
-          />
-        ) : (
-          // Redirect to login if trying to access protected route
-          <Route path="/*" element={<Navigate to="/login" replace />} />
-        )}
-      </Routes>
+          {/* Protected Routes - With Layout */}
+          {user ? (
+            <>
+              <Route
+                path="/dashboard"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/human-model"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/sources"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/projects/:id"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <ProjectDetail />
+                    </main>
+                  </>
+                }
+              />
+              {/* 404 page for authenticated users (with layout) */}
+              <Route
+                path="*"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <NotFoundPage isInLayout={true} />
+                    </main>
+                  </>
+                }
+              />
+            </>
+          ) : (
+            // 404 page for unauthenticated users (standalone)
+            // This catches all unmatched routes when not logged in
+            <Route path="*" element={<NotFoundPage isInLayout={false} />} />
+          )}
+        </Routes>
+      </ProtectedRouteGuard>
     </div>
   );
 }
