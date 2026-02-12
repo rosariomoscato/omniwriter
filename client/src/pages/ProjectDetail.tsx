@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -83,8 +83,10 @@ export default function ProjectDetail() {
     target_audience: '',
     pov: '',
     word_count_target: '',
-    status: 'draft' as 'draft' | 'in_progress' | 'completed' | 'archived'
+    status: 'draft' as 'draft' | 'in_progress' | 'completed' | 'archived',
+    area: 'romanziere' as 'romanziere' | 'saggista' | 'redattore'
   });
+  const [draggedChapterIndex, setDraggedChapterIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -116,6 +118,49 @@ export default function ProjectDetail() {
       setError('Failed to load chapters');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Drag and drop handlers for chapter reordering
+  const handleDragStart = (index: number) => {
+    setDraggedChapterIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = draggedChapterIndex;
+
+    if (dragIndex === null || dragIndex === dropIndex) {
+      setDraggedChapterIndex(null);
+      return;
+    }
+
+    try {
+      // Create a copy of chapters array
+      const newChapters = [...chapters];
+      const [draggedChapter] = newChapters.splice(dragIndex, 1);
+      newChapters.splice(dropIndex, 0, draggedChapter);
+
+      // Update local state immediately for responsiveness
+      setChapters(newChapters);
+      setDraggedChapterIndex(null);
+
+      // Call API to update order in database
+      await apiService.reorderChapter(draggedChapter.id, dropIndex);
+
+      // Reload chapters to ensure correct order
+      await loadChapters();
+
+      toast.success('Chapter order updated');
+    } catch (err: any) {
+      console.error('Failed to reorder chapter:', err);
+      setError(err.message || 'Failed to reorder chapter');
+      // Revert to original order on error
+      await loadChapters();
     }
   };
 
@@ -572,7 +617,8 @@ export default function ProjectDetail() {
         target_audience: project.target_audience || '',
         pov: project.pov || '',
         word_count_target: project.word_count_target?.toString() || '',
-        status: project.status
+        status: project.status,
+        area: project.area
       });
       setShowEditDialog(true);
     }
@@ -594,7 +640,8 @@ export default function ProjectDetail() {
         target_audience: editForm.target_audience || undefined,
         pov: editForm.pov || undefined,
         word_count_target: editForm.word_count_target ? parseInt(editForm.word_count_target) : undefined,
-        status: editForm.status
+        status: editForm.status,
+        area: editForm.area
       };
 
       const response = await apiService.updateProject(id!, updateData);
@@ -1128,6 +1175,25 @@ export default function ProjectDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Area <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={editForm.area}
+                      onChange={(e) => setEditForm({ ...editForm, area: e.target.value as 'romanziere' | 'saggista' | 'redattore' })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={creating}
+                      required
+                    >
+                      <option value="romanziere">Romanziere</option>
+                      <option value="saggista">Saggista</option>
+                      <option value="redattore">Redattore</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Status
                     </label>
                     <select
@@ -1491,9 +1557,13 @@ export default function ProjectDetail() {
             chapters.map((chapter, index) => (
               <div
                 key={chapter.id}
-                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group ${
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group cursor-move ${
                   showBatchExport ? 'pl-12' : ''
-                }`}
+                } ${draggedChapterIndex === index ? 'opacity-50' : ''}`}
               >
                 {showBatchExport && (
                   <input
@@ -1512,6 +1582,7 @@ export default function ProjectDetail() {
                     onClick={(e) => e.stopPropagation()}
                   />
                 )}
+                <GripVertical className="w-5 h-5 text-gray-400 dark:text-gray-600 cursor-grab mr-2" />
                 <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => openChapter(chapter.id)}>
                   <span className="text-sm font-mono text-gray-400 dark:text-gray-500 w-8">
                     {index + 1}.
