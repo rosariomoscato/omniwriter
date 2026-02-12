@@ -94,8 +94,8 @@ app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
-const serverHost = process.env.HOST || 'localhost';
-app.listen(PORT, serverHost, () => {
+const serverHost = undefined; // Let Node.js pick default
+app.listen(PORT, () => {
     console.log(`[Server] OmniWriter API running on ${serverHost}:${PORT}`);
     console.log(`[Server] Health check: http://127.0.0.1:${PORT}/api/health`);
 });
