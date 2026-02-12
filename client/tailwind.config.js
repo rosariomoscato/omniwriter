@@ -38,6 +38,8 @@ export default {
         dark: {
           bg: '#1a1a2e',
           surface: '#16213e',
+          card: '#1e293b',
+          border: '#334155',
         },
       },
       fontFamily: {
