@@ -32,7 +32,7 @@ const AdminStatsPage = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
 
       const response = await fetch('http://localhost:3001/api/admin/stats', {
         headers: {
