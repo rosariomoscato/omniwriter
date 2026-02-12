@@ -64,7 +64,7 @@ async function exportProjectAsBuffer(projectId, format) {
         return generateEpub(project.title, project.description || '', chapters);
     }
     else {
-        return generateTxt(project.title, project.description || '', chapters);
+        return generateTxt(project.title, project.description || '', chapters, project.area);
     }
 }
 const router = express_1.default.Router();
@@ -103,6 +103,12 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+// Helper function to generate table of contents for Saggista projects
+function generateTableOfContents(chapters) {
+    if (chapters.length === 0)
+        return '';
+    return chapters.map((ch, i) => `${i + 1}. ${ch.title || 'Untitled'}`).join('\n');
 }
 // Helper function to convert markdown to HTML
 function markdownToHtml(text) {
@@ -377,11 +383,11 @@ function escapeXmlDocx(text) {
 }
 // Helper function to generate a proper DOCX file
 // Temporarily simplified - docx package not installed
-async function generateDocx(title, description, chapters) {
+async function generateDocx(title, description, chapters, area) {
     // TODO: Re-enable proper DOCX generation when docx package can be installed
     // For now, return TXT with .docx extension (not ideal but keeps server running)
     console.warn('[Export] DOCX package not available, falling back to TXT format');
-    return generateTxt(title, description, chapters);
+    return generateTxt(title, description, chapters, area);
     /*
     const children: any[] = [];
   
@@ -461,12 +467,20 @@ async function generateDocx(title, description, chapters) {
     */
 }
 // Helper function to generate TXT file
-function generateTxt(title, description, chapters) {
-    const content = `${title}\n${'='.repeat(title.length)}\n\n${description ? description + '\n\n' : ''}${chapters.map((ch, i) => {
+function generateTxt(title, description, chapters, area) {
+    let content = `${title}\n${'='.repeat(title.length)}\n\n`;
+    // Add table of contents for Saggista projects
+    if (area === 'saggista' && chapters.length > 0) {
+        content += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
+        content += `${'='.repeat(60)}\n\n`;
+    }
+    content += description ? description + '\n\n' : '';
+    // Add chapters
+    content += chapters.map((ch, i) => {
         const chapterTitle = `${i + 1}. ${ch.title || 'Untitled'}`;
         const separator = '-'.repeat(chapterTitle.length);
         return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
-    }).join('\n\n')}`;
+    }).join('\n\n');
     return Buffer.from(content, 'utf-8');
 }
 // POST /api/projects/:id/export - Export project
@@ -521,13 +535,13 @@ router.post('/projects/:id/export', auth_1.authenticateToken, async (req, res) =
             mimeType = 'application/epub+zip';
         }
         else if (format === 'docx') {
-            content = await generateDocx(project.title, project.description || '', chapters);
+            content = await generateDocx(project.title, project.description || '', chapters, project.area);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.docx`;
             mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }
         else {
             // Default to TXT
-            content = generateTxt(project.title, project.description || '', chapters);
+            content = generateTxt(project.title, project.description || '', chapters, project.area);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
             mimeType = 'text/plain';
         }
@@ -689,17 +703,24 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
         }
         else if (format === 'docx') {
             // Use proper DOCX generator
-            content = await generateDocx(project.title, project.description || '', chapters);
+            content = await generateDocx(project.title, project.description || '', chapters, project.area);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.docx`;
             mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }
         else {
             // TXT - combine all chapters
-            const textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n${project.description ? project.description + '\n\n' : ''}${chapters.map((ch, i) => {
+            let textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n`;
+            // Add table of contents for Saggista projects
+            if (project.area === 'saggista' && chapters.length > 0) {
+                textContent += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
+                textContent += `${'='.repeat(60)}\n\n`;
+            }
+            textContent += project.description ? project.description + '\n\n' : '';
+            textContent += chapters.map((ch, i) => {
                 const chapterTitle = `Chapter ${ch.order_index}: ${ch.title || 'Untitled'}`;
                 const separator = '-'.repeat(chapterTitle.length);
                 return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
-            }).join('\n\n')}`;
+            }).join('\n\n');
             content = Buffer.from(textContent, 'utf-8');
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.txt`;
             mimeType = 'text/plain';
