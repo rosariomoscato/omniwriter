@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -32,6 +32,9 @@ export default function ProjectDetail() {
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [showAddSource, setShowAddSource] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showWebSearch, setShowWebSearch] = useState(false);
+  const [showSourcePreview, setShowSourcePreview] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [showAddCharacter, setShowAddCharacter] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAddPlotEvent, setShowAddPlotEvent] = useState(false);
@@ -101,6 +104,12 @@ export default function ProjectDetail() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [editingSourceTags, setEditingSourceTags] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState('');
+  const [webSearchQuery, setWebSearchQuery] = useState('');
+  const [webSearchResults, setWebSearchResults] = useState<any[]>([]);
+  const [webSearchSearching, setWebSearchSearching] = useState(false);
+  const [webSearchUrl, setWebSearchUrl] = useState('');
+  const [webSearchTitle, setWebSearchTitle] = useState('');
+  const [webSearchContent, setWebSearchContent] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -530,6 +539,84 @@ export default function ProjectDetail() {
       toast.success('Tag removed');
     } catch (err: any) {
       setError(err.message || 'Failed to remove tag');
+    }
+  };
+
+  const handleWebSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!webSearchQuery.trim()) {
+      setError('Search query is required');
+      return;
+    }
+
+    try {
+      setWebSearchSearching(true);
+      setError('');
+
+      // For development, create mock search results
+      // In production, this would call a real web search API
+      const mockResults = [
+        {
+          id: '1',
+          title: `${webSearchQuery} - Wikipedia`,
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(webSearchQuery.replace(/\s+/g, '_'))}`,
+          snippet: `Information about ${webSearchQuery} from Wikipedia...`,
+          source: 'Wikipedia'
+        },
+        {
+          id: '2',
+          title: `${webSearchQuery} - News`,
+          url: `https://news.google.com/search?q=${encodeURIComponent(webSearchQuery)}`,
+          snippet: `Latest news about ${webSearchQuery}...`,
+          source: 'Google News'
+        },
+        {
+          id: '3',
+          title: `${webSearchQuery} - Scholar`,
+          url: `https://scholar.google.com/scholar?q=${encodeURIComponent(webSearchQuery)}`,
+          snippet: `Academic articles about ${webSearchQuery}...`,
+          source: 'Google Scholar'
+        }
+      ];
+
+      setWebSearchResults(mockResults);
+    } catch (err: any) {
+      setError(err.message || 'Search failed');
+    } finally {
+      setWebSearchSearching(false);
+    }
+  };
+
+  const handleSaveWebSearchResult = async () => {
+    if (!webSearchUrl || !webSearchTitle) {
+      setError('URL and title are required');
+      return;
+    }
+
+    try {
+      const response = await apiService.saveWebSearchResult({
+        projectId: id!,
+        url: webSearchUrl,
+        title: webSearchTitle,
+        content: webSearchContent,
+      });
+
+      const newSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
+      setSources([newSource, ...sources]);
+      await loadAllTags();
+
+      // Reset form
+      setWebSearchUrl('');
+      setWebSearchTitle('');
+      setWebSearchContent('');
+      setWebSearchQuery('');
+      setWebSearchResults([]);
+      setShowWebSearch(false);
+
+      toast.success('Web search result saved as source');
+    } catch (err: any) {
+      setError(err.message || 'Failed to save web search result');
     }
   };
 
@@ -1880,7 +1967,11 @@ export default function ProjectDetail() {
               .map((source) => (
               <div
                 key={source.id}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
+                onClick={() => {
+                  setSelectedSource(source);
+                  setShowSourcePreview(true);
+                }}
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group cursor-pointer"
               >
                 <div className="flex items-center gap-3 flex-1">
                   <FileText className="w-5 h-5 text-gray-400" />
@@ -2452,6 +2543,89 @@ export default function ProjectDetail() {
           onUploadComplete={handleBulkUploadComplete}
           onCancel={() => setShowBulkUpload(false)}
         />
+      )}
+
+      {/* Source Preview Dialog */}
+      {showSourcePreview && selectedSource && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {selectedSource.file_name}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {selectedSource.file_type} • {(selectedSource.file_size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSourcePreview(false);
+                  setSelectedSource(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {selectedSource.content_text && selectedSource.content_text.length > 0 ? (
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-sm text-gray-900 dark:text-gray-100">
+                    {selectedSource.content_text}
+                  </pre>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  <p className="text-gray-600 dark:text-gray-400 mb-2">
+                    Content extraction not available for this file type
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                    {selectedSource.file_type === 'application/pdf' && 'PDF files require additional processing'}
+                    {(selectedSource.file_type.includes('word') || selectedSource.file_type.includes('document')) && 'DOCX files require additional processing'}
+                    {selectedSource.file_type === 'application/rtf' && 'RTF files require additional processing'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {selectedSource.source_type === 'upload' ? 'Uploaded' : 'Web Search'} •{' '}
+                {new Date(selectedSource.created_at).toLocaleDateString()}
+              </div>
+              <div className="flex gap-2">
+                {selectedSource.source_type === 'web_search' && selectedSource.url && (
+                  <a
+                    href={selectedSource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open Original
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setShowSourcePreview(false);
+                    setSelectedSource(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

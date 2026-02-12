@@ -182,10 +182,16 @@ export default function HumanModelPage() {
       });
       // Poll for status updates
       const pollInterval = setInterval(async () => {
-        const response = await apiService.getHumanModelAnalysis(selectedModel.id);
-        if (response.status !== 'analyzing') {
-          clearInterval(pollInterval);
-          setSelectedModel(prev => prev ? { ...prev, training_status: response.status as HumanModel['training_status'] } : null);
+        try {
+          const response = await apiService.getHumanModelAnalysis(selectedModel.id);
+          if (response.status !== 'analyzing') {
+            clearInterval(pollInterval);
+            // Fetch full model details to get updated analysis_result_json
+            const modelResponse = await apiService.getHumanModel(selectedModel.id);
+            setSelectedModel(modelResponse.model);
+          }
+        } catch (err) {
+          console.error('Error polling analysis status:', err);
         }
       }, 2000);
     } catch (err) {
@@ -412,6 +418,96 @@ export default function HumanModelPage() {
                   )}
                 </div>
               </div>
+
+              {/* Analysis Results Section */}
+              {selectedModel.training_status === 'ready' && selectedModel.analysis_result_json && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {t('humanModel.analysisResults', 'Style Analysis Results')}
+                    </h3>
+                  </div>
+                  <div className="p-6">
+                    {(() => {
+                      try {
+                        const analysis = JSON.parse(selectedModel.analysis_result_json || '{}');
+                        return (
+                          <div className="space-y-6">
+                            {/* Tone */}
+                            {analysis.tone && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                  {t('humanModel.tone', 'Tone')}
+                                </h4>
+                                <p className="text-gray-900 dark:text-gray-100 pl-4">{analysis.tone}</p>
+                              </div>
+                            )}
+
+                            {/* Sentence Structure */}
+                            {analysis.sentence_structure && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                  {t('humanModel.sentenceStructure', 'Sentence Structure')}
+                                </h4>
+                                <p className="text-gray-900 dark:text-gray-100 pl-4">{analysis.sentence_structure}</p>
+                              </div>
+                            )}
+
+                            {/* Vocabulary */}
+                            {analysis.vocabulary && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                                  {t('humanModel.vocabulary', 'Vocabulary')}
+                                </h4>
+                                <p className="text-gray-900 dark:text-gray-100 pl-4">{analysis.vocabulary}</p>
+                              </div>
+                            )}
+
+                            {/* Patterns */}
+                            {analysis.patterns && Array.isArray(analysis.patterns) && analysis.patterns.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                                  <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                                  {t('humanModel.patterns', 'Writing Patterns')}
+                                </h4>
+                                <ul className="list-disc list-inside space-y-1 pl-4">
+                                  {analysis.patterns.map((pattern: string, idx: number) => (
+                                    <li key={idx} className="text-gray-900 dark:text-gray-100 text-sm">
+                                      {pattern}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Analysis Complete Badge */}
+                            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="font-medium">{t('humanModel.analysisComplete', 'Analysis Complete')}</span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {t('humanModel.analysisCompleteDesc', 'This style profile can now be applied to AI generation')}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <p className="text-gray-500 dark:text-gray-400">
+                            {t('humanModel.noAnalysisData', 'No analysis data available')}
+                          </p>
+                        );
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
