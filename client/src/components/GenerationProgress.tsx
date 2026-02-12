@@ -162,8 +162,44 @@ export default function GenerationProgress() {
           </div>
         )}
 
-        {/* Token Count (optional) */}
-        {progress.tokenCount !== undefined && progress.tokenCount > 0 && (
+        {/* Token Usage Display (Feature #156) */}
+        {progress.tokenUsage && (
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+              Token Usage
+            </h4>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Input Tokens:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {progress.tokenUsage.tokensInput.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Output Tokens:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {progress.tokenUsage.tokensOutput.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1.5 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-900 dark:text-gray-100 font-medium">Total Tokens:</span>
+                <span className="text-blue-600 dark:text-blue-400 font-bold">
+                  {progress.tokenUsage.totalTokens.toLocaleString()}
+                </span>
+              </div>
+              {progress.tokenUsage.estimatedCost !== undefined && (
+                <div className="flex justify-between pt-1.5 border-t border-gray-200 dark:border-gray-700">
+                  <span className="text-gray-600 dark:text-gray-400">Estimated Cost:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    ${progress.tokenUsage.estimatedCost.toFixed(4)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Legacy Token Count (for backward compatibility) */}
+        {!progress.tokenUsage && progress.tokenCount !== undefined && progress.tokenCount > 0 && (
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
             ~{progress.tokenCount.toLocaleString()} tokens generated
           </div>

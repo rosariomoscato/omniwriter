@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export type GenerationPhase = 'idle' | 'structure' | 'writing' | 'revision' | 'completed' | 'failed';
 
+export interface TokenUsage {
+  tokensInput: number;
+  tokensOutput: number;
+  totalTokens: number;
+  estimatedCost?: number;
+}
+
 export interface GenerationProgress {
   phase: GenerationPhase;
   currentStep: number;
@@ -9,6 +16,7 @@ export interface GenerationProgress {
   message: string;
   percentage: number;
   tokenCount?: number;
+  tokenUsage?: TokenUsage;
 }
 
 interface GenerationContextType {

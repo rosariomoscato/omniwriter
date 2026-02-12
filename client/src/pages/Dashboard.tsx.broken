@@ -933,7 +933,7 @@ export default function Dashboard() {
                         value={newTagInput}
                         onChange={(e) => setNewTagInput(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newTagInput.trim()) {
+                          if (e.key === 'Enter' && newTagInput.trim() !== '') {
                             handleAddTag(project.id, newTagInput);
                             setNewTagInput('');
                             setTagInputProjectId(null);
@@ -999,7 +999,7 @@ export default function Dashboard() {
                 disabled={pagination.page === 1}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('previous', 'Previous')}
+                {t('dashboard.pagination.previous', 'Previous')}
               </button>
 
               {/* Page Numbers */}
@@ -1038,7 +1038,7 @@ export default function Dashboard() {
                 disabled={!pagination.hasMore}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('next', 'Next')}
+                {t('dashboard.pagination.next', 'Next')}
               </button>
             </div>
           </div>

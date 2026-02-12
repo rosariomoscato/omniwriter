@@ -497,8 +497,22 @@ router.post('/chapters/:id/generate-headlines', authenticateToken, generationRat
       }
     ];
 
-    console.log(`[Redattore] Generated ${headlineOptions.length} headline options for chapter ${id}`);
-    res.json({ headlines: headlineOptions });
+    // Calculate token usage (Feature #156)
+    const inputTokens = Math.ceil((chapter.title + (chapter.content || '')).length / 4);
+    const outputTokens = Math.ceil(JSON.stringify(headlineOptions).length / 4);
+    const totalTokens = inputTokens + outputTokens;
+    const estimatedCost = ((inputTokens / 1000) * 0.03) + ((outputTokens / 1000) * 0.06);
+
+    console.log(`[Redattore] Generated ${headlineOptions.length} headline options for chapter ${id} - Tokens: ${inputTokens} in, ${outputTokens} out`);
+    res.json({
+      headlines: headlineOptions,
+      token_usage: {
+        tokens_input: inputTokens,
+        tokens_output: outputTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost
+      }
+    });
   } catch (error) {
     console.error('[Redattore] Error generating headlines:', error);
     res.status(500).json({ message: 'Failed to generate headlines' });
@@ -577,8 +591,22 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, generat
       ]
     };
 
-    console.log(`[Redattore] Generated social snippets for chapter ${id}`);
-    res.json({ snippets: socialSnippets });
+    // Calculate token usage (Feature #156)
+    const inputTokens = Math.ceil((chapter.title + (chapter.content || '')).length / 4);
+    const outputTokens = Math.ceil(JSON.stringify(socialSnippets).length / 4);
+    const totalTokens = inputTokens + outputTokens;
+    const estimatedCost = ((inputTokens / 1000) * 0.03) + ((outputTokens / 1000) * 0.06);
+
+    console.log(`[Redattore] Generated social snippets for chapter ${id} - Tokens: ${inputTokens} in, ${outputTokens} out`);
+    res.json({
+      snippets: socialSnippets,
+      token_usage: {
+        tokens_input: inputTokens,
+        tokens_output: outputTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost
+      }
+    });
   } catch (error) {
     console.error('[Redattore] Error generating social snippets:', error);
     res.status(500).json({ message: 'Failed to generate social snippets' });
@@ -625,19 +653,35 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
       }
     }
 
+    // Track token usage (Feature #156)
+    // Simulate token counts for generation
+    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0)) / 4);
+    const estimatedOutputTokens = Math.ceil(chapter.title.length * 15); // Rough estimate for chapter content
+
     // Generate baseline content (without Human Model)
     // In a real implementation, this would call an AI API
     const baselineContent = generateMockContent(chapter.title, chapter.area, prompt_context, null);
+    const baselineTokens = Math.ceil(baselineContent.length / 4);
 
     // Generate styled content (with Human Model, if provided)
     const styledContent = humanModel
       ? generateMockContent(chapter.title, chapter.area, prompt_context, humanModel)
       : baselineContent;
+    const styledTokens = humanModel ? Math.ceil(styledContent.length / 4) : 0;
+
+    const totalOutputTokens = baselineTokens + styledTokens;
+    const totalTokens = inputTokens + totalOutputTokens;
+
+    // Calculate cost (GPT-4 pricing: $0.03/1K input tokens, $0.06/1K output tokens)
+    const inputCost = (inputTokens / 1000) * 0.03;
+    const outputCost = (totalOutputTokens / 1000) * 0.06;
+    const estimatedCost = inputCost + outputCost;
 
     // Calculate style differences
     const differences = calculateStyleDifferences(baselineContent, styledContent, humanModel);
 
-    console.log(`[Comparison] Generated comparison for chapter ${id}`);
+    console.log(`[Comparison] Generated comparison for chapter ${id} - Tokens: ${inputTokens} in, ${totalOutputTokens} out, Cost: $${estimatedCost.toFixed(4)}`);
+
     res.json({
       chapter_id: id,
       human_model: humanModel ? {
@@ -656,7 +700,14 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
         word_count: styledContent.split(/\s+/).filter(w => w.length > 0).length,
         generated_at: new Date().toISOString()
       } : null,
-      differences
+      differences,
+      // Feature #156: Token usage
+      token_usage: {
+        tokens_input: inputTokens,
+        tokens_output: totalOutputTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost
+      }
     });
   } catch (error) {
     console.error('[Comparison] Error generating comparison:', error);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Type, Hash, Share2, MessageCircle, Linkedin, Facebook, Instagram, Twitter, Loader2, Check } from 'lucide-react';
-import { apiService, Chapter } from '../services/api';
+import { Type, Hash, Share2, MessageCircle, Linkedin, Facebook, Instagram, Twitter, Loader2, Check, Coins } from 'lucide-react';
+import { apiService, Chapter, TokenUsage } from '../services/api';
 import { useToastNotification } from './Toast';
 
 interface RedattoreToolsProps {
@@ -37,6 +37,7 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
   const [selectedPlatform, setSelectedPlatform] = useState<'twitter' | 'linkedin' | 'facebook' | 'instagram'>('twitter');
   const [selectedSnippets, setSelectedSnippets] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
 
   // Check if this is a Redattore project
   const isRedattore = projectArea === 'redattore';
@@ -47,6 +48,7 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
     setSocialSnippets(null);
     setSelectedHeadline(null);
     setSelectedSnippets({});
+    setTokenUsage(null);
   }, [chapter.id]);
 
   const handleGenerateHeadlines = async () => {
@@ -57,6 +59,7 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
       const response = await apiService.generateHeadlines(chapter.id);
       setHeadlines(response.headlines);
       setSelectedHeadline(null);
+      setTokenUsage(response.token_usage || null);
       toast.success('Headline options generated!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to generate headlines');
@@ -73,6 +76,7 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
       const response = await apiService.generateSocialSnippets(chapter.id);
       setSocialSnippets(response.snippets);
       setSelectedSnippets({});
+      setTokenUsage(response.token_usage || null);
       toast.success('Social media snippets generated!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to generate social snippets');
@@ -199,6 +203,45 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
                     Regenerate
                   </button>
                 </div>
+
+                {/* Token Usage Display (Feature #156) */}
+                {tokenUsage && headlines.length > 0 && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coins className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                        Token Usage
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Input Tokens:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {tokenUsage.tokens_input.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Output Tokens:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {tokenUsage.tokens_output.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-blue-200 dark:border-blue-900">
+                        <span className="text-gray-900 dark:text-gray-100 font-medium">Total Tokens:</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                          {tokenUsage.total_tokens.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-blue-200 dark:border-blue-900">
+                        <span className="text-gray-600 dark:text-gray-400">Estimated Cost:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          ${tokenUsage.estimated_cost.toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {headlines.map((headline) => (
                   <div
                     key={headline.id}
@@ -352,6 +395,44 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
                     </div>
                   ))}
                 </div>
+
+                {/* Token Usage Display (Feature #156) */}
+                {tokenUsage && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coins className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                        Token Usage
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Input Tokens:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {tokenUsage.tokens_input.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Output Tokens:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {tokenUsage.tokens_output.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-blue-200 dark:border-blue-900">
+                        <span className="text-gray-900 dark:text-gray-100 font-medium">Total Tokens:</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                          {tokenUsage.total_tokens.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1.5 border-t border-blue-200 dark:border-blue-900">
+                        <span className="text-gray-600 dark:text-gray-400">Estimated Cost:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          ${tokenUsage.estimated_cost.toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Platform info */}
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -89,6 +89,13 @@ export interface CreateHumanModelData {
   style_strength?: number;
 }
 
+export interface TokenUsage {
+  tokens_input: number;
+  tokens_output: number;
+  total_tokens: number;
+  estimated_cost: number;
+}
+
 export interface GenerationLog {
   id: string;
   project_id: string;
@@ -101,6 +108,7 @@ export interface GenerationLog {
   status: 'started' | 'completed' | 'failed' | 'cancelled';
   error_message?: string;
   created_at: string;
+  token_usage?: TokenUsage;
 }
 
 export interface CreateGenerationLogData {
@@ -598,8 +606,11 @@ class ApiService {
   }
 
   // Redattore headline generation
-  async generateHeadlines(chapterId: string): Promise<{ headlines: Array<{ id: string; text: string; style: string }> }> {
-    return this.request<{ headlines: Array<{ id: string; text: string; style: string }> }>(`/chapters/${chapterId}/generate-headlines`, {
+  async generateHeadlines(chapterId: string): Promise<{
+    headlines: Array<{ id: string; text: string; style: string }>;
+    token_usage?: TokenUsage;
+  }> {
+    return this.request<{ headlines: Array<{ id: string; text: string; style: string }>; token_usage?: TokenUsage }>(`/chapters/${chapterId}/generate-headlines`, {
       method: 'POST',
     });
   }
@@ -612,6 +623,7 @@ class ApiService {
       facebook: Array<{ id: string; text: string; characterCount: number }>;
       instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
     };
+    token_usage?: TokenUsage;
   }> {
     return this.request<{
       snippets: {
@@ -620,6 +632,7 @@ class ApiService {
         facebook: Array<{ id: string; text: string; characterCount: number }>;
         instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
       };
+      token_usage?: TokenUsage;
     }>(`/chapters/${chapterId}/generate-social-snippets`, {
       method: 'POST',
     });

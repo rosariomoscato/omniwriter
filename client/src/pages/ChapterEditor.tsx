@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Spellcheck } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -8,6 +8,7 @@ import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
+import SpellCheckSuggestions, { Suggestion as SpellCheckSuggestion } from '../components/SpellCheckSuggestions';
 
 export default function ChapterEditor() {
   const toast = useToastNotification();
@@ -38,6 +39,7 @@ export default function ChapterEditor() {
     suggestions: string[];
   } | null>(null);
   const [showReadabilityPanel, setShowReadabilityPanel] = useState(false);
+  const [showSpellCheck, setShowSpellCheck] = useState(false);
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -619,6 +621,19 @@ export default function ChapterEditor() {
     }
   }, [content, isPreview]);
 
+  // Handle spell check suggestion apply
+  const handleApplySuggestion = (suggestion: SpellCheckSuggestion) => {
+    const newContent = content.substring(0, suggestion.position.start) +
+                     suggestion.suggestion +
+                     content.substring(suggestion.position.end);
+    setContent(newContent);
+    toast.success('Correzione applicata');
+  };
+
+  const handleDismissSuggestion = (id: string) => {
+    // Just track dismissal - the component handles hiding
+  };
+
   // Handle AI revision request
   const handleAIRevise = async () => {
     if (!selectedText || !selectionRange || !chapterId) return;
@@ -816,6 +831,18 @@ export default function ChapterEditor() {
                   <Sparkles className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                 </button>
               )}
+              <button
+                onClick={() => setShowSpellCheck(!showSpellCheck)}
+                className={`p-2 rounded-lg border transition-colors ${
+                  showSpellCheck
+                    ? 'bg-amber-50 border-amber-500'
+                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                aria-label="Spelling and Grammar Check"
+                title="Spelling and Grammar Check"
+              >
+                <Spellcheck className={`w-4 h-4 ${showSpellCheck ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} />
+              </button>
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -1187,6 +1214,15 @@ export default function ChapterEditor() {
           version1={comparisonVersions.v1}
           version2={comparisonVersions.v2}
           onClose={() => setComparisonVersions({ v1: null, v2: null })}
+        />
+      )}
+
+      {/* Spelling and Grammar Suggestions (Feature #160) */}
+      {showSpellCheck && !isPreview && (
+        <SpellCheckSuggestions
+          content={content}
+          onApplySuggestion={handleApplySuggestion}
+          onDismiss={handleDismissSuggestion}
         />
       )}
     </div>
