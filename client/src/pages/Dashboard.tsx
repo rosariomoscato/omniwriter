@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon, Settings } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon, Settings, Share2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -117,6 +117,7 @@ export default function Dashboard() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Calculate if filters are active
   const hasActiveFilters = useMemo(
@@ -240,6 +241,19 @@ export default function Dashboard() {
     };
     setFilters(defaultFilters);
     setSearchParams({});
+  };
+
+  // Copy URL to clipboard
+  const handleCopyUrl = async () => {
+    try {
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(true);
+      toast.success('URL copiato negli appunti!');
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } catch (err) {
+      toast.error('Impossibile copiare l\'URL');
+    }
   };
 
   // Import handlers
@@ -638,6 +652,20 @@ export default function Dashboard() {
             </button>
           )}
 
+          {/* Copy URL Button - always visible to share current view */}
+          <button
+            onClick={handleCopyUrl}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              copiedUrl
+                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+            title={copiedUrl ? 'Copiato!' : 'Copia URL con filtri'}
+          >
+            <Share2 size={18} />
+            {copiedUrl ? 'Copiato!' : 'Copia URL'}
+          </button>
+
           {/* Sort */}
           <select
             value={filters.sort}
@@ -851,11 +879,11 @@ export default function Dashboard() {
             >
               <div className="p-5">
                 {/* Area Badge */}
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-3 gap-2">
                   <span
                     className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getAreaColor(
                       project.area
-                    )}`}
+                    )} flex-shrink-0`}
                   >
                     {getAreaIcon(project.area)}
                     {getAreaLabel(project.area)}
@@ -863,7 +891,7 @@ export default function Dashboard() {
                   <span
                     className={`inline-flex px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                       project.status
-                    )}`}
+                    )} flex-shrink-0`}
                   >
                     {getStatusLabel(project.status)}
                   </span>
@@ -883,7 +911,7 @@ export default function Dashboard() {
 
                 {/* Genre */}
                 {project.genre && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-3 truncate" title={project.genre}>
                     <span className="font-medium">Genere:</span> {project.genre}
                   </p>
                 )}

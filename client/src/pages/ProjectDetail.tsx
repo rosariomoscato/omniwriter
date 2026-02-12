@@ -1108,10 +1108,10 @@ export default function ProjectDetail() {
 
       {project && (
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 break-words" title={project.title}>
             {project.title}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 break-words">
             {project.description || 'No description'}
           </p>
           <div className="mt-2 flex items-center gap-2">
