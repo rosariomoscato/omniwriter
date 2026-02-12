@@ -87,6 +87,7 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('dashboard.search')}
+            aria-label="Search projects"
             className="
               w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800
               border border-gray-200 dark:border-gray-700 rounded-lg

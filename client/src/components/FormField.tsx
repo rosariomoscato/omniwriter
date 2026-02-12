@@ -27,7 +27,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label htmlFor={props.id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
           </label>
         )}
         <input
@@ -64,7 +64,7 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>
         {label && (
           <label htmlFor={props.id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
           </label>
         )}
         <textarea
@@ -102,7 +102,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label htmlFor={props.id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-red-700 dark:text-red-400 ml-1">*</span>}
           </label>
         )}
         <select
