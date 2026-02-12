@@ -26,7 +26,7 @@ const locations_1 = __importDefault(require("./routes/locations"));
 const plot_events_1 = __importDefault(require("./routes/plot-events"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3002;
 // Middleware
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
@@ -85,9 +85,10 @@ app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
-app.listen(PORT, '127.0.0.1', () => {
-    console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
-    console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
+const HOST = process.env.HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
+    console.log(`[Server] OmniWriter API running on http://${HOST}:${PORT}`);
+    console.log(`[Server] Health check: http://${HOST}:${PORT}/api/health`);
 });
 exports.default = app;
 //# sourceMappingURL=index.js.map
