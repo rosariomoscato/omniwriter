@@ -194,6 +194,22 @@ class ApiService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
+
+      // Handle authentication errors
+      if (response.status === 401 || response.status === 403) {
+        // Clear auth state
+        ApiService.clearAuth();
+
+        // Store session expired flag for redirect
+        sessionStorage.setItem('sessionExpired', 'true');
+
+        // Throw a specific error that can be caught by components
+        const authError = new Error(error.message || 'Session expired');
+        (authError as any).isAuthError = true;
+        (authError as any).statusCode = response.status;
+        throw authError;
+      }
+
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 

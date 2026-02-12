@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, FileText, Restore, X, Check } from 'lucide-react';
+import { Clock, FileText, RotateCcw, X, Check } from 'lucide-react';
 import { apiService, ChapterVersion } from '../services/api';
 
 interface VersionHistoryProps {
@@ -193,7 +193,7 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
                   {restoring === version.id ? (
                     <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <Restore className="w-4 h-4" />
+                    <RotateCcw className="w-4 h-4" />
                   )}
                 </button>
               </div>

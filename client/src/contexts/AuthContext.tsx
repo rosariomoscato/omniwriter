@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiService, ApiService } from '../services/api';
 
 interface User {
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Check for existing auth on mount
@@ -47,15 +49,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     ApiService.clearAuth();
+    navigate('/login');
   };
 
   const refreshUser = async () => {
     try {
       const currentUser = await apiService.getCurrentUser();
       setUser(currentUser);
-    } catch (error) {
-      // Token might be expired, clear auth
-      await logout();
+    } catch (error: any) {
+      // Check if it's an auth error (session expired)
+      if (error.isAuthError || error.statusCode === 401 || error.statusCode === 403) {
+        // Clear auth and redirect to login
+        setUser(null);
+        setToken(null);
+        ApiService.clearAuth();
+        sessionStorage.setItem('sessionExpired', 'true');
+        navigate('/login');
+      } else {
+        // Other error, just clear auth
+        await logout();
+      }
     }
   };
 

@@ -48,6 +48,11 @@ function NewProject() {
     articleType: string;
     seoKeywords: string;
     redattoreWordCount: number;
+    // Saggista-specific fields
+    topic: string;
+    depth: 'deep_dive' | 'panoramic_overview';
+    targetAudience: string;
+    structure: string;
   }>({
     title: '',
     description: '',
@@ -56,6 +61,10 @@ function NewProject() {
     articleType: '',
     seoKeywords: '',
     redattoreWordCount: 500,
+    topic: '',
+    depth: 'deep_dive',
+    targetAudience: '',
+    structure: 'popular',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,6 +103,11 @@ function NewProject() {
           articleType: formData.articleType,
           seoKeywords: formData.seoKeywords,
           wordCountTarget: formData.redattoreWordCount,
+        }) : formData.area === 'saggista' ? JSON.stringify({
+          topic: formData.topic,
+          depth: formData.depth,
+          targetAudience: formData.targetAudience,
+          structure: formData.structure,
         }) : undefined,
         word_count_target: formData.area === 'redattore' ? formData.redattoreWordCount : undefined,
       };
@@ -109,6 +123,10 @@ function NewProject() {
         articleType: '',
         seoKeywords: '',
         redattoreWordCount: 500,
+        topic: '',
+        depth: 'deep_dive',
+        targetAudience: '',
+        structure: 'popular',
       });
 
       // Redirect to newly created project (replace history to prevent back navigation to form)
@@ -129,6 +147,10 @@ function NewProject() {
       articleType: '',
       seoKeywords: '',
       redattoreWordCount: 500,
+      topic: '',
+      depth: 'deep_dive',
+      targetAudience: '',
+      structure: 'popular',
     });
     setError('');
   };
@@ -242,6 +264,120 @@ function NewProject() {
               placeholder="Fantasy, Thriller, Romance, Sci-Fi..."
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white text-lg"
             />
+          </div>
+        )}
+
+        {/* Saggista-specific configuration */}
+        {formData.area === 'saggista' && (
+          <div className="space-y-6 p-6 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Configurazione Saggista
+            </h3>
+
+            {/* Topic */}
+            <div>
+              <label htmlFor="topic" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                4. Argomento del saggio
+              </label>
+              <input
+                id="topic"
+                name="topic"
+                type="text"
+                value={formData.topic}
+                onChange={handleChange}
+                placeholder="es: Il cambiamento climatico, La storia di Roma..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Descrivi l'argomento principale del saggio
+              </p>
+            </div>
+
+            {/* Depth */}
+            <div>
+              <label className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                5. Tipo di approfondimento
+              </label>
+              <div className="space-y-3">
+                <label className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.depth === 'deep_dive'
+                    ? 'border-teal-500 bg-teal-100 dark:bg-teal-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="depth"
+                    value="deep_dive"
+                    checked={formData.depth === 'deep_dive'}
+                    onChange={handleChange}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Approfondimento (Deep Dive)</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Analisi dettagliata e approfondita di un argomento specifico</div>
+                  </div>
+                </label>
+                <label className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.depth === 'panoramic_overview'
+                    ? 'border-teal-500 bg-teal-100 dark:bg-teal-900/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}>
+                  <input
+                    type="radio"
+                    name="depth"
+                    value="panoramic_overview"
+                    checked={formData.depth === 'panoramic_overview'}
+                    onChange={handleChange}
+                    className="mt-1 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Panoramica (Overview)</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Visione d'insieme ampia con più temi correlati</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Target Audience */}
+            <div>
+              <label htmlFor="targetAudience" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                6. Pubblico target
+              </label>
+              <input
+                id="targetAudience"
+                name="targetAudience"
+                type="text"
+                value={formData.targetAudience}
+                onChange={handleChange}
+                placeholder="es: Studenti universitari, Generale, Esperti del settore..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Chi è il pubblico previsto per questo saggio?
+              </p>
+            </div>
+
+            {/* Structure */}
+            <div>
+              <label htmlFor="structure" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                7. Struttura del saggio
+              </label>
+              <select
+                id="structure"
+                name="structure"
+                value={formData.structure}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-800 dark:text-white text-lg"
+              >
+                <option value="popular">Divulgativo</option>
+                <option value="academic">Accademico</option>
+                <option value="journalistic">Giornalistico</option>
+                <option value="technical">Tecnico</option>
+              </select>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Scegli lo stile e la struttura del saggio
+              </p>
+            </div>
           </div>
         )}
 

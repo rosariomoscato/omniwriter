@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 function LoginPage() {
@@ -14,6 +15,16 @@ function LoginPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Check for session expired flag on mount
+  useEffect(() => {
+    const expiredFlag = sessionStorage.getItem('sessionExpired');
+    if (expiredFlag === 'true') {
+      setSessionExpired(true);
+      sessionStorage.removeItem('sessionExpired');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +71,19 @@ function LoginPage() {
         </div>
 
         <form className="mt-8 space-y-6 bg-white dark:bg-dark-surface p-8 rounded-lg shadow" onSubmit={handleSubmit}>
-          {error && (
+          {/* Session Expired Message */}
+          {sessionExpired && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 px-4 py-3 rounded flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Sessione scaduta</p>
+                <p className="text-sm mt-1">La tua sessione è scaduta per inattività. Accedi di nuovo per continuare.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && !sessionExpired && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
               {error}
             </div>

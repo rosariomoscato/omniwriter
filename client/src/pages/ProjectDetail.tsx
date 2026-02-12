@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
+import SaggistaConfig from '../components/SaggistaConfig';
 import { apiService, Chapter, Project, Source, Character } from '../services/api';
 
 export default function ProjectDetail() {
@@ -663,6 +664,13 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
+
+      {/* Saggista Configuration - Only for Saggista projects */}
+      {project?.area === 'saggista' && (
+        <div className="mt-6">
+          <SaggistaConfig project={project} onUpdate={loadProject} />
+        </div>
+      )}
 
       {/* Redattore Configuration - Only for Redattore projects */}
       {project?.area === 'redattore' && (

@@ -287,13 +287,140 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Create Button */}
-      <Link
-        to="/projects/new"
-        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium mb-6 w-fit"
-      >
-        <Plus size={20} />
-        {t('dashboard.createProject')}
-      </Link>
+      <div className="flex gap-3 mb-6">
+        <Link
+          to="/projects/new"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+        >
+          <Plus size={20} />
+          {t('dashboard.createProject')}
+        </Link>
+        <button
+          onClick={openImportModal}
+          className="flex items-center gap-2 px-4 py-2 bg-secondary-600 text-white rounded-lg hover:bg-secondary-700 transition-colors font-medium"
+        >
+          <Upload size={20} />
+          Importa progetto
+        </button>
+      </div>
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <FileUp className="w-5 h-5" />
+                Importa progetto
+              </h2>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* File input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Seleziona file *
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.docx,.doc"
+                  onChange={handleFileSelect}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Formati supportati: TXT, DOCX, DOC (max 10MB)
+                </p>
+              </div>
+
+              {/* Area selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Area *
+                </label>
+                <select
+                  value={importArea}
+                  onChange={(e) => setImportArea(e.target.value as 'romanziere' | 'saggista' | 'redattore')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="romanziere">Romanziere</option>
+                  <option value="saggista">Saggista</option>
+                  <option value="redattore">Redattore</option>
+                </select>
+              </div>
+
+              {/* Genre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Genere (opzionale)
+                </label>
+                <input
+                  type="text"
+                  value={importGenre}
+                  onChange={(e) => setImportGenre(e.target.value)}
+                  placeholder="es. Fantasy, Thriller, Saggio storico"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Descrizione (opzionale)
+                </label>
+                <textarea
+                  value={importDescription}
+                  onChange={(e) => setImportDescription(e.target.value)}
+                  placeholder="Breve descrizione del progetto..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              {/* Error message */}
+              {importError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+                  <p className="text-sm text-red-800 dark:text-red-200">{importError}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  disabled={importLoading}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={importLoading || !importFile}
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {importLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Importazione...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} />
+                      Importa
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="mb-6 space-y-4">
