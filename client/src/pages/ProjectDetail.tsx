@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3 } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -28,7 +28,18 @@ export default function ProjectDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'txt' | 'docx'>('txt');
+  const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
+  const [showEpubMetadata, setShowEpubMetadata] = useState(false);
+  const [epubMetadata, setEpubMetadata] = useState({
+    author: '',
+    publisher: '',
+    isbn: '',
+    language: 'en'
+  });
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImageId, setCoverImageId] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [userRole, setUserRole] = useState<string>('free');
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -186,6 +197,71 @@ export default function ProjectDetail() {
     setShowAddLocation(true);
   };
 
+  const handleCreatePlotEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!plotEventForm.title.trim()) {
+      setError('Plot event title is required');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setError('');
+
+      const data = {
+        title: plotEventForm.title.trim(),
+        description: plotEventForm.description || undefined,
+        event_type: plotEventForm.event_type || undefined
+      };
+
+      // Only include chapter_id if it's not empty
+      if (plotEventForm.chapter_id) {
+        (data as any).chapter_id = plotEventForm.chapter_id;
+      }
+
+      if (editingPlotEvent) {
+        const response = await apiService.updatePlotEvent(editingPlotEvent.id, data);
+        setPlotEvents(plotEvents.map(pe => pe.id === editingPlotEvent.id ? response.plotEvent : pe));
+      } else {
+        const response = await apiService.createPlotEvent(id!, data);
+        setPlotEvents([...plotEvents, response.plotEvent]);
+      }
+
+      setPlotEventForm({ title: '', description: '', chapter_id: '', event_type: '' });
+      setEditingPlotEvent(null);
+      setShowAddPlotEvent(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save plot event');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeletePlotEvent = async (plotEventId: string) => {
+    if (!confirm('Are you sure you want to delete this plot event?')) {
+      return;
+    }
+
+    try {
+      await apiService.deletePlotEvent(plotEventId);
+      setPlotEvents(plotEvents.filter(pe => pe.id !== plotEventId));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete plot event');
+    }
+  };
+
+  const startEditPlotEvent = (plotEvent: PlotEvent) => {
+    setEditingPlotEvent(plotEvent);
+    setPlotEventForm({
+      title: plotEvent.title,
+      description: plotEvent.description,
+      chapter_id: plotEvent.chapter_id || '',
+      event_type: plotEvent.event_type || ''
+    });
+    setShowAddPlotEvent(true);
+  };
+
   const handleCreateChapter = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -303,12 +379,28 @@ export default function ProjectDetail() {
     navigate(`/projects/${id}/chapters/${chapterId}`);
   };
 
-  const handleExport = async (format: 'txt' | 'docx') => {
+  const handleExport = async (format: 'txt' | 'docx' | 'epub') => {
     try {
       setExporting(true);
       setError('');
 
-      const blob = await apiService.exportProject(id!, format);
+      // If EPUB format and no metadata entered yet, show metadata form
+      if (format === 'epub' && !showEpubMetadata) {
+        setShowEpubMetadata(true);
+        setExporting(false);
+        return;
+      }
+
+      // Prepare export options
+      const exportOptions: any = { format };
+
+      // Add metadata for EPUB exports
+      if (format === 'epub') {
+        exportOptions.metadata = epubMetadata;
+        exportOptions.coverImageId = coverImageId;
+      }
+
+      const blob = await apiService.exportProject(id!, exportOptions);
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -321,10 +413,65 @@ export default function ProjectDetail() {
       document.body.removeChild(a);
 
       setShowExportDialog(false);
+      setShowEpubMetadata(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to export project');
+      if (err.code === 'PREMIUM_REQUIRED') {
+        setError('EPUB export requires a Premium subscription. Upgrade to access this feature.');
+      } else {
+        setError(err.message || 'Failed to export project');
+      }
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a JPEG, PNG, or WebP image');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Cover image must be smaller than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingCover(true);
+      setError('');
+
+      const formData = new FormData();
+      formData.append('cover', file);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/projects/${id}/export/cover`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.code === 'PREMIUM_REQUIRED') {
+          throw new Error('EPUB export features require a Premium subscription');
+        }
+        throw new Error(error.message || 'Failed to upload cover');
+      }
+
+      const data = await response.json();
+      setCoverImageId(data.id);
+      setCoverImageFile(file);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload cover image');
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -392,7 +539,7 @@ export default function ProjectDetail() {
       )}
 
       {/* Export Dialog */}
-      {showExportDialog && (
+      {showExportDialog && !showEpubMetadata && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
@@ -413,7 +560,7 @@ export default function ProjectDetail() {
                     name="exportFormat"
                     value="txt"
                     checked={exportFormat === 'txt'}
-                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx')}
+                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
                     className="sr-only"
                   />
                   <div className="ml-3">
@@ -431,12 +578,33 @@ export default function ProjectDetail() {
                     name="exportFormat"
                     value="docx"
                     checked={exportFormat === 'docx'}
-                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx')}
+                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
                     className="sr-only"
                   />
                   <div className="ml-3">
                     <div className="font-medium text-gray-900 dark:text-gray-100">Word Document (.docx)</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Formatted document for Microsoft Word</div>
+                  </div>
+                </label>
+                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                  exportFormat === 'epub'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                }`}>
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value="epub"
+                    checked={exportFormat === 'epub'}
+                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
+                    className="sr-only"
+                  />
+                  <div className="ml-3">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">eBook (.epub)</div>
+                      <Crown className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">ePub format for e-readers with cover & metadata (Premium)</div>
                   </div>
                 </label>
               </div>
@@ -1051,6 +1219,157 @@ export default function ProjectDetail() {
                         onClick={() => handleDeleteLocation(location.id)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Delete location"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Plot Events Section - Only for Romanziere projects */}
+      {project?.area === 'romanziere' && (
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-gray-700 mt-6">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Plot Events
+              </h2>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                ({plotEvents.length})
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setShowAddPlotEvent(!showAddPlotEvent);
+                setEditingPlotEvent(null);
+                setPlotEventForm({ title: '', description: '', chapter_id: '', event_type: '' });
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Plot Event
+            </button>
+          </div>
+
+          {/* Add/Edit Plot Event Form */}
+          {showAddPlotEvent && (
+            <form onSubmit={handleCreatePlotEvent} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={plotEventForm.title}
+                  onChange={(e) => setPlotEventForm({ ...plotEventForm, title: e.target.value })}
+                  placeholder="Plot event title..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={creating}
+                />
+                <textarea
+                  value={plotEventForm.description}
+                  onChange={(e) => setPlotEventForm({ ...plotEventForm, description: e.target.value })}
+                  placeholder="What happens in this plot event..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  disabled={creating}
+                />
+                <select
+                  value={plotEventForm.chapter_id}
+                  onChange={(e) => setPlotEventForm({ ...plotEventForm, chapter_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={creating}
+                >
+                  <option value="">Link to chapter (optional)</option>
+                  {chapters.map(chapter => (
+                    <option key={chapter.id} value={chapter.id}>{chapter.title}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={plotEventForm.event_type}
+                  onChange={(e) => setPlotEventForm({ ...plotEventForm, event_type: e.target.value })}
+                  placeholder="Event type (e.g., climax, twist, introduction)..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={creating}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={creating || !plotEventForm.title.trim()}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {creating ? (editingPlotEvent ? 'Updating...' : 'Creating...') : (editingPlotEvent ? 'Update' : 'Create')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddPlotEvent(false);
+                      setEditingPlotEvent(null);
+                      setPlotEventForm({ title: '', description: '', chapter_id: '', event_type: '' });
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Plot Events List */}
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {plotEvents.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
+                <p className="text-lg font-medium mb-1">No plot events yet</p>
+                <p className="text-sm">Create plot events to track your story timeline</p>
+              </div>
+            ) : (
+              plotEvents.map((plotEvent) => (
+                <div
+                  key={plotEvent.id}
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                          {plotEvent.title}
+                        </h3>
+                        {plotEvent.event_type && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                            {plotEvent.event_type}
+                          </span>
+                        )}
+                        {plotEvent.chapter_id && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {chapters.find(ch => ch.id === plotEvent.chapter_id)?.title || 'Linked Chapter'}
+                          </span>
+                        )}
+                      </div>
+                      {plotEvent.description && (
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                          {plotEvent.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="ml-4 flex items-center gap-2">
+                      <button
+                        onClick={() => startEditPlotEvent(plotEvent)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Edit plot event"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlotEvent(plotEvent.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete plot event"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

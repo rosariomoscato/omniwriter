@@ -268,7 +268,7 @@ router.get('/projects/:projectId/bibliography', authenticateToken, (req, res) =>
           return `${authorsList} (${year}). ${title}. ${citation.publisher || ''}.`;
 
         case 'website':
-          return `${authorsList || 'Unknown Author'} (${year || 'n.d.'). ${title}. Retrieved from ${citation.url || 'Unknown URL'}`;
+          return `${authorsList || 'Unknown Author'} (${year || 'n.d.'}). ${title}. Retrieved from ${citation.url || 'Unknown URL'}`;
 
         case 'report':
           return `${authorsList} (${year}). ${title}. ${citation.publisher || ''}`;

@@ -19,6 +19,8 @@ const export_1 = __importDefault(require("./routes/export"));
 const sagas_1 = __importDefault(require("./routes/sagas"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const users_1 = __importDefault(require("./routes/users"));
+const citations_1 = __importDefault(require("./routes/citations"));
+const locations_1 = __importDefault(require("./routes/locations"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT) || 3001;
@@ -53,6 +55,8 @@ app.use('/api/sagas', sagas_1.default);
 app.use('/api', chapters_1.default);
 app.use('/api', sources_1.default);
 app.use('/api', characters_1.default);
+app.use('/api', locations_1.default);
+app.use('/api', citations_1.default);
 app.use('/api', export_1.default);
 app.use('/api/admin', admin_1.default);
 // 404 handler
@@ -64,7 +68,7 @@ app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
     console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
     console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
 });
