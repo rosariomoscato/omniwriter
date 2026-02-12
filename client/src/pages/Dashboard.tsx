@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag, Tag as TagIcon } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
+import OnboardingGuide from '../components/OnboardingGuide';
+import { ProjectCardSkeleton } from '../components/Skeleton';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
 type FilterStatus = 'all' | 'draft' | 'in_progress' | 'completed' | 'archived';
@@ -42,6 +44,16 @@ export default function Dashboard() {
   const [newTagInput, setNewTagInput] = useState('');
   const [tagInputProjectId, setTagInputProjectId] = useState<string | null>(null);
 
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+
+  // Check if user has seen onboarding
+  useEffect(() => {
+    const seen = localStorage.getItem('hasSeenOnboarding');
+    setHasSeenOnboarding(!!seen);
+  }, []);
+
   // Filter state - sync with URL params
   const [filters, setFilters] = useState<FilterState>(() => {
     // Try to restore from sessionStorage first (for navigation back)
@@ -68,6 +80,33 @@ export default function Dashboard() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  // Calculate if filters are active
+  const hasActiveFilters = useMemo(
+    () => filters.area !== 'all' || filters.status !== 'all' || filters.search || filters.tag,
+    [filters]
+  );
+
+  // Show onboarding for new users (no projects and hasn't seen guide)
+  useEffect(() => {
+    if (!loading && projects.length === 0 && !hasSeenOnboarding && !hasActiveFilters) {
+      setShowOnboarding(true);
+    } else {
+      setShowOnboarding(false);
+    }
+  }, [loading, projects.length, hasSeenOnboarding, hasActiveFilters]);
+
+  // Listen for import modal open event
+  useEffect(() => {
+    const handleOpenImportModal = () => {
+      openImportModal();
+    };
+
+    window.addEventListener('open-import-modal', handleOpenImportModal);
+    return () => {
+      window.removeEventListener('open-import-modal', handleOpenImportModal);
+    };
+  }, []);
 
   // Load projects with filters
   useEffect(() => {
@@ -152,8 +191,6 @@ export default function Dashboard() {
     setFilters(defaultFilters);
     setSearchParams({});
   };
-
-  const hasActiveFilters = filters.area !== 'all' || filters.status !== 'all' || filters.search || filters.tag;
 
   // Import handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -663,13 +700,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-16">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Caricamento progetti...</p>
-        </div>
-      )}
+      {/* Loading State - Skeleton Screens */}
+      {loading && <ProjectCardSkeleton count={6} />}
 
       {/* Error State */}
       {error && (
@@ -680,33 +712,57 @@ export default function Dashboard() {
 
       {/* Empty State */}
       {!loading && projects.length === 0 && (
-        <div className="text-center py-16">
-          <div className="inline-block p-6 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-            <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-            {hasActiveFilters
-              ? (filters.search ? 'Nessun risultato di ricerca' : 'Nessun progetto trovato')
-              : 'Nessun progetto'}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {hasActiveFilters
-              ? (filters.search
-                  ? `Nessun progetto corrisponde a "${filters.search.slice(0, 50)}${filters.search.length > 50 ? '...' : ''}". Prova con termini diversi o controlla l'ortografia.`
-                  : 'Prova a cambiare i filtri di ricerca')
-              : 'Crea il tuo primo progetto per iniziare'}
-          </p>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              Cancella filtri
-            </button>
+        <>
+          {/* Onboarding Guide for new users */}
+          {showOnboarding && !hasActiveFilters && (
+            <OnboardingGuide
+              onClose={() => {
+                setShowOnboarding(false);
+                localStorage.setItem('hasSeenOnboarding', 'true');
+                setHasSeenOnboarding(true);
+              }}
+            />
           )}
-        </div>
+
+          {/* Empty state message */}
+          <div className="text-center py-16">
+            <div className="inline-block p-6 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+              {hasActiveFilters
+                ? (filters.search ? 'Nessun risultato di ricerca' : 'Nessun progetto trovato')
+                : 'Nessun progetto'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {hasActiveFilters
+                ? (filters.search
+                    ? `Nessun progetto corrisponde a "${filters.search.slice(0, 50)}${filters.search.length > 50 ? '...' : ''}". Prova con termini diversi o controlla l'ortografia.`
+                    : 'Prova a cambiare i filtri di ricerca')
+                : !showOnboarding
+                  ? 'Crea il tuo primo progetto per iniziare'
+                  : ''}
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Cancella filtri
+              </button>
+            )}
+            {!hasActiveFilters && !showOnboarding && hasSeenOnboarding && (
+              <button
+                onClick={() => setShowOnboarding(true)}
+                className="mx-2 px-6 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900 rounded-lg transition-colors"
+              >
+                Mostra guida inizi
+              </button>
+            )}
+          </div>
+        </>
       )}
 
       {/* Projects Grid */}
