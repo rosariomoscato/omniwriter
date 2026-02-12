@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { apiService, ApiService } from '../services/api';
+import { useFormValidation, ValidationRules } from '../hooks/useFormValidation';
+import { FormInput } from '../components/FormField';
 
 function RegisterPage() {
   const { t } = useTranslation();
@@ -12,31 +14,66 @@ function RegisterPage() {
     password: '',
     confirmPassword: '',
   });
-  const [error, setError] = useState('');
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const validatePassword = (password: string): boolean => {
-    // Password requirements: min 8 chars, 1 uppercase, 1 lowercase, 1 number
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    return regex.test(password);
+  const validationRules: ValidationRules = {
+    name: { required: true, minLength: 2 },
+    email: { required: true, email: true },
+    password: {
+      required: true,
+      minLength: 8,
+      custom: (value: string) => {
+        const hasUpperCase = /[A-Z]/.test(value);
+        const hasLowerCase = /[a-z]/.test(value);
+        const hasNumber = /\d/.test(value);
+        if (!hasUpperCase) return 'Deve contenere almeno una lettera maiuscola';
+        if (!hasLowerCase) return 'Deve contenere almeno una lettera minuscola';
+        if (!hasNumber) return 'Deve contenere almeno un numero';
+        return undefined;
+      },
+    },
+    confirmPassword: {
+      required: true,
+      custom: (value: string) => {
+        if (value !== formData.password) return 'Le password non coincidono';
+        return undefined;
+      },
+    },
+  };
+
+  const { errors, touched, validateField, validateAll, clearAllErrors, setFieldTouched } =
+    useFormValidation(validationRules);
+
+  // Validate confirmPassword when password changes
+  useEffect(() => {
+    if (touched.confirmPassword) {
+      validateField('confirmPassword', formData.confirmPassword);
+    }
+  }, [formData.password, touched.confirmPassword, validateField]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Validate field on change if already touched
+    if (touched[name as keyof typeof touched]) {
+      validateField(name, value);
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name } = e.target;
+    setFieldTouched(name);
+    validateField(name, formData[name as keyof typeof formData]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
 
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError(t('auth.passwordMismatch') || 'Le password non coincidono');
-      return;
-    }
-
-    // Validate password requirements
-    if (!validatePassword(formData.password)) {
-      setError(
-        t('auth.passwordRequirements') ||
-          'La password deve contenere almeno 8 caratteri, una maiuscola, una minuscola e un numero'
-      );
+    // Validate all fields
+    if (!validateAll(formData)) {
       return;
     }
 
@@ -52,37 +89,31 @@ function RegisterPage() {
       // Store auth data
       ApiService.setAuth(response.user, response.token);
 
-      // Clear form data to prevent resubmission on back navigation
+      // Clear form data and errors to prevent resubmission on back navigation
       setFormData({
         name: '',
         email: '',
         password: '',
         confirmPassword: '',
       });
+      clearAllErrors();
 
       // Check if there's a stored redirect location (from protected route redirect)
       const redirectPath = sessionStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
-        // Clear the stored redirect
+        // Clear stored redirect
         sessionStorage.removeItem('redirectAfterLogin');
-        // Redirect to the originally requested page
+        // Redirect to originally requested page
         navigate(redirectPath, { replace: true });
       } else {
         // Default to dashboard if no stored redirect
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.registerError') || 'Errore durante la registrazione');
+      setServerError(err instanceof Error ? err.message : t('auth.registerError') || 'Errore durante la registrazione');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
   };
 
   return (
@@ -98,80 +129,66 @@ function RegisterPage() {
         </div>
 
         <form className="mt-8 space-y-6 bg-white dark:bg-dark-surface p-8 rounded-lg shadow" onSubmit={handleSubmit}>
-          {error && (
+          {serverError && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
-              {error}
+              {serverError}
             </div>
           )}
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.name') || 'Nome'}
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
-                placeholder={t('auth.namePlaceholder') || 'Il tuo nome'}
-              />
-            </div>
+            <FormInput
+              id="name"
+              name="name"
+              type="text"
+              label={t('auth.name') || 'Nome'}
+              placeholder={t('auth.namePlaceholder') || 'Il tuo nome'}
+              value={formData.name}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.name ? errors.name : undefined}
+              required
+            />
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.email') || 'Email'}
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
-                placeholder={t('auth.emailPlaceholder') || 'nome@esempio.com'}
-              />
-            </div>
+            <FormInput
+              id="email"
+              name="email"
+              type="email"
+              label={t('auth.email') || 'Email'}
+              placeholder={t('auth.emailPlaceholder') || 'nome@esempio.com'}
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.email ? errors.email : undefined}
+              required
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.password') || 'Password'}
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
-                placeholder="••••••••"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {t('auth.passwordHint') ||
-                  'Minimo 8 caratteri, una maiuscola, una minuscola e un numero'}
-              </p>
-            </div>
+            <FormInput
+              id="password"
+              name="password"
+              type="password"
+              label={t('auth.password') || 'Password'}
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.password ? errors.password : undefined}
+              helperText={t('auth.passwordHint') ||
+                'Minimo 8 caratteri, una maiuscola, una minuscola e un numero'}
+              required
+            />
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.confirmPassword') || 'Conferma password'}
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
-                placeholder="••••••••"
-              />
-            </div>
+            <FormInput
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              label={t('auth.confirmPassword') || 'Conferma password'}
+              placeholder="••••••••"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.confirmPassword ? errors.confirmPassword : undefined}
+              required
+            />
           </div>
 
           <div>

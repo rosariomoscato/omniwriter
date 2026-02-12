@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, FileText, Zap } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Zap, AlertCircle } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -75,27 +75,62 @@ function NewProject() {
     depth: 'deep_dive',
     structure: 'popular',
   });
-  const [error, setError] = useState('');
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+
+  // Basic validation for title (always required)
+  const validateField = (name: string, value: string) => {
+    let error = '';
+
+    if (name === 'title' && !value.trim()) {
+      error = 'Il titolo è obbligatorio';
+    }
+
+    setFieldErrors(prev => ({ ...prev, [name]: error }));
+    return !error;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const value = e.target.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value;
+    const name = e.target.name;
     setFormData({
       ...formData,
-      [e.target.name]: value,
+      [name]: value,
     });
+
+    // Validate on change if already touched
+    if (touchedFields[name]) {
+      validateField(name, String(value));
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const name = e.target.name;
+    setTouchedFields(prev => ({ ...prev, [name]: true }));
+    validateField(name, String(e.target.value));
   };
 
   const handleAreaSelect = (area: AreaType) => {
     setFormData({ ...formData, area });
+    setFieldErrors(prev => ({ ...prev, area: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
 
+    // Validate title (always required)
+    if (!formData.title.trim()) {
+      setFieldErrors(prev => ({ ...prev, title: 'Il titolo è obbligatorio' }));
+      setTouchedFields(prev => ({ ...prev, title: true }));
+      return;
+    }
+
+    // Validate area selection
     if (!formData.area) {
-      setError('Seleziona un\'area per il progetto');
+      setFieldErrors(prev => ({ ...prev, area: 'Seleziona un\'area per il progetto' }));
       return;
     }
 
@@ -149,7 +184,7 @@ function NewProject() {
       navigate(`/projects/${response.project.id}`, { replace: true });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Errore durante la creazione del progetto';
-      setError(errorMsg);
+      setServerError(errorMsg);
       toast.error(errorMsg);
     } finally {
       setLoading(false);
@@ -162,15 +197,20 @@ function NewProject() {
       description: '',
       area: null,
       genre: '',
+      tone: '',
+      pov: '',
+      targetAudience: '',
+      wordCountTarget: 50000,
       articleType: '',
       seoKeywords: '',
       redattoreWordCount: 500,
       topic: '',
       depth: 'deep_dive',
-      targetAudience: '',
       structure: 'popular',
     });
-    setError('');
+    setServerError('');
+    setFieldErrors({});
+    setTouchedFields({});
   };
 
   return (
@@ -193,9 +233,9 @@ function NewProject() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {error && (
+        {serverError && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
-            {error}
+            {serverError}
           </div>
         )}
 
@@ -204,6 +244,12 @@ function NewProject() {
           <label className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
             1. Seleziona l'area del progetto *
           </label>
+          {fieldErrors.area && (
+            <p className="text-red-600 dark:text-red-400 text-sm mb-2 flex items-center gap-1">
+              <AlertCircle className="w-4 h-4" />
+              {fieldErrors.area}
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {AREAS.map((areaOption) => {
               const Icon = areaOption.icon;
@@ -246,9 +292,21 @@ function NewProject() {
             required
             value={formData.title}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="Il mio romanzo, Il mio saggio, Il mio articolo..."
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white text-lg"
+            className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 dark:text-white text-lg ${
+              touchedFields.title && fieldErrors.title
+                ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500 dark:bg-red-900/10'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800'
+            }`}
+            aria-invalid={!!(touchedFields.title && fieldErrors.title)}
           />
+          {touchedFields.title && fieldErrors.title && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+              <AlertCircle className="w-4 h-4" />
+              {fieldErrors.title}
+            </p>
+          )}
         </div>
 
         {/* Description */}

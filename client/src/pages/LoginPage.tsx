@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useFormValidation, ValidationRules } from '../hooks/useFormValidation';
+import { FormInput } from '../components/FormField';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id';
 
@@ -15,9 +17,17 @@ function LoginPage() {
     password: '',
     rememberMe: false,
   });
-  const [error, setError] = useState('');
+  const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+
+  const validationRules: ValidationRules = {
+    email: { required: true, email: true },
+    password: { required: true },
+  };
+
+  const { errors, touched, validateField, validateAll, clearAllErrors, setFieldTouched } =
+    useFormValidation(validationRules);
 
   // Check for session expired flag on mount
   useEffect(() => {
@@ -28,9 +38,37 @@ function LoginPage() {
     }
   }, []);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+
+    // Validate field on change if already touched (not for checkbox)
+    if (type !== 'checkbox' && touched[name as keyof typeof touched]) {
+      validateField(name, String(value));
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name } = e.target;
+    if (name !== 'rememberMe') {
+      setFieldTouched(name);
+      const fieldValue = formData[name as keyof typeof formData];
+      validateField(name, typeof fieldValue === 'boolean' ? '' : String(fieldValue));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setServerError('');
+
+    // Validate all fields
+    if (!validateAll({ email: formData.email, password: formData.password })) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -43,30 +81,24 @@ function LoginPage() {
         password: '',
         rememberMe: false,
       });
+      clearAllErrors();
 
       // Check if there's a stored redirect location (from protected route redirect)
       const redirectPath = sessionStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
-        // Clear the stored redirect
+        // Clear stored redirect
         sessionStorage.removeItem('redirectAfterLogin');
-        // Redirect to the originally requested page
+        // Redirect to originally requested page
         navigate(redirectPath, { replace: true });
       } else {
         // Default to dashboard if no stored redirect
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));
+      setServerError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.type === 'checkbox' ? e.target.checked : e.target.value,
-    });
   };
 
   return (
@@ -93,29 +125,26 @@ function LoginPage() {
             </div>
           )}
 
-          {/* Error Message */}
-          {error && !sessionExpired && (
+          {/* Server Error Message */}
+          {serverError && !sessionExpired && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
-              {error}
+              {serverError}
             </div>
           )}
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.email') || 'Email'}
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
-                placeholder={t('auth.emailPlaceholder') || 'nome@esempio.com'}
-              />
-            </div>
+            <FormInput
+              id="email"
+              name="email"
+              type="email"
+              label={t('auth.email') || 'Email'}
+              placeholder={t('auth.emailPlaceholder') || 'nome@esempio.com'}
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.email ? errors.email : undefined}
+              required
+            />
 
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -133,12 +162,25 @@ function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
-                required
                 value={formData.password}
                 onChange={handleChange}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg dark:text-white sm:text-sm"
+                onBlur={handleBlur}
+                className={`appearance-none relative block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 dark:text-white sm:text-sm ${
+                  touched.password && errors.password
+                    ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500 dark:bg-red-900/10'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-bg'
+                }`}
                 placeholder="••••••••"
+                aria-invalid={!!(touched.password && errors.password)}
+                aria-describedby={touched.password && errors.password ? 'password-error' : undefined}
+                required
               />
+              {touched.password && errors.password && (
+                <p id="password-error" className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center">
