@@ -1,0 +1,13 @@
+const Database = require('./server/node_modules/better-sqlite3');
+const db = new Database('./server/data/omniwriter.db', { readonly: true });
+const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
+const sessionCount = db.prepare('SELECT COUNT(*) as count FROM sessions').get();
+const projectCount = db.prepare('SELECT COUNT(*) as count FROM projects').get();
+console.log('Database Statistics:');
+console.log('  Users:', userCount.count);
+console.log('  Sessions:', sessionCount.count);
+console.log('  Projects:', projectCount.count);
+console.log('  Database file: server/data/omniwriter.db');
+console.log('  WAL mode:', db.pragma('journal_mode', { simple: true }));
+console.log('  Foreign keys:', db.pragma('foreign_keys', { simple: true }));
+db.close();
