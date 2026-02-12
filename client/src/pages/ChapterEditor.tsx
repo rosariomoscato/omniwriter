@@ -829,7 +829,8 @@ export default function ChapterEditor() {
       )}
 
       {/* Editor / Preview */}
-      <div className="flex-1 overflow-y-auto relative">
+      <div className="flex-1 overflow-y-auto relative flex">
+        <div className="flex-1">
         {isPreview ? (
           <div className="p-6">
             <div
@@ -847,8 +848,17 @@ export default function ChapterEditor() {
             spellCheck
           />
         )}
+        </div>
 
-        {/* AI Revision Floating Menu (Feature #96) */}
+        {/* Redattore Tools Sidebar - Only for Redattore projects */}
+        {project?.area === 'redattore' && !isFullScreen && (
+          <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-y-auto">
+            <RedattoreTools chapter={chapter} projectArea={project.area} />
+          </div>
+        )}
+      </div>
+
+      {/* AI Revision Floating Menu (Feature #96) */}
         {showReviseMenu && !isPreview && menuPosition && (
           <div
             className="absolute z-50 bg-white dark:bg-dark-surface rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 animate-in fade-in zoom-in duration-200"
@@ -890,7 +900,6 @@ export default function ChapterEditor() {
             </div>
           </div>
         )}
-      </div>
 
       {/* Footer - hidden in full-screen mode */}
       {!isFullScreen && (

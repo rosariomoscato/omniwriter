@@ -595,13 +595,22 @@ class ApiService {
   }
 
   // Redattore social media snippet generation
-  async generateSocialSnippets(chapterId: string): Promise<{ snippets: {
-    twitter: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
-    linkedin: Array<{ id: string; text: string; characterCount: number }>;
-    facebook: Array<{ id: string; text: string; characterCount: number }>;
-    instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+  async generateSocialSnippets(chapterId: string): Promise<{
+    snippets: {
+      twitter: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+      linkedin: Array<{ id: string; text: string; characterCount: number }>;
+      facebook: Array<{ id: string; text: string; characterCount: number }>;
+      instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+    };
   }> {
-    return this.request<{ snippets: any }>(`/chapters/${chapterId}/generate-social-snippets`, {
+    return this.request<{
+      snippets: {
+        twitter: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+        linkedin: Array<{ id: string; text: string; characterCount: number }>;
+        facebook: Array<{ id: string; text: string; characterCount: number }>;
+        instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+      };
+    }>(`/chapters/${chapterId}/generate-social-snippets`, {
       method: 'POST',
     });
   }

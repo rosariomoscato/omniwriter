@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Type, Hash, Share2, MessageCircle, Linkedin, Facebook, Instagram, Twitter, Loader2, Check, X } from 'lucide-react';
+import { Type, Hash, Share2, MessageCircle, Linkedin, Facebook, Instagram, Twitter, Loader2, Check } from 'lucide-react';
 import { apiService, Chapter } from '../services/api';
 import { useToastNotification } from './Toast';
 
