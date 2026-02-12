@@ -31,6 +31,13 @@ export default function ChapterEditor() {
   const [canRedo, setCanRedo] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [readingTime, setReadingTime] = useState(0); // in minutes
+  const [readabilityScore, setReadabilityScore] = useState<{
+    score: number;
+    grade: string;
+    notes: string[];
+    suggestions: string[];
+  } | null>(null);
+  const [showReadabilityPanel, setShowReadabilityPanel] = useState(false);
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -134,7 +141,98 @@ export default function ChapterEditor() {
     // Calculate reading time (average reading speed: 200 words per minute)
     const readingMinutes = Math.ceil(words.length / 200);
     setReadingTime(readingMinutes);
-  }, [content]);
+
+    // Calculate readability score for Redattore articles
+    if (project?.area === 'redattore' && content.trim().length > 0) {
+      const readability = calculateReadability(content, words.length);
+      setReadabilityScore(readability);
+    } else {
+      setReadabilityScore(null);
+    }
+  }, [content, project?.area]);
+
+  // Readability calculation function
+  const calculateReadability = (text: string, wordCount: number) => {
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    const syllables = words.reduce((count, word) => {
+      return count + countSyllables(word);
+    }, 0);
+
+    const sentenceCount = sentences.length || 1;
+    const avgWordsPerSentence = wordCount / sentenceCount;
+    const avgSyllablesPerWord = syllables / wordCount;
+
+    // Flesch Reading Ease Score (adapted for Italian)
+    // Formula: 206.835 - 1.015(total words/total sentences) - 84.6(total syllables/total words)
+    const fleschScore = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+
+    // Normalize to 0-100 scale
+    const normalizedScore = Math.max(0, Math.min(100, fleschScore));
+
+    // Determine grade level
+    let grade = '';
+    if (normalizedScore >= 90) grade = 'Elementare (5° elementare)';
+    else if (normalizedScore >= 80) grade = 'Media (6°-8°)';
+    else if (normalizedScore >= 70) grade = 'Superiori (9°-10°)';
+    else if (normalizedScore >= 60) grade = 'Biennio (11°-12°)';
+    else grade = 'Università o superiore';
+
+    // Generate notes and suggestions
+    const notes: string[] = [];
+    const suggestions: string[] = [];
+
+    if (avgWordsPerSentence > 25) {
+      notes.push('Frasi molto lunghe (media: ' + Math.round(avgWordsPerSentence) + ' parole)');
+      suggestions.push('Considera di dividere le frasi lunghe in frasi più brevi per migliorare la leggibilità');
+    } else if (avgWordsPerSentence < 10) {
+      notes.push('Frasi molto brevi (media: ' + Math.round(avgWordsPerSentence) + ' parole)');
+      suggestions.push('Le frasi molto brevi possono rendere il testo troppo frammentato. Prova a combinarle logicamente.');
+    }
+
+    if (avgSyllablesPerWord > 2.5) {
+      notes.push('Parole complesse con molte sillabe');
+      suggestions.push('Usa parole più semplici e brevi quando possibile per migliorare la leggibilità');
+    }
+
+    if (wordCount < 100) {
+      notes.push('Testo molto breve');
+      suggestions.push('Per un articolo completo, considera di espandere con più dettagli ed esempi');
+    } else if (wordCount > 2000 && avgWordsPerSentence > 20) {
+      notes.push('Testo lungo con frasi complesse');
+      suggestions.push('Per articoli lunghi, usa paragrafi e sottotitoli per migliorare la scansione');
+    }
+
+    if (sentences.length < 5) {
+      suggestions.push('Aggiungi più frasi per creare un flusso più naturale');
+    }
+
+    return {
+      score: Math.round(normalizedScore),
+      grade,
+      notes,
+      suggestions
+    };
+  };
+
+  const countSyllables = (word: string): number => {
+    word = word.toLowerCase().replace(/[^a-zàèéìòù]/g, '');
+    if (word.length <= 3) return 1;
+
+    // Italian syllable counting (simplified)
+    const vowels = word.match(/[aeiouàèéìòùy]/gi);
+    const consonantClusters = word.match(/[bcdfghjklmnpqrstvwxz]{2,}/gi);
+
+    let count = vowels ? vowels.length : 1;
+
+    // Adjust for consonant clusters
+    if (consonantClusters) {
+      count += consonantClusters.length * 0.5;
+    }
+
+    // Minimum 1 syllable per word
+    return Math.max(1, Math.round(count));
+  };
 
   // Handle text selection for AI revision (feature #96)
   useEffect(() => {
@@ -637,6 +735,25 @@ export default function ChapterEditor() {
                   • {readingTime} min read
                 </span>
               )}
+              {readabilityScore && project?.area === 'redattore' && (
+                <div className="flex items-center gap-1 ml-2">
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      readabilityScore.score >= 80
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : readabilityScore.score >= 60
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    }`}
+                    title={`Flesch Reading Ease: ${readabilityScore.score}/100`}
+                  >
+                    {readabilityScore.score}/100
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {readabilityScore.grade}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => setIsFullScreen(!isFullScreen)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -679,6 +796,20 @@ export default function ChapterEditor() {
               >
                 <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
+              {project?.area === 'redattore' && (
+                <button
+                  onClick={() => setShowReadabilityPanel(!showReadabilityPanel)}
+                  className={`p-2 rounded-lg border transition-colors ${
+                    showReadabilityPanel || readabilityScore
+                      ? 'bg-blue-50 border-blue-500'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  aria-label="Readability Analysis"
+                  title="Readability Analysis"
+                >
+                  <Sparkles className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+              )}
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -803,7 +934,99 @@ export default function ChapterEditor() {
               </div>
             </div>
           )}
-        </div>
+
+          {/* Readability Analysis Panel (for Redattore) */}
+          {showReadabilityPanel && project?.area === 'redattore' && !isPreview && (
+            <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-900">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Analisi Leggibilità
+                </h4>
+                <button
+                  onClick={() => {
+                    setShowReadabilityPanel(false);
+                    setReadabilityScore(null);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
+                  aria-label="Close readability panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {!readabilityScore ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Scrivi qualcosa nell'editor per vedere l'analisi di leggibilità in tempo reale.
+                  </p>
+                </div>
+              ) : (
+
+              {/* Score Badge */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold" style={{
+                    color: readabilityScore.score >= 80 ? '#16a34a' :
+                           readabilityScore.score >= 60 ? '#ca8a04' :
+                           '#dc2626'
+                  }}>
+                    {readabilityScore.score}
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">/100</span>
+                </div>
+                <div className="text-sm">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    readabilityScore.score >= 80
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : readabilityScore.score >= 60
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {readabilityScore.grade}
+                  </span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {readabilityScore.notes.length > 0 && (
+                <div className="mb-3">
+                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">NOTE:</h5>
+                  <ul className="space-y-1">
+                    {readabilityScore.notes.map((note, idx) => (
+                      <li key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-1">
+                        <span className="text-blue-500">•</span>
+                        {note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              {readabilityScore.suggestions.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <Lightbulb className="w-3 h-3 text-yellow-500" />
+                    SUGGERIMENTI PER MIGLIORARE:
+                  </h5>
+                  <ul className="space-y-2">
+                    {readabilityScore.suggestions.map((suggestion, idx) => (
+                      <li key={idx} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded">
+                        <span className="text-green-500 mt-0.5">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 0 1 0 00-16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 14.293a1 1 0 00-1.414 1.414l-4-4a1 1 0 010-1.414 1.414L11.586 9 14.707 5.707a1 1 0 001.414-1.414l4-4a1 1 0 001.414 1.414z" clipRule="evenodd" />
+                          </svg>
+                        </span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              )}
+            </div>
+          )}
 
         {/* Formatting Toolbar */}
         {!isPreview && (
