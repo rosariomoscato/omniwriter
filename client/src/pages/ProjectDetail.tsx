@@ -59,6 +59,7 @@ export default function ProjectDetail() {
     backstory: '',
     role_in_story: ''
   });
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [locationForm, setLocationForm] = useState({
     name: '',
     description: '',
@@ -428,11 +429,45 @@ export default function ProjectDetail() {
       setCharacters([...characters, response.character]);
       setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
       setShowAddCharacter(false);
+      toast.success('Character created successfully');
     } catch (err: any) {
       setError(err.message || 'Failed to create character');
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleUpdateCharacter = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingCharacter) return;
+
+    try {
+      setCreating(true);
+      setError('');
+      const response = await apiService.updateCharacter(editingCharacter.id, characterForm);
+      setCharacters(characters.map(ch => ch.id === editingCharacter.id ? response.character : ch));
+      setEditingCharacter(null);
+      setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
+      setShowAddCharacter(false);
+      toast.success('Character updated successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update character');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleEditCharacter = (character: Character) => {
+    setEditingCharacter(character);
+    setCharacterForm({
+      name: character.name,
+      description: character.description || '',
+      traits: character.traits || '',
+      backstory: character.backstory || '',
+      role_in_story: character.role_in_story || ''
+    });
+    setShowAddCharacter(true);
   };
 
   const handleDeleteCharacter = async (characterId: string) => {
@@ -1759,7 +1794,12 @@ export default function ProjectDetail() {
               </span>
             </div>
             <button
-              onClick={() => setShowAddCharacter(!showAddCharacter)}
+              onClick={() => {
+                setShowAddCharacter(!showAddCharacter);
+                setEditingCharacter(null);
+                setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
+                setError('');
+              }}
               className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -1767,9 +1807,9 @@ export default function ProjectDetail() {
             </button>
           </div>
 
-          {/* Add Character Form */}
+          {/* Add/Edit Character Form */}
           {showAddCharacter && (
-            <form onSubmit={handleCreateCharacter} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <form onSubmit={editingCharacter ? handleUpdateCharacter : handleCreateCharacter} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
               <div className="space-y-3">
                 <input
                   type="text"
@@ -1817,12 +1857,13 @@ export default function ProjectDetail() {
                     disabled={creating || !characterForm.name.trim()}
                     className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    {creating ? 'Creating...' : 'Create'}
+                    {creating ? (editingCharacter ? 'Updating...' : 'Creating...') : (editingCharacter ? 'Update' : 'Create')}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setShowAddCharacter(false);
+                      setEditingCharacter(null);
                       setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
                       setError('');
                     }}
@@ -1876,13 +1917,22 @@ export default function ProjectDetail() {
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleDeleteCharacter(character.id)}
-                      className="ml-4 p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Delete character"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="ml-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditCharacter(character)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                        title="Edit character"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCharacter(character.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                        title="Delete character"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

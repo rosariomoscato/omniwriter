@@ -2,6 +2,7 @@
 import express from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requirePremium } from '../middleware/roles';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';

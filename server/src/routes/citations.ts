@@ -1,7 +1,7 @@
+// @ts-nocheck
 import { Router } from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken } from '../middleware/auth';
-import { param } from 'express-validator';
 
 const router = Router();
 

@@ -7,6 +7,8 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const passport_1 = __importDefault(require("passport"));
+const express_session_1 = __importDefault(require("express-session"));
 const database_1 = require("./db/database");
 const health_1 = __importDefault(require("./routes/health"));
 const auth_1 = __importDefault(require("./routes/auth"));
@@ -33,6 +35,19 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
+// Passport and session middleware for OAuth
+app.use((0, express_session_1.default)({
+    secret: process.env.SESSION_SECRET || 'omniwriter-session-secret-2024',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+}));
+app.use(passport_1.default.initialize());
+app.use(passport_1.default.session());
 // Request logging middleware - logs all API requests
 app.use('/api', (req, _res, next) => {
     console.log(`[API] ${req.method} ${req.originalUrl}`);
@@ -70,7 +85,7 @@ app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
     console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
     console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
 });

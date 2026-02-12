@@ -318,7 +318,7 @@ passport.use(
            VALUES (?, ?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
         ).run(userId, email, name, avatarUrl, profile.id);
 
-        const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+        const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
         return done(null, newUser);
       } catch (error) {
         console.error('[Google OAuth] Strategy error:', error);
