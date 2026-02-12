@@ -8,6 +8,7 @@ import SaggistaConfig from '../components/SaggistaConfig';
 import { ChapterListSkeleton } from '../components/Skeleton';
 import BulkSourceUpload from '../components/BulkSourceUpload';
 import RelationshipMap from '../components/RelationshipMap';
+import TableOfContents from '../components/TableOfContents';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -2456,7 +2457,13 @@ export default function ProjectDetail() {
 
       {/* Saggista Configuration - Only for Saggista projects */}
       {project?.area === 'saggista' && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-6">
+          {/* Table of Contents */}
+          {chapters.length > 0 && (
+            <TableOfContents chapters={chapters} projectTitle={project.title} />
+          )}
+
+          {/* Saggista Configuration */}
           <SaggistaConfig project={project} onUpdate={loadProject} />
         </div>
       )}
