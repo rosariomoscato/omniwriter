@@ -26,6 +26,7 @@ const locations_1 = __importDefault(require("./routes/locations"));
 const plot_events_1 = __importDefault(require("./routes/plot-events"));
 const generation_logs_1 = __importDefault(require("./routes/generation-logs"));
 const ai_1 = __importDefault(require("./routes/ai"));
+const chapter_comments_1 = __importDefault(require("./routes/chapter-comments"));
 const path_1 = require("path");
 const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
 dotenv_1.default.config({ path: envPath });
@@ -81,7 +82,8 @@ app.use('/api', plot_events_1.default);
 app.use('/api', citations_1.default);
 app.use('/api', export_1.default);
 app.use('/api', generation_logs_1.default);
-app.use('/api/ai', ai_1.default);
+app.use('/api', ai_1.default);
+app.use('/api', chapter_comments_1.default);
 app.use('/api/admin', admin_1.default);
 // 404 handler
 app.use((_req, res) => {

@@ -153,6 +153,19 @@ export interface ChapterVersion {
   change_description: string;
 }
 
+export interface ChapterComment {
+  id: string;
+  chapter_id: string;
+  text: string;
+  start_pos: number;
+  end_pos: number;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  user_name: string;
+  user_avatar: string;
+}
+
 export interface Source {
   id: string;
   project_id: string | null;
@@ -611,6 +624,31 @@ class ApiService {
   async restoreChapterVersion(chapterId: string, versionId: string): Promise<{ chapter: Chapter }> {
     return this.request<{ chapter: Chapter }>(`/chapters/${chapterId}/restore/${versionId}`, {
       method: 'POST',
+    });
+  }
+
+  // Chapter comments
+  async getChapterComments(chapterId: string): Promise<{ comments: ChapterComment[] }> {
+    return this.request<{ comments: ChapterComment[] }>(`/chapters/${chapterId}/comments`);
+  }
+
+  async createChapterComment(chapterId: string, data: { text: string; start_pos: number; end_pos: number }): Promise<{ comment: ChapterComment }> {
+    return this.request<{ comment: ChapterComment }>(`/chapters/${chapterId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChapterComment(commentId: string, text: string): Promise<{ comment: ChapterComment }> {
+    return this.request<{ comment: ChapterComment }>(`/chapter-comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  async deleteChapterComment(commentId: string): Promise<void> {
+    return this.request<void>(`/chapter-comments/${commentId}`, {
+      method: 'DELETE',
     });
   }
 
