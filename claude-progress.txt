@@ -1,88 +1,81 @@
-## Session: 2026-02-12 (Features #124, #125)
+## Session: 2026-02-12 (Feature #127)
 
 ### Completed Work
 
-#### Feature #124: Parent deletion cascades to children ✅
+#### Feature #127: Form defaults are sensible ✅
 **Status:** PASSING
 
-**Verification Summary (Database Test):**
+**Verification Summary (Code Analysis + Browser Test):**
 
-1. **Foreign Key Constraints** ✅ (server/src/db/database.ts)
-   - Database schema has `ON DELETE CASCADE` on all child tables
-   - Foreign keys are enabled: `db.pragma('foreign_keys = ON')` (line 21)
-   - Child tables with CASCADE: chapters, chapter_versions, characters, locations, plot_events, sources, project_tags, generation_logs, citations, export_history
+1. **Status defaults to 'draft'** ✅ (server/src/routes/projects.ts:129)
+   - SQL INSERT statement hardcodes: `status = 'draft'`
+   - All new projects automatically created with draft status
+   - No user input required for status field
 
-2. **Cascade Delete Test** ✅
-   - Created project with 2 chapters, 1 chapter version, 2 characters, 2 locations, 1 plot event, 1 source, 2 tags, 1 generation log
-   - Deleted the project
-   - Verified ALL child records were automatically deleted:
-     - Chapters: 2 → 0
-     - Chapter Versions: 1 → 0
-     - Characters: 2 → 0
-     - Locations: 2 → 0
-     - Plot Events: 1 → 0
-     - Sources: 1 → 0
-     - Project Tags: 2 → 0
-     - Generation Logs: 1 → 0
+2. **Area selection prompts user** ✅ (client/src/pages/NewProject.tsx:65)
+   - Form state initializes with: `area: null`
+   - No area pre-selected by default
+   - User must click to select Romanziere, Saggista, or Redattore
+   - Validation prevents submission without area selection
 
-3. **No Code Changes Required**
-   - The cascade behavior is already implemented via SQLite foreign key constraints
-   - DELETE endpoint in server/src/routes/projects.ts (lines 241-263) simply deletes the project
-   - Database handles cascading automatically
+3. **Date fields default to today** ✅ (server/src/routes/projects.ts:129-130)
+   - SQL INSERT uses: `datetime('now')` for created_at and updated_at
+   - SQLite function returns current timestamp
+   - No user input required for date fields
 
----
+**Additional Sensible Defaults Verified:**
 
-#### Feature #125: Deleted items removed from search results ✅
-**Status:** PASSING
+Romanziere Area:
+- wordCountTarget: 50000 (standard novel length)
+- tone: '' (prompts selection)
+- pov: '' (prompts selection)
+- genre: '' (prompts input)
+- targetAudience: '' (prompts input)
 
-**Verification Summary (Database Test):**
+Saggista Area:
+- depth: 'deep_dive' (sensible pre-selection)
+- structure: 'popular' (accessible style)
+- topic: '' (prompts input)
+- targetAudience: '' (prompts input)
 
-1. **Before Deletion** ✅
-   - Created project with unique title: CASCADE_DELETE_TEST_PROJECT_[timestamp]
-   - Searched for unique timestamp
-   - Found 1 project in search results
+Redattore Area:
+- redattoreWordCount: 500 (standard article length)
+- articleType: '' (prompts selection)
+- seoKeywords: '' (prompts input)
 
-2. **After Deletion** ✅
-   - Deleted the project (with cascade to children)
-   - Searched again for the same term
-   - Found 0 projects in search results
-   - Deleted items correctly excluded from search
+**Browser Testing:**
+- ✅ Opened http://localhost:3000/projects/new
+- ✅ Verified no area pre-selected (null default)
+- ✅ Clicked Romanziere - word count shows 50000
+- ✅ Clicked Saggista - depth shows 'deep_dive', structure shows 'popular'
+- ✅ Clicked Redattore - word count shows 500
+- ✅ All optional text fields empty (prompting user input)
 
-3. **Search Implementation** ✅ (server/src/routes/projects.ts lines 56-69)
-   - Search queries projects table directly with LIKE operator
-   - Deleted projects are removed from table (not soft-deleted)
-   - No separate "deleted" flag or status
+**No Code Changes Required:**
+- All defaults already implemented correctly
+- Form state properly initialized with sensible values
+- Backend correctly sets status and dates automatically
+- Feature working as specified
 
 ---
 
 ### Completion Status
-- Feature #124: PASSING ✅
-- Feature #125: PASSING ✅
-- Total passing: 134/188 (71.3%)
+- Feature #127: PASSING ✅
+- Total passing: 135/188 (71.8%)
 
 ### Git Commit
-- Commit 330da6b: feat: verify cascade delete features #124 and #125
-
-### Files Modified/Added
-- server/verify-cascade-features.js - Comprehensive verification script
-
-### Notes
-**Cascade Delete Implementation:**
-- SQLite foreign key constraints handle cascade automatically
-- No additional code needed in DELETE endpoint
-- All child tables have `ON DELETE CASCADE` constraint
-- Foreign keys are enabled in database initialization
+- Commit: (pending)
 
 ### Next Steps
-- 54 features remaining
-- Data cleanup features verified working correctly
-- Database constraints ensure referential integrity
+- 53 features remaining
+- Form defaults are appropriate across all areas
+- Status and date handling working correctly
 
 ---
 
 ## Previous Sessions (Summary)
 
-### Session: 2026-02-12 (Features #121, #122)
+### Session: 2026-02-12 (Feature #126)
 
 [Previous content continues below...]
 
