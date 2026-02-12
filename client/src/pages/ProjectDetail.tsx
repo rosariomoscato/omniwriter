@@ -646,33 +646,9 @@ export default function ProjectDetail() {
       setWebSearchSearching(true);
       setError('');
 
-      // For development, create mock search results
-      // In production, this would call a real web search API
-      const mockResults = [
-        {
-          id: '1',
-          title: `${webSearchQuery} - Wikipedia`,
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(webSearchQuery.replace(/\s+/g, '_'))}`,
-          snippet: `Information about ${webSearchQuery} from Wikipedia...`,
-          source: 'Wikipedia'
-        },
-        {
-          id: '2',
-          title: `${webSearchQuery} - News`,
-          url: `https://news.google.com/search?q=${encodeURIComponent(webSearchQuery)}`,
-          snippet: `Latest news about ${webSearchQuery}...`,
-          source: 'Google News'
-        },
-        {
-          id: '3',
-          title: `${webSearchQuery} - Scholar`,
-          url: `https://scholar.google.com/scholar?q=${encodeURIComponent(webSearchQuery)}`,
-          snippet: `Academic articles about ${webSearchQuery}...`,
-          source: 'Google Scholar'
-        }
-      ];
-
-      setWebSearchResults(mockResults);
+      // TODO: Replace with actual web search API integration (e.g., Google Custom Search API, Bing Search API)
+      // For now, returning empty results with a message
+      setWebSearchResults([]);
     } catch (err: any) {
       setError(err.message || 'Search failed');
     } finally {
