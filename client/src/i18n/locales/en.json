@@ -572,5 +572,84 @@
     "noFilteredSources": "No sources match your filters",
     "tryDifferentFilters": "Try adjusting your search or filters",
     "uploadFirstSource": "Upload your first source to get started"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account settings and security",
+    "quickActions": {
+      "title": "Quick Actions",
+      "editProfile": "Edit Profile",
+      "humanModel": "Human Model",
+      "logout": "Logout",
+      "deleteAccount": "Delete Account"
+    },
+    "accountInfo": {
+      "account": "account"
+    },
+    "changePassword": {
+      "title": "Change Password",
+      "currentPassword": "Current Password",
+      "currentPasswordPlaceholder": "Enter your current password",
+      "securityNote": "Required for security verification",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "Enter new password",
+      "passwordRequirements": "Password requirements:",
+      "minLength": "At least 8 characters",
+      "hasUppercase": "At least 1 uppercase letter",
+      "hasLowercase": "At least 1 lowercase letter",
+      "hasNumber": "At least 1 number",
+      "confirmPassword": "Confirm New Password",
+      "confirmPasswordPlaceholder": "Confirm new password",
+      "passwordsMismatch": "Passwords do not match",
+      "changingPassword": "Changing Password...",
+      "changePasswordButton": "Change Password"
+    },
+    "passwordValidation": {
+      "currentRequired": "Current password is required",
+      "newRequired": "New password is required",
+      "notMeetRequirements": "Password does not meet requirements",
+      "mismatch": "New passwords do not match"
+    },
+    "passwordMessages": {
+      "success": "Password changed successfully!",
+      "successToast": "Password updated successfully!",
+      "error": "Failed to change password. Please try again.",
+      "errorToast": "Failed to change password"
+    },
+    "aiSettings": {
+      "title": "AI Generation Settings",
+      "premiumFeature": "Premium feature",
+      "loadingModels": "Loading AI models...",
+      "defaultModel": "Default AI Model",
+      "description": "Choose the AI model to use for content generation. Premium users have access to advanced models.",
+      "premiumBadge": "Premium",
+      "upgradeText": "Upgrade to Premium to access advanced AI models",
+      "saving": "Saving...",
+      "savePreference": "Save Preference",
+      "successMessage": "AI model preference saved!",
+      "successToast": "Default AI model updated",
+      "errorLoad": "Failed to load AI model settings",
+      "errorSave": "Failed to save AI model preference",
+      "errorSaveToast": "Failed to save AI model"
+    },
+    "deleteAccountDialog": {
+      "title": "Delete Account?",
+      "subtitle": "This action cannot be undone",
+      "warning": "Are you sure you want to permanently delete your account? This will:",
+      "deleteProjects": "Delete all your projects and content",
+      "deleteSources": "Delete all your sources and uploads",
+      "deleteHumanModel": "Delete your Human Model profiles",
+      "deleteData": "Remove all your data from our servers",
+      "irreversible": "This action is irreversible",
+      "passwordLabel": "Enter your password to confirm",
+      "passwordPlaceholder": "Enter your password",
+      "passwordRequired": "Password is required to delete your account",
+      "incorrectPassword": "Incorrect password. Please try again.",
+      "error": "Failed to delete account. Please try again.",
+      "successToast": "Account deleted successfully",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "deleteButton": "Delete Account"
+    }
   }
 }

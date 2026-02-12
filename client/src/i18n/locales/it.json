@@ -572,5 +572,84 @@
     "noFilteredSources": "Nessuna fonte corrisponde ai tuoi filtri",
     "tryDifferentFilters": "Prova a modificare la tua ricerca o i filtri",
     "uploadFirstSource": "Carica la tua prima fonte per iniziare"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "subtitle": "Gestisci le impostazioni del tuo account e la sicurezza",
+    "quickActions": {
+      "title": "Azioni Rapide",
+      "editProfile": "Modifica Profilo",
+      "humanModel": "Modello Umano",
+      "logout": "Esci",
+      "deleteAccount": "Elimina Account"
+    },
+    "accountInfo": {
+      "account": "account"
+    },
+    "changePassword": {
+      "title": "Cambia Password",
+      "currentPassword": "Password Attuale",
+      "currentPasswordPlaceholder": "Inserisci la tua password attuale",
+      "securityNote": "Necessaria per la verifica di sicurezza",
+      "newPassword": "Nuova Password",
+      "newPasswordPlaceholder": "Inserisci la nuova password",
+      "passwordRequirements": "Requisiti della password:",
+      "minLength": "Almeno 8 caratteri",
+      "hasUppercase": "Almeno 1 lettera maiuscola",
+      "hasLowercase": "Almeno 1 lettera minuscola",
+      "hasNumber": "Almeno 1 numero",
+      "confirmPassword": "Conferma Nuova Password",
+      "confirmPasswordPlaceholder": "Conferma la nuova password",
+      "passwordsMismatch": "Le password non coincidono",
+      "changingPassword": "Cambio password in corso...",
+      "changePasswordButton": "Cambia Password"
+    },
+    "passwordValidation": {
+      "currentRequired": "La password attuale è obbligatoria",
+      "newRequired": "La nuova password è obbligatoria",
+      "notMeetRequirements": "La password non soddisfa i requisiti",
+      "mismatch": "Le nuove password non coincidono"
+    },
+    "passwordMessages": {
+      "success": "Password cambiata con successo!",
+      "successToast": "Password aggiornata con successo!",
+      "error": "Impossibile cambiare la password. Riprova.",
+      "errorToast": "Impossibile cambiare la password"
+    },
+    "aiSettings": {
+      "title": "Impostazioni Generazione AI",
+      "premiumFeature": "Funzionalità Premium",
+      "loadingModels": "Caricamento modelli AI...",
+      "defaultModel": "Modello AI Predefinito",
+      "description": "Scegli il modello AI da utilizzare per la generazione dei contenuti. Gli utenti Premium hanno accesso ai modelli avanzati.",
+      "premiumBadge": "Premium",
+      "upgradeText": "Passa a Premium per accedere ai modelli AI avanzati",
+      "saving": "Salvataggio...",
+      "savePreference": "Salva Preferenza",
+      "successMessage": "Preferenza modello AI salvata!",
+      "successToast": "Modello AI predefinito aggiornato",
+      "errorLoad": "Impossibile caricare le impostazioni del modello AI",
+      "errorSave": "Impossibile salvare la preferenza del modello AI",
+      "errorSaveToast": "Impossibile salvare il modello AI"
+    },
+    "deleteAccountDialog": {
+      "title": "Eliminare l'Account?",
+      "subtitle": "Questa azione non può essere annullata",
+      "warning": "Sei sicuro di voler eliminare permanentemente il tuo account? Questo comporterà:",
+      "deleteProjects": "Eliminazione di tutti i tuoi progetti e contenuti",
+      "deleteSources": "Eliminazione di tutte le tue fonti e upload",
+      "deleteHumanModel": "Eliminazione dei tuoi profili Modello Umano",
+      "deleteData": "Rimozione di tutti i tuoi dati dai nostri server",
+      "irreversible": "Questa azione è irreversibile",
+      "passwordLabel": "Inserisci la tua password per confermare",
+      "passwordPlaceholder": "Inserisci la tua password",
+      "passwordRequired": "La password è necessaria per eliminare il tuo account",
+      "incorrectPassword": "Password errata. Riprova.",
+      "error": "Impossibile eliminare l'account. Riprova.",
+      "successToast": "Account eliminato con successo",
+      "cancel": "Annulla",
+      "deleting": "Eliminazione...",
+      "deleteButton": "Elimina Account"
+    }
   }
 }
