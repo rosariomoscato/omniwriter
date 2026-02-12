@@ -122,6 +122,7 @@ router.post('/login', (req: Request, res: Response) => {
       password_hash: string;
       name: string;
       role: string;
+      subscription_status: string;
       preferred_language: string;
       theme_preference: string;
     } | undefined;

@@ -20,11 +20,14 @@ import citationsRouter from './routes/citations';
 import locationsRouter from './routes/locations';
 import plotEventsRouter from './routes/plot-events';
 import generationLogsRouter from './routes/generation-logs';
+import { resolve } from 'path';
 
-dotenv.config();
+const envPath = resolve(__dirname, '..', '.env');
+dotenv.config({ path: envPath });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Middleware
 app.use(helmet());
@@ -93,9 +96,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Server] OmniWriter API running on port ${PORT}`);
-  console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
+app.listen(PORT, HOST, () => {
+  console.log(`[Server] OmniWriter API running on ${HOST}:${PORT}`);
+  console.log(`[Server] Health check: http://${HOST}:${PORT}/api/health`);
 });
 
 export default app;

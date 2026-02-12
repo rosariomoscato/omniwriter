@@ -24,9 +24,13 @@ const users_1 = __importDefault(require("./routes/users"));
 const citations_1 = __importDefault(require("./routes/citations"));
 const locations_1 = __importDefault(require("./routes/locations"));
 const plot_events_1 = __importDefault(require("./routes/plot-events"));
-dotenv_1.default.config();
+const generation_logs_1 = __importDefault(require("./routes/generation-logs"));
+const path_1 = require("path");
+const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
+dotenv_1.default.config({ path: envPath });
 const app = (0, express_1.default)();
-const PORT = Number(process.env.PORT) || 3002;
+const PORT = Number(process.env.PORT) || 5000;
+const HOST = process.env.HOST || '127.0.0.1';
 // Middleware
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
@@ -75,6 +79,7 @@ app.use('/api', locations_1.default);
 app.use('/api', plot_events_1.default);
 app.use('/api', citations_1.default);
 app.use('/api', export_1.default);
+app.use('/api', generation_logs_1.default);
 app.use('/api/admin', admin_1.default);
 // 404 handler
 app.use((_req, res) => {
@@ -85,9 +90,8 @@ app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
     res.status(500).json({ message: 'Internal server error' });
 });
-const HOST = process.env.HOST || '127.0.0.1';
 app.listen(PORT, HOST, () => {
-    console.log(`[Server] OmniWriter API running on http://${HOST}:${PORT}`);
+    console.log(`[Server] OmniWriter API running on ${HOST}:${PORT}`);
     console.log(`[Server] Health check: http://${HOST}:${PORT}/api/health`);
 });
 exports.default = app;
