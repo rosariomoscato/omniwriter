@@ -16,7 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 export default function PreferencesSync() {
   const { user } = useAuth();
   const { i18n } = useTranslation();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     if (!user) return;
@@ -27,9 +27,10 @@ export default function PreferencesSync() {
       localStorage.setItem('language', user.preferred_language);
     }
 
-    // Sync theme preference from backend
-    // Only update if backend preference exists and is different from current
-    if (user.theme_preference && theme !== user.theme_preference) {
+    // Sync theme preference from backend ONLY if localStorage doesn't have a theme set
+    // This allows local changes to persist without being overridden by backend
+    const localTheme = localStorage.getItem('theme');
+    if (!localTheme && user.theme_preference) {
       setTheme(user.theme_preference);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
