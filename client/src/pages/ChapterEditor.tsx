@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -13,6 +13,7 @@ export default function ChapterEditor() {
   const toast = useToastNotification();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -196,6 +197,28 @@ export default function ChapterEditor() {
     }
   }, [content, project?.area]);
 
+  // Warn before browser close/refresh if there are unsaved changes (feature #170)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]); // Only re-attach if hasUnsavedChanges changes
+
+  // Track unsaved changes (feature #170)
+  useEffect(() => {
+    const hasChanges = title !== lastSavedTitleRef.current || content !== lastSavedContentRef.current;
+    setHasUnsavedChanges(hasChanges);
+  }, [title, content]);
+
   // Readability calculation function
   const calculateReadability = (text: string, wordCount: number) => {
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
@@ -327,13 +350,15 @@ export default function ChapterEditor() {
       setChapter(response.chapter);
       const chapterContent = response.chapter.content || '';
       const chapterTitle = response.chapter.title;
-      setContent(chapterContent);
-      setTitle(chapterTitle);
 
       // Store initial values for unsaved changes tracking (feature #170)
+      // MUST set refs BEFORE calling setContent setTitle to avoid false positive detection
       lastSavedTitleRef.current = chapterTitle;
       lastSavedContentRef.current = chapterContent;
       setHasUnsavedChanges(false);
+
+      setContent(chapterContent);
+      setTitle(chapterTitle);
 
       // Initialize history with loaded content
       historyRef.current = [chapterContent];
@@ -709,6 +734,28 @@ export default function ChapterEditor() {
     html = html.split('\n\n').map(p => `<p class="mb-4">${p.replace(/\n/g, '<br>')}</p>`).join('');
 
     return { __html: html };
+  };
+
+  // Handle navigation with unsaved changes (feature #170)
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(`/projects/${projectId}`);
+      setShowUnsavedDialog(true);
+    } else {
+      navigate(`/projects/${projectId}`);
+    }
+  };
+
+  const confirmNavigation = () => {
+    setShowUnsavedDialog(false);
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+    }
+  };
+
+  const cancelNavigation = () => {
+    setShowUnsavedDialog(false);
+    setPendingNavigation(null);
   };
 
   if (loading) {
