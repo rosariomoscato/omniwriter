@@ -235,6 +235,8 @@ export interface CreateSagaData {
 
 class ApiService {
   private baseUrl: string;
+  private maxRetries = 3;
+  private retryDelay = 1000; // 1 second
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
@@ -242,7 +244,8 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount = 0
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const token = localStorage.getItem('token');
@@ -256,10 +259,28 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (error) {
+      // Network error (TypeError indicates connection failure)
+      if (error instanceof TypeError && retryCount < this.maxRetries) {
+        console.warn(`[API] Network error, retrying... (${retryCount + 1}/${this.maxRetries})`);
+        await this.delay(this.retryDelay * (retryCount + 1));
+        return this.request<T>(endpoint, options, retryCount + 1);
+      }
+
+      // Final retry failed or non-network error
+      const networkError = new Error('Network connection failed. Please check your internet connection.');
+      (networkError as any).isNetworkError = true;
+      (networkError as any).retryable = retryCount < this.maxRetries;
+      (networkError as any).originalError = error;
+      throw networkError;
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
@@ -279,10 +300,26 @@ class ApiService {
         throw authError;
       }
 
+      // Don't retry client errors (4xx) except 408 Request Timeout
+      if (response.status >= 400 && response.status < 500 && response.status !== 408) {
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      // Retry server errors (5xx) or 408
+      if (retryCount < this.maxRetries && (response.status >= 500 || response.status === 408)) {
+        console.warn(`[API] Server error ${response.status}, retrying... (${retryCount + 1}/${this.maxRetries})`);
+        await this.delay(this.retryDelay * (retryCount + 1));
+        return this.request<T>(endpoint, options, retryCount + 1);
+      }
+
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
     return response.json();
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // Auth endpoints
@@ -546,6 +583,25 @@ class ApiService {
 
   async restoreChapterVersion(chapterId: string, versionId: string): Promise<{ chapter: Chapter }> {
     return this.request<{ chapter: Chapter }>(`/chapters/${chapterId}/restore/${versionId}`, {
+      method: 'POST',
+    });
+  }
+
+  // Redattore headline generation
+  async generateHeadlines(chapterId: string): Promise<{ headlines: Array<{ id: string; text: string; style: string }> }> {
+    return this.request<{ headlines: Array<{ id: string; text: string; style: string }> }>(`/chapters/${chapterId}/generate-headlines`, {
+      method: 'POST',
+    });
+  }
+
+  // Redattore social media snippet generation
+  async generateSocialSnippets(chapterId: string): Promise<{ snippets: {
+    twitter: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+    linkedin: Array<{ id: string; text: string; characterCount: number }>;
+    facebook: Array<{ id: string; text: string; characterCount: number }>;
+    instagram: Array<{ id: string; text: string; characterCount: number; hashtags?: string[] }>;
+  }> {
+    return this.request<{ snippets: any }>(`/chapters/${chapterId}/generate-social-snippets`, {
       method: 'POST',
     });
   }

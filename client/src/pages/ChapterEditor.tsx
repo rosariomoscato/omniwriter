@@ -7,6 +7,7 @@ import VersionComparison from '../components/VersionComparison';
 import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
+import RedattoreTools from '../components/RedattoreTools';
 
 export default function ChapterEditor() {
   const toast = useToastNotification();

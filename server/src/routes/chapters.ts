@@ -438,4 +438,150 @@ router.post('/chapters/:id/restore/:versionId', authenticateToken, (req, res) =>
   }
 });
 
+// POST /api/chapters/:id/generate-headlines - Generate headline options for Redattore articles
+router.post('/chapters/:id/generate-headlines', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, p.area, p.settings_json
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as { id: string; title: string; content: string; area: string; settings_json: string } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Only allow headline generation for Redattore area
+    if (chapter.area !== 'redattore') {
+      return res.status(400).json({ message: 'Headline generation is only available for Redattore articles' });
+    }
+
+    // Generate headline options (simulated AI response for now)
+    // In production, this would call an AI service
+    const contentToAnalyze = chapter.content || chapter.title || '';
+    const settings = JSON.parse(chapter.settings_json || '{}');
+
+    // Generate 5 headline variations
+    const headlineOptions = [
+      {
+        id: 'h1',
+        text: chapter.title || 'Titolo principale dell\'articolo',
+        style: 'Diretto e chiaro'
+      },
+      {
+        id: 'h2',
+        text: `Scopri ${chapter.title ? 'tutto su ' + chapter.title.toLowerCase() : 'i dettagli dell\'articolo'}`,
+        style: 'Informativo'
+      },
+      {
+        id: 'h3',
+        text: `Perché ${chapter.title ? chapter.title : 'questo argomento'} conta più di quanto pensi`,
+        style: 'Coinvolgente'
+      },
+      {
+        id: 'h4',
+        text: `${chapter.title || 'L\'argomento'}: ${settings.seoKeywords ? 'una guida completa' : 'tutto quello che devi sapere'}`,
+        style: 'Guida pratica'
+      },
+      {
+        id: 'h5',
+        text: `Analisi approfondita: ${chapter.title || 'tema dell\'articolo'}`,
+        style: 'Professionale'
+      }
+    ];
+
+    console.log(`[Redattore] Generated ${headlineOptions.length} headline options for chapter ${id}`);
+    res.json({ headlines: headlineOptions });
+  } catch (error) {
+    console.error('[Redattore] Error generating headlines:', error);
+    res.status(500).json({ message: 'Failed to generate headlines' });
+  }
+});
+
+// POST /api/chapters/:id/generate-social-snippets - Generate social media snippets for Redattore articles
+router.post('/chapters/:id/generate-social-snippets', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, p.area, p.settings_json
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as { id: string; title: string; content: string; area: string; settings_json: string } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Only allow social snippet generation for Redattore area
+    if (chapter.area !== 'redattore') {
+      return res.status(400).json({ message: 'Social snippet generation is only available for Redattore articles' });
+    }
+
+    // Generate social media snippets (simulated AI response for now)
+    const contentToAnalyze = chapter.content || chapter.title || '';
+    const articleTitle = chapter.title || 'Articolo';
+
+    // Extract key points from content (simplified)
+    const excerpt = contentToAnalyze.length > 200
+      ? contentToAnalyze.substring(0, 200) + '...'
+      : contentToAnalyze;
+
+    const socialSnippets = {
+      twitter: [
+        {
+          id: 'tw1',
+          text: `${articleTitle}\n\n🔗 Leggi tutto sull'articolo\n\n${excerpt.substring(0, 100)}...`,
+          characterCount: `${articleTitle}\n\n🔗 Leggi tutto sull'articolo\n\n${excerpt.substring(0, 100)}...`.length,
+          hashtags: ['#journalism', '#article', '#news']
+        },
+        {
+          id: 'tw2',
+          text: `🚀 Novità: ${articleTitle}\n\n${excerpt.substring(0, 80)}...`,
+          characterCount: `🚀 Novità: ${articleTitle}\n\n${excerpt.substring(0, 80)}...`.length,
+          hashtags: ['#breaking', '#update']
+        }
+      ],
+      linkedin: [
+        {
+          id: 'li1',
+          text: `${articleTitle}\n\nPubblichiamo regolarmente contenuti su questo argomento. Seguici per restare aggiornato!\n\n${excerpt.substring(0, 150)}...`,
+          characterCount: `${articleTitle}\n\nPubblichiamo regolarmente contenuti su questo argomento. Seguici per restare aggiornato!\n\n${excerpt.substring(0, 150)}...`.length
+        }
+      ],
+      facebook: [
+        {
+          id: 'fb1',
+          text: `${articleTitle}\n\n${excerpt}\n\n👍 Metti like se ti piace questo contenuto!\n💬 Commenta e condividi la tua opinione`,
+          characterCount: `${articleTitle}\n\n${excerpt}\n\n👍 Metti like se ti piace questo contenuto!\n💬 Commenta e condividi la tua opinione`.length
+        }
+      ],
+      instagram: [
+        {
+          id: 'ig1',
+          text: `${articleTitle}\n\n${excerpt.substring(0, 50)}...\n\nLink in bio 👆`,
+          characterCount: `${articleTitle}\n\n${excerpt.substring(0, 50)}...\n\nLink in bio 👆`.length,
+          hashtags: ['#content', '#creator', '#writing']
+        }
+      ]
+    };
+
+    console.log(`[Redattore] Generated social snippets for chapter ${id}`);
+    res.json({ snippets: socialSnippets });
+  } catch (error) {
+    console.error('[Redattore] Error generating social snippets:', error);
+    res.status(500).json({ message: 'Failed to generate social snippets' });
+  }
+});
+
 export default router;
