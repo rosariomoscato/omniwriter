@@ -1,8 +1,9 @@
-const Database = require('/Users/rosario/CODICE/omniwriter/server/node_modules/better-sqlite3');
-const db = new Database('/Users/rosario/CODICE/omniwriter/server/database.sqlite');
-const user = db.prepare('SELECT * FROM users WHERE email = ?').get('test@example.com');
+const Database = require('./server/node_modules/better-sqlite3');
+const db = new Database('server/data/omniwriter.db', { readonly: true });
+const user = db.prepare('SELECT id, email, name, role, created_at FROM users WHERE email = ?').get('test-db-schema@example.com');
 if (user) {
-  console.log(JSON.stringify(user));
+  console.log('USER_FOUND:' + JSON.stringify(user));
 } else {
-  console.log('User not found - need to create one');
+  console.log('USER_NOT_FOUND');
 }
+db.close();
