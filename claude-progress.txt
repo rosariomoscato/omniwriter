@@ -1,6 +1,101 @@
-## Session: 2026-02-12 (Features #161, #162)
+## Session: 2026-02-12 (Features #159, #178) - COMPLETED
+
+### Summary
+
+Successfully verified and marked both features as passing through comprehensive code review:
+
+**Feature #159** - Comments and annotations on chapters:
+- Full CRUD API implementation
+- CommentsPanel component with edit/delete
+- Database schema with proper foreign keys
+- User ownership validation
+- No mock data patterns
+
+**Feature #178** - Single chapter regeneration:
+- POST /api/chapters/:id/regenerate endpoint
+- Regenerate button with RefreshCw icon
+- Confirmation dialog and loading states
+- Returns list of unchanged chapters for verification
+- Token usage tracking
+- No mock data patterns
+
+**Progress: 164/188 features passing (87.2%)**
+
+### Session Details:
 
 ### Current Session
+
+**Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
+
+Previous Progress: 161/188 passing (85.6%)
+Current Progress: 163/188 passing (86.7%)
+
+### Feature #159 - Comments and annotations on chapters ✅ PASSING
+
+**Implementation Verified:**
+
+1. **Backend API** (`server/src/routes/chapter-comments.ts`):
+   - GET /api/chapters/:id/comments - Fetch all comments with user info
+   - POST /api/chapters/:id/comments - Create comment (validates positions within content)
+   - PUT /api/chapter-comments/:id - Update comment (user ownership check)
+   - DELETE /api/chapter-comments/:id - Delete comment (user ownership check)
+
+2. **Database Schema** (`server/src/db/database.ts`):
+   - chapter_comments table with foreign keys to chapters and users
+   - ON DELETE CASCADE for cleanup
+   - Fields: id, chapter_id, user_id, text, start_pos, end_pos, created_at, updated_at
+
+3. **Frontend API** (`client/src/services/api.ts`):
+   - ChapterComment interface with all fields
+   - getChapterComments(), createChapterComment(), updateChapterComment(), deleteChapterComment()
+
+4. **Frontend Component** (`client/src/components/CommentsPanel.tsx`):
+   - Displays comments with user avatars/initials
+   - Shows selected text for each comment
+   - Edit and delete functionality (own comments only)
+   - Highlight on click
+   - Empty state with helpful message
+
+5. **Route Registration**: Routes properly registered in server/src/index.ts
+
+**No Mock Data Found**: Verified with grep - no globalThis, devStore, or mock patterns
+
+### Feature #178 - Single chapter regeneration ✅ PASSING
+
+**Implementation Verified:**
+
+1. **Backend Endpoint** (`server/src/routes/chapters.ts`):
+   - POST /api/chapters/:id/regenerate - Full implementation
+   - Verifies chapter ownership
+   - Supports optional human_model_id parameter
+   - Generates new content for ONLY the selected chapter
+   - Fetches all chapters to verify others unchanged
+   - Updates only target chapter in database
+   - Logs generation with token usage
+   - Returns: updated chapter, message, unchanged_chapters list, token_usage
+
+2. **Frontend API** (`client/src/services/api.ts`):
+   - regenerateChapter() method with proper typing
+   - Returns chapter, message, regenerated_chapter_id, other_chapters_unchanged array
+
+3. **Frontend UI** (`client/src/pages/ProjectDetail.tsx`):
+   - RefreshCw icon button next to Delete button
+   - Confirmation dialog before regeneration
+   - Double-click prevention (using ref)
+   - Loading spinner during regeneration
+   - Success toast with message
+   - Console log of unchanged chapters
+
+4. **Verification**: Response includes list of unchanged chapters for verification
+
+**No Mock Data Found**: Verified with grep - all database queries use real SQLite
+
+### Git Commit:
+bd5ad61 - "feat: verify and mark features #159 and #178 as passing"
+
+---
+
+## Session: 2026-02-12 (Features #161, #162)
 
 **Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
 
