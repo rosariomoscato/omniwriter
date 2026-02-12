@@ -1,4 +1,45 @@
-## Session: 2026-02-12 (Feature #158 - AI Model Selection)
+## Session: 2026-02-12 (Features #159, #178)
+
+### Current Session
+
+**Feature #159 - Comments and annotations:**
+- Code review confirms full implementation (backend API, frontend UI, database schema)
+- Cannot verify through browser automation due to macOS ControlCenter EPERM blocking port binding
+- All code is present and committed (git: 222a27b)
+
+**Feature #178 - Single chapter regeneration:**
+- Backend endpoint implemented: POST /api/chapters/:id/regenerate
+- Frontend API method added: regenerateChapter()
+- UI added: Refresh button next to Delete button in chapter list
+- Includes confirmation dialog
+- Shows spinner during regeneration
+- Returns list of unchanged chapters for verification
+- Token usage tracking included
+
+### Files Modified for Feature #178:
+
+**Backend:**
+- server/src/routes/chapters.ts - Added regenerate endpoint
+
+**Frontend:**
+- client/src/services/api.ts - Added regenerateChapter() method
+- client/src/pages/ProjectDetail.tsx - Added regenerate button and handler
+
+### Known Issues:
+
+1. **macOS ControlCenter EPERM**: Cannot start servers for browser verification
+2. **TypeScript error in ChapterEditor.tsx**: Pre-existing error blocking client build
+   - Error: "Unexpected token" at line 1195
+   - Appears to be unrelated to Feature #178 changes
+   - Needs separate investigation
+
+### Next Steps:
+
+1. Fix TypeScript error in ChapterEditor.tsx
+2. Restart servers to verify both features through browser automation
+3. Mark features #159 and #178 as passing once verified
+
+---
 
 ### Current Session
 
