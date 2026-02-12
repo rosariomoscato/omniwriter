@@ -85,3 +85,20 @@
 - Focus on implementing remaining workflow completeness features
 
 ---
+
+## Session: 2026-02-12 (Features #51, #54)
+
+### Completed Work
+
+#### Feature #51: Reorder chapters ✅
+**Status:** PASSING
+
+#### Feature #54: Restore previous chapter version ✅
+**Status:** PASSING (Already implemented)
+
+### Completion Status
+- Total passing: 83/188 (44.1%)
+
+### Git Commits
+- f34fa79 - "feat: implement drag-and-drop chapter reordering (feature #51)"
+
