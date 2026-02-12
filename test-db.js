@@ -4,24 +4,15 @@ const path = require('path');
 const dbPath = path.join(__dirname, 'server/data/omniwriter.db');
 const db = new Database(dbPath);
 
-// Check users
-const users = db.prepare('SELECT * FROM users').all();
-console.log('Users:', users.length);
+// Check users with test-18 in email
+const users = db.prepare('SELECT email FROM users WHERE email LIKE ?').all('%test-18%');
+console.log('Users with test-18 in email:');
 users.forEach(u => console.log('  -', u.email));
 
-// Clean test users
-const stmt = db.prepare('DELETE FROM users WHERE email LIKE ?');
-const info = stmt.run('test-%');
-console.log('Deleted test users:', info.changes);
-
-// Also clean test@example.com
-const stmt2 = db.prepare('DELETE FROM users WHERE email = ?');
-const info2 = stmt2.run('test@example.com');
-console.log('Deleted test@example.com:', info2.changes);
-
-// Check remaining
-const remaining = db.prepare('SELECT * FROM users').all();
-console.log('Remaining users:', remaining.length);
+// Check all users
+const allUsers = db.prepare('SELECT email FROM users').all();
+console.log('\nAll users in database:');
+allUsers.forEach(u => console.log('  -', u.email));
 
 // Close database
 db.close();
