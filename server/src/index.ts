@@ -8,6 +8,8 @@ import authRouter from './routes/auth';
 import projectsRouter from './routes/projects';
 import humanModelsRouter from './routes/human-models';
 import chaptersRouter from './routes/chapters';
+import sourcesRouter from './routes/sources';
+import charactersRouter from './routes/characters';
 
 dotenv.config();
 
@@ -39,6 +41,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/human-models', humanModelsRouter);
 app.use('/api', chaptersRouter);
+app.use('/api', sourcesRouter);
+app.use('/api', charactersRouter);
 
 // Placeholder route groups - to be implemented by coding agents
 app.use('/api/users', (_req, res) => {

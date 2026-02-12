@@ -21,13 +21,26 @@ export default function Breadcrumbs() {
     // Build breadcrumbs based on route
     pathSegments.forEach((segment, index) => {
       const path = '/' + pathSegments.slice(0, index + 1).join('/');
+      const nextSegment = pathSegments[index + 1];
 
       // Handle dynamic routes
-      if (segment === 'projects' && index < pathSegments.length - 1) {
+      if (segment === 'projects' && nextSegment === 'new') {
+        // Don't add a crumb for 'projects' when going to new project form
+      } else if (segment === 'projects' && index < pathSegments.length - 1) {
         crumbs.push({ label: 'Progetti', path: '/projects' });
+      } else if (segment === 'new') {
+        crumbs.push({ label: 'Nuovo Progetto', path });
+      } else if (segment === 'chapters') {
+        // Skip 'chapters' segment, handled by the following UUID
       } else if (segment.match(/^[a-f0-9-]{36}$/)) {
-        // UUID for project ID
-        crumbs.push({ label: 'Progetto', path });
+        // UUID - could be project ID or chapter ID
+        if (pathSegments.includes('chapters')) {
+          // This is a chapter ID
+          crumbs.push({ label: 'Capitolo' }); // No path, it's the current page
+        } else {
+          // This is a project ID
+          crumbs.push({ label: 'Progetto', path });
+        }
       } else if (segment === 'human-model') {
         crumbs.push({ label: 'Human Model', path });
       } else if (segment === 'sources') {

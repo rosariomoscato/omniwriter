@@ -98,6 +98,47 @@ export interface Chapter {
   updated_at: string;
 }
 
+export interface Source {
+  id: string;
+  project_id: string | null;
+  saga_id: string | null;
+  user_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  content_text: string;
+  source_type: 'upload' | 'web_search';
+  url: string | null;
+  tags_json: string;
+  relevance_score: number;
+  created_at: string;
+}
+
+export interface Character {
+  id: string;
+  project_id: string;
+  saga_id: string | null;
+  name: string;
+  description: string;
+  traits: string;
+  backstory: string;
+  role_in_story: string;
+  relationships_json: string;
+  extracted_from_upload: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCharacterData {
+  name: string;
+  description?: string;
+  traits?: string;
+  backstory?: string;
+  role_in_story?: string;
+  relationships_json?: string;
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -290,6 +331,38 @@ class ApiService {
     await this.request<void>(`/chapters/${id}/reorder`, {
       method: 'PUT',
       body: JSON.stringify({ newOrderIndex }),
+    });
+  }
+
+  // Source endpoints
+  async getProjectSources(projectId: string): Promise<{ sources: Source[]; count: number }> {
+    return this.request<{ sources: Source[]; count: number }>(`/projects/${projectId}/sources`);
+  }
+
+  async uploadProjectSource(projectId: string, file: File): Promise<{ source: Source }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/projects/${projectId}/sources/upload`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async deleteSource(sourceId: string): Promise<void> {
+    await this.request<void>(`/sources/${sourceId}`, {
+      method: 'DELETE',
     });
   }
 

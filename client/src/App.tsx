@@ -14,6 +14,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import NotFoundPage from './pages/NotFoundPage';
 import NewProject from './pages/NewProject';
 import HumanModelPage from './pages/HumanModelPage';
+import ChapterEditor from './pages/ChapterEditor';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -281,6 +282,28 @@ function AppContent() {
                       `}
                     >
                       <ProjectDetail />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/projects/:id/chapters/:chapterId"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <ChapterEditor />
                     </main>
                   </>
                 }
