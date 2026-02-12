@@ -1064,6 +1064,7 @@ export default function ChapterEditor() {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Error Message */}

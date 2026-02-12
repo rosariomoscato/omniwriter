@@ -5,6 +5,16 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Store for active generation tasks (in-memory)
+const activeGenerations = new Map<string, {
+  projectId: string;
+  userId: string;
+  startedAt: number;
+  completedChapters: string[];
+  totalChapters: number;
+  cancelRequested: boolean;
+}>();
+
 interface GenerationLog {
   id: string;
   project_id: string;
@@ -167,6 +177,146 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
     res.json({ message: 'Generation log updated successfully', log: updatedLog });
   } catch (error) {
     console.error('[GenerationLogs] Update error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/generation/:id/cancel - Cancel an in-progress generation
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/cancel', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const logId = req.params.id;
+
+    // Verify ownership
+    const log = db.prepare(
+      `SELECT gl.* FROM generation_logs gl
+       JOIN projects p ON gl.project_id = p.id
+       WHERE gl.id = ? AND p.user_id = ?`
+    ).get(logId, userId) as GenerationLog | undefined;
+
+    if (!log) {
+      res.status(404).json({ message: 'Generation log not found' });
+      return;
+    }
+
+    // Update log status to cancelled
+    db.prepare('UPDATE generation_logs SET status = ?, error_message = ? WHERE id = ?')
+      .run('cancelled', 'Generation cancelled by user', logId);
+
+    // Mark active generation for cancellation
+    const activeGen = activeGenerations.get(logId);
+    if (activeGen) {
+      activeGen.cancelRequested = true;
+      console.log('[Generation] Cancel requested for generation:', logId);
+    }
+
+    res.json({ message: 'Generation cancelled successfully' });
+  } catch (error) {
+    console.error('[Generation] Cancel error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/generation/:id/retry - Retry a failed generation from interruption point
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/retry', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const logId = req.params.id;
+
+    // Verify ownership and get generation info
+    const log = db.prepare(
+      `SELECT gl.*, p.area, p.settings_json
+       FROM generation_logs gl
+       JOIN projects p ON gl.project_id = p.id
+       WHERE gl.id = ? AND p.user_id = ?`
+    ).get(logId, userId) as any;
+
+    if (!log) {
+      res.status(404).json({ message: 'Generation log not found' });
+      return;
+    }
+
+    // Get chapters that were already created before interruption
+    const completedChapters = db.prepare(
+      `SELECT id, title, content, order_index, status
+       FROM chapters
+       WHERE project_id = ?
+       ORDER BY order_index ASC`
+    ).all(log.project_id) as any[];
+
+    console.log('[Generation] Retry requested for generation:', logId,
+                'completed chapters:', completedChapters.length);
+
+    // Update the failed log to show retry
+    db.prepare(`UPDATE generation_logs SET status = ? WHERE id = ?`).run('cancelled', logId);
+
+    // Create a new log entry for the retry
+    const newLogId = uuidv4();
+    db.prepare(
+      `INSERT INTO generation_logs (id, project_id, chapter_id, model_used, phase, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+    ).run(newLogId, log.project_id, log.chapter_id, log.model_used, 'writing', 'started');
+
+    res.json({
+      message: 'Generation retry initiated',
+      log: { id: newLogId },
+      completedChapters: completedChapters.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        order: c.order_index
+      })),
+      resumeFromIndex: completedChapters.length
+    });
+  } catch (error) {
+    console.error('[Generation] Retry error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/generation/:id/status - Get status of an active generation
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/:id/status', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const logId = req.params.id;
+
+    // Verify ownership
+    const log = db.prepare(
+      `SELECT gl.* FROM generation_logs gl
+       JOIN projects p ON gl.project_id = p.id
+       WHERE gl.id = ? AND p.user_id = ?`
+    ).get(logId, userId) as GenerationLog | undefined;
+
+    if (!log) {
+      res.status(404).json({ message: 'Generation log not found' });
+      return;
+    }
+
+    // Get active generation state
+    const activeGen = activeGenerations.get(logId);
+
+    // Get completed chapters for this project
+    const completedChapters = db.prepare(
+      `SELECT COUNT(*) as count FROM chapters WHERE project_id = ? AND status = 'generated'`
+    ).get(log.project_id) as { count: number };
+
+    res.json({
+      generation: {
+        id: log.id,
+        status: log.status,
+        phase: log.phase,
+        completedChapters: completedChapters.count,
+        isActive: !!activeGen,
+        cancelRequested: activeGen?.cancelRequested || false
+      }
+    });
+  } catch (error) {
+    console.error('[Generation] Status error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
   }
 });

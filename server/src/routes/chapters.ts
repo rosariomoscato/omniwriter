@@ -3,6 +3,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { generationRateLimit } from '../middleware/rateLimit';
 
 const router = express.Router();
 
@@ -439,7 +440,7 @@ router.post('/chapters/:id/restore/:versionId', authenticateToken, (req, res) =>
 });
 
 // POST /api/chapters/:id/generate-headlines - Generate headline options for Redattore articles
-router.post('/chapters/:id/generate-headlines', authenticateToken, async (req, res) => {
+router.post('/chapters/:id/generate-headlines', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -505,7 +506,7 @@ router.post('/chapters/:id/generate-headlines', authenticateToken, async (req, r
 });
 
 // POST /api/chapters/:id/generate-social-snippets - Generate social media snippets for Redattore articles
-router.post('/chapters/:id/generate-social-snippets', authenticateToken, async (req, res) => {
+router.post('/chapters/:id/generate-social-snippets', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -585,7 +586,7 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, async (
 });
 
 // POST /api/chapters/:id/generate-with-comparison - Generate content with and without Human Model for comparison
-router.post('/chapters/:id/generate-with-comparison', authenticateToken, async (req, res) => {
+router.post('/chapters/:id/generate-with-comparison', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
     const { human_model_id, prompt_context } = req.body;

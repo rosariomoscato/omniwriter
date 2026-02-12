@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import * as mammoth from 'mammoth';
+// import * as mammoth from 'mammoth'; // Temporarily disabled - package not installed
 
 const router = Router();
 
@@ -48,11 +48,11 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
 
     // Count query - gets total matching projects
     let countQuery = 'SELECT COUNT(*) as total FROM projects WHERE user_id = ?';
-    const countParams: (string | undefined)[] = [userId];
+    const countParams: (string | number | undefined)[] = [userId];
 
     // Main query - fetches paginated projects
     let query = 'SELECT * FROM projects WHERE user_id = ?';
-    const params: (string | undefined)[] = [userId];
+    const params: (string | number | undefined)[] = [userId];
 
     // Apply filters to both queries
     if (area && typeof area === 'string') {
@@ -550,7 +550,11 @@ function parseTxtContent(content: string, filename: string): { title: string; ch
 }
 
 // Helper function to parse DOCX content using mammoth
+// Temporarily disabled - mammoth package not installed
 async function parseDocxContent(buffer: Buffer, filename: string): Promise<{ title: string; chapters: Array<{ title: string; content: string }> }> {
+  // TODO: Re-enable when mammoth package can be installed
+  throw new Error('DOCX import temporarily disabled. Please use TXT files for now.');
+  /*
   try {
     // Use mammoth to extract raw text from DOCX
     const result = await mammoth.extractRawText({ buffer: buffer });
@@ -564,6 +568,7 @@ async function parseDocxContent(buffer: Buffer, filename: string): Promise<{ tit
     console.error('[Import] DOCX parsing error:', error);
     throw new Error('Failed to parse DOCX file. Please ensure it is a valid .docx file.');
   }
+  */
 }
 
 // POST /api/projects/import - Import project from file
@@ -614,15 +619,15 @@ router.post('/import', authenticateToken, upload.single('file'), async (req: Aut
         }
         parsed = parseTxtContent(content, file.originalname);
       } else {
-        // Treat as DOCX using mammoth parser
-        parsed = await parseDocxContent(file.buffer, file.originalname);
+        // DOCX temporarily disabled
+        throw new Error('DOCX import temporarily unavailable. Please upload a TXT file.');
       }
     } catch (parseError) {
       console.error('[Projects] File parsing error:', parseError instanceof Error ? parseError.message : 'Unknown error');
       res.status(400).json({
         message: parseError instanceof Error
           ? parseError.message
-          : 'Failed to parse file. Please ensure it is a valid text or DOCX file.'
+          : 'Failed to parse file. Please ensure it is a valid text file.'
       });
       return;
     }

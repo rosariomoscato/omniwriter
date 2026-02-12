@@ -6,8 +6,12 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
+
+// Apply rate limiting to auth endpoints
+router.use(authRateLimit);
 
 // POST /api/auth/register
 router.post('/register', (req: Request, res: Response) => {

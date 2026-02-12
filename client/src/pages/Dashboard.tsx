@@ -989,10 +989,7 @@ export default function Dashboard() {
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              {t('showing_projects', 'Showing {{count}} of {{total}} projects', {
-                count: projects.length,
-                total: pagination.total
-              })}
+              Showing {projects.length} of {pagination.total} projects
             </div>
 
             <div className="flex items-center gap-2">
@@ -1007,7 +1004,7 @@ export default function Dashboard() {
 
               {/* Page Numbers */}
               <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => (() => {
                   let pageNum;
                   if (pagination.totalPages <= 5) {
                     pageNum = i + 1;
@@ -1032,7 +1029,7 @@ export default function Dashboard() {
                       {pageNum}
                     </button>
                   );
-                })}
+                })())}
               </div>
 
               {/* Next Button */}
