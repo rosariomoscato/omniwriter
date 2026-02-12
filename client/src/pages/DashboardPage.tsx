@@ -30,8 +30,10 @@ function DashboardPage() {
   }, [navigate]);
 
   const handleLogout = () => {
-    apiService.logout();
-    navigate('/');
+    apiService.logout().then(() => {
+      ApiService.clearAuth();
+      navigate('/');
+    });
   };
 
   if (!user) {
