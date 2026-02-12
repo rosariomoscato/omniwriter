@@ -89,6 +89,32 @@ export interface CreateHumanModelData {
   style_strength?: number;
 }
 
+export interface GenerationLog {
+  id: string;
+  project_id: string;
+  chapter_id?: string;
+  model_used: string;
+  phase: 'structure' | 'writing' | 'revision';
+  tokens_input: number;
+  tokens_output: number;
+  duration_ms: number;
+  status: 'started' | 'completed' | 'failed' | 'cancelled';
+  error_message?: string;
+  created_at: string;
+}
+
+export interface CreateGenerationLogData {
+  project_id: string;
+  chapter_id?: string;
+  model_used: string;
+  phase: 'structure' | 'writing' | 'revision';
+  tokens_input?: number;
+  tokens_output?: number;
+  duration_ms?: number;
+  status?: 'started' | 'completed' | 'failed' | 'cancelled';
+  error_message?: string;
+}
+
 export interface Chapter {
   id: string;
   project_id: string;
@@ -873,6 +899,25 @@ class ApiService {
     theme_preference?: 'light' | 'dark';
   }): Promise<{ user: any }> {
     return this.request<{ user: any }>('/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Generation log endpoints
+  async getProjectGenerationLogs(projectId: string): Promise<{ logs: GenerationLog[]; count: number }> {
+    return this.request<{ logs: GenerationLog[]; count: number }>(`/projects/${projectId}/generation-logs`);
+  }
+
+  async createGenerationLog(data: CreateGenerationLogData): Promise<{ log: GenerationLog }> {
+    return this.request<{ log: GenerationLog }>('/generation-logs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateGenerationLog(logId: string, data: Partial<CreateGenerationLogData>): Promise<{ log: GenerationLog }> {
+    return this.request<{ log: GenerationLog }>(`/generation-logs/${logId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });

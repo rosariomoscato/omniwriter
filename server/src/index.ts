@@ -24,7 +24,7 @@ import generationLogsRouter from './routes/generation-logs';
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3002;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Middleware
 app.use(helmet());
@@ -93,10 +93,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ message: 'Internal server error' });
 });
 
-const HOST = process.env.HOST || '127.0.0.1';
-app.listen(PORT, HOST, () => {
-  console.log(`[Server] OmniWriter API running on http://${HOST}:${PORT}`);
-  console.log(`[Server] Health check: http://${HOST}:${PORT}/api/health`);
+app.listen(PORT, () => {
+  console.log(`[Server] OmniWriter API running on port ${PORT}`);
+  console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
 });
 
 export default app;
