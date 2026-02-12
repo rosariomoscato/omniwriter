@@ -18,6 +18,7 @@ interface GenerationContextType {
   completeGeneration: () => void;
   failGeneration: (error: string) => void;
   resetGeneration: () => void;
+  cancelGeneration: () => void;
 }
 
 const GenerationProgressContext = createContext<GenerationContextType | undefined>(undefined);
@@ -29,6 +30,20 @@ const INITIAL_PROGRESS: GenerationProgress = {
   message: '',
   percentage: 0,
 };
+
+// Global abort controller for canceling generation
+let generationAbortController: AbortController | null = null;
+
+export function setGenerationAbortController(controller: AbortController | null) {
+  generationAbortController = controller;
+}
+
+export function abortGeneration() {
+  if (generationAbortController) {
+    generationAbortController.abort();
+    generationAbortController = null;
+  }
+}
 
 export function GenerationProgressProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<GenerationProgress>(INITIAL_PROGRESS);
@@ -71,6 +86,13 @@ export function GenerationProgressProvider({ children }: { children: React.React
     setProgress(INITIAL_PROGRESS);
   }, []);
 
+  const cancelGeneration = useCallback(() => {
+    // Abort the fetch request
+    abortGeneration();
+    // Reset progress to idle
+    setProgress(INITIAL_PROGRESS);
+  }, []);
+
   const value: GenerationContextType = {
     progress,
     startGeneration,
@@ -78,6 +100,7 @@ export function GenerationProgressProvider({ children }: { children: React.React
     completeGeneration,
     failGeneration,
     resetGeneration,
+    cancelGeneration,
   };
 
   return (

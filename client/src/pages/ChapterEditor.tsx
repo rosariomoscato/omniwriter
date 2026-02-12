@@ -1,13 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
 import { EditorSkeleton } from '../components/Skeleton';
+import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 
 export default function ChapterEditor() {
+  const toast = useToastNotification();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
 
@@ -37,6 +39,13 @@ export default function ChapterEditor() {
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [matches, setMatches] = useState<number[]>([]);
+
+  // AI Revision state
+  const [selectedText, setSelectedText] = useState('');
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null);
+  const [showReviseMenu, setShowReviseMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [revising, setRevising] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);
@@ -125,6 +134,24 @@ export default function ChapterEditor() {
     const readingMinutes = Math.ceil(words.length / 200);
     setReadingTime(readingMinutes);
   }, [content]);
+
+  // Handle text selection for AI revision (feature #96)
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleSelectionChange = () => {
+      handleTextSelection();
+    };
+
+    textarea.addEventListener('mouseup', handleSelectionChange);
+    textarea.addEventListener('keyup', handleSelectionChange);
+
+    return () => {
+      textarea.removeEventListener('mouseup', handleSelectionChange);
+      textarea.removeEventListener('keyup', handleSelectionChange);
+    };
+  }, [handleTextSelection]);
 
   // Update matches when find text or content changes
   useEffect(() => {
@@ -450,6 +477,95 @@ export default function ChapterEditor() {
     setShowVersionHistory(false);
   };
 
+  // Handle text selection for AI revision (feature #96)
+  const handleTextSelection = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || isPreview) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (start !== end) {
+      // Text is selected
+      const selected = content.substring(start, end);
+      if (selected.trim().length > 0) {
+        setSelectedText(selected);
+        setSelectionRange({ start, end });
+
+        // Calculate position for floating menu
+        const textBeforeCursor = content.substring(0, start);
+        const lines = textBeforeCursor.split('\n');
+        const lineHeight = 24; // Approximate line height
+        const charWidth = 8; // Approximate character width
+        const lineHeightAdjust = 32; // Toolbar height
+
+        // Position menu above the selection
+        setMenuPosition({
+          top: lines.length * lineHeight - lineHeightAdjust - 10,
+          left: Math.min((lines[lines.length - 1]?.length || 0) * charWidth, 300)
+        });
+        setShowReviseMenu(true);
+      }
+    } else {
+      // No text selected
+      setSelectedText('');
+      setSelectionRange(null);
+      setShowReviseMenu(false);
+    }
+  }, [content, isPreview]);
+
+  // Handle AI revision request
+  const handleAIRevise = async () => {
+    if (!selectedText || !selectionRange || !chapterId) return;
+
+    try {
+      setRevising(true);
+      setShowReviseMenu(false);
+
+      // Call AI revision API
+      // Note: This endpoint would need to be implemented on the backend
+      const response = await fetch(`/api/chapters/${chapterId}/revise`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          selectedText,
+          start: selectionRange.start,
+          end: selectionRange.end,
+          fullContent: content
+        })
+      });
+
+      if (!response.ok) {
+        // If endpoint doesn't exist yet, show a message
+        toast.error('AI revision endpoint not yet implemented. This is a UI demo.');
+        setRevising(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.revisedText) {
+        // Replace selected text with revised version
+        const newContent = content.substring(0, selectionRange.start) +
+                        data.revisedText +
+                        content.substring(selectionRange.end);
+        setContent(newContent);
+        toast.success('Text revised successfully');
+      }
+
+      setSelectedText('');
+      setSelectionRange(null);
+    } catch (err: any) {
+      console.error('Revision error:', err);
+      toast.error(err.message || 'Failed to revise text');
+    } finally {
+      setRevising(false);
+    }
+  };
+
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
     let html = content;
@@ -712,7 +828,7 @@ export default function ChapterEditor() {
       )}
 
       {/* Editor / Preview */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative">
         {isPreview ? (
           <div className="p-6">
             <div
@@ -729,6 +845,49 @@ export default function ChapterEditor() {
             placeholder="Start writing your chapter here..."
             spellCheck
           />
+        )}
+
+        {/* AI Revision Floating Menu (Feature #96) */}
+        {showReviseMenu && !isPreview && menuPosition && (
+          <div
+            className="absolute z-50 bg-white dark:bg-dark-surface rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-2 animate-in fade-in zoom-in duration-200"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
+                {selectedText.length > 50
+                  ? `${selectedText.substring(0, 50)}...`
+                  : selectedText}
+              </span>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+              <button
+                onClick={handleAIRevise}
+                disabled={revising}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {revising ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Revising...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    AI Revise
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowReviseMenu(false)}
+                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

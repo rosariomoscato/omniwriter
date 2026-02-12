@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useGenerationProgress } from '../contexts/GenerationProgressContext';
-import { Loader2, CheckCircle2, XCircle, FileText, Edit3, Sparkles } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, FileText, Edit3, Sparkles, X, AlertTriangle } from 'lucide-react';
 
 const PHASE_CONFIG = {
   structure: {
@@ -35,7 +36,8 @@ const PHASE_CONFIG = {
 };
 
 export default function GenerationProgress() {
-  const { progress } = useGenerationProgress();
+  const { progress, cancelGeneration } = useGenerationProgress();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   if (progress.phase === 'idle') {
     return null;
@@ -168,6 +170,43 @@ export default function GenerationProgress() {
         )}
 
         {/* Action Buttons */}
+        {isActive && (
+          <>
+            {!showCancelConfirm ? (
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                className="w-full mt-4 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancel Generation
+              </button>
+            ) : (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Are you sure you want to cancel? Any progress will be lost.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
+                  >
+                    Keep Generating
+                  </button>
+                  <button
+                    onClick={cancelGeneration}
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Yes, Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
         {isFailed && (
           <button
             onClick={() => window.location.reload()}
