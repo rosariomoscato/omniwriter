@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -69,6 +69,20 @@ export default function ProjectDetail() {
     description: '',
     chapter_id: '',
     event_type: ''
+  });
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    genre: '',
+    tone: '',
+    target_audience: '',
+    pov: '',
+    word_count_target: '',
+    status: 'draft' as 'draft' | 'in_progress' | 'completed' | 'archived'
   });
 
   useEffect(() => {
@@ -547,6 +561,128 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleEditClick = () => {
+    if (project) {
+      setEditForm({
+        title: project.title,
+        description: project.description || '',
+        genre: project.genre || '',
+        tone: project.tone || '',
+        target_audience: project.target_audience || '',
+        pov: project.pov || '',
+        word_count_target: project.word_count_target?.toString() || '',
+        status: project.status
+      });
+      setShowEditDialog(true);
+    }
+  };
+
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project) return;
+
+    try {
+      setCreating(true);
+      setError('');
+
+      const updateData: any = {
+        title: editForm.title,
+        description: editForm.description || undefined,
+        genre: editForm.genre || undefined,
+        tone: editForm.tone || undefined,
+        target_audience: editForm.target_audience || undefined,
+        pov: editForm.pov || undefined,
+        word_count_target: editForm.word_count_target ? parseInt(editForm.word_count_target) : undefined,
+        status: editForm.status
+      };
+
+      const response = await apiService.updateProject(id!, updateData);
+      setProject(response.project);
+      setShowEditDialog(false);
+      toast.success('Project updated successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update project');
+      toast.error(err.message || 'Failed to update project');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDuplicateProject = async () => {
+    if (!project) return;
+
+    if (!confirm(`Create a copy of "${project.title}"? All chapters, characters, locations, and sources will be duplicated.`)) {
+      return;
+    }
+
+    try {
+      setDuplicating(true);
+      setError('');
+
+      const response = await apiService.duplicateProject(id!);
+      toast.success(`Project duplicated as "${response.project.title}"`);
+
+      // Navigate to the duplicated project
+      setTimeout(() => {
+        navigate(`/projects/${response.project.id}`);
+      }, 500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to duplicate project');
+      toast.error(err.message || 'Failed to duplicate project');
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: 'draft' | 'in_progress' | 'completed' | 'archived') => {
+    if (!project) return;
+
+    try {
+      setUpdatingStatus(true);
+      const response = await apiService.updateProject(id!, { status: newStatus });
+      setProject(response.project);
+      setShowStatusMenu(false);
+      toast.success(`Project status changed to ${newStatus.replace('_', ' ')}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!project) return;
+
+    if (project.status === 'archived') {
+      // Unarchive
+      try {
+        setUpdatingStatus(true);
+        const response = await apiService.unarchiveProject(id!);
+        setProject(response.project);
+        toast.success('Project unarchived');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to unarchive project');
+      } finally {
+        setUpdatingStatus(false);
+      }
+    } else {
+      // Archive
+      if (!confirm(`Archive "${project.title}"? It will be hidden from the main project list.`)) {
+        return;
+      }
+      try {
+        setUpdatingStatus(true);
+        const response = await apiService.archiveProject(id!);
+        setProject(response.project);
+        toast.success('Project archived');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to archive project');
+      } finally {
+        setUpdatingStatus(false);
+      }
+    }
+  };
+
   return (
     <div className="p-6">
       <Breadcrumbs />
@@ -572,9 +708,107 @@ export default function ProjectDetail() {
               project.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
               'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
             }`}>
-              {project.status === 'draft' ? 'Draft' : project.status === 'in_progress' ? 'In Progress' : 'Completed'}
+              {project.status === 'draft' ? 'Draft' : project.status === 'in_progress' ? 'In Progress' : project.status === 'completed' ? 'Completed' : 'Archived'}
             </span>
             <div className="ml-auto flex items-center gap-2">
+              {/* Status Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowStatusMenu(!showStatusMenu)}
+                  disabled={updatingStatus}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {updatingStatus ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="w-4 h-4" />
+                      Status
+                      <ChevronDown className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                {showStatusMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleStatusChange('draft')}
+                        disabled={updatingStatus}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <span className={`w-3 h-3 rounded-full ${project?.status === 'draft' ? 'bg-gray-600' : 'bg-gray-300'}`}></span>
+                        Draft
+                        {project?.status === 'draft' && <span className="ml-auto text-xs">✓</span>}
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('in_progress')}
+                        disabled={updatingStatus}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <span className={`w-3 h-3 rounded-full ${project?.status === 'in_progress' ? 'bg-blue-600' : 'bg-gray-300'}`}></span>
+                        In Progress
+                        {project?.status === 'in_progress' && <span className="ml-auto text-xs">✓</span>}
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('completed')}
+                        disabled={updatingStatus}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <span className={`w-3 h-3 rounded-full ${project?.status === 'completed' ? 'bg-green-600' : 'bg-gray-300'}`}></span>
+                        Completed
+                        {project?.status === 'completed' && <span className="ml-auto text-xs">✓</span>}
+                      </button>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                      <button
+                        onClick={handleArchive}
+                        disabled={updatingStatus}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2 text-yellow-600 dark:text-yellow-400"
+                      >
+                        {project?.status === 'archived' ? (
+                          <>
+                            <ArchiveRestore className="w-4 h-4" />
+                            Unarchive
+                          </>
+                        ) : (
+                          <>
+                            <Archive className="w-4 h-4" />
+                            Archive
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleEditClick}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={handleDuplicateProject}
+                disabled={duplicating}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {duplicating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Duplicating...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Duplicate
+                  </>
+                )}
+              </button>
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"

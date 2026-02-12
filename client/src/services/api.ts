@@ -321,16 +321,36 @@ class ApiService {
     });
   }
 
-  async updateProject(id: string, data: Partial<CreateProjectData>): Promise<{ project: Project }> {
+  async updateProject(id: string, data: Partial<CreateProjectData & { status?: 'draft' | 'in_progress' | 'completed' | 'archived' }>): Promise<{ project: Project }> {
     return this.request<{ project: Project }>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
+  async archiveProject(id: string): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'archived' }),
+    });
+  }
+
+  async unarchiveProject(id: string): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'draft' }),
+    });
+  }
+
   async deleteProject(id: string): Promise<void> {
     await this.request<void>(`/projects/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async duplicateProject(id: string): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/projects/${id}/duplicate`, {
+      method: 'POST',
     });
   }
 

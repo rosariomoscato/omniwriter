@@ -230,6 +230,178 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/projects/:id/duplicate - Duplicate a project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/duplicate', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    // Fetch the original project
+    const originalProject = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!originalProject) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    const newProjectId = uuidv4();
+    const duplicateTitle = `${originalProject.title} (Copy)`;
+
+    console.log('[Projects] Duplicating project:', projectId, '->', newProjectId);
+
+    // Create the duplicated project
+    db.prepare(
+      `INSERT INTO projects (
+        id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov,
+        word_count_target, status, settings_json, word_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, 0, datetime('now'), datetime('now'))`
+    ).run(
+      newProjectId,
+      userId,
+      originalProject.saga_id,
+      duplicateTitle,
+      originalProject.description || '',
+      originalProject.area,
+      originalProject.genre || '',
+      originalProject.tone || '',
+      originalProject.target_audience || '',
+      originalProject.pov || '',
+      originalProject.word_count_target || 0,
+      originalProject.settings_json || '{}'
+    );
+
+    // Duplicate chapters if any exist
+    const chapters = db.prepare('SELECT * FROM chapters WHERE project_id = ?').all(projectId) as any[];
+    for (const chapter of chapters) {
+      const newChapterId = uuidv4();
+      db.prepare(
+        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(
+        newChapterId,
+        newProjectId,
+        chapter.title,
+        chapter.content || '',
+        chapter.order_index,
+        chapter.status,
+        chapter.word_count || 0
+      );
+
+      // Duplicate chapter versions if any exist
+      const versions = db.prepare('SELECT * FROM chapter_versions WHERE chapter_id = ?').all(chapter.id) as any[];
+      for (const version of versions) {
+        const newVersionId = uuidv4();
+        db.prepare(
+          `INSERT INTO chapter_versions (id, chapter_id, content, version_number, created_at, change_description)
+             VALUES (?, ?, ?, ?, ?, ?)`
+        ).run(
+          newVersionId,
+          newChapterId,
+          version.content,
+          version.version_number,
+          version.created_at,
+          version.change_description || ''
+        );
+      }
+    }
+
+    // Duplicate characters if any exist (for romanziere projects)
+    const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    for (const character of characters) {
+      const newCharacterId = uuidv4();
+      db.prepare(
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(
+        newCharacterId,
+        newProjectId,
+        character.saga_id,
+        character.name,
+        character.description || '',
+        character.traits || '',
+        character.backstory || '',
+        character.role_in_story || '',
+        character.relationships_json || '[]',
+        character.extracted_from_upload || 0
+      );
+    }
+
+    // Duplicate locations if any exist
+    const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
+    for (const location of locations) {
+      const newLocationId = uuidv4();
+      db.prepare(
+        `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(
+        newLocationId,
+        newProjectId,
+        location.saga_id,
+        location.name,
+        location.description || '',
+        location.significance || '',
+        location.extracted_from_upload || 0
+      );
+    }
+
+    // Duplicate plot events if any exist
+    const plotEvents = db.prepare('SELECT * FROM plot_events WHERE project_id = ?').all(projectId) as any[];
+    for (const plotEvent of plotEvents) {
+      const newPlotEventId = uuidv4();
+      db.prepare(
+        `INSERT INTO plot_events (id, project_id, saga_id, title, description, chapter_id, order_index, event_type, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(
+        newPlotEventId,
+        newProjectId,
+        plotEvent.saga_id,
+        plotEvent.title,
+        plotEvent.description || '',
+        plotEvent.chapter_id,
+        plotEvent.order_index,
+        plotEvent.event_type || '',
+        plotEvent.extracted_from_upload || 0
+      );
+    }
+
+    // Duplicate sources if any exist
+    const sources = db.prepare('SELECT * FROM sources WHERE project_id = ?').all(projectId) as any[];
+    for (const source of sources) {
+      const newSourceId = uuidv4();
+      db.prepare(
+        `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).run(
+        newSourceId,
+        newProjectId,
+        userId,
+        source.file_name,
+        source.file_path || '',
+        source.file_type,
+        source.file_size || 0,
+        source.content_text || '',
+        source.source_type || 'upload',
+        source.url || '',
+        source.tags_json || '[]',
+        source.relevance_score || 0.0
+      );
+    }
+
+    // Fetch and return the duplicated project
+    const duplicatedProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
+    console.log('[Projects] Project duplicated successfully:', newProjectId);
+
+    res.status(201).json({ message: 'Project duplicated successfully', project: duplicatedProject });
+  } catch (error) {
+    console.error('[Projects] Duplicate error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Helper function to parse TXT content
 function parseTxtContent(content: string, filename: string): { title: string; chapters: Array<{ title: string; content: string }> } {
   const lines = content.split('\n');
