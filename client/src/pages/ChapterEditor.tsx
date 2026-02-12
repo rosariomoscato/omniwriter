@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2 } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { apiService, Chapter, Project } from '../services/api';
+import VersionHistory from '../components/VersionHistory';
+import VersionComparison from '../components/VersionComparison';
+import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 
 export default function ChapterEditor() {
   const { id: projectId, chapterId } = useParams();
@@ -18,6 +20,8 @@ export default function ChapterEditor() {
   const [error, setError] = useState('');
   const [isPreview, setIsPreview] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [comparisonVersions, setComparisonVersions] = useState<{ v1: ChapterVersion | null; v2: ChapterVersion | null }>({ v1: null, v2: null });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);

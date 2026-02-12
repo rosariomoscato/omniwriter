@@ -17,6 +17,8 @@ const sources_1 = __importDefault(require("./routes/sources"));
 const characters_1 = __importDefault(require("./routes/characters"));
 const export_1 = __importDefault(require("./routes/export"));
 const sagas_1 = __importDefault(require("./routes/sagas"));
+const admin_1 = __importDefault(require("./routes/admin"));
+const users_1 = __importDefault(require("./routes/users"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT) || 3001;
@@ -36,9 +38,15 @@ app.use('/api', (req, _res, next) => {
 // Initialize database
 const db = (0, database_1.initializeDatabase)();
 console.log('[Database] SQLite database connected successfully');
+// Middleware to attach database to request
+app.use('/api/admin', (req, res, next) => {
+    req.db = db;
+    next();
+});
 // Routes
 app.use('/api/health', health_1.default);
 app.use('/api/auth', auth_1.default);
+app.use('/api/users', users_1.default);
 app.use('/api/projects', projects_1.default);
 app.use('/api/human-models', human_models_1.default);
 app.use('/api/sagas', sagas_1.default);
@@ -46,10 +54,7 @@ app.use('/api', chapters_1.default);
 app.use('/api', sources_1.default);
 app.use('/api', characters_1.default);
 app.use('/api', export_1.default);
-// Placeholder route groups - to be implemented by coding agents
-app.use('/api/users', (_req, res) => {
-    res.status(501).json({ message: 'User routes not yet implemented' });
-});
+app.use('/api/admin', admin_1.default);
 // 404 handler
 app.use((_req, res) => {
     res.status(404).json({ message: 'Route not found' });

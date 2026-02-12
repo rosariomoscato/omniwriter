@@ -13,6 +13,7 @@ import charactersRouter from './routes/characters';
 import exportRouter from './routes/export';
 import sagasRouter from './routes/sagas';
 import adminRouter from './routes/admin';
+import usersRouter from './routes/users';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/admin', (req, res, next) => {
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/human-models', humanModelsRouter);
 app.use('/api/sagas', sagasRouter);
@@ -55,11 +57,6 @@ app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
 app.use('/api', exportRouter);
 app.use('/api/admin', adminRouter);
-
-// Placeholder route groups - to be implemented by coding agents
-app.use('/api/users', (_req, res) => {
-  res.status(501).json({ message: 'User routes not yet implemented' });
-});
 
 // 404 handler
 app.use((_req, res) => {

@@ -16,6 +16,7 @@ import NewProject from './pages/NewProject';
 import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
 import AdminUsersPage from './pages/AdminUsersPage';
+import ProfilePage from './pages/ProfilePage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -41,6 +42,12 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
 
   if (!user && isProtectedRoute) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if admin route and user is not admin
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  if (isAdminRoute && user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -216,7 +223,7 @@ function AppContent() {
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <ProfilePage />
                     </main>
                   </>
                 }
@@ -238,7 +245,7 @@ function AppContent() {
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <AdminUsersPage />
                     </main>
                   </>
                 }

@@ -122,11 +122,11 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     // Verify chapter exists and belongs to user's project
     const existingChapter = db.prepare(`
-      SELECT c.id
+      SELECT c.id, c.content, c.title
       FROM chapters c
       JOIN projects p ON c.project_id = p.id
       WHERE c.id = ? AND p.user_id = ?
-    `).get(id, userId);
+    `).get(id, userId) as { id: string; content: string; title: string } | undefined;
 
     if (!existingChapter) {
       return res.status(404).json({ message: 'Chapter not found' });
@@ -134,12 +134,17 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     const updates: string[] = [];
     const values: any[] = [];
+    let contentChanged = false;
 
     if (title !== undefined) {
       updates.push('title = ?');
       values.push(title.trim());
     }
     if (content !== undefined) {
+      // Check if content actually changed
+      if (content !== existingChapter.content) {
+        contentChanged = true;
+      }
       updates.push('content = ?');
       values.push(content);
     }
@@ -150,6 +155,30 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     if (updates.length === 0) {
       return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // If content changed, create a version entry before updating
+    if (contentChanged && existingChapter.content) {
+      const lastVersion = db.prepare(
+        'SELECT version_number FROM chapter_versions WHERE chapter_id = ? ORDER BY version_number DESC LIMIT 1'
+      ).get(id) as { version_number: number } | undefined;
+
+      const nextVersionNumber = (lastVersion?.version_number ?? 0) + 1;
+
+      const versionId = uuidv4();
+      db.prepare(`
+        INSERT INTO chapter_versions (id, chapter_id, content, version_number, created_at, change_description)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        versionId,
+        id,
+        existingChapter.content,
+        nextVersionNumber,
+        new Date().toISOString(),
+        `Auto-saved before edit`
+      );
+
+      console.log(`[ChapterVersions] Created version ${nextVersionNumber} for chapter ${id}`);
     }
 
     updates.push('updated_at = ?');
@@ -264,6 +293,148 @@ router.put('/chapters/:id/reorder', authenticateToken, (req, res) => {
   } catch (error) {
     console.error('[Chapters] Error reordering chapter:', error);
     res.status(500).json({ message: 'Failed to reorder chapter' });
+  }
+});
+
+// GET /api/chapters/:id/versions - Get all versions of a chapter
+router.get('/chapters/:id/versions', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId);
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const versions = db.prepare(`
+      SELECT id, chapter_id, version_number, created_at, change_description
+      FROM chapter_versions
+      WHERE chapter_id = ?
+      ORDER BY version_number DESC
+    `).all(id);
+
+    console.log(`[ChapterVersions] Fetched ${versions.length} versions for chapter ${id}`);
+    res.json({ versions });
+  } catch (error) {
+    console.error('[ChapterVersions] Error fetching versions:', error);
+    res.status(500).json({ message: 'Failed to fetch versions' });
+  }
+});
+
+// GET /api/chapters/:id/versions/:versionId - Get a specific version
+router.get('/chapters/:id/versions/:versionId', authenticateToken, (req, res) => {
+  try {
+    const { id, versionId } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId);
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const version = db.prepare(`
+      SELECT id, chapter_id, content, version_number, created_at, change_description
+      FROM chapter_versions
+      WHERE id = ? AND chapter_id = ?
+    `).get(versionId, id);
+
+    if (!version) {
+      return res.status(404).json({ message: 'Version not found' });
+    }
+
+    console.log(`[ChapterVersions] Fetched version ${version.version_number} for chapter ${id}`);
+    res.json({ version });
+  } catch (error) {
+    console.error('[ChapterVersions] Error fetching version:', error);
+    res.status(500).json({ message: 'Failed to fetch version' });
+  }
+});
+
+// POST /api/chapters/:id/restore/:versionId - Restore a chapter to a specific version
+router.post('/chapters/:id/restore/:versionId', authenticateToken, (req, res) => {
+  try {
+    const { id, versionId } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const existingChapter = db.prepare(`
+      SELECT c.id, c.content
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as { id: string; content: string } | undefined;
+
+    if (!existingChapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Get the version to restore
+    const version = db.prepare(`
+      SELECT id, content, version_number
+      FROM chapter_versions
+      WHERE id = ? AND chapter_id = ?
+    `).get(versionId, id) as { id: string; content: string; version_number: number } | undefined;
+
+    if (!version) {
+      return res.status(404).json({ message: 'Version not found' });
+    }
+
+    // Create a version entry of current content before restoring
+    const lastVersion = db.prepare(
+      'SELECT version_number FROM chapter_versions WHERE chapter_id = ? ORDER BY version_number DESC LIMIT 1'
+    ).get(id) as { version_number: number } | undefined;
+
+    const nextVersionNumber = (lastVersion?.version_number ?? 0) + 1;
+    const newVersionId = uuidv4();
+
+    db.prepare(`
+      INSERT INTO chapter_versions (id, chapter_id, content, version_number, created_at, change_description)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      newVersionId,
+      id,
+      existingChapter.content,
+      nextVersionNumber,
+      new Date().toISOString(),
+      `Auto-saved before restoring to version ${version.version_number}`
+    );
+
+    // Update chapter with restored content
+    db.prepare('UPDATE chapters SET content = ?, updated_at = ? WHERE id = ?').run(
+      version.content,
+      new Date().toISOString(),
+      id
+    );
+
+    // Fetch updated chapter
+    const chapter = db.prepare(`
+      SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+      FROM chapters WHERE id = ?
+    `).get(id);
+
+    console.log(`[ChapterVersions] Restored chapter ${id} to version ${version.version_number}`);
+    res.json({ chapter });
+  } catch (error) {
+    console.error('[ChapterVersions] Error restoring version:', error);
+    res.status(500).json({ message: 'Failed to restore version' });
   }
 });
 

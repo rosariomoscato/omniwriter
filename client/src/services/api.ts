@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export interface LoginCredentials {
   email: string;
@@ -96,6 +96,15 @@ export interface Chapter {
   word_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChapterVersion {
+  id: string;
+  chapter_id: string;
+  content: string;
+  version_number: number;
+  created_at: string;
+  change_description: string;
 }
 
 export interface Source {
@@ -350,6 +359,20 @@ class ApiService {
     });
   }
 
+  async getChapterVersions(chapterId: string): Promise<{ versions: ChapterVersion[] }> {
+    return this.request<{ versions: ChapterVersion[] }>(`/chapters/${chapterId}/versions`);
+  }
+
+  async getChapterVersion(chapterId: string, versionId: string): Promise<{ version: ChapterVersion }> {
+    return this.request<{ version: ChapterVersion }>(`/chapters/${chapterId}/versions/${versionId}`);
+  }
+
+  async restoreChapterVersion(chapterId: string, versionId: string): Promise<{ chapter: Chapter }> {
+    return this.request<{ chapter: Chapter }>(`/chapters/${chapterId}/restore/${versionId}`, {
+      method: 'POST',
+    });
+  }
+
   // Source endpoints
   async getProjectSources(projectId: string): Promise<{ sources: Source[]; count: number }> {
     return this.request<{ sources: Source[]; count: number }>(`/projects/${projectId}/sources`);
@@ -479,6 +502,71 @@ class ApiService {
   async createSagaProject(sagaId: string, data: CreateProjectData): Promise<{ project: Project }> {
     return this.request<{ project: Project }>(`/sagas/${sagaId}/projects`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // User profile endpoints
+  async getUserProfile(): Promise<{ user: {
+    id: string;
+    email: string;
+    name: string;
+    bio: string;
+    avatar_url: string;
+    role: string;
+    subscription_status: string;
+    subscription_expires_at: string | null;
+    preferred_language: string;
+    theme_preference: string;
+    created_at: string;
+    updated_at: string;
+    last_login_at: string | null;
+  }}> {
+    return this.request<{ user: any }>('/users/profile');
+  }
+
+  async updateUserProfile(data: {
+    name?: string;
+    bio?: string;
+    avatar_url?: string;
+    preferred_language?: 'it' | 'en';
+    theme_preference?: 'light' | 'dark';
+  }): Promise<{ user: any; message: string }> {
+    return this.request<{ user: any; message: string }>('/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/users/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAccount(password: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/users/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async getUserPreferences(): Promise<{ preferences: any }> {
+    return this.request<{ preferences: any }>('/users/preferences');
+  }
+
+  async updateUserPreferences(data: {
+    default_ai_model?: string;
+    default_quality_setting?: 'speed' | 'balanced' | 'quality';
+    dashboard_layout_json?: string;
+    keyboard_shortcuts_json?: string;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/users/preferences', {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   }
