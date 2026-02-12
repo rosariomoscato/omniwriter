@@ -745,6 +745,31 @@ class ApiService {
     });
   }
 
+  async uploadSagaSource(sagaId: string, file: File): Promise<{ source: Source }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/sagas/${sagaId}/sources/upload`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getSagaSources(sagaId: string): Promise<{ sources: Source[]; count: number }> {
+    return this.request<{ sources: Source[]; count: number }>(`/sagas/${sagaId}/sources`);
+  }
+
   // User profile endpoints
   async getUserProfile(): Promise<{ user: {
     id: string;
