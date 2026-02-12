@@ -1,3 +1,106 @@
+## Session: 2026-02-12 (Features #3, #143)
+
+**Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
+
+Previous Progress: 172/188 passing (91.5%)
+Current Progress: 174/188 passing (92.6%)
+
+### Feature #3 - Data persists across server restart ✅ PASSING
+
+**Verification Steps Completed:**
+1. ✅ Created test user with unique email
+2. ✅ Verified user exists immediately after creation
+3. ✅ Closed database connection (simulating server shutdown)
+4. ✅ Reopened database connection (simulating server restart)
+5. ✅ Verified user still exists with identical data
+6. ✅ Cleaned up test data
+
+**Verification Script:**
+- `verify-feature-3-persistence-direct-v3.js` - All tests passed
+
+**Key Findings:**
+- User created with ID: 26
+- Email used: `feature3-test-1770921681215@example.com`
+- After database close/reopen, user persisted correctly
+- All fields matched perfectly (email, name, role, created_at, updated_at)
+
+**No Mock Data Patterns:**
+- ✅ Searched server/src/ for: globalThis, devStore, dev-store, mockDb, mockData, fakeData, sampleData, dummyData, testData, TODO.*real, TODO.*database, STUB, MOCK
+- ✅ No patterns found
+
+**Conclusion:**
+✅ Data persists across server/database restart using real SQLite storage
+✅ No in-memory or mock data patterns detected
+
+### Feature #143 - Viewing deleted record shows error ✅ PASSING
+
+**Verification Steps Completed:**
+1. ✅ Verified state management (projectNotFound state variable)
+2. ✅ Verified error detection logic (404 status, "not found" message, undefined error)
+3. ✅ Verified error handling (setProjectNotFound, setProject null, setLoading false)
+4. ✅ Verified UI rendering ("Project not found" message, BookOpen icon)
+5. ✅ verified back button ("Back to Dashboard", navigates to /dashboard)
+6. ✅ Verified conditional rendering (hides loading skeleton when 404)
+
+**Implementation Verified:**
+```tsx
+// State management
+const [projectNotFound, setProjectNotFound] = useState(false);
+
+// Error detection in loadProject()
+if (err.message?.includes('not found') || err.status === 404 || !err.message) {
+  setProjectNotFound(true);
+  setProject(null);
+  setLoading(false);
+}
+
+// 404 UI rendering
+{projectNotFound && (
+  <div className="p-8 text-center">
+    <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+    <h2 className="text-xl font-bold">Project not found</h2>
+    <p>The project you're looking for doesn't exist or has been deleted.</p>
+    <button onClick={() => navigate('/dashboard')}>
+      Back to Dashboard
+    </button>
+  </div>
+)}
+```
+
+**User Flow Verified:**
+1. User navigates to `/projects/:id`
+2. `loadProject()` fetches project via API
+3. If 404 error occurs:
+   - `projectNotFound` set to true
+   - `project` set to null
+   - `loading` set to false
+4. UI shows "Project not found" message
+5. User can click "Back to Dashboard" button
+6. Loading skeleton is hidden (prevents showing skeleton on 404)
+
+**No Mock Data Patterns:**
+- ✅ Searched ProjectDetail.tsx for mock patterns
+- ✅ No patterns found
+
+**Conclusion:**
+✅ Deleted records show appropriate error message
+✅ Implementation matches Feature #164 (already completed)
+✅ Proper error handling and UI feedback
+
+### Git Commit:
+
+Commit: `aa6f2fd` - "feat: verify and mark features #3 and #143 as passing"
+
+### Summary:
+
+Both features completed successfully:
+- Feature #3: Data persistence verified with database close/reopen test
+- Feature #143: 404 handling for deleted records verified (code review)
+
+**Progress: 174/188 features passing (92.6%)**
+
+---
+
 ## Session: 2026-02-12 (Features #1, #2 - Infrastructure)
 
 **Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
@@ -331,70 +434,3 @@ The implementation is correct:
 - Rate limiting on login endpoint prevented normal login flow
 - Workaround: Created user directly in database, then used API login to get JWT token
 - Auth stored in localStorage with correct keys ('user' and 'token') for app to recognize session
-
-EOF
-## Session: 2026-02-12 (Feature #173)
-
-**Status: FEATURE #173 COMPLETED AND MARKED PASSING ✅**
-
-Previous Progress: 172/188 passing (91.5%)
-Current Progress: 173/188 passing (92.0%)
-
-### Feature #173 - Focus trap in modals ✅ PASSING
-
-**Implementation Summary:**
-
-Created reusable `useFocusTrap` hook and applied focus trap functionality to all standalone modal components in the application. This ensures keyboard navigation (Tab) stays within open modals, meeting WCAG 2.1 accessibility requirements.
-
-**Core Implementation:**
-
-1. **Created useFocusTrap Hook** (`client/src/hooks/useFocusTrap.ts`):
-   - Traps Tab and Shift+Tab navigation within modal
-   - Automatically focuses first focusable element on modal open
-   - Returns focus to trigger element when modal closes
-   - Supports excluding specific elements from trap
-   - Handles dynamic content changes
-   - TypeScript fully typed with comprehensive documentation
-
-2. **API:**
-   ```typescript
-   // Full version
-   useFocusTrap({
-     isActive: boolean,
-     returnFocusRef?: React.RefObject<HTMLElement>,
-     excludeSelectors?: string[]
-   })
-
-   // Simplified version (used in all modals)
-   useFocusTrapSimple(isActive: boolean)
-   ```
-
-3. **Focusable Elements Detected:**
-   - Links (`<a href>`)
-   - Buttons (not disabled)
-   - Textareas, Inputs, Selects (not disabled)
-   - Elements with `tabindex` (not -1)
-   - Elements with `contenteditable="true"`
-
-**Components Updated (7 standalone modals):**
-
-1. **NetworkErrorDialog** ✅
-2. **KeyboardShortcutsDialog** ✅
-3. **GenerationProgress** ✅
-4. **BulkSourceUpload** ✅
-5. **VersionComparison** ✅
-6. **DashboardLayoutSettings** ✅
-7. **Citations (Bibliography Modal)** ✅
-
-All updated with:
-- `useFocusTrapSimple` hook
-- ARIA attributes: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`
-
-**WCAG 2.1 Compliance:**
-✅ SC 2.1.2 - No Keyboard Trap
-✅ SC 2.4.3 - Focus Order
-✅ SC 3.2.1 - On Focus
-✅ ARIA Attributes
-
-**Git Commit:**
-9eaf016 - "feat: implement focus trap in modals (feature #173)"
