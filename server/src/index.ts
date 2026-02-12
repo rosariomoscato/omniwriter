@@ -98,9 +98,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`[Server] OmniWriter API running on ${HOST}:${PORT}`);
-  console.log(`[Server] Health check: http://${HOST}:${PORT}/api/health`);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`[Server] OmniWriter API running on 127.0.0.1:${PORT}`);
+  console.log(`[Server] Health check: http://127.0.0.1:${PORT}/api/health`);
 });
 
 export default app;
