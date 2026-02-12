@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, X, Spellcheck, Lightbulb } from 'lucide-react';
+import { Check, X, SpellCheck, Lightbulb } from 'lucide-react';
 
 interface Suggestion {
   id: string;
@@ -180,7 +180,7 @@ export default function SpellCheckSuggestions({ content, onApplySuggestion, onDi
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Spellcheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <SpellCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">
               Suggerimenti Ortografia e Grammatica
             </h3>

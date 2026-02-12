@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Spellcheck } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, SpellCheck } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -841,7 +841,7 @@ export default function ChapterEditor() {
                 aria-label="Spelling and Grammar Check"
                 title="Spelling and Grammar Check"
               >
-                <Spellcheck className={`w-4 h-4 ${showSpellCheck ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} />
+                <SpellCheck className={`w-4 h-4 ${showSpellCheck ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`} />
               </button>
               <button
                 onClick={() => setIsPreview(!isPreview)}

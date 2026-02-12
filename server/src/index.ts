@@ -20,6 +20,7 @@ import citationsRouter from './routes/citations';
 import locationsRouter from './routes/locations';
 import plotEventsRouter from './routes/plot-events';
 import generationLogsRouter from './routes/generation-logs';
+import aiRouter from './routes/ai';
 import { resolve } from 'path';
 
 const envPath = resolve(__dirname, '..', '.env');
@@ -83,6 +84,7 @@ app.use('/api', plotEventsRouter);
 app.use('/api', citationsRouter);
 app.use('/api', exportRouter);
 app.use('/api', generationLogsRouter);
+app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 
 // 404 handler

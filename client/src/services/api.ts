@@ -123,6 +123,15 @@ export interface CreateGenerationLogData {
   error_message?: string;
 }
 
+export interface AIModel {
+  id: string;
+  name: string;
+  description: string;
+  provider: string;
+  tier: 'free' | 'premium';
+  features: string[];
+}
+
 export interface Chapter {
   id: string;
   project_id: string;
@@ -1105,6 +1114,15 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  // AI Model endpoints (Feature #158)
+  async getAIModels(): Promise<{ models: AIModel[]; count: number }> {
+    return this.request<{ models: AIModel[]; count: number }>('/ai/models');
+  }
+
+  async getAIModel(modelId: string): Promise<{ model: AIModel }> {
+    return this.request<{ model: AIModel }>(`/ai/models/${modelId}`);
   }
 
   // Helper to store auth data

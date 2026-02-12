@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/api';
+import { apiService, AIModel } from '../services/api';
 import { useToastNotification } from '../components/Toast';
-import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2 } from 'lucide-react';
+import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Crown } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -23,6 +23,14 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // AI Model selection state (Feature #158)
+  const [aiModels, setAiModels] = useState<AIModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [isSavingModel, setIsSavingModel] = useState(false);
+  const [modelError, setModelError] = useState('');
+  const [modelSuccess, setModelSuccess] = useState('');
 
   // Password validation
   const [passwordValidations, setPasswordValidations] = useState({
@@ -52,6 +60,62 @@ export default function SettingsPage() {
   }, [newPassword]);
 
   const isPasswordValid = Object.values(passwordValidations).every(Boolean);
+
+  // Load AI models and user preferences on mount
+  useEffect(() => {
+    const loadAISettings = async () => {
+      try {
+        setIsLoadingModels(true);
+        // Load available models
+        const modelsResponse = await apiService.getAIModels();
+        setAiModels(modelsResponse.models);
+
+        // Load user's current preference
+        const prefsResponse = await apiService.getUserPreferences();
+        const currentModel = prefsResponse.preferences?.default_ai_model || '';
+        setSelectedModel(currentModel);
+      } catch (error: any) {
+        console.error('Failed to load AI settings:', error);
+        setModelError('Failed to load AI model settings');
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    loadAISettings();
+  }, []);
+
+  const handleModelChange = async (modelId: string) => {
+    setSelectedModel(modelId);
+    setModelError('');
+    setModelSuccess('');
+  };
+
+  const handleSaveModel = async () => {
+    try {
+      setIsSavingModel(true);
+      setModelError('');
+
+      await apiService.updateUserPreferences({
+        default_ai_model: selectedModel
+      });
+
+      setModelSuccess('AI model preference saved!');
+      toast.success('Default AI model updated');
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setModelSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Failed to save AI model:', error);
+      setModelError(error.message || 'Failed to save AI model preference');
+      toast.error(error.message || 'Failed to save AI model');
+    } finally {
+      setIsSavingModel(false);
+    }
+  };
+
+  // Check if user is premium/lifetime/admin
+  const isPremiumUser = user?.role === 'premium' || user?.role === 'lifetime' || user?.role === 'admin';
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,6 +409,152 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* AI Model Selection (Feature #158) */}
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Cpu className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  AI Generation Settings
+                </h2>
+                {!isPremiumUser && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    Premium feature
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Success Message */}
+            {modelSuccess && (
+              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-lg">
+                {modelSuccess}
+              </div>
+            )}
+
+            {/* Error Message */}
+            {modelError && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg">
+                {modelError}
+              </div>
+            )}
+
+            {isLoadingModels ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-spin" />
+                <span className="ml-3 text-gray-600 dark:text-gray-400">Loading AI models...</span>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Default AI Model
+                  </label>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Choose the AI model to use for content generation. Premium users have access to advanced models.
+                  </p>
+
+                  {/* Model Selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {aiModels.map((model) => {
+                      const isPremiumModel = model.tier === 'premium';
+                      const isDisabled = !isPremiumUser && isPremiumModel;
+
+                      return (
+                        <div
+                          key={model.id}
+                          className={`relative p-4 rounded-lg border-2 transition-all ${
+                            selectedModel === model.id
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          } ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                          onClick={() => !isDisabled && handleModelChange(model.id)}
+                        >
+                          {/* Premium Badge */}
+                          {isPremiumModel && (
+                            <div className="absolute top-2 right-2">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white">
+                                <Crown className="w-3 h-3" />
+                                Premium
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Model Header */}
+                          <div className="flex items-start gap-3 mb-2">
+                            <div className="flex-1">
+                              <h4 className={`font-semibold text-gray-900 dark:text-gray-100 mb-1 ${
+                                isDisabled ? 'text-gray-500' : ''
+                              }`}>
+                                {model.name}
+                              </h4>
+                              <p className={`text-xs text-gray-600 dark:text-gray-400 ${
+                                isDisabled ? 'text-gray-500' : ''
+                              }`}>
+                                {model.provider}
+                              </p>
+                            </div>
+                            {selectedModel === model.id && (
+                              <div className="flex-shrink-0">
+                                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Model Description */}
+                          <p className={`text-sm text-gray-700 dark:text-gray-300 mb-3 ${
+                            isDisabled ? 'text-gray-500' : ''
+                          }`}>
+                            {model.description}
+                          </p>
+
+                          {/* Model Features */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {model.features.map((feature) => (
+                              <span
+                                key={feature}
+                                className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${
+                                  isDisabled
+                                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-500'
+                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                }`}
+                              >
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {!isPremiumUser && (
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <Crown className="w-4 h-4" />
+                        Upgrade to Premium to access advanced AI models
+                      </span>
+                    )}
+                  </p>
+                  <button
+                    onClick={handleSaveModel}
+                    disabled={isSavingModel || !selectedModel}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSavingModel ? 'Saving...' : 'Save Preference'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
