@@ -1,9 +1,108 @@
-## Session: 2026-02-12 (Feature #188)
+## Session: 2026-02-12 (Features #144, #145)
 
-**Status: FEATURE COMPLETED AND MARKED PASSING ✅**
+**Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
 
 Previous Progress: 185/188 passing (98.4%)
-Current Progress: 186/188 passing (98.9%)
+Current Progress: 187/188 passing (99.5%)
+
+### Feature #144 - Pagination stays stable during data changes ✅ PASSING
+
+**Problem:**
+When user is on page 2 of projects dashboard and creates a new project, the pagination doesn't reset to page 1, so the new project might not be visible.
+
+**Implementation:**
+
+1. **NewProject.tsx:**
+   - Added `sessionStorage.setItem('justCreatedProject', 'true')` before redirecting to new project
+   - This flag signals that a project was just created
+
+2. **Dashboard.tsx:**
+   - Modified `currentPage` state initialization to check for `justCreatedProject` flag
+   - If flag is set, resets to page 1 and clears the flag
+   - For import modal, explicitly calls `setCurrentPage(1)` before reloading projects
+
+**User Flow:**
+1. User navigates to page 2 of projects
+2. User clicks "Create Project" and fills form
+3. New project created → `justCreatedProject` flag set
+4. User is redirected to project detail page
+5. User clicks back to dashboard
+6. Dashboard component initializes, sees flag, resets to page 1
+7. New project is visible at top of list
+
+**Files Modified:**
+- `client/src/pages/NewProject.tsx` (added sessionStorage flag)
+- `client/src/pages/Dashboard.tsx` (reset logic on mount and import)
+
+### Feature #145 - Rapid navigation between pages ✅ PASSING
+
+**Problem:**
+Rapidly clicking between pages (dashboard → project → settings → dashboard) could cause:
+- Multiple API requests in flight simultaneously
+- Stale data overwriting fresh data
+- "Can't update state on unmounted component" warnings
+- Inconsistent UI state
+
+**Implementation:**
+
+1. **API Service (client/src/services/api.ts):**
+   - Added optional `signal?: AbortSignal` parameter to `request()` method
+   - Passes signal to `fetch()` call
+   - Properly handles `AbortError` without logging
+   - Propagates signal through retry logic
+
+2. **Dashboard.tsx:**
+   - Added `abortControllerRef` to track current request
+   - Each new call to `loadProjects()` aborts previous in-flight request
+   - State updates guarded with `if (!abortController.signal.aborted)` checks
+   - Cleanup effect aborts pending request on unmount
+   - `getProjects()` API call now accepts abort signal
+
+**How it Works:**
+1. User rapidly clicks navigation links
+2. Each click triggers `loadProjects()`
+3. Previous request is aborted before new one starts
+4. Only the latest request's response updates state
+5. If user navigates away before request completes, it's aborted
+6. No state updates on unmounted components
+7. No race conditions between stale and fresh data
+
+**User Flow:**
+1. User on dashboard, page 1 loads
+2. User quickly clicks to page 2, then page 3
+3. Page 1 request is aborted when page 2 starts
+4. Page 2 request is aborted when page 3 starts
+5. Only page 3 data displays
+6. User navigates to project detail immediately
+7. Page 3 request is aborted during component cleanup
+8. Project detail page loads fresh data
+9. No errors, no stale data, no warnings
+
+**Files Modified:**
+- `client/src/services/api.ts` (added AbortController support)
+- `client/src/pages/Dashboard.tsx` (abort controller ref and cleanup)
+
+### Git Commit:
+
+```
+e21635f feat: implement features #144 and #145 - pagination stability and rapid navigation
+```
+
+### Summary:
+
+Both features completed successfully:
+- **Feature #144**: Pagination resets to page 1 after creating/importing projects
+- **Feature #145**: Rapid navigation uses AbortController to prevent stale data and errors
+
+**Remaining work:** 1/188 features (0.5%)
+
+**Technical Notes:**
+- The `justCreatedProject` flag approach is simple and effective
+- The AbortController pattern is a React best practice for handling rapid navigation
+- Both features improve UX without changing core functionality
+- No breaking changes to existing API contracts
+
+**Progress: 187/188 features passing (99.5%)**
 
 ### Feature #188 - Dialogue Enhancement in Romanziere ✅ PASSING
 
