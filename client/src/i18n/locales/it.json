@@ -204,7 +204,34 @@
       "importOption": "Hai già un documento?",
       "importDesc": "Importa file TXT, DOCX o DOC per continuare a lavorare sui tuoi contenuti esistenti",
       "importProject": "Importa progetto",
-      "showGuide": "Mostra guida inizio"
+      "showGuide": "Mostra guida inizio",
+      "close": "Chiudi guida",
+      "areas": {
+        "romanziere": {
+          "title": "Romanziere",
+          "description": "Genera romanzi completi con personaggi, luoghi e trame complesse",
+          "feature1": "Generazione capitolo per capitolo",
+          "feature2": "Sistema personaggi",
+          "feature3": "Timeline eventi",
+          "feature4": "Analisi sequel"
+        },
+        "saggista": {
+          "title": "Saggista",
+          "description": "Crea saggi approfonditi basati su fonti reali e citazioni",
+          "feature1": "Fonti uploadabili",
+          "feature2": "Gestione citazioni",
+          "feature3": "Struttura sezioni",
+          "feature4": "Bibliografia automatica"
+        },
+        "redattore": {
+          "title": "Redattore",
+          "description": "Produci articoli giornalistici rapidi con ottimizzazione SEO",
+          "feature1": "Generazione rapida",
+          "feature2": "SEO tools",
+          "feature3": "Template pronti",
+          "feature4": "Social media snippets"
+        }
+      }
     }
   },
   "project": {

@@ -204,7 +204,34 @@
       "importOption": "Already have a document?",
       "importDesc": "Import TXT, DOCX or DOC files to continue working on your existing content",
       "importProject": "Import project",
-      "showGuide": "Show getting started guide"
+      "showGuide": "Show getting started guide",
+      "close": "Close guide",
+      "areas": {
+        "romanziere": {
+          "title": "Novelist",
+          "description": "Generate complete novels with characters, locations and complex plots",
+          "feature1": "Chapter-by-chapter generation",
+          "feature2": "Character system",
+          "feature3": "Event timeline",
+          "feature4": "Sequel analysis"
+        },
+        "saggista": {
+          "title": "Essayist",
+          "description": "Create in-depth essays based on real sources and citations",
+          "feature1": "Uploadable sources",
+          "feature2": "Citation management",
+          "feature3": "Section structure",
+          "feature4": "Automatic bibliography"
+        },
+        "redattore": {
+          "title": "Editor",
+          "description": "Produce rapid journalistic articles with SEO optimization",
+          "feature1": "Rapid generation",
+          "feature2": "SEO tools",
+          "feature3": "Ready templates",
+          "feature4": "Social media snippets"
+        }
+      }
     }
   },
   "project": {

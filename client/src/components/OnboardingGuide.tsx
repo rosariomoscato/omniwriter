@@ -21,41 +21,56 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
   const steps = [
     {
       icon: <BookOpen className="w-8 h-8 text-amber-600" />,
-      title: 'Romanziere',
-      description: 'Genera romanzi completi con personaggi, luoghi e trame complesse',
-      features: ['Generazione capitolo per capitolo', 'Sistema personaggi', 'Timeline eventi', 'Analisi sequel'],
+      titleKey: 'dashboard.onboarding.areas.romanziere.title',
+      descriptionKey: 'dashboard.onboarding.areas.romanziere.description',
+      featureKeys: [
+        'dashboard.onboarding.areas.romanziere.feature1',
+        'dashboard.onboarding.areas.romanziere.feature2',
+        'dashboard.onboarding.areas.romanziere.feature3',
+        'dashboard.onboarding.areas.romanziere.feature4'
+      ],
       link: '/projects/new?area=romanziere'
     },
     {
       icon: <FileText className="w-8 h-8 text-teal-600" />,
-      title: 'Saggista',
-      description: 'Crea saggi approfonditi basati su fonti reali e citazioni',
-      features: ['Fonti uploadabili', 'Gestione citazioni', 'Struttura sezioni', 'Bibliografia automatica'],
+      titleKey: 'dashboard.onboarding.areas.saggista.title',
+      descriptionKey: 'dashboard.onboarding.areas.saggista.description',
+      featureKeys: [
+        'dashboard.onboarding.areas.saggista.feature1',
+        'dashboard.onboarding.areas.saggista.feature2',
+        'dashboard.onboarding.areas.saggista.feature3',
+        'dashboard.onboarding.areas.saggista.feature4'
+      ],
       link: '/projects/new?area=saggista'
     },
     {
       icon: <Newspaper className="w-8 h-8 text-rose-600" />,
-      title: 'Redattore',
-      description: 'Produci articoli giornalistici rapidi con ottimizzazione SEO',
-      features: ['Generazione rapida', 'SEO tools', 'Template pronti', 'Social media snippets'],
+      titleKey: 'dashboard.onboarding.areas.redattore.title',
+      descriptionKey: 'dashboard.onboarding.areas.redattore.description',
+      featureKeys: [
+        'dashboard.onboarding.areas.redattore.feature1',
+        'dashboard.onboarding.areas.redattore.feature2',
+        'dashboard.onboarding.areas.redattore.feature3',
+        'dashboard.onboarding.areas.redattore.feature4'
+      ],
       link: '/projects/new?area=redattore'
     }
   ];
 
   const gettingStarted = [
     {
-      title: 'Crea il tuo primo progetto',
-      description: 'Scegli un\'area e configura le impostazioni base',
+      titleKey: 'dashboard.onboarding.step1',
+      descriptionKey: 'dashboard.onboarding.step1Desc',
       icon: <Plus className="w-5 h-5" />
     },
     {
-      title: 'Carica le tue fonti',
-      description: 'Importa documenti o usa la ricerca web per contesto',
+      titleKey: 'dashboard.onboarding.step2',
+      descriptionKey: 'dashboard.onboarding.step2Desc',
       icon: <Upload className="w-5 h-5" />
     },
     {
-      title: 'Genera con AI',
-      description: 'Lascia che l\'IA crei i contenuti mentre controlli il processo',
+      titleKey: 'dashboard.onboarding.step3',
+      descriptionKey: 'dashboard.onboarding.step3Desc',
       icon: <Sparkles className="w-5 h-5" />
     }
   ];
@@ -69,16 +84,16 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
             <Sparkles className="w-8 h-8 text-primary-600 dark:text-primary-400" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Benvenuto in OmniWriter!
+            {t('dashboard.onboarding.welcome')}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            La tua piattaforma di scrittura professionale con AI. Scegli un\'area per iniziare il tuo primo progetto.
+            {t('dashboard.onboarding.subtitle')}
           </p>
           {onClose && (
             <button
               onClick={onClose}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              aria-label="Chiudi guida"
+              aria-label={t('dashboard.onboarding.close')}
             >
               ✕
             </button>
@@ -88,7 +103,7 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
         {/* Getting Started Steps */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 text-center">
-            Come iniziare
+            {t('dashboard.onboarding.gettingStarted')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {gettingStarted.map((step, index) => (
@@ -100,10 +115,10 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {step.description}
+                    {t(step.descriptionKey)}
                   </p>
                 </div>
               </div>
@@ -114,7 +129,7 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
         {/* Area Cards */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 text-center">
-            Scegli la tua area
+            {t('dashboard.onboarding.chooseArea')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {steps.map((step, index) => (
@@ -126,21 +141,21 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
                 <div className="flex flex-col h-full">
                   <div className="mb-4">{step.icon}</div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex-grow">
-                    {step.description}
+                    {t(step.descriptionKey)}
                   </p>
                   <ul className="space-y-2 mb-4">
-                    {step.features.map((feature, featureIndex) => (
+                    {step.featureKeys.map((featureKey, featureIndex) => (
                       <li key={featureIndex} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                         <CheckCircle2 className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0" />
-                        {feature}
+                        {t(featureKey)}
                       </li>
                     ))}
                   </ul>
                   <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400 font-medium text-sm group-hover:gap-3 transition-all">
-                    Crea progetto
+                    {t('project.create')}
                     <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
@@ -154,11 +169,11 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
           <div className="flex items-center justify-center gap-3 mb-2">
             <Upload className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             <span className="font-medium text-gray-900 dark:text-gray-100">
-              Hai già un documento?
+              {t('dashboard.onboarding.importOption')}
             </span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Importa file TXT, DOCX o DOC per continuare a lavorare sui tuoi contenuti esistenti
+            {t('dashboard.onboarding.importDesc')}
           </p>
           <Link
             to="/dashboard"
@@ -170,7 +185,7 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
             className="inline-flex items-center gap-2 px-6 py-2 bg-secondary-600 text-white rounded-lg hover:bg-secondary-700 transition-colors"
           >
             <Upload className="w-4 h-4" />
-            Importa progetto
+            {t('dashboard.onboarding.importProject')}
           </Link>
         </div>
       </div>
