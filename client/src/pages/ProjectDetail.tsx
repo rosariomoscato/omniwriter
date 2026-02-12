@@ -6,8 +6,10 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
+import { useToastNotification } from '../components/Toast';
 
 export default function ProjectDetail() {
+  const toast = useToastNotification();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -40,6 +42,11 @@ export default function ProjectDetail() {
   const [coverImageId, setCoverImageId] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [userRole, setUserRole] = useState<string>('free');
+  const [showBatchExport, setShowBatchExport] = useState(false);
+  const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
+  const [batchExportFormat, setBatchExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
+  const [exportingBatch, setExportingBatch] = useState(false);
+  const [selectAllChapters, setSelectAllChapters] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -182,8 +189,10 @@ export default function ProjectDetail() {
     try {
       await apiService.deleteLocation(locationId);
       setLocations(locations.filter(l => l.id !== locationId));
+      toast.success('Location deleted successfully');
     } catch (err: any) {
       setError(err.message || 'Failed to delete location');
+      toast.error(err.message || 'Failed to delete location');
     }
   };
 
@@ -475,6 +484,49 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleBatchExport = async () => {
+    try {
+      setExportingBatch(true);
+      setError('');
+
+      const exportOptions: any = {
+        chapterIds: selectedChapterIds,
+        format: batchExportFormat
+      };
+
+      // Add metadata for EPUB batch exports
+      if (batchExportFormat === 'epub') {
+        exportOptions.metadata = epubMetadata;
+        exportOptions.coverImageId = coverImageId;
+      }
+
+      const blob = await apiService.batchExportChapters(id!, exportOptions);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project?.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.${batchExportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setShowBatchExport(false);
+      setSelectedChapterIds([]);
+      setSelectAllChapters(false);
+      toast.success(`Exported ${selectedChapterIds.length} chapter(s) successfully`);
+    } catch (err: any) {
+      if (err.code === 'PREMIUM_REQUIRED') {
+        setError('EPUB batch export requires a Premium subscription. Upgrade to access this feature.');
+      } else {
+        setError(err.message || 'Failed to export chapters');
+      }
+    } finally {
+      setExportingBatch(false);
+    }
+  };
+
   const handleDeleteProject = async () => {
     try {
       setDeleting(true);
@@ -642,6 +694,176 @@ export default function ProjectDetail() {
         </div>
       )}
 
+      {/* EPUB Metadata Dialog */}
+      {showEpubMetadata && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                EPUB Metadata
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Add metadata and cover image for your eBook. This information will be embedded in the EPUB file.
+              </p>
+
+              <div className="space-y-4">
+                {/* Cover Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cover Image
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {coverImageFile ? (
+                      <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
+                        <ImageIcon className="w-8 h-8 text-blue-600" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {coverImageFile.name}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setCoverImageFile(null);
+                            setCoverImageId(null);
+                          }}
+                          className="ml-auto text-red-600 hover:text-red-700 dark:text-red-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex-1">
+                        <div className="flex items-center justify-center px-6 py-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            onChange={handleCoverImageUpload}
+                            disabled={uploadingCover}
+                            className="hidden"
+                          />
+                          <div className="text-center">
+                            {uploadingCover ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2">
+                                <ImageIcon className="w-10 h-10 text-gray-400" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Click to upload cover image
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    JPEG, PNG, or WebP (max 5MB)
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metadata Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Author
+                    </label>
+                    <input
+                      type="text"
+                      value={epubMetadata.author}
+                      onChange={(e) => setEpubMetadata({ ...epubMetadata, author: e.target.value })}
+                      placeholder="Author name"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Publisher
+                    </label>
+                    <input
+                      type="text"
+                      value={epubMetadata.publisher}
+                      onChange={(e) => setEpubMetadata({ ...epubMetadata, publisher: e.target.value })}
+                      placeholder="Publisher name"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ISBN
+                    </label>
+                    <input
+                      type="text"
+                      value={epubMetadata.isbn}
+                      onChange={(e) => setEpubMetadata({ ...epubMetadata, isbn: e.target.value })}
+                      placeholder="978-0-00-000000-0"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Language
+                    </label>
+                    <select
+                      value={epubMetadata.language}
+                      onChange={(e) => setEpubMetadata({ ...epubMetadata, language: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                    >
+                      <option value="en">English</option>
+                      <option value="it">Italiano</option>
+                      <option value="es">Español</option>
+                      <option value="fr">Français</option>
+                      <option value="de">Deutsch</option>
+                      <option value="pt">Português</option>
+                      <option value="zh">中文</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                  All fields are optional. You can leave them blank if you don't have this information.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEpubMetadata(false);
+                    setShowExportDialog(false);
+                    setError('');
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                  disabled={exporting}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => handleExport('epub')}
+                  disabled={exporting}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {exporting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Export EPUB
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -718,14 +940,87 @@ export default function ProjectDetail() {
               ({chapters.length})
             </span>
           </div>
-          <button
-            onClick={() => setShowAddChapter(!showAddChapter)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Chapter
-          </button>
+          <div className="flex items-center gap-2">
+            {chapters.length > 0 && (
+              <button
+                onClick={() => setShowBatchExport(!showBatchExport)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Batch Export
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddChapter(!showAddChapter)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Chapter
+            </button>
+          </div>
         </div>
+
+        {/* Batch Export Bar */}
+        {showBatchExport && (
+          <div className="px-4 py-3 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-800 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="selectAllChapters"
+                  checked={selectAllChapters}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectAllChapters(checked);
+                    setSelectedChapterIds(checked ? chapters.map(ch => ch.id) : []);
+                  }}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                />
+                <label htmlFor="selectAllChapters" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Select All ({selectedChapterIds.length}/{chapters.length})
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={batchExportFormat}
+                  onChange={(e) => setBatchExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
+                  className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="txt">Plain Text (.txt)</option>
+                  <option value="docx">Word (.docx)</option>
+                  <option value="epub">eBook (.epub)</option>
+                </select>
+                <button
+                  onClick={handleBatchExport}
+                  disabled={selectedChapterIds.length === 0 || exportingBatch}
+                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {exportingBatch ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Export Selected ({selectedChapterIds.length})
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBatchExport(false);
+                    setSelectedChapterIds([]);
+                    setSelectAllChapters(false);
+                  }}
+                  className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Chapter Form */}
         {showAddChapter && (
@@ -784,8 +1079,27 @@ export default function ProjectDetail() {
             chapters.map((chapter, index) => (
               <div
                 key={chapter.id}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
+                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group ${
+                  showBatchExport ? 'pl-12' : ''
+                }`}
               >
+                {showBatchExport && (
+                  <input
+                    type="checkbox"
+                    checked={selectedChapterIds.includes(chapter.id)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (checked) {
+                        setSelectedChapterIds([...selectedChapterIds, chapter.id]);
+                      } else {
+                        setSelectedChapterIds(selectedChapterIds.filter(id => id !== chapter.id));
+                      }
+                      setSelectAllChapters(selectedChapterIds.length + 1 === chapters.length);
+                    }}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500 mr-3"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
                 <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => openChapter(chapter.id)}>
                   <span className="text-sm font-mono text-gray-400 dark:text-gray-500 w-8">
                     {index + 1}.

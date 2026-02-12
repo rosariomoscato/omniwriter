@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     ApiService.clearAuth();
-    navigate('/login');
+    navigate('/'); // Redirect to landing page after logout
   };
 
   const refreshUser = async () => {

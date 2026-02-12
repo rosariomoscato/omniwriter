@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, FileText, Zap } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
+import { useToastNotification } from '../components/Toast';
 
 type AreaType = 'romanziere' | 'saggista' | 'redattore';
 
@@ -39,6 +40,7 @@ const AREAS: AreaOption[] = [
 
 function NewProject() {
   const navigate = useNavigate();
+  const toast = useToastNotification();
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -130,9 +132,12 @@ function NewProject() {
       });
 
       // Redirect to newly created project (replace history to prevent back navigation to form)
+      toast.success('Progetto creato con successo!');
       navigate(`/projects/${response.project.id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore durante la creazione del progetto');
+      const errorMsg = err instanceof Error ? err.message : 'Errore durante la creazione del progetto';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

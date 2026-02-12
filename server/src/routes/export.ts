@@ -562,4 +562,120 @@ router.get('/projects/:id/export/history', authenticateToken, (req: AuthRequest,
   }
 });
 
+// POST /api/projects/:id/export/batch - Export multiple chapters
+router.post('/projects/:id/export/batch', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const { id: projectId } = req.params;
+    const { chapterIds, format = 'txt', metadata, coverImageId, combined = true } = req.body;
+    const userId = (req as any).user?.id;
+    const userRole = (req as any).user?.role;
+    const db = getDatabase();
+
+    console.log('[Batch Export] Exporting chapters:', chapterIds, 'as format:', format, 'combined:', combined);
+
+    // Verify project belongs to user
+    const project = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Validate chapter IDs
+    if (!Array.isArray(chapterIds) || chapterIds.length === 0) {
+      return res.status(400).json({ message: 'Please select at least one chapter to export' });
+    }
+
+    // Get selected chapters
+    const placeholders = chapterIds.map(() => '?').join(',');
+    const chapters = db.prepare(
+      `SELECT id, title, content, order_index FROM chapters WHERE id IN (${placeholders}) AND project_id = ? ORDER BY order_index ASC`
+    ).all(...chapterIds, projectId);
+
+    if (chapters.length === 0) {
+      return res.status(404).json({ message: 'No valid chapters found' });
+    }
+
+    console.log('[Batch Export] Found', chapters.length, 'chapters to export');
+
+    // Check premium requirements
+    if (PREMIUM_FORMATS.includes(format.toLowerCase())) {
+      if (userRole !== 'premium' && userRole !== 'lifetime' && userRole !== 'admin') {
+        console.log('[Batch Export] Premium format requested by free user:', format);
+        return res.status(403).json({
+          message: `Export to ${format.toUpperCase()} requires a Premium subscription`,
+          code: 'PREMIUM_REQUIRED'
+        });
+      }
+    }
+
+    // Get cover image path if provided
+    let coverImagePath: string | undefined;
+    if (coverImageId) {
+      const coverRecord = db.prepare(
+        'SELECT file_path FROM export_history WHERE id = ? AND project_id = ?'
+      ).get(coverImageId, projectId) as any;
+      if (coverRecord) {
+        coverImagePath = coverRecord.file_path;
+      }
+    }
+
+    let content: Buffer;
+    let filename: string;
+    let mimeType: string;
+
+    if (format === 'epub') {
+      // For EPUB, use the EPUB generator with selected chapters
+      const epubMetadata = {
+        author: metadata?.author || undefined,
+        publisher: metadata?.publisher || undefined,
+        isbn: metadata?.isbn || undefined,
+        language: metadata?.language || 'en'
+      };
+      content = generateEpub(project.title, project.description || '', chapters, epubMetadata, coverImagePath);
+      filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.epub`;
+      mimeType = 'application/epub+zip';
+    } else if (format === 'docx') {
+      // Combine all chapters into one document
+      const textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n${project.description ? project.description + '\n\n' : ''}${chapters.map((ch: any, i: number) => {
+        const chapterTitle = `Chapter ${ch.order_index}: ${ch.title || 'Untitled'}`;
+        const separator = '-'.repeat(chapterTitle.length);
+        return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
+      }).join('\n\n')}`;
+      content = Buffer.from(textContent, 'utf-8');
+      filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.docx`;
+      mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    } else {
+      // TXT - combine all chapters
+      const textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n${project.description ? project.description + '\n\n' : ''}${chapters.map((ch: any, i: number) => {
+        const chapterTitle = `Chapter ${ch.order_index}: ${ch.title || 'Untitled'}`;
+        const separator = '-'.repeat(chapterTitle.length);
+        return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
+      }).join('\n\n')}`;
+      content = Buffer.from(textContent, 'utf-8');
+      filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.txt`;
+      mimeType = 'text/plain';
+    }
+
+    console.log('[Batch Export] Generated file:', filename, 'size:', content.length, 'bytes');
+
+    // Save export history
+    const exportId = uuidv4();
+    const metadataJson = JSON.stringify(metadata || {});
+    db.prepare(
+      'INSERT INTO export_history (id, project_id, format, file_path, epub_metadata_json, epub_cover_url) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(exportId, projectId, format, filename, metadataJson, coverImagePath ? path.basename(coverImagePath) : null);
+
+    // Send file
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
+
+  } catch (error) {
+    console.error('[Batch Export] Error:', error);
+    res.status(500).json({ message: 'Failed to export chapters' });
+  }
+});
+
 export default router;

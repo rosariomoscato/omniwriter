@@ -60,8 +60,17 @@ function RegisterPage() {
         confirmPassword: '',
       });
 
-      // Redirect to dashboard (replace history to prevent back navigation to form)
-      navigate('/dashboard', { replace: true });
+      // Check if there's a stored redirect location (from protected route redirect)
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        // Clear the stored redirect
+        sessionStorage.removeItem('redirectAfterLogin');
+        // Redirect to the originally requested page
+        navigate(redirectPath, { replace: true });
+      } else {
+        // Default to dashboard if no stored redirect
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.registerError') || 'Errore durante la registrazione');
     } finally {

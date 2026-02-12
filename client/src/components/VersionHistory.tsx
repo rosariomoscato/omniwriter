@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, FileText, RotateCcw, X, Check } from 'lucide-react';
 import { apiService, ChapterVersion } from '../services/api';
+import { useToastNotification } from './Toast';
 
 interface VersionHistoryProps {
   chapterId: string;
@@ -10,6 +11,7 @@ interface VersionHistoryProps {
 }
 
 export default function VersionHistory({ chapterId, onClose, onRestore, onCompare }: VersionHistoryProps) {
+  const toast = useToastNotification();
   const [versions, setVersions] = useState<ChapterVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,9 +47,9 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
       // Reload versions list
       await loadVersions();
 
-      alert(`Successfully restored to version ${versionNumber}`);
+      toast.success(`Successfully restored to version ${versionNumber}`);
     } catch (err: any) {
-      alert(err.message || 'Failed to restore version');
+      toast.error(err.message || 'Failed to restore version');
     } finally {
       setRestoring(null);
     }

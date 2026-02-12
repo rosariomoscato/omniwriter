@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
+import { useToastNotification } from '../components/Toast';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
 type FilterStatus = 'all' | 'draft' | 'in_progress' | 'completed' | 'archived';
@@ -19,6 +20,7 @@ interface FilterState {
 export default function Dashboard() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const toast = useToastNotification();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,10 +173,11 @@ export default function Dashboard() {
       // Reload projects to show the imported one
       await loadProjects();
 
-      // Show success message
-      alert(`Progetto importato con successo!\n\n${result.chaptersCreated} capitoli creati\n${result.totalWordCount} parole totali`);
+      // Show success toast
+      toast.success(`Progetto importato con successo! ${result.chaptersCreated} capitoli creati, ${result.totalWordCount} parole totali`);
     } catch (err: any) {
       setImportError(err.message || 'Failed to import project');
+      toast.error(err.message || 'Failed to import project');
     } finally {
       setImportLoading(false);
     }

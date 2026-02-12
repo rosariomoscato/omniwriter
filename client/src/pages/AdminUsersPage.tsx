@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Shield, UserCheck, UserX, Mail, Calendar, Crown, User } from 'lucide-react';
+import { useToastNotification } from '../components/Toast';
 
 interface User {
   id: string;
@@ -26,6 +27,7 @@ interface UsersResponse {
 }
 
 const AdminUsersPage = () => {
+  const toast = useToastNotification();
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -107,9 +109,10 @@ const AdminUsersPage = () => {
 
       // Update local state
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
+      toast.success('User role updated successfully');
     } catch (err) {
       console.error('Error updating role:', err);
-      alert('Failed to update user role');
+      toast.error('Failed to update user role');
     }
   };
 
@@ -134,9 +137,10 @@ const AdminUsersPage = () => {
       setUsers(users.map(u =>
         u.id === userId ? { ...u, subscription_status: shouldSuspend ? 'suspended' : 'active' } : u
       ));
+      toast.success(`User ${shouldSuspend ? 'suspended' : 'activated'} successfully`);
     } catch (err) {
       console.error('Error updating suspension:', err);
-      alert('Failed to update user suspension');
+      toast.error('Failed to update user suspension');
     }
   };
 

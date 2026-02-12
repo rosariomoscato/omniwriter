@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { GenerationProgressProvider } from './contexts/GenerationProgressContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import GenerationProgress from './components/GenerationProgress';
 import SessionExpiredBanner from './components/SessionExpiredBanner';
 import PreferencesSync from './components/PreferencesSync';
+import ToastContainer from './components/Toast';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -43,6 +45,8 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
   );
 
   if (!user && isProtectedRoute) {
+    // Store the intended location for redirect after login
+    sessionStorage.setItem('redirectAfterLogin', location.pathname + location.search);
     return <Navigate to="/login" replace />;
   }
 
@@ -60,7 +64,9 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <GenerationProgressProvider>
-          <AppContent />
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
         </GenerationProgressProvider>
       </AuthProvider>
     </ThemeProvider>
@@ -352,6 +358,7 @@ function AppContent() {
         </Routes>
       </ProtectedRouteGuard>
       <GenerationProgress />
+      <ToastContainer />
     </div>
   );
 }

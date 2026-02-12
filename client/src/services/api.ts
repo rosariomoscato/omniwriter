@@ -621,9 +621,14 @@ class ApiService {
   }
 
   // Export endpoints
-  async exportProject(projectId: string, format: 'txt' | 'docx' | 'epub' | 'pdf' | 'rtf' = 'txt'): Promise<Blob> {
+  async exportProject(projectId: string, options: string | { format: string; metadata?: any; coverImageId?: string }): Promise<Blob> {
     const token = localStorage.getItem('token');
     const url = `${this.baseUrl}/projects/${projectId}/export`;
+
+    // Handle backward compatibility - accept string format or options object
+    const bodyOptions = typeof options === 'string'
+      ? { format: options }
+      : options;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -631,12 +636,38 @@ class ApiService {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ format }),
+      body: JSON.stringify(bodyOptions),
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
       // Check for premium required error
+      if (error.code === 'PREMIUM_REQUIRED') {
+        const premiumError = new Error(error.message);
+        (premiumError as any).code = 'PREMIUM_REQUIRED';
+        throw premiumError;
+      }
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.blob();
+  }
+
+  async batchExportChapters(projectId: string, options: { chapterIds: string[]; format: string; metadata?: any; coverImageId?: string }): Promise<Blob> {
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/projects/${projectId}/export/batch`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(options),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
       if (error.code === 'PREMIUM_REQUIRED') {
         const premiumError = new Error(error.message);
         (premiumError as any).code = 'PREMIUM_REQUIRED';
