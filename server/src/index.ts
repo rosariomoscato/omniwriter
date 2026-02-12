@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './db/database';
 import healthRouter from './routes/health';
+import authRouter from './routes/auth';
+import projectsRouter from './routes/projects';
 
 dotenv.config();
 
@@ -19,24 +21,24 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging middleware - logs all API requests
+app.use('/api', (req, _res, next) => {
+  console.log(`[API] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Initialize database
 const db = initializeDatabase();
 console.log('[Database] SQLite database connected successfully');
 
 // Routes
 app.use('/api/health', healthRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/projects', projectsRouter);
 
 // Placeholder route groups - to be implemented by coding agents
-app.use('/api/auth', (_req, res) => {
-  res.status(501).json({ message: 'Auth routes not yet implemented' });
-});
-
 app.use('/api/users', (_req, res) => {
   res.status(501).json({ message: 'User routes not yet implemented' });
-});
-
-app.use('/api/projects', (_req, res) => {
-  res.status(501).json({ message: 'Project routes not yet implemented' });
 });
 
 // 404 handler

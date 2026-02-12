@@ -1,0 +1,266 @@
+import { Router, Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
+import { getDatabase } from '../db/database';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+
+const router = Router();
+
+// POST /api/auth/register
+router.post('/register', (req: Request, res: Response) => {
+  try {
+    const { email, password, name } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      res.status(400).json({ message: 'Email and password are required' });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({ message: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    // Password complexity check
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      res.status(400).json({
+        message: 'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
+      });
+      return;
+    }
+
+    const db = getDatabase();
+
+    // Check if user already exists
+    console.log('[Auth] Checking if user exists with email:', email);
+    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existingUser) {
+      res.status(409).json({ message: 'User with this email already exists' });
+      return;
+    }
+
+    // Hash password
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
+
+    // Create user
+    const userId = uuidv4();
+    const userName = name || email.split('@')[0];
+
+    console.log('[Auth] Creating new user:', userId);
+    db.prepare(
+      `INSERT INTO users (id, email, password_hash, name, role, preferred_language, theme_preference, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
+    ).run(userId, email, passwordHash, userName);
+
+    // Create JWT token
+    const secret = process.env.JWT_SECRET || 'omniwriter-dev-jwt-secret-2024';
+    // @ts-expect-error - expiresIn type compatibility issue with jsonwebtoken types
+    const token = jwt.sign(
+      { userId, email },
+      secret,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    // Store session
+    const sessionId = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    console.log('[Auth] Creating session for user:', userId);
+    db.prepare(
+      `INSERT INTO sessions (id, user_id, token, expires_at, created_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    ).run(sessionId, userId, token, expiresAt);
+
+    // Update last login
+    db.prepare('UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?').run(userId);
+
+    console.log('[Auth] User registered successfully:', userId);
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: userId,
+        email,
+        name: userName,
+        role: 'free',
+        preferred_language: 'it',
+        theme_preference: 'light',
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[Auth] Registration error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error during registration' });
+  }
+});
+
+// POST /api/auth/login
+router.post('/login', (req: Request, res: Response) => {
+  try {
+    const { email, password, rememberMe } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ message: 'Email and password are required' });
+      return;
+    }
+
+    const db = getDatabase();
+
+    // Find user by email
+    console.log('[Auth] Looking up user by email:', email);
+    const user = db.prepare(
+      'SELECT id, email, password_hash, name, role, preferred_language, theme_preference FROM users WHERE email = ?'
+    ).get(email) as {
+      id: string;
+      email: string;
+      password_hash: string;
+      name: string;
+      role: string;
+      preferred_language: string;
+      theme_preference: string;
+    } | undefined;
+
+    if (!user) {
+      res.status(401).json({ message: 'Invalid email or password' });
+      return;
+    }
+
+    // Verify password
+    const isValidPassword = bcrypt.compareSync(password, user.password_hash);
+    if (!isValidPassword) {
+      res.status(401).json({ message: 'Invalid email or password' });
+      return;
+    }
+
+    // Create JWT token
+    const secret = process.env.JWT_SECRET || 'omniwriter-dev-jwt-secret-2024';
+    const expiresIn = rememberMe
+      ? (process.env.JWT_REMEMBER_ME_EXPIRES_IN || '30d')
+      : (process.env.JWT_EXPIRES_IN || '24h');
+    // @ts-expect-error - expiresIn type compatibility issue with jsonwebtoken types
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      secret,
+      { expiresIn }
+    );
+
+    // Store session
+    const sessionId = uuidv4();
+    const expiresMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + expiresMs).toISOString();
+    console.log('[Auth] Creating session for login:', user.id);
+    db.prepare(
+      `INSERT INTO sessions (id, user_id, token, expires_at, created_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    ).run(sessionId, user.id, token, expiresAt);
+
+    // Update last login
+    db.prepare('UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?').run(user.id);
+
+    console.log('[Auth] Login successful for user:', user.id);
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        preferred_language: user.preferred_language,
+        theme_preference: user.theme_preference,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[Auth] Login error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error during login' });
+  }
+});
+
+// POST /api/auth/logout
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/logout', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      console.log('[Auth] Removing session for user:', req.user?.id);
+      db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    }
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('[Auth] Logout error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error during logout' });
+  }
+});
+
+// GET /api/auth/me
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/me', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+
+    console.log('[Auth] Fetching user profile for:', req.user?.id);
+    const user = db.prepare(
+      `SELECT id, email, name, bio, avatar_url, role, subscription_status,
+              subscription_expires_at, preferred_language, theme_preference,
+              created_at, updated_at, last_login_at
+       FROM users WHERE id = ?`
+    ).get(req.user?.id) as Record<string, unknown> | undefined;
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('[Auth] Get me error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ message: 'Email is required' });
+      return;
+    }
+
+    const db = getDatabase();
+    console.log('[Auth] Password reset requested for:', email);
+    const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email) as {
+      id: string;
+      email: string;
+    } | undefined;
+
+    if (user) {
+      // Generate reset token
+      const resetToken = uuidv4();
+      const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+      // Log to console (development mode - no email service)
+      console.log('==================================================');
+      console.log('[EMAIL] Password Reset Link for:', email);
+      console.log('[EMAIL] Reset URL:', resetUrl);
+      console.log('==================================================');
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+  } catch (error) {
+    console.error('[Auth] Forgot password error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+export default router;
