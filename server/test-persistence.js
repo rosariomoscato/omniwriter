@@ -1,5 +1,5 @@
 // Test script to verify data persistence across restarts
-const Database = require('better-sqlite3');
+const Database = require('/Users/rosario/CODICE/omniwriter/server/node_modules/better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 
 const DB_PATH = '/Users/rosario/CODICE/omniwriter/server/data/omniwriter.db';

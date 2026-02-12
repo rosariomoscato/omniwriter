@@ -1,18 +1,18 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-interface LoginCredentials {
+export interface LoginCredentials {
   email: string;
   password: string;
   rememberMe?: boolean;
 }
 
-interface RegisterData {
+export interface RegisterData {
   email: string;
   password: string;
   name: string;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   user: {
     id: number;
     email: string;
@@ -20,6 +20,39 @@ interface AuthResponse {
     role: string;
   };
   token: string;
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  saga_id: string | null;
+  title: string;
+  description: string;
+  area: 'romanziere' | 'saggista' | 'redattore';
+  genre: string;
+  tone: string;
+  target_audience: string;
+  pov: string;
+  word_count_target: number;
+  status: 'draft' | 'in_progress' | 'completed' | 'archived';
+  human_model_id: string | null;
+  settings_json: string;
+  word_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProjectData {
+  title: string;
+  description?: string;
+  area: 'romanziere' | 'saggista' | 'redattore';
+  genre?: string;
+  tone?: string;
+  target_audience?: string;
+  pov?: string;
+  word_count_target?: number;
+  saga_id?: string;
+  settings_json?: string;
 }
 
 class ApiService {
@@ -96,6 +129,42 @@ class ApiService {
     await this.request<void>('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ token, password }),
+    });
+  }
+
+  // Project endpoints
+  async getProjects(params?: { area?: string; status?: string; search?: string; sort?: string }): Promise<{ projects: Project[]; count: number }> {
+    const queryParams = new URLSearchParams();
+    if (params?.area) queryParams.append('area', params.area);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.sort) queryParams.append('sort', params.sort);
+
+    const queryString = queryParams.toString();
+    return this.request<{ projects: Project[]; count: number }>(`/projects${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getProject(id: string): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/projects/${id}`);
+  }
+
+  async createProject(data: CreateProjectData): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>('/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProject(id: string, data: Partial<CreateProjectData>): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await this.request<void>(`/projects/${id}`, {
+      method: 'DELETE',
     });
   }
 

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 
@@ -18,10 +19,13 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Create Button */}
-      <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium mb-8">
+      <Link
+        to="/projects/new"
+        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium mb-8 w-fit"
+      >
         <Plus size={20} />
         {t('dashboard.createProject')}
-      </button>
+      </Link>
 
       {/* Empty State */}
       <div className="text-center py-16">

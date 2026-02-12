@@ -10,11 +10,13 @@ import RegisterPage from './pages/RegisterPage';
 import LandingPage from './pages/LandingPage';
 import ProjectDetail from './pages/ProjectDetail';
 import NotFoundPage from './pages/NotFoundPage';
+import NewProject from './pages/NewProject';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/projects',
+  '/projects/new',
   '/human-model',
   '/sources',
   '/settings',
@@ -230,6 +232,28 @@ function AppContent() {
                       `}
                     >
                       <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/projects/new"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <NewProject />
                     </main>
                   </>
                 }
