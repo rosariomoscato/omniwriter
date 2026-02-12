@@ -1,8 +1,9 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
+import RedattoreConfig from '../components/RedattoreConfig';
 import { apiService, Chapter, Project, Source, Character } from '../services/api';
 
 export default function ProjectDetail() {
@@ -571,6 +572,13 @@ export default function ProjectDetail() {
           )}
         </div>
       </div>
+
+      {/* Redattore Configuration - Only for Redattore projects */}
+      {project?.area === 'redattore' && (
+        <div className="mt-6">
+          <RedattoreConfig project={project} onUpdate={loadProject} />
+        </div>
+      )}
 
       {/* Characters Section - Only for Romanziere projects */}
       {project?.area === 'romanziere' && (

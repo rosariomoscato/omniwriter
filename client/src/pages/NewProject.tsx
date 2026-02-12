@@ -234,6 +234,79 @@ function NewProject() {
           </div>
         )}
 
+        {/* Redattore-specific configuration */}
+        {formData.area === 'redattore' && (
+          <div className="space-y-6 p-6 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Configurazione Redattore
+            </h3>
+
+            {/* Article Type */}
+            <div>
+              <label htmlFor="articleType" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                4. Tipo di articolo
+              </label>
+              <select
+                id="articleType"
+                name="articleType"
+                value={formData.articleType}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
+              >
+                <option value="">Seleziona tipo di articolo</option>
+                <option value="blog_post">Blog Post</option>
+                <option value="news_article">Articolo giornalistico</option>
+                <option value="press_release">Comunicato stampa</option>
+                <option value="product_review">Recensione prodotto</option>
+                <option value="how_to">Guida tutorial (How-to)</option>
+                <option value="listicle">Listicle (elenco puntato)</option>
+                <option value="opinion_piece">Articolo di opinione</option>
+                <option value="interview">Intervista</option>
+              </select>
+            </div>
+
+            {/* SEO Keywords */}
+            <div>
+              <label htmlFor="seoKeywords" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                5. Parole chiave SEO (separate da virgola)
+              </label>
+              <input
+                id="seoKeywords"
+                name="seoKeywords"
+                type="text"
+                value={formData.seoKeywords}
+                onChange={handleChange}
+                placeholder="es: tecnologia, innovazione, intelligenza artificiale"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Inserisci fino a 5 parole chiave per ottimizzare l'articolo per i motori di ricerca
+              </p>
+            </div>
+
+            {/* Word Count Target */}
+            <div>
+              <label htmlFor="redattoreWordCount" className="block text-md font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                6. Lunghezza target (parole)
+              </label>
+              <input
+                id="redattoreWordCount"
+                name="redattoreWordCount"
+                type="number"
+                min="100"
+                max="5000"
+                step="50"
+                value={formData.redattoreWordCount}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 dark:bg-gray-800 dark:text-white text-lg"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Numero di parole target per l'articolo (100-5000)
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Submit Button */}
         <div className="flex items-center gap-4 pt-4">
           <button
