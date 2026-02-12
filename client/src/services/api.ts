@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// In development, use relative URLs to go through Vite proxy
+// In production, use the VITE_API_URL if set
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface LoginCredentials {
   email: string;
