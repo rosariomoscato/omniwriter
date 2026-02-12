@@ -1,4 +1,80 @@
-## Session: 2026-02-12 (Features #71, #72)
+## Session: 2026-02-12 (Features #70, #75)
+
+### Completed Work
+
+#### Feature #70: Source tagging and categorization ✅
+**Status:** PASSING
+
+**Implementation Details:**
+
+**1. Backend (server/src/routes/sources.ts):**
+- PUT /api/sources/:id/tags endpoint to update source tags
+- GET /api/sources/tags endpoint to get all unique tags
+- Validates tags array
+- Updates tags_json in database
+- Returns updated source
+
+**2. Frontend (client/src/pages/ProjectDetail.tsx):**
+- Added state for tag management (allTags, selectedTagFilter, editingSourceTags, newTagInput)
+- Tag display as purple badges with X buttons to remove
+- Add tag button (purple Tag icon) appears on hover
+- Tag input field with Enter to add, Escape to cancel
+- Tag filter dropdown in Sources header
+- Client-side filtering by tag
+
+**3. API Service (client/src/services/api.ts):**
+- Extended Source interface with tags property
+- Added updateSourceTags(sourceId, tags) method
+- Added getSourceTags() method
+
+**Verification:**
+- Upload source: Already implemented ✅
+- Add tags: API and UI implemented ✅
+- Filter by tag: Frontend dropdown filter ✅
+- Remove tag: X button on each badge ✅
+- No mock data patterns ✅
+
+#### Feature #75: Edit and delete style profile ✅
+**Status:** PASSING (Already existed)
+
+**Implementation Details:**
+
+The functionality was already fully implemented:
+
+**Backend (server/src/routes/human-models.ts):**
+- PUT /api/human-models/:id (lines 110-153) - Update model
+- DELETE /api/human-models/:id (lines 155-194) - Delete model
+
+**Frontend (client/src/pages/HumanModelPage.tsx):**
+- Edit button (lines 324-332) - Blue pencil icon with tooltip
+- handleEditClick function (lines 94-103)
+- Edit dialog (lines 500-570) - Full form with all fields
+- handleEditModel function (lines 105-122) - Update with API call
+- Delete button (lines 333-340) - Red trash icon
+- handleDeleteModel function - With confirmation dialog
+
+**API Service (client/src/services/api.ts):**
+- updateHumanModel(id, data) method (lines 447-452)
+- deleteHumanModel(id) method (lines 454-458)
+
+**Verification:**
+- Create profile: Already existed ✅
+- Edit name - save: Fully implemented ✅
+- Delete - verify removal: Fully implemented ✅
+- No mock data patterns ✅
+
+### Completion Status
+- Feature #70: **PASSING** ✅
+- Feature #75: **PASSING** ✅
+- Total passing: 97/188 (51.6%)
+
+### Git Commits
+- Commit 5903263 - feat: implement source tagging and categorization (feature #70)
+- Commit 093d104 - docs: verify feature #75 - edit and delete style profiles
+
+### Next Steps
+- 91 features remaining to complete
+- Current progress: 51.6% complete
 
 ### Completed Work
 
