@@ -223,9 +223,9 @@ export default function Dashboard() {
       await apiService.addProjectTag(projectId, tagName.trim());
       // Reload projects to get updated tags
       loadProjects();
-      toast.showSuccess('Tag aggiunto con successo');
+      toast.success('Tag aggiunto con successo');
     } catch (err: any) {
-      toast.showError(err.message || 'Failed to add tag');
+      toast.error(err.message || 'Failed to add tag');
     }
   };
 
@@ -237,9 +237,9 @@ export default function Dashboard() {
       await apiService.removeProjectTag(projectId, tagName);
       // Reload projects to get updated tags
       loadProjects();
-      toast.showSuccess('Tag rimosso con successo');
+      toast.success('Tag rimosso con successo');
     } catch (err: any) {
-      toast.showError(err.message || 'Failed to remove tag');
+      toast.error(err.message || 'Failed to remove tag');
     }
   };
 
