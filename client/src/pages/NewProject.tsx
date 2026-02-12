@@ -44,19 +44,27 @@ function NewProject() {
     description: string;
     area: AreaType | null;
     genre: string;
+    // Redattore-specific fields
+    articleType: string;
+    seoKeywords: string;
+    redattoreWordCount: number;
   }>({
     title: '',
     description: '',
     area: null,
     genre: '',
+    articleType: '',
+    seoKeywords: '',
+    redattoreWordCount: 500,
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const value = e.target.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     });
   };
 
@@ -81,6 +89,13 @@ function NewProject() {
         description: formData.description || undefined,
         area: formData.area,
         genre: formData.genre || undefined,
+        // Redattore-specific settings in settings_json
+        settings_json: formData.area === 'redattore' ? JSON.stringify({
+          articleType: formData.articleType,
+          seoKeywords: formData.seoKeywords,
+          wordCountTarget: formData.redattoreWordCount,
+        }) : undefined,
+        word_count_target: formData.area === 'redattore' ? formData.redattoreWordCount : undefined,
       };
 
       const response = await apiService.createProject(projectData);
@@ -100,6 +115,9 @@ function NewProject() {
       description: '',
       area: null,
       genre: '',
+      articleType: '',
+      seoKeywords: '',
+      redattoreWordCount: 500,
     });
     setError('');
   };
