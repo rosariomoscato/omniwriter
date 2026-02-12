@@ -2,8 +2,12 @@
 import express, { Response } from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requirePremium } from '../middleware/roles';
 
 const router = express.Router();
+
+// Premium export formats: epub, pdf, rtf
+const PREMIUM_FORMATS = ['epub', 'pdf', 'rtf'];
 
 // Helper function to escape XML content for DOCX
 function escapeXml(text: string): string {
@@ -123,9 +127,21 @@ router.post('/projects/:id/export', authenticateToken, (req: AuthRequest, res: R
     const { id: projectId } = req.params;
     const { format = 'txt' } = req.body;
     const userId = (req as any).user?.id;
+    const userRole = (req as any).user?.role;
     const db = getDatabase();
 
     console.log('[Export] Exporting project:', projectId, 'as format:', format);
+
+    // Check if format requires premium subscription
+    if (PREMIUM_FORMATS.includes(format.toLowerCase())) {
+      if (userRole !== 'premium' && userRole !== 'lifetime' && userRole !== 'admin') {
+        console.log('[Export] Premium format requested by free user:', format);
+        return res.status(403).json({
+          message: `Export to ${format.toUpperCase()} requires a Premium subscription`,
+          code: 'PREMIUM_REQUIRED'
+        });
+      }
+    }
 
     // Verify project belongs to user
     const project = db.prepare(

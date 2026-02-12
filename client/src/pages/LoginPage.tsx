@@ -24,8 +24,15 @@ function LoginPage() {
       // Use AuthContext login method which handles state and localStorage
       await login(formData.email, formData.password, formData.rememberMe);
 
-      // Redirect to dashboard
-      navigate('/dashboard');
+      // Clear form data to prevent resubmission on back navigation
+      setFormData({
+        email: '',
+        password: '',
+        rememberMe: false,
+      });
+
+      // Redirect to dashboard (replace history to prevent back navigation to form)
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));
     } finally {

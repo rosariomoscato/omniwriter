@@ -139,6 +139,22 @@ export interface CreateCharacterData {
   relationships_json?: string;
 }
 
+export interface Saga {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  area: 'romanziere' | 'saggista' | 'redattore';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSagaData {
+  title: string;
+  description?: string;
+  area: 'romanziere' | 'saggista' | 'redattore';
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -396,7 +412,7 @@ class ApiService {
   }
 
   // Export endpoints
-  async exportProject(projectId: string, format: 'txt' | 'docx' = 'txt'): Promise<Blob> {
+  async exportProject(projectId: string, format: 'txt' | 'docx' | 'epub' | 'pdf' | 'rtf' = 'txt'): Promise<Blob> {
     const token = localStorage.getItem('token');
     const url = `${this.baseUrl}/projects/${projectId}/export`;
 
@@ -411,6 +427,12 @@ class ApiService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
+      // Check for premium required error
+      if (error.code === 'PREMIUM_REQUIRED') {
+        const premiumError = new Error(error.message);
+        (premiumError as any).code = 'PREMIUM_REQUIRED';
+        throw premiumError;
+      }
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
@@ -419,6 +441,46 @@ class ApiService {
 
   async getExportHistory(projectId: string): Promise<{ history: any[] }> {
     return this.request<{ history: any[] }>(`/projects/${projectId}/export/history`);
+  }
+
+  // Saga endpoints (premium feature)
+  async getSagas(): Promise<{ sagas: Saga[]; count: number }> {
+    return this.request<{ sagas: Saga[]; count: number }>('/sagas');
+  }
+
+  async getSaga(id: string): Promise<{ saga: Saga }> {
+    return this.request<{ saga: Saga }>(`/sagas/${id}`);
+  }
+
+  async createSaga(data: CreateSagaData): Promise<{ saga: Saga }> {
+    return this.request<{ saga: Saga }>('/sagas', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSaga(id: string, data: Partial<CreateSagaData>): Promise<{ saga: Saga }> {
+    return this.request<{ saga: Saga }>(`/sagas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSaga(id: string): Promise<void> {
+    await this.request<void>(`/sagas/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSagaProjects(sagaId: string): Promise<{ projects: Project[]; count: number }> {
+    return this.request<{ projects: Project[]; count: number }>(`/sagas/${sagaId}/projects`);
+  }
+
+  async createSagaProject(sagaId: string, data: CreateProjectData): Promise<{ project: Project }> {
+    return this.request<{ project: Project }>(`/sagas/${sagaId}/projects`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Helper to store auth data

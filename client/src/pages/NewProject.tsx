@@ -100,8 +100,19 @@ function NewProject() {
 
       const response = await apiService.createProject(projectData);
 
-      // Redirect to the newly created project
-      navigate(`/projects/${response.project.id}`);
+      // Reset form to prevent resubmission on back navigation
+      setFormData({
+        title: '',
+        description: '',
+        area: null,
+        genre: '',
+        articleType: '',
+        seoKeywords: '',
+        redattoreWordCount: 500,
+      });
+
+      // Redirect to newly created project (replace history to prevent back navigation to form)
+      navigate(`/projects/${response.project.id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore durante la creazione del progetto');
     } finally {

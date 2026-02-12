@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, Target, Type, Save, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Target, Type, Save, X, TrendingUp, AlertCircle, CheckCircle, Lightbulb } from 'lucide-react';
 import { apiService, Project } from '../services/api';
 
 interface RedattoreConfigProps {
@@ -87,6 +87,77 @@ export default function RedattoreConfig({ project, onUpdate }: RedattoreConfigPr
     return settings.seoKeywords.split(',').map(k => k.trim()).filter(k => k);
   };
 
+  // Calculate SEO score and suggestions
+  const seoAnalysis = useMemo(() => {
+    const keywords = getKeywordsList();
+    let score = 0;
+    const suggestions: string[] = [];
+
+    // Check article type (20 points)
+    if (settings.articleType) {
+      score += 20;
+    } else {
+      suggestions.push('Seleziona un tipo di articolo per migliorare la SEO');
+    }
+
+    // Check keywords (40 points - 8 per keyword up to 5)
+    if (keywords.length >= 5) {
+      score += 40;
+    } else if (keywords.length > 0) {
+      score += keywords.length * 8;
+      suggestions.push(`Aggiungi altre parole chiave (${5 - keywords.length} rimanenti) per ottimizzare la SEO`);
+    } else {
+      suggestions.push('Aggiungi almeno 5 parole chiave SEO per ottimizzare l\'articolo');
+    }
+
+    // Check keyword quality (20 points)
+    const hasLongKeywords = keywords.some(k => k.length > 5);
+    if (hasLongKeywords) {
+      score += 10;
+    } else if (keywords.length > 0) {
+      suggestions.push('Usa parole chiave più specifiche (almeno 6 caratteri)');
+    }
+
+    const hasVariety = keywords.length >= 3 && new Set(keywords.map(k => k.toLowerCase())).size === keywords.length;
+    if (hasVariety) {
+      score += 10;
+    } else if (keywords.length > 2) {
+      suggestions.push('Evita parole chiave duplicate');
+    }
+
+    // Check word count target (20 points)
+    if (settings.wordCountTarget >= 300 && settings.wordCountTarget <= 2000) {
+      score += 20;
+    } else if (settings.wordCountTarget < 300) {
+      suggestions.push('Aumenta la lunghezza target ad almeno 300 parole per una migliore indicizzazione');
+    } else {
+      score += 10;
+      suggestions.push('Considera una lunghezza tra 300-2000 parole per ottimizzare la SEO');
+    }
+
+    let rating = 'Poor';
+    let color = 'red';
+    if (score >= 80) {
+      rating = 'Excellent';
+      color = 'green';
+    } else if (score >= 60) {
+      rating = 'Good';
+      color = 'yellow';
+    } else if (score >= 40) {
+      rating = 'Fair';
+      color = 'orange';
+    }
+
+    return {
+      score,
+      maxScore: 100,
+      rating,
+      color,
+      suggestions,
+      keywordCount: keywords.length,
+    };
+  }, [settings.articleType, settings.seoKeywords, settings.wordCountTarget]);
+
   if (!isOpen) {
     return (
       <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-gray-700">
@@ -103,6 +174,61 @@ export default function RedattoreConfig({ project, onUpdate }: RedattoreConfigPr
           >
             Modifica
           </button>
+        </div>
+
+        {/* SEO Score Section */}
+        <div className="p-4 bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-900/20 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">SEO Score</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-2xl font-bold ${
+                    seoAnalysis.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                    seoAnalysis.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+                    seoAnalysis.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                    'text-red-600 dark:text-red-400'
+                  }`}>
+                    {seoAnalysis.score}
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400">/ 100</span>
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                    seoAnalysis.color === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                    seoAnalysis.color === 'yellow' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                    seoAnalysis.color === 'orange' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  }`}>
+                    {seoAnalysis.rating}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-600 dark:text-gray-400">Parole chiave</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{seoAnalysis.keywordCount}/5</p>
+            </div>
+          </div>
+
+          {/* SEO Suggestions */}
+          {seoAnalysis.suggestions.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-start gap-2">
+                <Lightbulb className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Suggerimenti SEO:</p>
+                  <ul className="space-y-1">
+                    {seoAnalysis.suggestions.map((suggestion, index) => (
+                      <li key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-2">
+                        <span>•</span>
+                        <span>{suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-3">
@@ -172,6 +298,48 @@ export default function RedattoreConfig({ project, onUpdate }: RedattoreConfigPr
           {error}
         </div>
       )}
+
+      {/* SEO Score Preview in Edit Mode */}
+      <div className="mx-4 mt-4 p-4 bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-900/20 dark:to-orange-900/20 rounded-lg border border-rose-200 dark:border-rose-800">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Anteprima SEO Score</h4>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xl font-bold ${
+              seoAnalysis.color === 'green' ? 'text-green-600 dark:text-green-400' :
+              seoAnalysis.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+              seoAnalysis.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+              'text-red-600 dark:text-red-400'
+            }`}>
+              {seoAnalysis.score}
+            </span>
+            <span className="text-gray-600 dark:text-gray-400">/100</span>
+          </div>
+        </div>
+        {seoAnalysis.suggestions.length > 0 && (
+          <div className="space-y-1">
+            {seoAnalysis.suggestions.slice(0, 3).map((suggestion, index) => (
+              <div key={index} className="flex items-start gap-2 text-xs">
+                <AlertCircle className="w-3 h-3 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
+              </div>
+            ))}
+            {seoAnalysis.suggestions.length > 3 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                +{seoAnalysis.suggestions.length - 3} altri suggerimenti
+              </p>
+            )}
+          </div>
+        )}
+        {seoAnalysis.suggestions.length === 0 && (
+          <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+            <CheckCircle className="w-4 h-4" />
+            <span>Ottima configurazione SEO!</span>
+          </div>
+        )}
+      </div>
 
       <div className="p-4 space-y-4">
         {/* Article Type */}

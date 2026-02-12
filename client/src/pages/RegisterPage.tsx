@@ -52,8 +52,16 @@ function RegisterPage() {
       // Store auth data
       ApiService.setAuth(response.user, response.token);
 
-      // Redirect to dashboard
-      navigate('/dashboard');
+      // Clear form data to prevent resubmission on back navigation
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      });
+
+      // Redirect to dashboard (replace history to prevent back navigation to form)
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.registerError') || 'Errore durante la registrazione');
     } finally {

@@ -11,6 +11,7 @@ import chaptersRouter from './routes/chapters';
 import sourcesRouter from './routes/sources';
 import charactersRouter from './routes/characters';
 import exportRouter from './routes/export';
+import sagasRouter from './routes/sagas';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/human-models', humanModelsRouter);
+app.use('/api/sagas', sagasRouter);
 app.use('/api', chaptersRouter);
 app.use('/api', sourcesRouter);
 app.use('/api', charactersRouter);
