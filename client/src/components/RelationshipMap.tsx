@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Character } from '../services/api';
 
 interface Relationship {
@@ -29,6 +30,7 @@ interface Edge {
 }
 
 export default function RelationshipMap({ characters, onClose, onAddRelationship }: RelationshipMapProps) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -130,15 +132,15 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Character Relationships</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('relationships.title')}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {characters.length} characters • {edges.length} relationships
+              {characters.length} {t('relationships.charactersCount').replace('{{count}}', String(characters.length))} • {edges.length} {t('relationships.relationshipsCount').replace('{{count}}', String(edges.length))}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            title="Close"
+            title={t('relationships.close')}
           >
             <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
@@ -236,7 +238,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
             }).map(([label, type]) => (
               <div key={type} className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow">
                 <div className={`w-4 h-1 rounded ${getRelationshipColor(type)}`}></div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t(`relationships.types.${type}`)}</span>
               </div>
             ))}
           </div>
@@ -245,13 +247,13 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Click on a character to add a relationship
+            {t('relationships.clickToAdd')}
           </p>
           <button
             onClick={() => setShowAddDialog(true)}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
           >
-            Add Relationship
+            {t('relationships.addRelationship')}
           </button>
         </div>
       </div>
@@ -260,12 +262,12 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
       {showAddDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Relationship</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('relationships.addDialogTitle')}</h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  From Character
+                  {t('relationships.fromCharacter')}
                 </label>
                 <select
                   value={newRelationship.fromCharacterId}
@@ -273,7 +275,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 >
-                  <option value="">Select character...</option>
+                  <option value="">{t('relationships.selectCharacter')}</option>
                   {characters.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -307,14 +309,14 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 >
-                  <option value="">Select type...</option>
-                  <option value="family">Family</option>
-                  <option value="friend">Friend</option>
-                  <option value="enemy">Enemy</option>
-                  <option value="romantic">Romantic</option>
-                  <option value="mentor">Mentor</option>
-                  <option value="ally">Ally</option>
-                  <option value="other">Other</option>
+                  <option value="">{t('relationships.selectType')}</option>
+                  <option value="family">{t('relationships.types.family')}</option>
+                  <option value="friend">{t('relationships.types.friend')}</option>
+                  <option value="enemy">{t('relationships.types.enemy')}</option>
+                  <option value="romantic">{t('relationships.types.romantic')}</option>
+                  <option value="mentor">{t('relationships.types.mentor')}</option>
+                  <option value="ally">{t('relationships.types.ally')}</option>
+                  <option value="other">{t('relationships.types.other')}</option>
                 </select>
               </div>
             </div>
@@ -324,14 +326,14 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
                 onClick={() => setShowAddDialog(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Cancel
+                {t('relationships.cancel')}
               </button>
               <button
                 onClick={handleAddRelationship}
                 disabled={!newRelationship.fromCharacterId || !newRelationship.toCharacterId || !newRelationship.relationshipType}
                 className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Add Relationship
+                {t('relationships.add')}
               </button>
             </div>
           </div>
@@ -342,23 +344,23 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
       {selectedEdge && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Relationship Details</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('relationships.details')}</h3>
 
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">From:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('relationships.from')}</p>
                 <p className="font-semibold text-gray-900 dark:text-white">
                   {nodes.find(n => n.id === selectedEdge.from)?.character?.name}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">To:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('relationships.to')}</p>
                 <p className="font-semibold text-gray-900 dark:text-white">
                   {nodes.find(n => n.id === selectedEdge.to)?.character?.name}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Type:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('relationships.type')}</p>
                 <p className="font-semibold text-gray-900 dark:text-white capitalize">
                   {selectedEdge.type}
                 </p>
@@ -369,7 +371,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
               onClick={() => setSelectedEdge(null)}
               className="w-full mt-6 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
             >
-              Close
+              {t('relationships.close')}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
@@ -10,6 +11,7 @@ import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
 
 export default function ChapterEditor() {
+  const { t } = useTranslation();
   const toast = useToastNotification();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
@@ -919,8 +921,8 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setIsFullScreen(!isFullScreen)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                aria-label={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen'}
-                title={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen'}
+                aria-label={isFullScreen ? t('chapterEditor.exitFullScreen') + ' (Esc)' : t('chapterEditor.fullScreen')}
+                title={isFullScreen ? t('chapterEditor.exitFullScreen') + ' (Esc)' : t('chapterEditor.fullScreen')}
               >
                 {isFullScreen ? <Minimize className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
               </button>
@@ -953,8 +955,8 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setShowVersionHistory(true)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                aria-label="Version History"
-                title="Version History"
+                aria-label={t('chapterEditor.versionHistory')}
+                title={t('chapterEditor.versionHistory')}
               >
                 <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
@@ -1291,7 +1293,7 @@ export default function ChapterEditor() {
                 ) : (
                   <>
                     <Sparkles className="w-3 h-3" />
-                    AI Revise
+                    {t('chapterEditor.aiRevise')}
                   </>
                 )}
               </button>
@@ -1340,7 +1342,7 @@ export default function ChapterEditor() {
               <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
             )}
             <span className="text-gray-400 dark:text-gray-500">
-              Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
+              {t('chapterEditor.autoSave')} <span className="font-medium">{nextAutoSaveIn}</span> {t('chapterEditor.seconds')}
             </span>
           </div>
         </div>

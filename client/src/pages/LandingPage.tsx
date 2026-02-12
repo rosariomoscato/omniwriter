@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function LandingPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg">
       {/* Hero Section */}
@@ -8,29 +11,28 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              <span className="block">Scrittura AI</span>
-              <span className="block text-primary-600">Senza Limiti</span>
+              <span className="block">{t('landing.heroTitle')}</span>
+              <span className="block text-primary-600">{t('landing.heroSubtitle')}</span>
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-xl text-gray-600 dark:text-gray-300">
-              La piattaforma professionale di scrittura basata su intelligenza artificiale.
-              Genera romanzi, saggi e articoli giornalistici con stili unici e coerenti.
+              {t('landing.heroDescription')}
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/register"
                 className="px-8 py-4 bg-primary-600 text-white text-lg font-semibold rounded-lg hover:bg-primary-700 transition-colors shadow-lg hover:shadow-xl"
               >
-                Inizia Gratis
+                {t('landing.startFree')}
               </Link>
               <Link
                 to="/login"
                 className="px-8 py-4 bg-white dark:bg-dark-surface text-gray-900 dark:text-white text-lg font-semibold rounded-lg border-2 border-gray-300 dark:border-gray-600 hover:border-primary-600 dark:hover:border-primary-600 transition-colors"
               >
-                Accedi
+                {t('landing.login')}
               </Link>
             </div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              Nessuna carta di credito richiesta • Piano gratuito disponibile
+              {t('landing.noCreditCard')}
             </p>
           </div>
         </div>
@@ -41,10 +43,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Tre Aree Creative Specializzate
+              {t('landing.featuresTitle')}
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300">
-              Scegli l'area perfetta per il tuo progetto di scrittura
+              {t('landing.featuresSubtitle')}
             </p>
           </div>
 
@@ -52,42 +54,42 @@ export default function LandingPage() {
             {/* Romanziere */}
             <FeatureCard
               icon="📚"
-              title="Romanziere"
+              title={t('landing.romanziere.title')}
               color="romanziere"
-              description="Scrivi romanzi completi capitolo per capitolo. Gestisci personaggi, luoghi, trame e saghe complesse."
+              description={t('landing.romanziere.description')}
               features={[
-                "Generazione chapter-by-chapter",
-                "Sviluppo personaggi e relazioni",
-                "Gestione saghe e serie",
-                "Analisi stile personalizzato"
+                t('landing.romanziere.feature1'),
+                t('landing.romanziere.feature2'),
+                t('landing.romanziere.feature3'),
+                t('landing.romanziere.feature4')
               ]}
             />
 
             {/* Saggista */}
             <FeatureCard
               icon="🎓"
-              title="Saggista"
+              title={t('landing.saggista.title')}
               color="saggista"
-              description="Crea saggi approfonditi con gestione avanzata delle fonti e citazioni accademiche."
+              description={t('landing.saggista.description')}
               features={[
-                "Fonti e bibliografia",
-                "Analisi approfondita o panoramica",
-                "Citazioni automatiche",
-                "Fact-checking AI"
+                t('landing.saggista.feature1'),
+                t('landing.saggista.feature2'),
+                t('landing.saggista.feature3'),
+                t('landing.saggista.feature4')
               ]}
             />
 
             {/* Redattore */}
             <FeatureCard
               icon="📰"
-              title="Redattore"
+              title={t('landing.redattore.title')}
               color="redattore"
-              description="Genera articoli, comunicati stampa e contenuti SEO-ottimizzati in pochi minuti."
+              description={t('landing.redattore.description')}
               features={[
-                "Template editoriali",
-                "Ottimizzazione SEO",
-                "Generazione headline",
-                "Snippet social media"
+                t('landing.redattore.feature1'),
+                t('landing.redattore.feature2'),
+                t('landing.redattore.feature3'),
+                t('landing.redattore.feature4')
               ]}
             />
           </div>
@@ -99,66 +101,67 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Piani e Prezzi
+              {t('landing.pricing.title')}
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300">
-              Scegli il piano perfetto per le tue esigenze creative
+              {t('landing.pricing.subtitle')}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Free Plan */}
             <PricingCard
-              name="Free"
-              price="€0"
-              period="per sempre"
-              description="Per iniziare a esplorare"
+              name={t('landing.pricing.free.name')}
+              price={t('landing.pricing.free.price')}
+              period={t('landing.pricing.free.period')}
+              description={t('landing.pricing.free.description')}
               features={[
-                "Generazione limitata",
-                "Human Model base",
-                "Upload fonti limitato",
-                "Export TXT, DOCX",
-                "Ricerca web base"
+                t('landing.pricing.free.feature1'),
+                t('landing.pricing.free.feature2'),
+                t('landing.pricing.free.feature3'),
+                t('landing.pricing.free.feature4'),
+                t('landing.pricing.free.feature5')
               ]}
-              ctaText="Inizia Gratis"
+              ctaText={t('landing.startFree')}
               ctaLink="/register"
               isPopular={false}
             />
 
             {/* Premium Plan */}
             <PricingCard
-              name="Premium"
-              price="€19"
-              period="/mese"
-              description="Per scrittori seri"
+              name={t('landing.pricing.premium.name')}
+              price={t('landing.pricing.premium.price')}
+              period={t('landing.pricing.premium.period')}
+              description={t('landing.pricing.premium.description')}
               features={[
-                "Generazione illimitata",
-                "Human Model avanzato",
-                "Upload fonti illimitato",
-                "Tutti i formati export",
-                "SEO avanzato",
-                "Google Drive",
-                "Supporto prioritario"
+                t('landing.pricing.premium.feature1'),
+                t('landing.pricing.premium.feature2'),
+                t('landing.pricing.premium.feature3'),
+                t('landing.pricing.premium.feature4'),
+                t('landing.pricing.premium.feature5'),
+                t('landing.pricing.premium.feature6'),
+                t('landing.premium.premium.feature7')
               ]}
-              ctaText="Inizia Prova Gratis"
+              ctaText={t('common.register')}
               ctaLink="/register"
               isPopular={true}
+              popularLabel={t('landing.pricing.premium.popular')}
             />
 
             {/* Lifetime Plan */}
             <PricingCard
-              name="Lifetime"
-              price="€299"
-              period="una tantum"
-              description="Accesso per sempre"
+              name={t('landing.pricing.lifetime.name')}
+              price={t('landing.pricing.lifetime.price')}
+              period={t('landing.pricing.lifetime.period')}
+              description={t('landing.pricing.lifetime.description')}
               features={[
-                "Tutto Premium incluso",
-                "Nessun canone mensile",
-                "Aggiornamenti futuri",
-                "Nuove funzionalità",
-                "Supporto VIP"
+                t('landing.pricing.lifetime.feature1'),
+                t('landing.pricing.lifetime.feature2'),
+                t('landing.pricing.lifetime.feature3'),
+                t('landing.pricing.lifetime.feature4'),
+                t('landing.pricing.lifetime.feature5')
               ]}
-              ctaText="Ottieni Lifetime"
+              ctaText={t('landing.lifetime.feature5')}
               ctaLink="/register"
               isPopular={false}
             />
@@ -170,19 +173,19 @@ export default function LandingPage() {
       <section className="py-24 bg-primary-600 dark:bg-primary-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
-            Pronto a Trasformare le Tue Idee in Capolavori?
+            {t('landing.cta.title')}
           </h2>
           <p className="text-xl text-primary-100 mb-10">
-            Unisciti a migliaia di scrittori che usano OmniWriter per creare contenuti straordinari.
+            {t('landing.cta.subtitle')}
           </p>
           <Link
             to="/register"
             className="inline-block px-10 py-5 bg-white text-primary-600 text-xl font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-xl"
           >
-            Inizia Ora - È Gratis
+            {t('landing.cta.button')}
           </Link>
           <p className="mt-6 text-primary-200 text-sm">
-            Nessuna carta richiesta • Cancella quando vuoi
+            {t('landing.cta.noCard')}
           </p>
         </div>
       </section>
@@ -191,9 +194,9 @@ export default function LandingPage() {
       <footer className="bg-gray-900 dark:bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-400">
-            <p className="text-2xl font-bold text-white mb-4">OmniWriter</p>
+            <p className="text-2xl font-bold text-white mb-4">{t('app.name')}</p>
             <p className="text-sm">
-              © 2025 OmniWriter. Tutti i diritti riservati.
+              {t('landing.footer.copyright')}
             </p>
           </div>
         </div>
@@ -247,9 +250,10 @@ interface PricingCardProps {
   ctaText: string;
   ctaLink: string;
   isPopular: boolean;
+  popularLabel?: string;
 }
 
-function PricingCard({ name, price, period, description, features, ctaText, ctaLink, isPopular }: PricingCardProps) {
+function PricingCard({ name, price, period, description, features, ctaText, ctaLink, isPopular, popularLabel }: PricingCardProps) {
   return (
     <div className={`relative bg-white dark:bg-dark-surface rounded-2xl p-8 shadow-xl ${
       isPopular ? 'border-2 border-primary-500 scale-105' : 'border border-gray-200 dark:border-gray-700'
@@ -257,7 +261,7 @@ function PricingCard({ name, price, period, description, features, ctaText, ctaL
       {isPopular && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
           <span className="bg-primary-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-            Più Popolare
+            {popularLabel}
           </span>
         </div>
       )}

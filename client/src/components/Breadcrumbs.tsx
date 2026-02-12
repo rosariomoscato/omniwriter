@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Breadcrumb {
   label: string;
@@ -10,6 +11,7 @@ interface Breadcrumb {
 export default function Breadcrumbs() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleDashboardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -29,7 +31,7 @@ export default function Breadcrumbs() {
 
     // Always add Dashboard as first item if not on landing page
     if (pathSegments.length > 0) {
-      crumbs.push({ label: 'Dashboard', path: '/dashboard', isDashboard: true });
+      crumbs.push({ label: t('breadcrumbs.dashboard'), path: '/dashboard', isDashboard: true });
     }
 
     // Build breadcrumbs based on route
@@ -41,37 +43,37 @@ export default function Breadcrumbs() {
       if (segment === 'projects' && nextSegment === 'new') {
         // Don't add a crumb for 'projects' when going to new project form
       } else if (segment === 'projects' && index < pathSegments.length - 1) {
-        crumbs.push({ label: 'Progetti', path: '/projects' });
+        crumbs.push({ label: t('breadcrumbs.projects'), path: '/projects' });
       } else if (segment === 'new') {
-        crumbs.push({ label: 'Nuovo Progetto', path });
+        crumbs.push({ label: t('breadcrumbs.newProject'), path });
       } else if (segment === 'chapters') {
-        // Skip 'chapters' segment, handled by the following UUID
+        // Skip 'chapters' segment, handled by following UUID
       } else if (segment.match(/^[a-f0-9-]{36}$/)) {
         // UUID - could be project ID or chapter ID
         if (pathSegments.includes('chapters')) {
           // This is a chapter ID
-          crumbs.push({ label: 'Capitolo' }); // No path, it's the current page
+          crumbs.push({ label: t('breadcrumbs.chapter') }); // No path, it's current page
         } else {
           // This is a project ID
-          crumbs.push({ label: 'Progetto', path });
+          crumbs.push({ label: t('breadcrumbs.project'), path });
         }
       } else if (segment === 'human-model') {
-        crumbs.push({ label: 'Human Model', path });
+        crumbs.push({ label: t('breadcrumbs.humanModel'), path });
       } else if (segment === 'sources') {
-        crumbs.push({ label: 'Fonti', path });
+        crumbs.push({ label: t('breadcrumbs.sources'), path });
       } else if (segment === 'settings') {
-        crumbs.push({ label: 'Impostazioni', path });
+        crumbs.push({ label: t('breadcrumbs.settings'), path });
       } else if (segment === 'profile') {
-        crumbs.push({ label: 'Profilo', path });
+        crumbs.push({ label: t('breadcrumbs.profile'), path });
       } else if (segment === 'login') {
-        crumbs.push({ label: 'Accedi' });
+        crumbs.push({ label: t('breadcrumbs.login') });
       } else if (segment === 'register') {
-        crumbs.push({ label: 'Registrati' });
+        crumbs.push({ label: t('breadcrumbs.register') });
       }
     });
 
     return crumbs;
-  }, [location.pathname]);
+  }, [location.pathname, t]);
 
   // Don't show breadcrumbs on landing page or login/register
   if (location.pathname === '/' || location.pathname === '/login' || location.pathname === '/register') {

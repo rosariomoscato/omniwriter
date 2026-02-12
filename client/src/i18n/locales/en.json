@@ -39,10 +39,87 @@
     "namePlaceholder": "Your name"
   },
   "landing": {
-    "hero": "Write with artificial intelligence",
-    "subtitle": "Generate novels, essays, and articles with AI assistance",
+    "heroTitle": "AI Writing",
+    "heroSubtitle": "Without Limits",
+    "heroDescription": "The professional AI-powered writing platform. Generate novels, essays, and journalistic articles with unique and coherent styles.",
     "startFree": "Start Free",
-    "login": "Log In"
+    "login": "Log In",
+    "noCreditCard": "No credit card required • Free plan available",
+    "featuresTitle": "Three Specialized Creative Areas",
+    "featuresSubtitle": "Choose the perfect area for your writing project",
+    "romanziere": {
+      "title": "Novelist",
+      "description": "Write complete novels chapter by chapter. Manage characters, locations, plots and complex sagas.",
+      "feature1": "Chapter-by-chapter generation",
+      "feature2": "Character development and relationships",
+      "feature3": "Saga and series management",
+      "feature4": "Custom style analysis"
+    },
+    "saggista": {
+      "title": "Essayist",
+      "description": "Create in-depth essays with advanced source management and academic citations.",
+      "feature1": "Sources and bibliography",
+      "feature2": "Deep dive or panoramic overview",
+      "feature3": "Automatic citations",
+      "feature4": "AI fact-checking"
+    },
+    "redattore": {
+      "title": "Editor",
+      "description": "Generate articles, press releases and SEO-optimized content in minutes.",
+      "feature1": "Editorial templates",
+      "feature2": "SEO optimization",
+      "feature3": "Headline generation",
+      "feature4": "Social media snippets"
+    },
+    "pricing": {
+      "title": "Plans and Pricing",
+      "subtitle": "Choose the perfect plan for your creative needs",
+      "free": {
+        "name": "Free",
+        "price": "€0",
+        "period": "forever",
+        "description": "To start exploring",
+        "feature1": "Limited generation",
+        "feature2": "Basic Human Model",
+        "feature3": "Limited source uploads",
+        "feature4": "Export TXT, DOCX",
+        "feature5": "Basic web search"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19",
+        "period": "/month",
+        "description": "For serious writers",
+        "feature1": "Unlimited generation",
+        "feature2": "Advanced Human Model",
+        "feature3": "Unlimited source uploads",
+        "feature4": "All export formats",
+        "feature5": "Advanced SEO",
+        "feature6": "Google Drive",
+        "feature7": "Priority support",
+        "popular": "Most Popular"
+      },
+      "lifetime": {
+        "name": "Lifetime",
+        "price": "€299",
+        "period": "one-time",
+        "description": "Access forever",
+        "feature1": "All Premium included",
+        "feature2": "No monthly fees",
+        "feature3": "Future updates",
+        "feature4": "New features",
+        "feature5": "VIP support"
+      }
+    },
+    "cta": {
+      "title": "Ready to Transform Your Ideas into Masterpieces?",
+      "subtitle": "Join thousands of writers using OmniWriter to create extraordinary content.",
+      "button": "Start Now - It's Free",
+      "noCard": "No card required • Cancel anytime"
+    },
+    "footer": {
+      "copyright": "© 2025 OmniWriter. All rights reserved."
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -116,7 +193,7 @@
     "noProfiles": "No profiles yet. Create one to get started.",
     "words": "Words",
     "selectProfile": "Select a profile",
-    "selectProfileDesc": "Choose a profile from the left to view details or upload writings",
+    "selectProfileDesc": "Choose a profile from left to view details or upload writings",
     "noDescription": "No description",
     "modelType": "Model Type",
     "wordCount": "Word Count",
@@ -146,5 +223,116 @@
       "saggista_basic": "Essayist (Basic)",
       "redattore_basic": "Editor (Basic)"
     }
+  },
+  "breadcrumbs": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "newProject": "New Project",
+    "chapter": "Chapter",
+    "project": "Project",
+    "humanModel": "Human Model",
+    "sources": "Sources",
+    "settings": "Settings",
+    "profile": "Profile",
+    "login": "Log In",
+    "register": "Sign Up"
+  },
+  "keyboardShortcuts": {
+    "title": "Keyboard Shortcuts",
+    "close": "Close",
+    "tip": "Tip",
+    "tipDescription": "Press",
+    "anytime": "at any time to open this guide",
+    "categories": {
+      "general": "General",
+      "editor": "Editor",
+      "navigation": "Navigation",
+      "projects": "Projects"
+    },
+    "shortcuts": {
+      "showGuide": "Show this guide",
+      "closeModals": "Close modals/dialogs",
+      "saveContent": "Save content",
+      "undo": "Undo",
+      "redo": "Redo",
+      "redoAlt": "Redo (alternative)",
+      "focusSearch": "Focus search bar (coming soon)",
+      "newProject": "New project (coming soon)"
+    },
+    "context": "Chapter Editor"
+  },
+  "bulkUpload": {
+    "title": "Upload Sources",
+    "filesSelected": "files selected",
+    "file": "file",
+    "close": "Close",
+    "overallProgress": "Overall Progress",
+    "dropFiles": "Drop files here or click to browse",
+    "acceptedFormats": "PDF, DOCX, DOC, RTF, TXT (max 25MB each)",
+    "selectFiles": "Select Files",
+    "complete": "Complete",
+    "uploadMore": "Upload More Files",
+    "successMessage": "{{success}} of {{total}} files uploaded successfully"
+  },
+  "relationships": {
+    "title": "Character Relationships",
+    "charactersCount": "{{count}} characters",
+    "relationshipsCount": "{{count}} relationships",
+    "close": "Close",
+    "clickToAdd": "Click on a character to add a relationship",
+    "addRelationship": "Add Relationship",
+    "addDialogTitle": "Add Relationship",
+    "fromCharacter": "From Character",
+    "toCharacter": "To Character",
+    "relationshipType": "Relationship Type",
+    "selectCharacter": "Select character...",
+    "selectType": "Select type...",
+    "cancel": "Cancel",
+    "add": "Add Relationship",
+    "details": "Relationship Details",
+    "from": "From:",
+    "to": "To:",
+    "type": "Type:",
+    "types": {
+      "family": "Family",
+      "friend": "Friend",
+      "enemy": "Enemy",
+      "romantic": "Romantic",
+      "mentor": "Mentor",
+      "ally": "Ally",
+      "other": "Other"
+    }
+  },
+  "sessionExpired": {
+    "title": "Session Expired",
+    "message": "Your session has expired. Please log in again to continue.",
+    "close": "Close"
+  },
+  "chapterEditor": {
+    "save": "Save",
+    "autoSave": "Auto-save in",
+    "seconds": "seconds",
+    "lastSaved": "Last saved",
+    "wordCount": "words",
+    "readingTime": "min read",
+    "preview": "Preview",
+    "edit": "Edit",
+    "versionHistory": "Version History",
+    "fullScreen": "Full Screen",
+    "exitFullScreen": "Exit Full Screen",
+    "findReplace": "Find & Replace",
+    "find": "Find",
+    "replace": "Replace",
+    "caseSensitive": "Case sensitive",
+    "matchCount": "{{count}} matches",
+    "noMatches": "No matches found",
+    "undo": "Undo",
+    "redo": "Redo",
+    "aiRevise": "AI Revise",
+    "enhanceDialogue": "Enhance Dialogue",
+    "unsavedChanges": "You have unsaved changes",
+    "unsavedChangesMessage": "Do you want to save your changes before leaving?",
+    "stay": "Stay",
+    "leaveWithoutSaving": "Leave without saving"
   }
 }

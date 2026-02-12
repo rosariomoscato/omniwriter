@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Keyboard, Save, Undo, RotateCcw, Download, Upload, Search, Settings, User, FileText, BookOpen, Newspaper } from 'lucide-react';
+import { X, Keyboard, Search, BookOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { registerModal, unregisterModal, openModals } from './NetworkErrorDialog';
 import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
@@ -14,6 +15,7 @@ interface ShortcutGroup {
 }
 
 export default function KeyboardShortcutsDialog() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const modalId = useState(() => `keyboard-shortcuts-${Math.random().toString(36).substring(2, 9)}`)[0];
   const modalRef = useFocusTrapSimple(isOpen);
@@ -35,7 +37,7 @@ export default function KeyboardShortcutsDialog() {
     };
   }, [modalId]);
 
-  // Close on Escape key if this is the top-most modal
+  // Close on Escape key if this is top-most modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen && openModals.has(modalId)) {
@@ -56,35 +58,35 @@ export default function KeyboardShortcutsDialog() {
 
   const shortcutGroups: ShortcutGroup[] = [
     {
-      category: 'Generali',
+      category: t('keyboardShortcuts.categories.general'),
       icon: <Keyboard className="w-5 h-5" />,
       shortcuts: [
-        { keys: ['?'], description: 'Mostra questa guida' },
-        { keys: ['Esc'], description: 'Chiudi modali/dialoghi' },
+        { keys: ['?'], description: t('keyboardShortcuts.shortcuts.showGuide') },
+        { keys: ['Esc'], description: t('keyboardShortcuts.shortcuts.closeModals') },
       ]
     },
     {
-      category: 'Editor',
-      icon: <FileText className="w-5 h-5" />,
+      category: t('keyboardShortcuts.categories.editor'),
+      icon: <kbd className="w-5 h-5" />,
       shortcuts: [
-        { keys: ['Ctrl', 'S'], description: 'Salva contenuto', context: 'Chapter Editor' },
-        { keys: ['Ctrl', 'Z'], description: 'Annulla', context: 'Chapter Editor' },
-        { keys: ['Ctrl', 'Shift', 'Z'], description: 'Ripristina', context: 'Chapter Editor' },
-        { keys: ['Ctrl', 'Y'], description: 'Ripristina (alternativa)', context: 'Chapter Editor' },
+        { keys: ['Ctrl', 'S'], description: t('keyboardShortcuts.shortcuts.saveContent'), context: t('keyboardShortcuts.context') },
+        { keys: ['Ctrl', 'Z'], description: t('keyboardShortcuts.shortcuts.undo'), context: t('keyboardShortcuts.context') },
+        { keys: ['Ctrl', 'Shift', 'Z'], description: t('keyboardShortcuts.shortcuts.redo'), context: t('keyboardShortcuts.context') },
+        { keys: ['Ctrl', 'Y'], description: t('keyboardShortcuts.shortcuts.redoAlt'), context: t('keyboardShortcuts.context') },
       ]
     },
     {
-      category: 'Navigazione',
+      category: t('keyboardShortcuts.categories.navigation'),
       icon: <Search className="w-5 h-5" />,
       shortcuts: [
-        { keys: ['Ctrl', 'K'], description: 'Focus barra ricerca (prossimamente)' },
+        { keys: ['Ctrl', 'K'], description: t('keyboardShortcuts.shortcuts.focusSearch') },
       ]
     },
     {
-      category: 'Progetti',
+      category: t('keyboardShortcuts.categories.projects'),
       icon: <BookOpen className="w-5 h-5" />,
       shortcuts: [
-        { keys: ['Ctrl', 'N'], description: 'Nuovo progetto (prossimamente)' },
+        { keys: ['Ctrl', 'N'], description: t('keyboardShortcuts.shortcuts.newProject') },
       ]
     }
   ];
@@ -124,13 +126,13 @@ export default function KeyboardShortcutsDialog() {
               id="keyboard-shortcuts-title"
               className="text-xl font-semibold text-gray-900 dark:text-gray-100"
             >
-              Scorciatoie Tastiera
+              {t('keyboardShortcuts.title')}
             </h2>
           </div>
           <button
             onClick={() => setIsOpen(false)}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="Chiudi"
+            aria-label={t('keyboardShortcuts.close')}
           >
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -185,7 +187,7 @@ export default function KeyboardShortcutsDialog() {
           {/* Info */}
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Suggerimento:</strong> Premi <kbd className="px-1.5 py-0.5 text-xs font-mono bg-blue-100 dark:bg-blue-800 border border-blue-300 dark:border-blue-700 rounded mx-1">?</kbd> in qualsiasi momento per aprire questa guida.
+              <strong>{t('keyboardShortcuts.tip')}:</strong> {t('keyboardShortcuts.tipDescription')} <kbd className="px-1.5 py-0.5 text-xs font-mono bg-blue-100 dark:bg-blue-800 border border-blue-300 dark:border-blue-700 rounded mx-1">?</kbd> {t('keyboardShortcuts.anytime')}
             </p>
           </div>
         </div>

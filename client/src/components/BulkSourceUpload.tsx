@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import { useFocusTrapSimple } from '../hooks/useFocusTrap';
 
@@ -17,6 +18,7 @@ interface BulkSourceUploadProps {
 }
 
 export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel }: BulkSourceUploadProps) {
+  const { t } = useTranslation();
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [overallProgress, setOverallProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -71,7 +73,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
       ));
 
       try {
-        // Simulate progress for the upload (fetch API doesn't provide progress)
+        // Simulate progress for upload (fetch API doesn't provide progress)
         const progressInterval = setInterval(() => {
           setUploads(prev => prev.map((u, idx) => {
             if (idx === i && u.progress < 90) {
@@ -142,17 +144,17 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
                 id="bulk-upload-title"
                 className="text-xl font-semibold text-gray-900 dark:text-gray-100"
               >
-                Upload Sources
+                {t('bulkUpload.title')}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {uploads.length} {uploads.length === 1 ? 'file' : 'files'} selected
+                {uploads.length} {uploads.length === 1 ? t('bulkUpload.file') : t('bulkUpload.filesSelected')}
               </p>
             </div>
             <button
               onClick={onCancel}
               disabled={isProcessing}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Close"
+              aria-label={t('common.close')}
             >
               <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
@@ -162,7 +164,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
           {uploads.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-700 dark:text-gray-300">Overall Progress</span>
+                <span className="text-gray-700 dark:text-gray-300">{t('bulkUpload.overallProgress')}</span>
                 <span className="text-gray-600 dark:text-gray-400">
                   {Math.round(overallProgress)}%
                 </span>
@@ -183,10 +185,10 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
             <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center">
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Drop files here or click to browse
+                {t('bulkUpload.dropFiles')}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                PDF, DOCX, DOC, RTF, TXT (max 25MB each)
+                {t('bulkUpload.acceptedFormats')}
               </p>
               <input
                 ref={fileInputRef}
@@ -200,7 +202,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
                 onClick={() => fileInputRef.current?.click()}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
-                Select Files
+                {t('bulkUpload.selectFiles')}
               </button>
             </div>
           ) : (
@@ -243,7 +245,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
                     )}
                     {upload.status === 'success' && (
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                        Complete
+                        {t('bulkUpload.complete')}
                       </span>
                     )}
                   </div>
@@ -258,7 +260,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
           <div className="p-6 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {uploads.filter(u => u.status === 'success').length} of {uploads.length} files uploaded successfully
+                {uploads.filter(u => u.status === 'success').length} of {uploads.length} {t('bulkUpload.filesSelected')} {t('common.upload').toLowerCase()}
               </p>
               <button
                 onClick={() => {
@@ -267,7 +269,7 @@ export default function BulkSourceUpload({ projectId, onUploadComplete, onCancel
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
-                Upload More Files
+                {t('bulkUpload.uploadMore')}
               </button>
             </div>
           </div>

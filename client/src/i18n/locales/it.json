@@ -39,10 +39,87 @@
     "namePlaceholder": "Il tuo nome"
   },
   "landing": {
-    "hero": "Scrivi con l'intelligenza artificiale",
-    "subtitle": "Genera romanzi, saggi e articoli giornalistici con l'aiuto dell'AI",
+    "heroTitle": "Scrittura AI",
+    "heroSubtitle": "Senza Limiti",
+    "heroDescription": "La piattaforma professionale di scrittura basata su intelligenza artificiale. Genera romanzi, saggi e articoli giornalistici con stili unici e coerenti.",
     "startFree": "Inizia Gratis",
-    "login": "Accedi"
+    "login": "Accedi",
+    "noCreditCard": "Nessuna carta di credito richiesta • Piano gratuito disponibile",
+    "featuresTitle": "Tre Aree Creative Specializzate",
+    "featuresSubtitle": "Scegli l'area perfetta per il tuo progetto di scrittura",
+    "romanziere": {
+      "title": "Romanziere",
+      "description": "Scrivi romanzi completi capitolo per capitolo. Gestisci personaggi, luoghi, trame e saghe complesse.",
+      "feature1": "Generazione chapter-by-chapter",
+      "feature2": "Sviluppo personaggi e relazioni",
+      "feature3": "Gestione saghe e serie",
+      "feature4": "Analisi stile personalizzato"
+    },
+    "saggista": {
+      "title": "Saggista",
+      "description": "Crea saggi approfonditi con gestione avanzata delle fonti e citazioni accademiche.",
+      "feature1": "Fonti e bibliografia",
+      "feature2": "Analisi approfondita o panoramica",
+      "feature3": "Citazioni automatiche",
+      "feature4": "Fact-checking AI"
+    },
+    "redattore": {
+      "title": "Redattore",
+      "description": "Genera articoli, comunicati stampa e contenuti SEO-ottimizzati in pochi minuti.",
+      "feature1": "Template editoriali",
+      "feature2": "Ottimizzazione SEO",
+      "feature3": "Generazione headline",
+      "feature4": "Snippet social media"
+    },
+    "pricing": {
+      "title": "Piani e Prezzi",
+      "subtitle": "Scegli il piano perfetto per le tue esigenze creative",
+      "free": {
+        "name": "Free",
+        "price": "€0",
+        "period": "per sempre",
+        "description": "Per iniziare a esplorare",
+        "feature1": "Generazione limitata",
+        "feature2": "Human Model base",
+        "feature3": "Upload fonti limitato",
+        "feature4": "Export TXT, DOCX",
+        "feature5": "Ricerca web base"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19",
+        "period": "/mese",
+        "description": "Per scrittori seri",
+        "feature1": "Generazione illimitata",
+        "feature2": "Human Model avanzato",
+        "feature3": "Upload fonti illimitato",
+        "feature4": "Tutti i formati export",
+        "feature5": "SEO avanzato",
+        "feature6": "Google Drive",
+        "feature7": "Supporto prioritario",
+        "popular": "Più Popolare"
+      },
+      "lifetime": {
+        "name": "Lifetime",
+        "price": "€299",
+        "period": "una tantum",
+        "description": "Accesso per sempre",
+        "feature1": "Tutto Premium incluso",
+        "feature2": "Nessun canone mensile",
+        "feature3": "Aggiornamenti futuri",
+        "feature4": "Nuove funzionalità",
+        "feature5": "Supporto VIP"
+      }
+    },
+    "cta": {
+      "title": "Pronto a Trasformare le Tue Idee in Capolavori?",
+      "subtitle": "Unisciti a migliaia di scrittori che usano OmniWriter per creare contenuti straordinari.",
+      "button": "Inizia Ora - È Gratis",
+      "noCard": "Nessuna carta richiesta • Cancella quando vuoi"
+    },
+    "footer": {
+      "copyright": "© 2025 OmniWriter. Tutti i diritti riservati."
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -68,7 +145,7 @@
       "importOption": "Hai già un documento?",
       "importDesc": "Importa file TXT, DOCX o DOC per continuare a lavorare sui tuoi contenuti esistenti",
       "importProject": "Importa progetto",
-      "showGuide": "Mostra guida inizi"
+      "showGuide": "Mostra guida inizio"
     }
   },
   "project": {
@@ -146,5 +223,116 @@
       "saggista_basic": "Saggista (Base)",
       "redattore_basic": "Redattore (Base)"
     }
+  },
+  "breadcrumbs": {
+    "dashboard": "Dashboard",
+    "projects": "Progetti",
+    "newProject": "Nuovo Progetto",
+    "chapter": "Capitolo",
+    "project": "Progetto",
+    "humanModel": "Modello Umano",
+    "sources": "Fonti",
+    "settings": "Impostazioni",
+    "profile": "Profilo",
+    "login": "Accedi",
+    "register": "Registrati"
+  },
+  "keyboardShortcuts": {
+    "title": "Scorciatoie Tastiera",
+    "close": "Chiudi",
+    "tip": "Suggerimento",
+    "tipDescription": "Premi",
+    "anytime": "in qualsiasi momento per aprire questa guida",
+    "categories": {
+      "general": "Generali",
+      "editor": "Editor",
+      "navigation": "Navigazione",
+      "projects": "Progetti"
+    },
+    "shortcuts": {
+      "showGuide": "Mostra questa guida",
+      "closeModals": "Chiudi modali/dialoghi",
+      "saveContent": "Salva contenuto",
+      "undo": "Annulla",
+      "redo": "Ripristina",
+      "redoAlt": "Ripristina (alternativa)",
+      "focusSearch": "Focus barra ricerca (prossimamente)",
+      "newProject": "Nuovo progetto (prossimamente)"
+    },
+    "context": "Chapter Editor"
+  },
+  "bulkUpload": {
+    "title": "Carica Fonti",
+    "filesSelected": "file selezionati",
+    "file": "file",
+    "close": "Chiudi",
+    "overallProgress": "Progresso Complessivo",
+    "dropFiles": "Trascina i file qui o clicca per sfogliare",
+    "acceptedFormats": "PDF, DOCX, DOC, RTF, TXT (max 25MB ciascuno)",
+    "selectFiles": "Seleziona File",
+    "complete": "Completo",
+    "uploadMore": "Carica Altri File",
+    "successMessage": "{{success}} di {{total}} file caricati con successo"
+  },
+  "relationships": {
+    "title": "Relazioni Personaggi",
+    "charactersCount": "{{count}} personaggi",
+    "relationshipsCount": "{{count}} relazioni",
+    "close": "Chiudi",
+    "clickToAdd": "Clicca su un personaggio per aggiungere una relazione",
+    "addRelationship": "Aggiungi Relazione",
+    "addDialogTitle": "Aggiungi Relazione",
+    "fromCharacter": "Da Personaggio",
+    "toCharacter": "A Personaggio",
+    "relationshipType": "Tipo Relazione",
+    "selectCharacter": "Seleziona personaggio...",
+    "selectType": "Seleziona tipo...",
+    "cancel": "Annulla",
+    "add": "Aggiungi Relazione",
+    "details": "Dettagli Relazione",
+    "from": "Da:",
+    "to": "A:",
+    "type": "Tipo:",
+    "types": {
+      "family": "Famiglia",
+      "friend": "Amico",
+      "enemy": "Nemico",
+      "romantic": "Romantico",
+      "mentor": "Mentore",
+      "ally": "Alleato",
+      "other": "Altro"
+    }
+  },
+  "sessionExpired": {
+    "title": "Sessione scaduta",
+    "message": "La tua sessione è scaduta. Accedi di nuovo per continuare.",
+    "close": "Chiudi"
+  },
+  "chapterEditor": {
+    "save": "Salva",
+    "autoSave": "Auto-salvataggio tra",
+    "seconds": "secondi",
+    "lastSaved": "Ultimo salvataggio",
+    "wordCount": "parole",
+    "readingTime": "min lettura",
+    "preview": "Anteprima",
+    "edit": "Modifica",
+    "versionHistory": "Cronologia Versioni",
+    "fullScreen": "Schermo Intero",
+    "exitFullScreen": "Esci da Schermo Intero",
+    "findReplace": "Trova e Sostituisci",
+    "find": "Trova",
+    "replace": "Sostituisci",
+    "caseSensitive": "Maiuscole/minuscole",
+    "matchCount": "{{count}} corrispondenze",
+    "noMatches": "Nessuna corrispondenza trovata",
+    "undo": "Annulla",
+    "redo": "Ripristina",
+    "aiRevise": "AI Revise",
+    "enhanceDialogue": "Migliora Dialogo",
+    "unsavedChanges": "Hai modifiche non salvate",
+    "unsavedChangesMessage": "Vuoi salvare le modifiche prima di uscire?",
+    "stay": "Rimani",
+    "leaveWithoutSaving": "Esci senza salvare"
   }
 }

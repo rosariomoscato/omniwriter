@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SessionExpiredBanner
  *
- * Shows a banner when the user's session has expired.
+ * Shows a banner when user's session has expired.
  * Displays after a redirect from an API call that failed with 401/403.
  */
 export default function SessionExpiredBanner() {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
   const navigate = useNavigate();
 
@@ -17,7 +19,7 @@ export default function SessionExpiredBanner() {
     const sessionExpired = sessionStorage.getItem('sessionExpired');
     if (sessionExpired === 'true') {
       setShow(true);
-      // Clear the flag so it doesn't show again
+      // Clear flag so it doesn't show again
       sessionStorage.removeItem('sessionExpired');
     }
   }, []);
@@ -31,17 +33,17 @@ export default function SessionExpiredBanner() {
           <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
           <div>
             <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-              Sessione scaduta
+              {t('sessionExpired.title')}
             </h3>
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              La tua sessione è scaduta. Accedi di nuovo per continuare.
+              {t('sessionExpired.message')}
             </p>
           </div>
         </div>
         <button
           onClick={() => setShow(false)}
           className="text-amber-600 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
-          aria-label="Chiudi"
+          aria-label={t('sessionExpired.close')}
         >
           <X size={20} />
         </button>
