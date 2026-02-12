@@ -27,7 +27,16 @@
     "rememberMe": "Remember me",
     "loginWithGoogle": "Sign in with Google",
     "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?"
+    "hasAccount": "Already have an account?",
+    "welcomeBack": "Welcome back to OmniWriter",
+    "createAccount": "Create your OmniWriter account",
+    "passwordMismatch": "Passwords do not match",
+    "passwordRequirements": "Password must be at least 8 characters with uppercase, lowercase and number",
+    "passwordHint": "Minimum 8 characters, one uppercase, one lowercase, and one number",
+    "loginError": "Invalid email or password",
+    "registerError": "Error during registration",
+    "emailPlaceholder": "name@example.com",
+    "namePlaceholder": "Your name"
   },
   "landing": {
     "hero": "Write with artificial intelligence",
@@ -42,7 +51,9 @@
     "noProjects": "You don't have any projects yet. Create one!",
     "filterByArea": "Filter by area",
     "sortBy": "Sort by",
-    "search": "Search projects..."
+    "search": "Search projects...",
+    "welcome": "Welcome, {{name}}!",
+    "createFirst": "Start by creating your first project."
   },
   "project": {
     "title": "Title",
