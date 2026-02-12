@@ -2176,6 +2176,7 @@ export default function ProjectDetail() {
             chapters.map((chapter, index) => (
               <div
                 key={chapter.id}
+                id={`chapter-${chapter.id}`}
                 draggable
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={handleDragOver}

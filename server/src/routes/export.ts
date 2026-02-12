@@ -109,6 +109,12 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+// Helper function to generate table of contents for Saggista projects
+function generateTableOfContents(chapters: any[]): string {
+  if (chapters.length === 0) return '';
+  return chapters.map((ch, i) => `${i + 1}. ${ch.title || 'Untitled'}`).join('\n');
+}
+
 // Helper function to convert markdown to HTML
 function markdownToHtml(text: string): string {
   if (!text) return '';
@@ -484,12 +490,23 @@ async function generateDocx(title: string, description: string, chapters: any[])
 }
 
 // Helper function to generate TXT file
-function generateTxt(title: string, description: string, chapters: any[]): Buffer {
-  const content = `${title}\n${'='.repeat(title.length)}\n\n${description ? description + '\n\n' : ''}${chapters.map((ch, i) => {
+function generateTxt(title: string, description: string, chapters: any[], area?: string): Buffer {
+  let content = `${title}\n${'='.repeat(title.length)}\n\n`;
+
+  // Add table of contents for Saggista projects
+  if (area === 'saggista' && chapters.length > 0) {
+    content += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
+    content += `${'='.repeat(60)}\n\n`;
+  }
+
+  content += description ? description + '\n\n' : '';
+
+  // Add chapters
+  content += chapters.map((ch, i) => {
     const chapterTitle = `${i + 1}. ${ch.title || 'Untitled'}`;
     const separator = '-'.repeat(chapterTitle.length);
     return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
-  }).join('\n\n')}`;
+  }).join('\n\n');
 
   return Buffer.from(content, 'utf-8');
 }
