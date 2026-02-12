@@ -420,5 +420,29 @@
     "unsavedChangesMessage": "Do you want to save your changes before leaving?",
     "stay": "Stay",
     "leaveWithoutSaving": "Leave without saving"
+  },
+  "sources": {
+    "title": "Sources",
+    "description": "Manage all your reference materials and documents in one place.",
+    "totalSources": "Total Sources",
+    "totalTags": "Total Tags",
+    "uploadNew": "Upload New Source",
+    "uploadButton": "Upload File",
+    "uploading": "Uploading...",
+    "searchPlaceholder": "Search sources by name or tag...",
+    "allTags": "All Tags",
+    "confirmDelete": "Are you sure you want to delete this source? This action cannot be undone.",
+    "delete": "Delete source",
+    "deleteSuccess": "Source deleted successfully",
+    "addTag": "Add tag",
+    "addTagPlaceholder": "Enter tag and press Enter...",
+    "tagAdded": "Tag added successfully",
+    "tagRemoved": "Tag removed successfully",
+    "typeUpload": "Upload",
+    "typeWebSearch": "Web Search",
+    "noSources": "No sources yet",
+    "noFilteredSources": "No sources match your filters",
+    "tryDifferentFilters": "Try adjusting your search or filters",
+    "uploadFirstSource": "Upload your first source to get started"
   }
 }

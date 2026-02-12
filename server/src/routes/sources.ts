@@ -109,6 +109,124 @@ router.get('/projects/:id/sources', authenticateToken, (req: AuthRequest, res: R
   }
 });
 
+// GET /api/sources - Get all sources for authenticated user
+router.get('/sources', authenticateToken, (req: AuthRequest, res: Response) => {
+  const db = getDatabase();
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const sources = db
+      .prepare(
+        `SELECT id, project_id, saga_id, user_id, file_name, file_path, file_type,
+                file_size, content_text, source_type, url, tags_json, relevance_score, created_at,
+                p.title as project_title, p.area as project_area
+         FROM sources
+         LEFT JOIN projects p ON sources.project_id = p.id
+         WHERE user_id = ?
+         ORDER BY created_at DESC`
+      )
+      .all(userId);
+
+    // Parse tags for each source
+    const sourcesWithTags = sources.map((source: any) => ({
+      ...source,
+      tags: source.tags_json ? JSON.parse(source.tags_json) : [],
+    }));
+
+    res.json({ sources: sourcesWithTags, count: sourcesWithTags.length });
+  } catch (error) {
+    console.error('[Sources] Error fetching user sources:', error);
+    res.status(500).json({ message: 'Failed to fetch sources' });
+  }
+});
+
+// POST /api/sources/upload - Upload standalone source file (not tied to project)
+router.post(
+  '/sources/upload',
+  authenticateToken,
+  (req, res, next) => {
+    // Custom multer error handling
+    upload.single('file')(req, res, (err: any) => {
+      if (err) {
+        // Handle multer errors
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'File too large. Maximum size is 25MB.' });
+        }
+        if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
+          return res.status(400).json({
+            message: 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'
+          });
+        }
+        return res.status(400).json({ message: err.message || 'File upload failed' });
+      }
+      next();
+    });
+  },
+  async (req: any, res) => {
+    const db = getDatabase();
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Extract text content
+      const contentText = await extractTextContent(req.file.path, req.file.mimetype);
+
+      // Generate source ID
+      const sourceId = Buffer.from(`${userId}-${Date.now()}`).toString('base64').slice(0, 36);
+
+      // Insert source into database with project_id and saga_id as NULL
+      db.prepare(
+        `INSERT INTO sources (
+          id, project_id, saga_id, user_id, file_name, file_path, file_type,
+          file_size, content_text, source_type, tags_json, relevance_score
+        ) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        sourceId,
+        userId,
+        req.file.originalname,
+        req.file.path,
+        req.file.mimetype,
+        req.file.size,
+        contentText,
+        'upload',
+        '[]',
+        0.0
+      );
+
+      // Fetch created source
+      const source = db
+        .prepare('SELECT * FROM sources WHERE id = ?')
+        .get(sourceId);
+
+      console.log(`[Sources] Standalone file uploaded: ${req.file.originalname} for user ${userId}`);
+
+      res.status(201).json({ source });
+    } catch (error: any) {
+      console.error('[Sources] Error uploading standalone file:', error);
+
+      // Clean up uploaded file on error
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      res.status(500).json({
+        message: error.message || 'Failed to upload file',
+      });
+    }
+  }
+);
+
 // POST /api/projects/:id/sources/upload - Upload source file
 router.post(
   '/projects/:id/sources/upload',

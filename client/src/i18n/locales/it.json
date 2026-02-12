@@ -420,5 +420,29 @@
     "unsavedChangesMessage": "Vuoi salvare le modifiche prima di uscire?",
     "stay": "Rimani",
     "leaveWithoutSaving": "Esci senza salvare"
+  },
+  "sources": {
+    "title": "Fonti",
+    "description": "Gestisci tutti i tuoi materiali di riferimento e documenti in un unico posto.",
+    "totalSources": "Totale Fonti",
+    "totalTags": "Totale Tag",
+    "uploadNew": "Carica Nuova Fonte",
+    "uploadButton": "Carica File",
+    "uploading": "Caricamento...",
+    "searchPlaceholder": "Cerca fonti per nome o tag...",
+    "allTags": "Tutti i Tag",
+    "confirmDelete": "Sei sicuro di voler eliminare questa fonte? Questa azione non può essere annullata.",
+    "delete": "Elimina fonte",
+    "deleteSuccess": "Fonte eliminata con successo",
+    "addTag": "Aggiungi tag",
+    "addTagPlaceholder": "Inserisci tag e premi Invio...",
+    "tagAdded": "Tag aggiunto con successo",
+    "tagRemoved": "Tag rimosso con successo",
+    "typeUpload": "Caricamento",
+    "typeWebSearch": "Ricerca Web",
+    "noSources": "Nessuna fonte ancora",
+    "noFilteredSources": "Nessuna fonte corrisponde ai tuoi filtri",
+    "tryDifferentFilters": "Prova a modificare la tua ricerca o i filtri",
+    "uploadFirstSource": "Carica la tua prima fonte per iniziare"
   }
 }

@@ -183,6 +183,8 @@ export interface Source {
   tags: string[]; // Parsed tags for easier use
   relevance_score: number;
   created_at: string;
+  project_title?: string; // For displaying associated project name
+  project_area?: string; // For displaying project area
 }
 
 export interface Character {
@@ -780,8 +782,33 @@ class ApiService {
   }
 
   // Source endpoints
+  async getAllSources(): Promise<{ sources: Source[]; count: number }> {
+    return this.request<{ sources: Source[]; count: number }>('/sources');
+  }
+
   async getProjectSources(projectId: string): Promise<{ sources: Source[]; count: number }> {
     return this.request<{ sources: Source[]; count: number }>(`/projects/${projectId}/sources`);
+  }
+
+  async uploadStandaloneSource(file: File): Promise<{ source: Source }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/sources/upload`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 
   async uploadProjectSource(projectId: string, file: File): Promise<{ source: Source }> {

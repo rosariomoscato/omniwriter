@@ -27,6 +27,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminStatsPage from './pages/AdminStatsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import SourcesPage from './pages/SourcesPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -198,7 +199,7 @@ function AppContent() {
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <SourcesPage />
                     </main>
                   </>
                 }
