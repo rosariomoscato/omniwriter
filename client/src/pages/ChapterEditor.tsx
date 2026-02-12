@@ -1153,19 +1153,19 @@ export default function ChapterEditor() {
       {/* Footer - hidden in full-screen mode */}
       {!isFullScreen && (
         <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-        <div>
-          Status: <span className="font-medium">{chapter.status}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {saving ? (
-            <span className="text-blue-600 dark:text-blue-400">Saving...</span>
-          ) : lastSaved && (
-            <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
-          )}
-          <span className="text-gray-400 dark:text-gray-500">
-            Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
-          </span>
-        </div>
+          <div>
+            Status: <span className="font-medium">{chapter.status}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            {saving ? (
+              <span className="text-blue-600 dark:text-blue-400">Saving...</span>
+            ) : lastSaved && (
+              <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+            )}
+            <span className="text-gray-400 dark:text-gray-500">
+              Auto-save in <span className="font-medium">{nextAutoSaveIn}s</span>
+            </span>
+          </div>
         </div>
       )}
 
@@ -1191,7 +1191,6 @@ export default function ChapterEditor() {
           onClose={() => setComparisonVersions({ v1: null, v2: null })}
         />
       )}
-      </div>
     </div>
   );
 }
