@@ -1,5 +1,4 @@
-// @ts-nocheck
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requirePremium } from '../middleware/roles';
@@ -50,7 +49,7 @@ const upload = multer({
       (error as any).status = 400;
       (error as any).code = 'LIMIT_FILE_TYPE';
       (error as any).message = 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.';
-      cb(error);
+      cb(error as any, false);
     }
   },
 });
@@ -122,13 +121,15 @@ router.get('/sources', authenticateToken, (req: AuthRequest, res: any) => {
   try {
     const sources = db
       .prepare(
-        `SELECT id, project_id, saga_id, user_id, file_name, file_path, file_type,
-                file_size, content_text, source_type, url, tags_json, relevance_score, created_at,
+        `SELECT sources.id, sources.project_id, sources.saga_id, sources.user_id,
+                sources.file_name, sources.file_path, sources.file_type,
+                sources.file_size, sources.content_text, sources.source_type,
+                sources.url, sources.tags_json, sources.relevance_score, sources.created_at,
                 p.title as project_title, p.area as project_area
          FROM sources
          LEFT JOIN projects p ON sources.project_id = p.id
-         WHERE user_id = ?
-         ORDER BY created_at DESC`
+         WHERE sources.user_id = ?
+         ORDER BY sources.created_at DESC`
       )
       .all(userId);
 
@@ -149,7 +150,7 @@ router.get('/sources', authenticateToken, (req: AuthRequest, res: any) => {
 router.post(
   '/sources/upload',
   authenticateToken,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     // Custom multer error handling
     upload.single('file')(req, res, (err: any) => {
       if (err) {
@@ -167,7 +168,7 @@ router.post(
       next();
     });
   },
-  async (req: any, res) => {
+  async (req: any, res: any) => {
     const db = getDatabase();
     const userId = req.user?.id;
 
@@ -191,7 +192,7 @@ router.post(
         `INSERT INTO sources (
           id, project_id, saga_id, user_id, file_name, file_path, file_type,
           file_size, content_text, source_type, tags_json, relevance_score
-        ) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         sourceId,
         userId,
@@ -232,7 +233,7 @@ router.post(
 router.post(
   '/projects/:id/sources/upload',
   authenticateToken,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     // Custom multer error handling
     upload.single('file')(req, res, (err: any) => {
       if (err) {
@@ -250,7 +251,7 @@ router.post(
       next();
     });
   },
-  async (req: any, res) => {
+  async (req: any, res: any) => {
     const db = getDatabase();
     const userId = req.user.id;
     const projectId = req.params.id;
@@ -323,7 +324,7 @@ router.post(
 );
 
 // DELETE /api/sources/:id - Delete a source
-router.delete('/sources/:id', authenticateToken, (req: any, res) => {
+router.delete('/sources/:id', authenticateToken, (req: any, res: any) => {
   const db = getDatabase();
   const userId = req.user.id;
   const sourceId = req.params.id;
@@ -361,7 +362,7 @@ router.post(
   '/sagas/:id/sources/upload',
   authenticateToken,
   requirePremium,
-  (req, res, next) => {
+  (req: Request, res: Response, next: NextFunction) => {
     // Custom multer error handling
     upload.single('file')(req, res, (err: any) => {
       if (err) {
@@ -409,7 +410,7 @@ router.post(
         `INSERT INTO sources (
           id, project_id, saga_id, user_id, file_name, file_path, file_type,
           file_size, content_text, source_type, tags_json, relevance_score
-        ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         sourceId,
         sagaId,
@@ -472,7 +473,7 @@ router.get('/sagas/:id/sources', authenticateToken, requirePremium, (req: AuthRe
 });
 
 // PUT /api/sources/:id/tags - Update source tags
-router.put('/sources/:id/tags', authenticateToken, (req: any, res) => {
+router.put('/sources/:id/tags', authenticateToken, (req: any, res: any) => {
   const db = getDatabase();
   const userId = req.user.id;
   const sourceId = req.params.id;
@@ -517,7 +518,7 @@ router.put('/sources/:id/tags', authenticateToken, (req: any, res) => {
 });
 
 // GET /api/sources/tags - Get all tags for a user's sources
-router.get('/sources/tags', authenticateToken, (req: any, res) => {
+router.get('/sources/tags', authenticateToken, (req: any, res: any) => {
   const db = getDatabase();
   const userId = req.user.id;
 
@@ -551,7 +552,7 @@ router.get('/sources/tags', authenticateToken, (req: any, res) => {
 });
 
 // POST /api/sources/web-search - Save web search result as source
-router.post('/sources/web-search', authenticateToken, async (req: any, res) => {
+router.post('/sources/web-search', authenticateToken, async (req: any, res: any) => {
   const db = getDatabase();
   const userId = req.user.id;
   const { projectId, url, title, content, tags } = req.body;

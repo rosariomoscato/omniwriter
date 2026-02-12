@@ -34,7 +34,51 @@ export default function SourcesPage() {
   const [showSourcePreview, setShowSourcePreview] = useState(false);
 
   useEffect(() => {
-    loadSources();
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const fetchSources = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiService.getAllSources();
+
+        // Don't update state if component unmounted (StrictMode double-mount cleanup)
+        if (cancelled) return;
+
+        const sourcesWithTags = response.sources.map(source => ({
+          ...source,
+          tags: source.tags || [],
+        }));
+
+        setSources(sourcesWithTags);
+
+        // Extract all unique tags
+        const tagSet = new Set<string>();
+        sourcesWithTags.forEach(source => {
+          if (source.tags && Array.isArray(source.tags)) {
+            source.tags.forEach(tag => tagSet.add(tag));
+          }
+        });
+        setAllTags(Array.from(tagSet).sort());
+      } catch (err) {
+        // Don't show error toasts for cancelled/aborted requests (StrictMode cleanup)
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load sources');
+        toast.error(err instanceof Error ? err.message : 'Failed to load sources');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSources();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
   }, []);
 
   const loadSources = async () => {
