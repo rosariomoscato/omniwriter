@@ -1810,6 +1810,9 @@ export default function ProjectDetail() {
           {/* Add/Edit Character Form */}
           {showAddCharacter && (
             <form onSubmit={editingCharacter ? handleUpdateCharacter : handleCreateCharacter} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                {editingCharacter ? 'Edit Character' : 'Add New Character'}
+              </h3>
               <div className="space-y-3">
                 <input
                   type="text"

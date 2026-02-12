@@ -27,6 +27,15 @@ export default function ChapterEditor() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
+  // Find & Replace state
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [matchCount, setMatchCount] = useState(0);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [matches, setMatches] = useState<number[]>([]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const periodicSaveIntervalRef = useRef<number | null>(null);
@@ -110,6 +119,29 @@ export default function ChapterEditor() {
     const words = content.trim().split(/\s+/).filter(w => w.length > 0);
     setWordCount(words.length);
   }, [content]);
+
+  // Update matches when find text or content changes
+  useEffect(() => {
+    if (findText && content) {
+      const searchContent = caseSensitive ? content : content.toLowerCase();
+      const searchText = caseSensitive ? findText : findText.toLowerCase();
+      const foundMatches: number[] = [];
+      let index = 0;
+
+      while ((index = searchContent.indexOf(searchText, index)) !== -1) {
+        foundMatches.push(index);
+        index += searchText.length;
+      }
+
+      setMatches(foundMatches);
+      setMatchCount(foundMatches.length);
+      setCurrentMatchIndex(foundMatches.length > 0 ? 0 : -1);
+    } else {
+      setMatches([]);
+      setMatchCount(0);
+      setCurrentMatchIndex(-1);
+    }
+  }, [findText, content, caseSensitive]);
 
   const loadChapter = async () => {
     try {
@@ -272,6 +304,79 @@ export default function ChapterEditor() {
     }
   }, []);
 
+  // Find & Replace handlers
+  const handleFindNext = useCallback(() => {
+    if (matches.length === 0) return;
+
+    const nextIndex = (currentMatchIndex + 1) % matches.length;
+    setCurrentMatchIndex(nextIndex);
+    highlightMatch(matches[nextIndex]);
+  }, [matches, currentMatchIndex]);
+
+  const handleFindPrevious = useCallback(() => {
+    if (matches.length === 0) return;
+
+    const prevIndex = (currentMatchIndex - 1 + matches.length) % matches.length;
+    setCurrentMatchIndex(prevIndex);
+    highlightMatch(matches[prevIndex]);
+  }, [matches, currentMatchIndex]);
+
+  const highlightMatch = (position: number) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const searchText = caseSensitive ? findText : findText.toLowerCase();
+    const actualPosition = caseSensitive
+      ? position
+      : content.toLowerCase().indexOf(findText.toLowerCase(), position);
+
+    if (actualPosition !== -1) {
+      textarea.focus();
+      textarea.setSelectionRange(actualPosition, actualPosition + searchText.length);
+    }
+  };
+
+  const handleReplace = useCallback(() => {
+    if (matches.length === 0) return;
+
+    const currentMatchPos = matches[currentMatchIndex];
+    const searchText = caseSensitive ? findText : findText.toLowerCase();
+    const actualPosition = caseSensitive
+      ? currentMatchPos
+      : content.toLowerCase().indexOf(findText.toLowerCase(), currentMatchPos);
+
+    if (actualPosition !== -1) {
+      const before = content.substring(0, actualPosition);
+      const after = content.substring(actualPosition + searchText.length);
+      const newContent = before + replaceText + after;
+
+      setContent(newContent);
+
+      // Move to next match
+      if (matches.length > 1) {
+        setCurrentMatchIndex(0); // Will be updated by useEffect
+      }
+    }
+  }, [matches, currentMatchIndex, findText, replaceText, content, caseSensitive]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (matches.length === 0) return;
+
+    const searchText = caseSensitive ? findText : findText.toLowerCase();
+    let newContent = caseSensitive ? content : content;
+
+    if (!caseSensitive) {
+      // Case-insensitive replace all
+      const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      newContent = content.replace(regex, replaceText);
+    } else {
+      // Case-sensitive replace all
+      newContent = content.split(searchText).join(replaceText);
+    }
+
+    setContent(newContent);
+  }, [matches, findText, replaceText, content, caseSensitive]);
+
   // Handle keyboard shortcuts for undo/redo
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -294,6 +399,16 @@ export default function ChapterEditor() {
         // Redo
         e.preventDefault();
         handleRedo();
+      }
+
+      // Find & Replace shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowFindReplace(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        setShowFindReplace(true);
       }
     };
 
@@ -389,6 +504,13 @@ export default function ChapterEditor() {
                 {wordCount} words
               </span>
               <button
+                onClick={() => setShowFindReplace(!showFindReplace)}
+                className={`p-2 rounded-lg border transition-colors ${showFindReplace ? 'bg-blue-50 border-blue-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                title="Find & Replace (Ctrl+F)"
+              >
+                <Search className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              </button>
+              <button
                 onClick={handleUndo}
                 disabled={!canUndo}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -446,6 +568,88 @@ export default function ChapterEditor() {
             className="w-full px-3 py-2 text-2xl font-bold border-0 border-b-2 border-gray-200 dark:border-gray-700 bg-transparent focus:outline-none focus:border-blue-500 text-gray-900 dark:text-gray-100"
             placeholder="Chapter title..."
           />
+
+          {/* Find & Replace Bar */}
+          {showFindReplace && !isPreview && (
+            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={findText}
+                    onChange={(e) => setFindText(e.target.value)}
+                    className="w-full px-3 py-2 pl-9 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Find..."
+                  />
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  <span>{matchCount > 0 ? `${currentMatchIndex + 1}/${matchCount}` : 'No results'}</span>
+                  <button
+                    onClick={handleFindPrevious}
+                    disabled={matchCount === 0}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
+                    title="Find Previous"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleFindNext}
+                    disabled={matchCount === 0}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
+                    title="Find Next"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={caseSensitive}
+                    onChange={(e) => setCaseSensitive(e.target.checked)}
+                    className="rounded"
+                  />
+                  Case
+                </label>
+                <button
+                  onClick={() => {
+                    setShowFindReplace(false);
+                    setFindText('');
+                    setReplaceText('');
+                  }}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                  title="Close"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={replaceText}
+                    onChange={(e) => setReplaceText(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Replace with..."
+                  />
+                </div>
+                <button
+                  onClick={handleReplace}
+                  disabled={matchCount === 0}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={handleReplaceAll}
+                  disabled={matchCount === 0}
+                  className="px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Replace All
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Formatting Toolbar */}

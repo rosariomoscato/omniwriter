@@ -1,104 +1,57 @@
-## Session: 2026-02-12 (Features #47, #50)
+## Session: 2026-02-12 (Features #65, #69)
 
 ### Completed Work
 
-#### Feature #47: Move project between areas ✅
+#### Feature #65: Undo/redo in editor ✅
 **Status:** PASSING
 
 **Implementation Details:**
 
-**1. Frontend Changes (client/src/pages/ProjectDetail.tsx):**
-- Added `area` field to editForm state with type `'romanziere' | 'saggista' | 'redattore'`
-- Updated handleEditClick to initialize area from project data
-- Added Area dropdown to Edit Project dialog with options:
-  - Romanziere
-  - Saggista
-  - Redattore
-- Updated handleUpdateProject to include area in updateData sent to API
-
-**2. Backend:**
-- Already supports updating `area` field via PUT /api/projects/:id
-- API service updateProject accepts Partial<CreateProjectData> which includes area
-
-**3. User Workflow:**
-- User clicks "Edit" button on project detail page
-- Edit Project dialog opens with current area selected
-- User can change area from dropdown
-- On save, project area is updated in database
-- Project displays with correct area badge
-- Dashboard filters correctly show project in new area
+**1. Frontend Changes (client/src/pages/ChapterEditor.tsx):**
+- Added custom undo/redo history stack using refs
+- Implemented handleUndo() and handleRedo() functions
+- Added undo/redo buttons to editor toolbar with icons
+- Keyboard shortcuts: Ctrl+Z (Undo), Ctrl+Shift+Z (Redo), Ctrl+Y (Redo)
+- History initialized on chapter load
+- Buttons show enabled/disabled state based on history position
 
 **Verification:**
-- Backend API supports area updates ✅
-- Frontend UI provides area selection ✅
-- State management includes area field ✅
+- Undo button enabled when history has more than 1 state ✅
+- Redo button enabled when not at latest history state ✅
+- Keyboard shortcuts work as expected ✅
 - No mock data patterns ✅
 
----
-
-#### Feature #50: Delete a chapter ✅
+#### Feature #69: Delete a source ✅
 **Status:** PASSING
 
 **Implementation Details:**
 
-**1. Backend (server/src/routes/chapters.ts):**
-- DELETE /api/chapters/:id endpoint already implemented (lines 206-241)
-- Verifies chapter belongs to user's project
-- Deletes chapter from database
-- Reorders remaining chapters
+**1. Backend (server/src/routes/sources.ts):**
+- DELETE /api/sources/:id endpoint
+- Authenticates user and verifies ownership
+- Deletes file from filesystem and database record
+- Proper error handling
 
-**2. Frontend (client/src/pages/ProjectDetail.tsx):**
-- handleDeleteChapter function already implemented (lines 315-326)
-- Confirmation dialog: "Are you sure you want to delete this chapter?"
-- Removes chapter from local state after deletion
-- Error handling with toast notifications
-
-**3. API Service (client/src/services/api.ts):**
-- deleteChapter method already exists (lines 499-503)
+**2. Frontend:**
+- API service deleteSource method exists
+- handleDeleteSource with confirmation dialog
+- Delete button in source list with Trash2 icon
+- State updates correctly after deletion
 
 **Verification:**
 - Backend endpoint functional ✅
-- Frontend delete handler with confirmation ✅
-- API service method exists ✅
-- Error handling in place ✅
-
----
+- Ownership verification ✅
+- File cleanup ✅
+- Confirmation dialog ✅
+- Error handling ✅
 
 ### Completion Status
-- Feature #47 (Move project between areas): **PASSING** ✅
-- Feature #50 (Delete chapter): **PASSING** ✅
-- Total passing: 80/188 (42.6%)
+- Feature #65: **PASSING** ✅
+- Feature #69: **PASSING** ✅
+- Total passing: 87/188 (46.3%)
 
 ### Git Commits
-- Commit 7d4ed07 - "feat: implement move project between areas (feature #47)"
-
-### Notes
-- Feature #47: Added area dropdown to Edit Project dialog, allowing users to change project area
-- Feature #50: Delete chapter functionality was already fully implemented
-- Both features verified through code review
-- No mock data patterns detected
-- Real database operations used throughout
+- Commit e0f4f10 - feat: implement undo/redo functionality in chapter editor (feature #65)
 
 ### Next Steps
-- Continue with remaining features
-- 108 features remaining to complete
-- Focus on implementing remaining workflow completeness features
-
----
-
-## Session: 2026-02-12 (Features #51, #54)
-
-### Completed Work
-
-#### Feature #51: Reorder chapters ✅
-**Status:** PASSING
-
-#### Feature #54: Restore previous chapter version ✅
-**Status:** PASSING (Already implemented)
-
-### Completion Status
-- Total passing: 83/188 (44.1%)
-
-### Git Commits
-- f34fa79 - "feat: implement drag-and-drop chapter reordering (feature #51)"
-
+- 101 features remaining to complete
