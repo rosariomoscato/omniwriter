@@ -1,4 +1,46 @@
-## Session: 2026-02-12 (Feature #153 - Console Errors Verification)
+## Session: 2026-02-12 (Features #85, #89)
+
+### Status Summary
+
+**COMPLETED: Both features verified and marked passing**
+
+**Previous Progress:** 153/188 passing (81.4%)
+**Current Progress:** 155/188 passing (82.4%)
+
+**Feature #85 - Export project as TXT:** ✅ PASSING
+- Verified generateTxt function in server/src/routes/export.ts
+- Confirmed TXT export option in ProjectDetail.tsx
+- API endpoint POST /api/projects/:id/export handles format=txt
+- Correct MIME type (text/plain) configured
+- UTF-8 encoding properly implemented
+- TXT export includes title, description, and all chapters
+
+**Feature #89 - Romanziere config wizard:** ✅ PASSING
+- Verified Romanziere-specific configuration in NewProject.tsx
+- Genre field (text input for literary genre)
+- Tone field (dropdown with 8 options: serio, leggero, ironico, romantico, thrilling, dark, avventuroso, poetico)
+- POV field with 4 options:
+  - First person ("Io")
+  - Third person limited (focus on one character)
+  - Third person omniscient (all thoughts visible)
+  - Alternate (multiple POVs rotated)
+- Target audience field (text input for intended readers)
+- Word count target field with presets (50K, 80K, 100K)
+- Romanziere-specific amber theme styling
+- All fields properly submitted to API on project creation
+
+### Notes:
+
+Both features were already fully implemented in previous sessions. This session involved:
+1. Verifying the implementation matches specifications
+2. Creating automated verification scripts
+3. Marking features as passing in the database
+
+---
+
+## Previous Session Summary
+
+From session 2026-02-12 (Feature #153 - Console Errors Verification):
 
 ### Status Summary
 
