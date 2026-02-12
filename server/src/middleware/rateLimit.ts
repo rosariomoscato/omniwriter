@@ -111,10 +111,16 @@ export const generalRateLimit = rateLimit({
   message: 'Too many requests from this IP, please try again after 15 minutes.'
 });
 
+// Determine if we're in development environment
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 export const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 5,                 // 5 login attempts per 15 minutes
-  message: 'Too many login attempts, please try again after 15 minutes.'
+  windowMs: isDevelopment ? 5 * 60 * 1000 : 15 * 60 * 1000, // 5 minutes (dev) or 15 minutes (prod)
+  maxRequests: isDevelopment ? 10 : 5,                        // 10 attempts (dev) or 5 attempts (prod)
+  skipSuccessfulRequests: true,                               // Only count failed login attempts
+  message: isDevelopment
+    ? 'Too many failed login attempts. Please try again after 5 minutes.'
+    : 'Too many failed login attempts. Please try again after 15 minutes.'
 });
 
 export const apiRateLimit = rateLimit({
@@ -128,3 +134,69 @@ export const generationRateLimit = rateLimit({
   maxRequests: 10,                // 10 generations per hour for free users
   message: 'You have reached your generation limit. Please upgrade to Premium for unlimited access.'
 });
+
+/**
+ * Reset rate limit for a specific IP address and path
+ * Useful for admins to unblock a user who was rate limited
+ * @param ip - IP address to reset
+ * @param path - Request path (optional, resets all if not provided)
+ */
+export function resetRateLimit(ip: string, path?: string): void {
+  const keysToDelete: string[] = [];
+
+  for (const [key] of requestStore.entries()) {
+    // Check if key matches the IP (and optionally path)
+    const keyIp = key.split(':')[0];
+    if (keyIp === ip) {
+      // If path specified, only delete entries for that path
+      if (path) {
+        if (key.endsWith(`:${path}`)) {
+          keysToDelete.push(key);
+        }
+      } else {
+        // No path specified, delete all entries for this IP
+        keysToDelete.push(key);
+      }
+    }
+  }
+
+  // Delete matching keys
+  for (const key of keysToDelete) {
+    requestStore.delete(key);
+  }
+
+  console.log(`[RateLimit] Reset rate limit for IP: ${ip}${path ? ` on path: ${path}` : ' (all paths)'}. Deleted ${keysToDelete.length} entries.`);
+}
+
+/**
+ * Get current rate limit status for an IP
+ * @param ip - IP address to check
+ * @param path - Request path (optional, checks all if not provided)
+ * @returns Array of rate limit entries for the IP
+ */
+export function getRateLimitStatus(ip: string, path?: string): Array<{ key: string; count: number; resetTime: string }> {
+  const results: Array<{ key: string; count: number; resetTime: string }> = [];
+
+  for (const [key, entry] of requestStore.entries()) {
+    const keyIp = key.split(':')[0];
+    if (keyIp === ip) {
+      if (path) {
+        if (key.endsWith(`:${path}`)) {
+          results.push({
+            key,
+            count: entry.count,
+            resetTime: new Date(entry.resetTime).toISOString()
+          });
+        }
+      } else {
+        results.push({
+          key,
+          count: entry.count,
+          resetTime: new Date(entry.resetTime).toISOString()
+        });
+      }
+    }
+  }
+
+  return results;
+}

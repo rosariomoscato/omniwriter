@@ -3,6 +3,7 @@ import express from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
 import { Database } from 'better-sqlite3';
+import { resetRateLimit, getRateLimitStatus } from '../middleware/rateLimit';
 
 const router = express.Router();
 
@@ -221,6 +222,75 @@ router.get(
     } catch (error) {
       console.error('[Admin] Error fetching health:', error);
       res.status(500).json({ message: 'Failed to fetch health information' });
+    }
+  }
+);
+
+/**
+ * POST /api/admin/reset-rate-limit/:ip
+ * Reset rate limit for a specific IP address (admin only)
+ */
+router.post(
+  '/reset-rate-limit/:ip',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { ip } = req.params;
+      const { path } = req.body; // Optional: reset only for a specific path
+
+      // Validate IP format (basic check)
+      if (!ip || ip === 'undefined' || ip === 'unknown') {
+        return res.status(400).json({ message: 'Invalid IP address' });
+      }
+
+      // Get status before reset for logging
+      const beforeStatus = getRateLimitStatus(ip, path);
+
+      // Reset the rate limit
+      resetRateLimit(ip, path);
+
+      console.log(`[Admin] Rate limit reset by user ${(req as AuthRequest).user?.id} for IP: ${ip}${path ? ` on path: ${path}` : ''}`);
+
+      res.json({
+        message: 'Rate limit reset successfully',
+        ip,
+        path: path || 'all paths',
+        resetEntries: beforeStatus.length
+      });
+    } catch (error) {
+      console.error('[Admin] Error resetting rate limit:', error);
+      res.status(500).json({ message: 'Failed to reset rate limit' });
+    }
+  }
+);
+
+/**
+ * GET /api/admin/rate-limit-status/:ip
+ * Get rate limit status for a specific IP (admin only)
+ */
+router.get(
+  '/rate-limit-status/:ip',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { ip } = req.params;
+
+      // Validate IP format (basic check)
+      if (!ip || ip === 'undefined' || ip === 'unknown') {
+        return res.status(400).json({ message: 'Invalid IP address' });
+      }
+
+      const status = getRateLimitStatus(ip);
+
+      res.json({
+        ip,
+        entries: status
+      });
+    } catch (error) {
+      console.error('[Admin] Error fetching rate limit status:', error);
+      res.status(500).json({ message: 'Failed to fetch rate limit status' });
     }
   }
 );
