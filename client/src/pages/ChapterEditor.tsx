@@ -543,6 +543,12 @@ export default function ChapterEditor() {
         setShowFindReplace(true);
       }
 
+      // Save shortcut (Ctrl+S or Cmd+S)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        handleSave();
+      }
+
       // ESC key to exit full screen
       if (e.key === 'Escape' && isFullScreen) {
         e.preventDefault();
@@ -967,9 +973,9 @@ export default function ChapterEditor() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold" style={{
-                    color: readabilityScore.score >= 80 ? '#16a34a' :
-                           readabilityScore.score >= 60 ? '#ca8a04' :
-                           '#dc2626'
+                    color: readabilityScore.score >= 80 ? "#16a34a" :
+                           readabilityScore.score >= 60 ? "#ca8a04" :
+                           "#dc2626"
                   }}>
                     {readabilityScore.score}
                   </span>

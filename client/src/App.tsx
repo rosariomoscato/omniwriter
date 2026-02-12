@@ -10,6 +10,7 @@ import GenerationProgress from './components/GenerationProgress';
 import SessionExpiredBanner from './components/SessionExpiredBanner';
 import PreferencesSync from './components/PreferencesSync';
 import ToastContainer from './components/Toast';
+import KeyboardShortcutsDialog from './components/KeyboardShortcutsDialog';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -389,6 +390,7 @@ function AppContent() {
       </ProtectedRouteGuard>
       <GenerationProgress />
       <ToastContainer />
+      <KeyboardShortcutsDialog />
     </div>
   );
 }

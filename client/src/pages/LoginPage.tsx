@@ -123,9 +123,14 @@ function LoginPage() {
         </div>
 
         <form className="mt-8 space-y-6 bg-white dark:bg-dark-surface p-8 rounded-lg shadow" onSubmit={handleSubmit}>
+          {/* ARIA Live Region for Error Announcements */}
+          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {serverError && serverError}
+          </div>
+
           {/* Session Expired Message */}
           {sessionExpired && (
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 px-4 py-3 rounded flex items-start gap-3">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 px-4 py-3 rounded flex items-start gap-3" role="alert">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">Sessione scaduta</p>
@@ -136,7 +141,7 @@ function LoginPage() {
 
           {/* Server Error Message */}
           {serverError && !sessionExpired && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded" role="alert">
               {serverError}
             </div>
           )}

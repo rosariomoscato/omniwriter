@@ -1,6 +1,41 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw, WifiOff } from 'lucide-react';
 
+// Track open modals for Escape key handling
+const openModals = new Set<string>();
+
+export function registerModal(id: string) {
+  openModals.add(id);
+}
+
+export function unregisterModal(id: string) {
+  openModals.delete(id);
+}
+
+export function closeTopModal() {
+  const modalArray = Array.from(openModals);
+  if (modalArray.length > 0) {
+    const topModal = modalArray[modalArray.length - 1];
+    const event = new CustomEvent('close-modal', { detail: { id: topModal } });
+    window.dispatchEvent(event);
+  }
+}
+
+export function closeAllModals() {
+  openModals.forEach(id => {
+    const event = new CustomEvent('close-modal', { detail: { id } });
+    window.dispatchEvent(event);
+  });
+  openModals.clear();
+}
+
+// Listen for global close-all-modals event
+if (typeof window !== 'undefined') {
+  window.addEventListener('close-all-modals', () => {
+    closeAllModals();
+  });
+}
+
 interface NetworkErrorDialogProps {
   error: Error & {
     isNetworkError?: boolean;
@@ -13,10 +48,45 @@ interface NetworkErrorDialogProps {
 
 export default function NetworkErrorDialog({ error, onRetry, onDismiss }: NetworkErrorDialogProps) {
   const [isRetrying, setIsRetrying] = useState(false);
+  const modalId = useState(() => `network-error-${Math.random().toString(36).substring(2, 9)}`)[0];
 
   const isNetworkError = error.isNetworkError;
   const isAuthError = error.isAuthError;
   const canRetry = error.retryable || onRetry;
+
+  // Register modal on mount
+  useEffect(() => {
+    registerModal(modalId);
+    return () => unregisterModal(modalId);
+  }, [modalId]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && openModals.has(modalId)) {
+        // Only close if this is the top-most modal
+        const modalArray = Array.from(openModals);
+        if (modalArray[modalArray.length - 1] === modalId) {
+          onDismiss?.();
+        }
+      }
+    };
+
+    const handleCloseModal = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.id === modalId) {
+        onDismiss?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('close-modal', handleCloseModal);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('close-modal', handleCloseModal);
+    };
+  }, [modalId, onDismiss]);
 
   // Don't show for auth errors (they're handled by redirect)
   if (isAuthError) {
@@ -56,7 +126,7 @@ export default function NetworkErrorDialog({ error, onRetry, onDismiss }: Networ
         {/* Description */}
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
           {isNetworkError
-            ? 'Unable to connect to the server. Please check your internet connection and try again.'
+            ? 'Unable to connect to server. Please check your internet connection and try again.'
             : error.message || 'An unexpected error occurred.'}
         </p>
 

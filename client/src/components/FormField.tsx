@@ -38,7 +38,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {error && (
-          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1" role="alert" aria-live="polite">
             <AlertCircle className="w-4 h-4" />
             {error}
           </p>
@@ -76,7 +76,7 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>
           {...props}
         />
         {error && (
-          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1" role="alert" aria-live="polite">
             <AlertCircle className="w-4 h-4" />
             {error}
           </p>
@@ -119,7 +119,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, SelectProps>(
           ))}
         </select>
         {error && (
-          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p id={`${props.id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1" role="alert" aria-live="polite">
             <AlertCircle className="w-4 h-4" />
             {error}
           </p>
