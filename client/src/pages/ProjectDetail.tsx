@@ -6,6 +6,7 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
 import { ChapterListSkeleton } from '../components/Skeleton';
+import BulkSourceUpload from '../components/BulkSourceUpload';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -23,6 +24,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [showAddSource, setShowAddSource] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showAddCharacter, setShowAddCharacter] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAddPlotEvent, setShowAddPlotEvent] = useState(false);
@@ -430,6 +432,15 @@ export default function ProjectDetail() {
       setSources(sources.filter(s => s.id !== sourceId));
     } catch (err: any) {
       setError(err.message || 'Failed to delete source');
+    }
+  };
+
+  const handleBulkUploadComplete = (newSources: any[]) => {
+    setSources([...sources, ...newSources]);
+    setShowBulkUpload(false);
+    if (newSources.length > 0) {
+      const successCount = newSources.length;
+      toast.success(`${successCount} ${successCount === 1 ? 'source' : 'sources'} uploaded successfully`);
     }
   };
 
@@ -1748,11 +1759,11 @@ export default function ProjectDetail() {
             )}
           </div>
           <button
-            onClick={() => setShowAddSource(!showAddSource)}
+            onClick={() => setShowBulkUpload(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Upload className="w-4 h-4" />
-            Upload Source
+            Upload Sources
           </button>
         </div>
 
@@ -2370,6 +2381,15 @@ export default function ProjectDetail() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Bulk Source Upload Dialog */}
+      {showBulkUpload && (
+        <BulkSourceUpload
+          projectId={id!}
+          onUploadComplete={handleBulkUploadComplete}
+          onCancel={() => setShowBulkUpload(false)}
+        />
       )}
     </div>
   );

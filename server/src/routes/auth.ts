@@ -257,10 +257,19 @@ router.post('/forgot-password', (req: Request, res: Response) => {
       const resetToken = uuidv4();
       const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
 
+      // Store token in database (expires in 1 hour)
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const tokenId = uuidv4();
+      db.prepare(
+        `INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at)
+         VALUES (?, ?, ?, ?, datetime('now'))`
+      ).run(tokenId, user.id, resetToken, expiresAt);
+
       // Log to console (development mode - no email service)
       console.log('==================================================');
       console.log('[EMAIL] Password Reset Link for:', email);
       console.log('[EMAIL] Reset URL:', resetUrl);
+      console.log('[EMAIL] Token expires:', expiresAt);
       console.log('==================================================');
     }
 
@@ -268,6 +277,78 @@ router.post('/forgot-password', (req: Request, res: Response) => {
     res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
   } catch (error) {
     console.error('[Auth] Forgot password error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      res.status(400).json({ message: 'Token and password are required' });
+      return;
+    }
+
+    // Password validation
+    if (password.length < 8) {
+      res.status(400).json({ message: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      res.status(400).json({
+        message: 'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
+      });
+      return;
+    }
+
+    const db = getDatabase();
+
+    // Find valid reset token
+    console.log('[Auth] Looking up reset token');
+    const resetToken = db.prepare(
+      `SELECT prt.id, prt.user_id, prt.expires_at, u.email
+       FROM password_reset_tokens prt
+       JOIN users u ON prt.user_id = u.id
+       WHERE prt.token = ? AND prt.used = 0 AND prt.expires_at > datetime('now')
+       ORDER BY prt.created_at DESC
+       LIMIT 1`
+    ).get(token) as {
+      id: string;
+      user_id: string;
+      email: string;
+      expires_at: string;
+    } | undefined;
+
+    if (!resetToken) {
+      res.status(400).json({ message: 'Invalid or expired reset token' });
+      return;
+    }
+
+    // Hash new password
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
+
+    // Update user password
+    console.log('[Auth] Updating password for user:', resetToken.user_id);
+    db.prepare('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(passwordHash, resetToken.user_id);
+
+    // Mark token as used
+    db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE id = ?').run(resetToken.id);
+
+    // Invalidate all existing sessions for this user (force re-login)
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(resetToken.user_id);
+
+    console.log('[Auth] Password reset successful for user:', resetToken.user_id);
+    res.json({ message: 'Password reset successful. Please login with your new password.' });
+  } catch (error) {
+    console.error('[Auth] Reset password error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
   }
 });

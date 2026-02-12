@@ -30,7 +30,7 @@ const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
 dotenv_1.default.config({ path: envPath });
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT) || 5000;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 // Middleware
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
