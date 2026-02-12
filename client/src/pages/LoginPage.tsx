@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { apiService, ApiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,13 +21,8 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await apiService.login({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      // Store auth data
-      ApiService.setAuth(response.user, response.token);
+      // Use AuthContext login method which handles state and localStorage
+      await login(formData.email, formData.password, formData.rememberMe);
 
       // Redirect to dashboard
       navigate('/dashboard');

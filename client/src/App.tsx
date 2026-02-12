@@ -18,7 +18,8 @@ const PROTECTED_ROUTES = [
   '/human-model',
   '/sources',
   '/settings',
-  '/profile'
+  '/profile',
+  '/admin'
 ];
 
 // Helper component to check if route is protected
@@ -191,6 +192,28 @@ function AppContent() {
               />
               <Route
                 path="/profile"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <Dashboard />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/admin/users"
                 element={
                   <>
                     <Sidebar

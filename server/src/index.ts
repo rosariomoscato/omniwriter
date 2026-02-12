@@ -10,7 +10,7 @@ import projectsRouter from './routes/projects';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Middleware
 app.use(helmet());
@@ -52,7 +52,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`[Server] OmniWriter API running on http://localhost:${PORT}`);
   console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
 });
