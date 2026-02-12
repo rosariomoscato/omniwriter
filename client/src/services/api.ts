@@ -872,6 +872,60 @@ class ApiService {
     });
   }
 
+  // Plot hole detection (Feature #182)
+  async detectPlotHoles(projectId: string): Promise<{
+    message: string;
+    plot_holes: Array<{
+      type: string;
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }>;
+    total_issues: number;
+  }> {
+    return this.request<{
+      message: string;
+      plot_holes: Array<{
+        type: string;
+        severity: 'low' | 'medium' | 'high';
+        description: string;
+        chapter_references: string[];
+        suggestion: string;
+      }>;
+      total_issues: number;
+    }>(`/projects/${projectId}/detect-plot-holes`, {
+      method: 'POST',
+    });
+  }
+
+  // Consistency checker across chapters (Feature #183)
+  async checkConsistency(projectId: string): Promise<{
+    message: string;
+    inconsistencies: Array<{
+      type: 'character' | 'location' | 'timeline' | 'description';
+      entity_name: string;
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }>;
+    total_inconsistencies: number;
+  }> {
+    return this.request<{
+      message: string;
+      inconsistencies: Array<{
+        type: 'character' | 'location' | 'timeline' | 'description';
+        entity_name: string;
+        description: string;
+        chapter_references: string[];
+        suggestion: string;
+      }>;
+      total_inconsistencies: number;
+    }>(`/projects/${projectId}/check-consistency`, {
+      method: 'POST',
+    });
+  }
+
   // Character endpoints
   async getProjectCharacters(projectId: string): Promise<{ characters: Character[]; count: number }> {
     return this.request<{ characters: Character[]; count: number }>(`/projects/${projectId}/characters`);

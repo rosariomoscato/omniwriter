@@ -1280,4 +1280,738 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
   }
 });
 
+// POST /api/projects/:id/detect-plot-holes - Detect plot holes and inconsistencies (Feature #182)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    console.log('[Projects] Detecting plot holes for project:', projectId);
+
+    // Verify project belongs to user and is a Romanziere project
+    const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'romanziere') {
+      res.status(400).json({ message: 'Plot hole detection is only available for Romanziere projects' });
+      return;
+    }
+
+    // Get all chapters with their content
+    const chapters = db.prepare('SELECT id, title, content, order_index FROM chapters WHERE project_id = ? ORDER BY order_index').all(projectId) as Array<{ id: string; title: string; content: string; order_index: number }>;
+
+    if (chapters.length === 0) {
+      res.status(400).json({ message: 'No chapters found. Please generate some chapters first.' });
+      return;
+    }
+
+    console.log('[Projects] Analyzing', chapters.length, 'chapters for plot holes');
+
+    // Get characters, locations, and plot events for context
+    const characters = db.prepare('SELECT name, description FROM characters WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string }>;
+    const locations = db.prepare('SELECT name, description FROM locations WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string }>;
+    const plotEvents = db.prepare('SELECT title, description, chapter_id FROM plot_events WHERE project_id = ?').all(projectId) as Array<{ title: string; description: string; chapter_id: string | null }>;
+
+    // Analyze content for potential plot holes
+    const plotHoles: Array<{
+      type: string;
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }> = [];
+
+    // Combine all chapter content for analysis
+    const fullText = chapters.map(ch => ch.content).join('\n\n');
+
+    // 1. Check for character inconsistencies
+    const characterNames = characters.map(c => c.name.toLowerCase());
+    const characterInconsistencies = analyzeCharacterConsistency(chapters, characterNames);
+    plotHoles.push(...characterInconsistencies);
+
+    // 2. Check for timeline inconsistencies
+    const timelineIssues = analyzeTimelineConsistency(chapters, plotEvents);
+    plotHoles.push(...timelineIssues);
+
+    // 3. Check for unexplained plot developments
+    const unexplainedEvents = analyzeUnexplainedDevelopments(chapters, plotEvents);
+    plotHoles.push(...unexplainedEvents);
+
+    // 4. Check for logical inconsistencies
+    const logicalInconsistencies = analyzeLogicalInconsistencies(chapters, fullText);
+    plotHoles.push(...logicalInconsistencies);
+
+    // 5. Check for resolution gaps
+    const resolutionGaps = analyzeResolutionGaps(chapters);
+    plotHoles.push(...resolutionGaps);
+
+    console.log('[Projects] Plot hole detection completed:', {
+      total_issues: plotHoles.length,
+      breakdown: {
+        character: plotHoles.filter(h => h.type === 'character').length,
+        timeline: plotHoles.filter(h => h.type === 'timeline').length,
+        unexplained: plotHoles.filter(h => h.type === 'unexplained').length,
+        logical: plotHoles.filter(h => h.type === 'logical').length,
+        resolution: plotHoles.filter(h => h.type === 'resolution').length,
+      }
+    });
+
+    res.json({
+      message: 'Plot hole detection completed',
+      plot_holes: plotHoles,
+      total_issues: plotHoles.length
+    });
+  } catch (error) {
+    console.error('[Projects] Plot hole detection error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to detect plot holes' });
+  }
+});
+
+// Helper function to analyze character consistency
+function analyzeCharacterConsistency(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  characterNames: string[]
+): Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  // Check for characters appearing inconsistently
+  characterNames.forEach(charName => {
+    const appearances: number[] = [];
+    chapters.forEach((ch, idx) => {
+      const regex = new RegExp(`\\b${charName}\\b`, 'gi');
+      const matches = ch.content.match(regex);
+      if (matches && matches.length > 0) {
+        appearances.push(idx);
+      }
+    });
+
+    // If character appears early then disappears without resolution
+    if (appearances.length >= 2 && appearances[appearances.length - 1] < chapters.length - 3) {
+      const lastAppearance = chapters[appearances[appearances.length - 1]];
+      issues.push({
+        type: 'character',
+        severity: 'medium',
+        description: `Character "${charName}" disappears from the story after chapter "${lastAppearance.title}" without resolution`,
+        chapter_references: chapters.filter((_, i) => appearances.includes(i)).map(ch => ch.title),
+        suggestion: `Consider bringing ${charName} back for a resolution or explaining their absence`
+      });
+    }
+
+    // Check for sudden character reintroduction after long absence
+    if (appearances.length >= 3) {
+      for (let i = 1; i < appearances.length - 1; i++) {
+        const gap = appearances[i + 1] - appearances[i];
+        if (gap >= 5) {
+          issues.push({
+            type: 'character',
+            severity: 'low',
+            description: `Character "${charName}" reappears after a long absence (${gap} chapters)`,
+            chapter_references: [chapters[appearances[i]].title, chapters[appearances[i + 1]].title],
+            suggestion: `Add a brief reference to ${charName} during their absence to maintain continuity`
+          });
+        }
+      }
+    }
+  });
+
+  return issues;
+}
+
+// Helper function to analyze timeline consistency
+function analyzeTimelineConsistency(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>
+): Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  // Look for temporal inconsistencies in content
+  const timeIndicators = ['day later', 'next morning', 'hours later', 'weeks passed', 'month later', 'years later'];
+
+  chapters.forEach((chapter, idx) => {
+    if (idx > 0) {
+      const prevChapter = chapters[idx - 1];
+      const currentTimeIndicators = timeIndicators.filter(indicator =>
+        chapter.content.toLowerCase().includes(indicator)
+      );
+
+      if (currentTimeIndicators.length > 0) {
+        // Check if previous chapter ended in a way that makes time jump unclear
+        const prevContent = prevChapter.content.toLowerCase();
+        const hasCliffhanger = prevContent.includes('suddenly') || prevContent.includes('without warning');
+
+        if (hasCliffhanger && currentTimeIndicators.length > 0) {
+          issues.push({
+            type: 'timeline',
+            severity: 'medium',
+            description: `Possible timeline inconsistency between "${prevChapter.title}" and "${chapter.title}"`,
+            chapter_references: [prevChapter.title, chapter.title],
+            suggestion: 'Clarify the time transition or adjust the scene break to make the time jump clear'
+          });
+        }
+      }
+    }
+
+    // Check for contradictory time references within chapter
+    const content = chapter.content.toLowerCase();
+    const hasMorning = content.includes('morning') || content.includes('dawn');
+    const hasEvening = content.includes('evening') || content.includes('dusk') || content.includes('night');
+
+    // Count occurrences to detect frequent back-and-forth
+    const morningCount = (content.match(/morning|dawn|sunrise/gi) || []).length;
+    const eveningCount = (content.match(/evening|dusk|night|sunset/gi) || []).length;
+
+    if (morningCount > 0 && eveningCount > 0 && morningCount + eveningCount > 4) {
+      issues.push({
+        type: 'timeline',
+        severity: 'low',
+        description: `Chapter "${chapter.title}" has frequent time-of-day shifts that may be confusing`,
+        chapter_references: [chapter.title],
+        suggestion: 'Consider structuring scenes more clearly or adding scene breaks to indicate time changes'
+      });
+    }
+  });
+
+  return issues;
+}
+
+// Helper function to analyze unexplained plot developments
+function analyzeUnexplainedDevelopments(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>
+): Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  // Look for sudden plot twists without foreshadowing
+  const twistIndicators = ['suddenly', 'unexpectedly', 'shockingly', 'to everyone\'s surprise', 'out of nowhere'];
+
+  chapters.forEach((chapter, idx) => {
+    const content = chapter.content.toLowerCase();
+    twistIndicators.forEach(indicator => {
+      if (content.includes(indicator)) {
+        // Check if there's any setup in previous chapters
+        const previousChapters = chapters.slice(0, idx);
+        const hasSetup = previousChapters.some(prev => {
+          const prevContent = prev.content.toLowerCase();
+          return prevContent.includes('hint') || prevContent.includes('suggest') || prevContent.includes('seem');
+        });
+
+        if (!hasSetup && idx > 2) {
+          issues.push({
+            type: 'unexplained',
+            severity: 'medium',
+            description: `Major development in "${chapter.title}" may lack proper setup`,
+            chapter_references: [chapter.title],
+            suggestion: 'Add subtle foreshadowing in earlier chapters to make this development feel earned'
+          });
+        }
+      }
+    });
+  });
+
+  return issues;
+}
+
+// Helper function to analyze logical inconsistencies
+function analyzeLogicalInconsistencies(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  fullText: string
+): Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  // Check for contradictory statements
+  const contradictions = [
+    { pattern: /didn't know.*but knew/gi, description: 'Character knowledge contradiction' },
+    { pattern: /never.*but always/gi, description: 'Absolute statement contradiction' },
+    { pattern: /impossible.*but happened/gi, description: 'Logical impossibility' },
+  ];
+
+  chapters.forEach(chapter => {
+    contradictions.forEach(({ pattern, description }) => {
+      const matches = chapter.content.match(pattern);
+      if (matches) {
+        issues.push({
+          type: 'logical',
+          severity: 'high',
+          description: `Possible logical contradiction in "${chapter.title}": ${description}`,
+          chapter_references: [chapter.title],
+          suggestion: 'Review the context to ensure the statement makes sense'
+        });
+      }
+    });
+  });
+
+  // Check for character knowledge inconsistencies
+  const knowledgePatterns = [
+    { first: 'didn\'t know', second: 'realized', window: 3 },
+    { first: 'forgotten', second: 'remembered', window: 2 },
+  ];
+
+  knowledgePatterns.forEach(({ first, second, window }) => {
+    const chaptersWithFirst = chapters.filter(ch =>
+      ch.content.toLowerCase().includes(first)
+    );
+
+    const chaptersWithSecond = chapters.filter(ch =>
+      ch.content.toLowerCase().includes(second)
+    );
+
+    // If same chapters contain both patterns close together, may indicate inconsistency
+    chapters.forEach(chapter => {
+      const content = chapter.content.toLowerCase();
+      const hasFirst = content.includes(first);
+      const hasSecond = content.includes(second);
+
+      if (hasFirst && hasSecond) {
+        issues.push({
+          type: 'logical',
+          severity: 'low',
+          description: `Character knowledge inconsistency in "${chapter.title}"`,
+          chapter_references: [chapter.title],
+          suggestion: 'Ensure character knowledge states are consistent'
+        });
+      }
+    });
+  });
+
+  return issues;
+}
+
+// Helper function to analyze resolution gaps
+function analyzeResolutionGaps(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>
+): Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  if (chapters.length < 3) return issues;
+
+  // Check for unresolved plot points introduced in early chapters
+  const unresolvedPatterns = [
+    'mystery', 'question', 'wondered', 'puzzled', 'unclear', 'unsure', 'confused'
+  ];
+
+  const firstThird = Math.floor(chapters.length / 3);
+  const earlyChapters = chapters.slice(0, firstThird);
+  const lastChapters = chapters.slice(-firstThird);
+
+  earlyChapters.forEach(chapter => {
+    const content = chapter.content.toLowerCase();
+    const hasUnresolved = unresolvedPatterns.some(pattern => content.includes(pattern));
+
+    if (hasUnresolved) {
+      // Check if resolved in later chapters
+      const resolutionPatterns = ['solved', 'answered', 'understood', 'realized', 'discovered', 'found'];
+      const isResolved = lastChapters.some(ch =>
+        resolutionPatterns.some(pattern => ch.content.toLowerCase().includes(pattern))
+      );
+
+      if (!isResolved) {
+        issues.push({
+          type: 'resolution',
+          severity: 'medium',
+          description: `Potential unresolved plot point from "${chapter.title}"`,
+          chapter_references: [chapter.title],
+          suggestion: 'Consider addressing this plot point in the story\'s resolution'
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
+// POST /api/projects/:id/check-consistency - Check consistency across chapters (Feature #183)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    console.log('[Projects] Checking consistency for project:', projectId);
+
+    // Verify project belongs to user and is a Romanziere project
+    const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'romanziere') {
+      res.status(400).json({ message: 'Consistency checking is only available for Romanziere projects' });
+      return;
+    }
+
+    // Get all chapters with their content
+    const chapters = db.prepare('SELECT id, title, content, order_index FROM chapters WHERE project_id = ? ORDER BY order_index').all(projectId) as Array<{ id: string; title: string; content: string; order_index: number }>;
+
+    if (chapters.length === 0) {
+      res.status(400).json({ message: 'No chapters found. Please generate some chapters first.' });
+      return;
+    }
+
+    console.log('[Projects] Analyzing', chapters.length, 'chapters for consistency');
+
+    // Get characters and locations for reference
+    const characters = db.prepare('SELECT name, description, traits FROM characters WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string; traits: string }>;
+    const locations = db.prepare('SELECT name, description, significance FROM locations WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string; significance: string }>;
+
+    // Analyze consistency issues
+    const inconsistencies: Array<{
+      type: 'character' | 'location' | 'timeline' | 'description';
+      entity_name: string;
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }> = [];
+
+    // 1. Check character description consistency
+    const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters);
+    inconsistencies.push(...characterIssues);
+
+    // 2. Check location description consistency
+    const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations);
+    inconsistencies.push(...locationIssues);
+
+    // 3. Check character trait consistency
+    const traitIssues = analyzeCharacterTraitConsistency(chapters, characters);
+    inconsistencies.push(...traitIssues);
+
+    // 4. Check timeline continuity
+    const timelineIssues = analyzeTimelineContinuity(chapters);
+    inconsistencies.push(...timelineIssues);
+
+    console.log('[Projects] Consistency check completed:', {
+      total_inconsistencies: inconsistencies.length,
+      breakdown: {
+        character: inconsistencies.filter(i => i.type === 'character').length,
+        location: inconsistencies.filter(i => i.type === 'location').length,
+        timeline: inconsistencies.filter(i => i.type === 'timeline').length,
+        description: inconsistencies.filter(i => i.type === 'description').length,
+      }
+    });
+
+    res.json({
+      message: 'Consistency check completed',
+      inconsistencies: inconsistencies,
+      total_inconsistencies: inconsistencies.length
+    });
+  } catch (error) {
+    console.error('[Projects] Consistency check error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to check consistency' });
+  }
+});
+
+// Helper function to analyze character description consistency
+function analyzeCharacterDescriptionConsistency(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  characters: Array<{ name: string; description: string; traits: string }>
+): Array<{
+  type: 'character';
+  entity_name: string;
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: 'character';
+    entity_name: string;
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  characters.forEach(character => {
+    const charName = character.name;
+    const charNameLower = charName.toLowerCase();
+
+    // Find all chapters where character appears
+    const appearances = chapters.filter(ch =>
+      ch.content.toLowerCase().includes(charNameLower)
+    );
+
+    if (appearances.length < 2) return; // Need multiple appearances to check consistency
+
+    // Check for physical description consistency
+    const physicalTraits = ['hair', 'eyes', 'tall', 'short', 'thin', 'heavy', 'young', 'old'];
+    const descriptions: string[] = [];
+
+    appearances.forEach(chapter => {
+      const content = chapter.content.toLowerCase();
+      physicalTraits.forEach(trait => {
+        const regex = new RegExp(`${charNameLower}.*${trait}\\s+(\\w+)`, 'gi');
+        const matches = chapter.content.match(regex);
+        if (matches) {
+          descriptions.push(...matches);
+        }
+      });
+    });
+
+    // Check for contradictory descriptions (basic check)
+    const hasBlond = descriptions.some(d => d.includes('blond') || d.includes('blonde'));
+    const hasBrown = descriptions.some(d => d.includes('brown'));
+    const hasBlack = descriptions.some(d => d.includes('black'));
+
+    if (hasBlond && hasBlack) {
+      issues.push({
+        type: 'character',
+        entity_name: charName,
+        description: 'Inconsistent hair color descriptions',
+        chapter_references: appearances.map(ch => ch.title),
+        suggestion: `Review ${charName}'s physical descriptions for consistency`
+      });
+    }
+  });
+
+  return issues;
+}
+
+// Helper function to analyze location description consistency
+function analyzeLocationDescriptionConsistency(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  locations: Array<{ name: string; description: string; significance: string }>
+): Array<{
+  type: 'location';
+  entity_name: string;
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: 'location';
+    entity_name: string;
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  locations.forEach(location => {
+    const locName = location.name;
+    const locNameLower = locName.toLowerCase();
+
+    // Find all chapters where location appears
+    const appearances = chapters.filter(ch =>
+      ch.content.toLowerCase().includes(locNameLower)
+    );
+
+    if (appearances.length < 2) return;
+
+    // Check for contradictory location descriptions
+    const indoorDescriptions = appearances.filter(ch =>
+      ch.content.toLowerCase().includes(`${locNameLower} inside`) ||
+      ch.content.toLowerCase().includes(`${locNameLower} interior`) ||
+      ch.content.toLowerCase().includes(`${locNameLower} room`)
+    );
+
+    const outdoorDescriptions = appearances.filter(ch =>
+      ch.content.toLowerCase().includes(`${locNameLower} outside`) ||
+      ch.content.toLowerCase().includes(`${locNameLower} exterior`) ||
+      ch.content.toLowerCase().includes(`${locNameLower} garden`)
+    );
+
+    // If location is described both as indoor and outdoor in similar contexts, flag it
+    if (indoorDescriptions.length > 0 && outdoorDescriptions.length > 0) {
+      // Check if the same chapter has both (potential confusion)
+      const hasBothInSameChapter = appearances.some(ch =>
+        indoorDescriptions.some(ind => ind.id === ch.id) &&
+        outdoorDescriptions.some(out => out.id === ch.id)
+      );
+
+      if (hasBothInSameChapter) {
+        issues.push({
+          type: 'location',
+          entity_name: locName,
+          description: 'Location may be ambiguously described as both indoor and outdoor',
+          chapter_references: appearances.map(ch => ch.title),
+          suggestion: `Clarify ${locName}'s setting or use more specific location names`
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
+// Helper function to analyze character trait consistency
+function analyzeCharacterTraitConsistency(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  characters: Array<{ name: string; description: string; traits: string }>
+): Array<{
+  type: 'character';
+  entity_name: string;
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: 'character';
+    entity_name: string;
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  characters.forEach(character => {
+    const charName = character.name;
+    const charNameLower = charName.toLowerCase();
+    const traits = character.traits.toLowerCase();
+
+    // Find all chapters where character appears
+    const appearances = chapters.filter(ch =>
+      ch.content.toLowerCase().includes(charNameLower)
+    );
+
+    // Check for behavior that contradicts stated traits
+    if (traits.includes('brave') || traits.includes('courageous')) {
+      const cowardlyActs = appearances.filter(ch =>
+        ch.content.toLowerCase().includes(`${charNameLower} ran`) ||
+        ch.content.toLowerCase().includes(`${charNameLower} hid`) ||
+        ch.content.toLowerCase().includes(`${charNameLower} trembled`) ||
+        ch.content.toLowerCase().includes(`${charNameLower} afraid`)
+      );
+
+      if (cowardlyActs.length > 0) {
+        issues.push({
+          type: 'character',
+          entity_name: charName,
+          description: 'Character behavior contradicts "brave" trait',
+          chapter_references: cowardlyActs.map(ch => ch.title),
+          suggestion: `Consider if ${charName}'s fear is justified (character growth) or if trait needs adjustment`
+        });
+      }
+    }
+
+    if (traits.includes('shy') || traits.includes('timid')) {
+      const boldActs = appearances.filter(ch =>
+        ch.content.toLowerCase().includes(`${charNameLower} shouted`) ||
+        ch.content.toLowerCase().includes(`${charNameLower} boldly`) ||
+        ch.content.toLowerCase().includes(`${charNameLower} confidently`)
+      );
+
+      if (boldActs.length > appearances.length / 2) {
+        issues.push({
+          type: 'character',
+          entity_name: charName,
+          description: 'Character consistently acts boldly despite "shy" trait',
+          chapter_references: boldActs.map(ch => ch.title),
+          suggestion: `Consider if ${charName} has overcome shyness (character arc) or if trait needs updating`
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
+// Helper function to analyze timeline continuity
+function analyzeTimelineContinuity(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>
+): Array<{
+  type: 'timeline';
+  entity_name: string;
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}> {
+  const issues: Array<{
+    type: 'timeline';
+    entity_name: string;
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  // Check for time jumps without clear indication
+  const timeMarkers = ['hours later', 'days later', 'weeks later', 'months later', 'years later'];
+
+  chapters.forEach((chapter, idx) => {
+    if (idx === 0) return;
+
+    const content = chapter.content.toLowerCase();
+    const hasTimeMarker = timeMarkers.some(marker => content.includes(marker));
+
+    if (hasTimeMarker) {
+      // Check if there's a scene break or chapter break that indicates the time jump
+      const hasSceneBreak = chapter.content.includes('***') || chapter.content.includes('---');
+      const previousChapter = chapters[idx - 1];
+
+      if (!hasSceneBreak && !previousChapter.content.endsWith('...')) {
+        issues.push({
+          type: 'timeline',
+          entity_name: `Chapter ${idx + 1}`,
+          description: 'Time jump may not be clearly indicated',
+          chapter_references: [previousChapter.title, chapter.title],
+          suggestion: 'Add a scene break or clearer transition to indicate the time passage'
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
 export default router;

@@ -56,6 +56,7 @@ export default function ProjectDetail() {
   });
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImageId, setCoverImageId] = useState<string | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [userRole, setUserRole] = useState<string>('free');
   const [showBatchExport, setShowBatchExport] = useState(false);
@@ -119,6 +120,12 @@ export default function ProjectDetail() {
   const [novelFile, setNovelFile] = useState<File | null>(null);
   const [generatingOutline, setGeneratingOutline] = useState(false);
   const [outlineGenerated, setOutlineGenerated] = useState(false);
+  const [detectingPlotHoles, setDetectingPlotHoles] = useState(false);
+  const [plotHolesResults, setPlotHolesResults] = useState<any>(null);
+  const [showPlotHolesResults, setShowPlotHolesResults] = useState(false);
+  const [checkingConsistency, setCheckingConsistency] = useState(false);
+  const [consistencyResults, setConsistencyResults] = useState<any>(null);
+  const [showConsistencyResults, setShowConsistencyResults] = useState(false);
   const [humanModels, setHumanModels] = useState<any[]>([]);
   const [loadingHumanModels, setLoadingHumanModels] = useState(false);
 
@@ -766,6 +773,62 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleDetectPlotHoles = async () => {
+    if (!project) return;
+
+    if (chapters.length === 0) {
+      toast.showError('Please generate some chapters first before detecting plot holes');
+      return;
+    }
+
+    try {
+      setDetectingPlotHoles(true);
+      setError('');
+      setShowPlotHolesResults(false);
+      toast.showInfo('Analyzing plot for potential inconsistencies...');
+
+      const response = await apiService.detectPlotHoles(id!);
+
+      toast.success(`Plot hole detection completed: ${response.total_issues} issues found`);
+
+      setPlotHolesResults(response.plot_holes);
+      setShowPlotHolesResults(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to detect plot holes');
+      toast.showError(err.message || 'Failed to detect plot holes');
+    } finally {
+      setDetectingPlotHoles(false);
+    }
+  };
+
+  const handleCheckConsistency = async () => {
+    if (!project) return;
+
+    if (chapters.length === 0) {
+      toast.showError('Please generate some chapters first before checking consistency');
+      return;
+    }
+
+    try {
+      setCheckingConsistency(true);
+      setError('');
+      setShowConsistencyResults(false);
+      toast.showInfo('Checking consistency across chapters...');
+
+      const response = await apiService.checkConsistency(id!);
+
+      toast.success(`Consistency check completed: ${response.total_inconsistencies} issues found`);
+
+      setConsistencyResults(response.inconsistencies);
+      setShowConsistencyResults(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to check consistency');
+      toast.showError(err.message || 'Failed to check consistency');
+    } finally {
+      setCheckingConsistency(false);
+    }
+  };
+
   const handleCreateCharacter = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -959,6 +1022,10 @@ export default function ProjectDetail() {
       setUploadingCover(true);
       setError('');
 
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setCoverImagePreview(previewUrl);
+
       const formData = new FormData();
       formData.append('cover', file);
 
@@ -981,8 +1048,12 @@ export default function ProjectDetail() {
       const data = await response.json();
       setCoverImageId(data.id);
       setCoverImageFile(file);
+      toast.show('Cover image uploaded successfully', 'success');
     } catch (err: any) {
+      // Clear preview on error
+      setCoverImagePreview(null);
       setError(err.message || 'Failed to upload cover image');
+      toast.show(err.message || 'Failed to upload cover image', 'error');
     } finally {
       setUploadingCover(false);
     }
@@ -1447,25 +1518,37 @@ export default function ProjectDetail() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Cover Image
                   </label>
-                  <div className="flex items-center gap-4">
-                    {coverImageFile ? (
-                      <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
-                        <ImageIcon className="w-8 h-8 text-blue-600" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {coverImageFile.name}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setCoverImageFile(null);
-                            setCoverImageId(null);
-                          }}
-                          className="ml-auto text-red-600 hover:text-red-700 dark:text-red-400"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                  <div className="space-y-3">
+                    {coverImagePreview ? (
+                      // Show image preview
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50 dark:bg-gray-700/30">
+                          <img
+                            src={coverImagePreview}
+                            alt="Cover preview"
+                            className="max-w-full max-h-64 object-contain rounded shadow-md"
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
+                          <ImageIcon className="w-8 h-8 text-blue-600" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {coverImageFile?.name || 'Cover image'}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setCoverImageFile(null);
+                              setCoverImageId(null);
+                              setCoverImagePreview(null);
+                            }}
+                            className="ml-auto text-red-600 hover:text-red-700 dark:text-red-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <label className="flex-1">
+                      // Show upload area
+                      <label className="block">
                         <div className="flex items-center justify-center px-6 py-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
                           <input
                             type="file"
@@ -1570,6 +1653,11 @@ export default function ProjectDetail() {
                     setShowEpubMetadata(false);
                     setShowExportDialog(false);
                     setError('');
+                    // Clean up preview URL
+                    if (coverImagePreview) {
+                      URL.revokeObjectURL(coverImagePreview);
+                      setCoverImagePreview(null);
+                    }
                   }}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   disabled={exporting}
@@ -1914,6 +2002,33 @@ export default function ProjectDetail() {
                 {generatingOutline ? 'Generating...' : 'Generate Outline'}
               </button>
             )}
+
+            {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182) */}
+            {project?.area === 'romanziere' && (
+              <button
+                onClick={handleDetectPlotHoles}
+                disabled={detectingPlotHoles}
+                className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Detect potential plot inconsistencies and holes"
+              >
+                <RefreshCw className="w-4 h-4" />
+                {detectingPlotHoles ? 'Detecting...' : 'Detect Plot Holes'}
+              </button>
+            )}
+
+            {/* Consistency Checker button - Only for Romanziere projects (Feature #183) */}
+            {project?.area === 'romanziere' && (
+              <button
+                onClick={handleCheckConsistency}
+                disabled={checkingConsistency}
+                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Check consistency of characters and locations across chapters"
+              >
+                <Network className="w-4 h-4" />
+                {checkingConsistency ? 'Checking...' : 'Check Consistency'}
+              </button>
+            )}
+
             <button
               onClick={() => setShowAddChapter(!showAddChapter)}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
