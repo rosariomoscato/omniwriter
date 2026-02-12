@@ -115,7 +115,7 @@ router.post('/login', (req: Request, res: Response) => {
     // Find user by email
     console.log('[Auth] Looking up user by email:', email);
     const user = db.prepare(
-      'SELECT id, email, password_hash, name, role, preferred_language, theme_preference FROM users WHERE email = ?'
+      'SELECT id, email, password_hash, name, role, subscription_status, preferred_language, theme_preference FROM users WHERE email = ?'
     ).get(email) as {
       id: string;
       email: string;
@@ -128,6 +128,12 @@ router.post('/login', (req: Request, res: Response) => {
 
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password' });
+      return;
+    }
+
+    // Check if user is suspended
+    if (user.subscription_status === 'suspended') {
+      res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
       return;
     }
 

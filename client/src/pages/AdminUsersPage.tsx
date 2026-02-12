@@ -43,7 +43,7 @@ const AdminUsersPage = () => {
   const fetchUsers = async (page: number, searchQuery: string) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const url = new URL('http://localhost:3001/api/admin/users');
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', '20');
@@ -93,7 +93,7 @@ const AdminUsersPage = () => {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
@@ -119,7 +119,7 @@ const AdminUsersPage = () => {
   const handleSuspendToggle = async (userId: string, currentStatus: string) => {
     const shouldSuspend = currentStatus !== 'suspended';
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/suspend`, {
         method: 'PUT',
         headers: {
