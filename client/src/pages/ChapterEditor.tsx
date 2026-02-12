@@ -134,6 +134,18 @@ export default function ChapterEditor() {
   const handleItalic = () => insertFormatting('*', '*');
   const handleHeading = () => insertFormatting('# ', '');
 
+  const handleRestore = (restoredContent: string) => {
+    setContent(restoredContent);
+    setShowVersionHistory(false);
+    // Auto-save the restored content
+    setTimeout(() => handleSave(), 100);
+  };
+
+  const handleCompare = (version1: ChapterVersion, version2: ChapterVersion) => {
+    setComparisonVersions({ v1: version1, v2: version2 });
+    setShowVersionHistory(false);
+  };
+
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
     let html = content;
@@ -197,6 +209,13 @@ export default function ChapterEditor() {
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {wordCount} words
               </span>
+              <button
+                onClick={() => setShowVersionHistory(true)}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                title="Version History"
+              >
+                <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              </button>
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -301,6 +320,29 @@ export default function ChapterEditor() {
           </div>
         )}
       </div>
+
+      {/* Version History Modal */}
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-surface rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            <VersionHistory
+              chapterId={chapterId!}
+              onClose={() => setShowVersionHistory(false)}
+              onRestore={handleRestore}
+              onCompare={handleCompare}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Version Comparison Modal */}
+      {comparisonVersions.v1 && comparisonVersions.v2 && (
+        <VersionComparison
+          version1={comparisonVersions.v1}
+          version2={comparisonVersions.v2}
+          onClose={() => setComparisonVersions({ v1: null, v2: null })}
+        />
+      )}
     </div>
   );
 }

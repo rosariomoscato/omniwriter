@@ -277,6 +277,34 @@ class ApiService {
     });
   }
 
+  async importProject(file: File, options: {
+    area: 'romanziere' | 'saggista' | 'redattore';
+    genre?: string;
+    description?: string;
+  }): Promise<{ project: Project; chaptersCreated: number; totalWordCount: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('area', options.area);
+    if (options.genre) formData.append('genre', options.genre);
+    if (options.description) formData.append('description', options.description);
+
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/projects/import`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   // Human Model endpoints
   async getHumanModels(): Promise<{ models: HumanModel[]; count: number }> {
     return this.request<{ models: HumanModel[]; count: number }>('/human-models');
