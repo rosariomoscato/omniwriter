@@ -19,7 +19,9 @@ export default function ProjectDetail() {
   const [showAddSource, setShowAddSource] = useState(false);
   const [showAddCharacter, setShowAddCharacter] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx'>('txt');
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -224,6 +226,22 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    try {
+      setDeleting(true);
+      setError('');
+
+      await apiService.deleteProject(id!);
+
+      // Navigate to dashboard after successful deletion
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete project');
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <Breadcrumbs />
@@ -251,13 +269,22 @@ export default function ProjectDetail() {
             }`}>
               {project.status === 'draft' ? 'Draft' : project.status === 'in_progress' ? 'In Progress' : 'Completed'}
             </span>
-            <button
-              onClick={() => setShowExportDialog(true)}
-              className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setShowExportDialog(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -337,6 +364,70 @@ export default function ProjectDetail() {
                   <>
                     <Download className="w-4 h-4" />
                     Export
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Delete Project
+                </h3>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">"{project?.title}"</span>?
+              </p>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-4">
+                This action cannot be undone. All chapters, sources, and characters will be permanently deleted.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <strong className="text-gray-700 dark:text-gray-300">Warning:</strong> This will delete:
+                </p>
+                <ul className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                  <li>• All chapters ({chapters.length})</li>
+                  <li>• All sources ({sources.length})</li>
+                  <li>• All characters ({characters.length})</li>
+                  <li>• All generation logs and history</li>
+                </ul>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-b-lg flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setError('');
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Project
                   </>
                 )}
               </button>
