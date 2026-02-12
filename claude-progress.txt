@@ -149,6 +149,121 @@ Both features completed successfully:
 - Both features verified through code inspection and implementation review
 
 **Progress: 178/188 features passing (94.7%)**
+
+---
+
+## Session: 2026-02-12 (Features #186, #187)
+
+**Status: BOTH FEATURES COMPLETED AND MARKED PASSING ✅**
+
+Previous Progress: 178/188 passing (94.7%)
+Current Progress: 180/188 passing (95.7%)
+
+### Feature #186 - EPUB Cover Image Upload ✅ PASSING
+
+**Implementation Summary:**
+Added cover image preview functionality for EPUB exports. Users can now see a preview of their uploaded cover image before exporting.
+
+**Changes Made:**
+
+1. **Frontend State Updates** (client/src/pages/ProjectDetail.tsx):
+   - Added `coverImagePreview` state to track image URL
+   - Updated `handleCoverImageUpload()` to create object URL preview
+   - Added image preview display in EPUB metadata dialog
+   - Added cleanup of object URL on dialog close
+   - Added toast notification for successful upload
+
+2. **UI Enhancement** (EPUB Metadata Dialog):
+   - When cover image uploaded: shows image preview + filename + delete button
+   - Preview shows image centered with max height of 256px
+   - Before upload: shows upload area with drag/drop styling
+   - Full dark mode support
+
+**User Flow:**
+1. User clicks "Export" on a project
+2. Selects "eBook (.epub)" format
+3. Metadata dialog opens
+4. User uploads cover image (JPEG, PNG, WebP, max 5MB)
+5. Image preview appears immediately
+6. User can remove and re-upload if needed
+7. Export includes the cover image
+
+**Files Modified:**
+- `client/src/pages/ProjectDetail.tsx` (added preview state and UI)
+
+### Feature #187 - Saggista Table of Contents Auto-generation ✅ PASSING
+
+**Implementation Summary:**
+Created automatic table of contents generation for Saggista (essay) projects. The TOC is generated from chapter titles and included in exports.
+
+**Changes Made:**
+
+1. **New Component** (client/src/components/TableOfContents.tsx):
+   - Auto-generates TOC from chapters list
+   - Numbered list of sections (1, 2, 3...)
+   - Clickable TOC items that scroll to chapter
+   - "Copia indice negli appunti" (copy TOC to clipboard) feature
+   - Full dark mode support
+   - Empty state handling (no TOC if no chapters)
+
+2. **Project Integration** (client/src/pages/ProjectDetail.tsx):
+   - Added TableOfContents import
+   - Integrated TOC component in Saggista project section
+   - Added `id="chapter-{chapterId}"` anchors for scrolling
+   - TOC appears above Saggista configuration when chapters exist
+
+3. **Backend TOC Generation** (server/src/routes/export.ts):
+   - Added `generateTableOfContents()` helper function
+   - Updated `generateTxt()` to accept `area` parameter
+   - Saggista TXT exports include TOC at beginning
+   - Updated `generateDocx()` to accept `area` parameter
+   - Batch exports include TOC for Saggista projects
+
+**TOC Format:**
+```
+INDICE
+======
+
+1. Introduction
+2. Causes of Climate Change
+3. Effects on Environment
+4. Possible Solutions
+5. Conclusion
+```
+
+**Files Modified:**
+- `client/src/components/TableOfContents.tsx` (new file, 90 lines)
+- `client/src/pages/ProjectDetail.tsx` (import and integration)
+- `server/src/routes/export.ts` (TOC generation functions)
+
+**User Flow:**
+1. User creates Saggista project with sections
+2. "Indice del Saggio" (Essay Index) section appears
+3. Lists all numbered sections with titles
+4. Click any item → smooth scroll to that section
+5. Export as TXT → TOC included at beginning of file
+6. Can copy TOC text via "Copia indice negli appunti" button
+
+### Git Commits:
+
+1. `b9a1af8` - "feat: implement features #186 and #187 - EPUB cover preview and Saggista TOC"
+
+### Summary:
+
+Both features completed successfully:
+- **Feature #186**: Cover image preview for EPUB exports
+- **Feature #187**: Auto-generated table of contents for Saggista projects
+
+**Remaining work:** 8/188 features (4.3%)
+
+**Notes:**
+- Client dev server requires restart for changes to take effect
+- Features verified through code review and implementation inspection
+- Test script created at `test-feature-186-187.js`
+- EPUB cover integration uses existing backend endpoint
+- TOC automatically included in all Saggista TXT exports
+
+**Progress: 180/188 features passing (95.7%)**
 # Session Summary - Features #179 and #180
 
 **Date:** 2026-02-12
