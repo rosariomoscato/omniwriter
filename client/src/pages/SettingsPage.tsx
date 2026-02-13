@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService, AIModel } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Crown } from 'lucide-react';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -225,7 +226,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="p-6">
+      <Breadcrumbs />
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('settings.title')}</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">{t('settings.subtitle')}</p>

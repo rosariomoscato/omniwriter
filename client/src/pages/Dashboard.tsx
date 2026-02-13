@@ -8,6 +8,8 @@ import { useToastNotification } from '../components/Toast';
 import OnboardingGuide from '../components/OnboardingGuide';
 import DashboardLayoutSettings, { DashboardLayout } from '../components/DashboardLayoutSettings';
 import { ProjectCardSkeleton } from '../components/Skeleton';
+import DashboardStats from '../components/DashboardStats';
+import DashboardAreas from '../components/DashboardAreas';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
 type FilterStatus = 'all' | 'draft' | 'in_progress' | 'completed' | 'archived';
@@ -218,6 +220,32 @@ export default function Dashboard() {
       window.removeEventListener('open-import-modal', handleOpenImportModal);
     };
   }, []);
+
+  // Sync filters with URL when URL changes (e.g., navigating from sidebar)
+  useEffect(() => {
+    const urlArea = searchParams.get('area');
+    const urlStatus = searchParams.get('status');
+    const urlSearch = searchParams.get('search');
+    const urlSort = searchParams.get('sort');
+    const urlTag = searchParams.get('tag');
+
+    // Only update if URL params differ from current filters
+    if (
+      (urlArea || 'all') !== filters.area ||
+      (urlStatus || 'all') !== filters.status ||
+      (urlSearch || '') !== filters.search ||
+      (urlSort || 'recent') !== filters.sort ||
+      (urlTag || '') !== filters.tag
+    ) {
+      setFilters({
+        area: (urlArea as FilterArea) || 'all',
+        status: (urlStatus as FilterStatus) || 'all',
+        search: urlSearch || '',
+        sort: (urlSort as SortOption) || 'recent',
+        tag: urlTag || '',
+      });
+    }
+  }, [searchParams]);
 
   // Load projects with filters
   useEffect(() => {
@@ -623,6 +651,16 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Statistics Section - Show only on main dashboard, not on area pages */}
+      {!isAreaPage && !loading && (
+        <DashboardStats projects={projects} />
+      )}
+
+      {/* Area Cards Section - Show only on main dashboard, not on area pages */}
+      {!isAreaPage && !loading && (
+        <DashboardAreas projects={projects} />
+      )}
+
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -996,7 +1034,8 @@ export default function Dashboard() {
               )}
             </div>
           ) : (
-            /* Generic empty state message */
+            /* Generic empty state message - only show if onboarding is NOT visible */
+            !showOnboarding && (
             <div className="text-center py-16">
               <div className="inline-block p-6 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
                 <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1034,6 +1073,7 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
+            )
           )}
         </>
       )}

@@ -214,6 +214,28 @@
         "createButton": "Crea il tuo primo articolo"
       }
     },
+    "stats": {
+      "total": "Totale progetti",
+      "draft": "Bozze",
+      "inProgress": "In corso",
+      "completed": "Completati"
+    },
+    "areas": {
+      "title": "Le tue aree creative",
+      "projects": "progetti",
+      "romanziere": {
+        "title": "Romanziere",
+        "description": "Scrivi romanzi completi capitolo per capitolo"
+      },
+      "saggista": {
+        "title": "Saggista",
+        "description": "Crea saggi approfonditi con fonti e citazioni"
+      },
+      "redattore": {
+        "title": "Redattore",
+        "description": "Genera articoli e contenuti SEO-ottimizzati"
+      }
+    },
     "onboarding": {
       "welcome": "Benvenuto in OmniWriter!",
       "subtitle": "La tua piattaforma di scrittura professionale con AI. Scegli un'area per iniziare il tuo primo progetto.",
@@ -274,6 +296,110 @@
     "duplicate": "Duplica",
     "archive": "Archivia",
     "confirmDelete": "Sei sicuro di voler eliminare questo progetto?"
+  },
+  "projectPage": {
+    "status": "Stato",
+    "edit": "Modifica",
+    "duplicate": "Duplica",
+    "export": "Esporta",
+    "delete": "Elimina",
+    "noDescription": "Nessuna descrizione",
+    "updating": "Aggiornamento...",
+    "duplicating": "Duplicazione in corso...",
+    "exporting": "Esportazione...",
+    "archive": "Archivia",
+    "unarchive": "Ripristina",
+    "archived": "Archiviato",
+    "archiveConfirm": "Archiviare \"{{title}}\"? Sarà nascosto dalla lista principale dei progetti.",
+    "archiveSuccess": "Progetto archiviato",
+    "unarchiveSuccess": "Progetto ripristinato",
+    "deleteConfirm": "Sei sicuro di voler eliminare questo progetto? Questa azione non può essere annullata.",
+    "deleteSuccess": "Progetto eliminato con successo",
+    "chapters": {
+      "title": "Capitoli",
+      "noChapters": "Nessun capitolo ancora",
+      "createFirst": "Crea il tuo primo capitolo per iniziare",
+      "add": "Aggiungi Capitolo",
+      "titlePlaceholder": "Titolo capitolo...",
+      "generateOutline": "Genera Indice",
+      "detectPlotHoles": "Rileva Buchi di Trama",
+      "checkConsistency": "Verifica Coerenza"
+    },
+    "sources": {
+      "title": "Fonti",
+      "noSources": "Nessuna fonte ancora",
+      "uploadReference": "Carica materiali di riferimento da usare nel tuo progetto",
+      "webSearch": "Ricerca Web",
+      "upload": "Carica Fonti"
+    },
+    "characters": {
+      "title": "Personaggi",
+      "noCharacters": "Nessun personaggio ancora",
+      "createForProject": "Crea personaggi per il tuo progetto",
+      "add": "Aggiungi Personaggio",
+      "analyzeNovel": "Analizza Romanzo",
+      "editTitle": "Modifica Personaggio",
+      "addTitle": "Aggiungi Nuovo Personaggio",
+      "namePlaceholder": "Nome personaggio...",
+      "descriptionPlaceholder": "Descrizione fisica e aspetto...",
+      "traitsPlaceholder": "Tratti della personalità (es. coraggioso, astuto, gentile)...",
+      "backstoryPlaceholder": "Background e storia...",
+      "rolePlaceholder": "Ruolo nella storia (es. protagonista, mentore, antagonista)..."
+    },
+    "locations": {
+      "title": "Luoghi",
+      "noLocations": "Nessun luogo ancora",
+      "createForProject": "Crea luoghi per il tuo progetto",
+      "add": "Aggiungi Luogo",
+      "namePlaceholder": "Nome luogo...",
+      "descriptionPlaceholder": "Descrizione fisica e ambiente...",
+      "significancePlaceholder": "Importanza nella storia (rilevanza per la trama, atmosfera, significato simbolico)..."
+    },
+    "plotEvents": {
+      "title": "Eventi di Trama",
+      "noPlotEvents": "Nessun evento di trama ancora",
+      "createForProject": "Crea eventi di trama per seguire la timeline della tua storia",
+      "add": "Aggiungi Evento",
+      "titlePlaceholder": "Titolo evento di trama...",
+      "descriptionPlaceholder": "Cosa accade in questo evento di trama...",
+      "typePlaceholder": "Tipo di evento (es. climax, colpo di scena, introduzione)...",
+      "linkToChapter": "Collega al capitolo (opzionale)"
+    },
+    "statusLabels": {
+      "draft": "Bozza",
+      "inProgress": "In Corso",
+      "completed": "Completato",
+      "archived": "Archiviato"
+    },
+    "exportDialog": {
+      "title": "Esporta Progetto",
+      "description": "Scegli un formato per esportare il tuo progetto. Tutti i capitoli saranno inclusi.",
+      "plainText": "Testo Semplice (.txt)",
+      "plainTextDesc": "Formato testo semplice compatibile con tutti i dispositivi",
+      "wordDoc": "Documento Word (.docx)",
+      "wordDocDesc": "Documento formattato per Microsoft Word",
+      "ebook": "eBook (.epub)",
+      "ebookDesc": "Formato ePub per e-reader con copertina e metadati (Premium)",
+      "cancel": "Annulla",
+      "export": "Esporta"
+    },
+    "epub": {
+      "title": "Metadati EPUB",
+      "description": "Aggiungi metadati e immagine di copertina per il tuo eBook. Queste informazioni saranno incorporate nel file EPUB.",
+      "coverImage": "Immagine di Copertina",
+      "coverImageDesc": "Fai clic per caricare o trascina un'immagine",
+      "coverImageHint": "PNG, JPG, WEBP fino a 5MB",
+      "uploading": "Caricamento...",
+      "author": "Autore",
+      "authorPlaceholder": "Nome autore",
+      "publisher": "Editore",
+      "publisherPlaceholder": "Nome editore",
+      "isbn": "ISBN (opzionale)",
+      "language": "Lingua",
+      "optionalFields": "Tutti i campi sono opzionali. Puoi lasciarli vuoti se non hai queste informazioni.",
+      "cancel": "Annulla",
+      "generate": "Genera EPUB"
+    }
   },
   "common": {
     "save": "Salva",
@@ -419,6 +545,7 @@
     "close": "Chiudi"
   },
   "chapterEditor": {
+    "backToProject": "Torna al Progetto",
     "save": "Salva",
     "autoSave": "Auto-salvataggio tra",
     "seconds": "secondi",

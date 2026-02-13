@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useToastNotification } from '../components/Toast';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 interface UserProfile {
   id: string | number;
@@ -148,7 +149,8 @@ export default function ProfilePage() {
   const roleBadge = getRoleBadge(profile.role);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="p-6">
+      <Breadcrumbs />
       <div className="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-8">

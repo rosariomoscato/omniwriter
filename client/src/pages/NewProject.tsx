@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, BookOpen, FileText, Zap, AlertCircle } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 type AreaType = 'romanziere' | 'saggista' | 'redattore';
 
@@ -228,7 +229,8 @@ function NewProject() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="p-6">
+      <Breadcrumbs />
       {/* Header */}
       <div className="mb-6">
         <Link

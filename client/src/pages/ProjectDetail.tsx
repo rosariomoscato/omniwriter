@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw, Network, CheckCircle, Lightbulb } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
@@ -13,6 +14,7 @@ import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } 
 import { useToastNotification } from '../components/Toast';
 
 export default function ProjectDetail() {
+  const { t } = useTranslation();
   const toast = useToastNotification();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -1230,7 +1232,7 @@ export default function ProjectDetail() {
 
   return (
     <div className="p-6">
-      <Breadcrumbs />
+      <Breadcrumbs labelOverrides={id && project ? { [id]: project.title } : undefined} />
 
       {project && (
         <div className="mb-6">
@@ -1238,7 +1240,7 @@ export default function ProjectDetail() {
             {project.title}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 break-words">
-            {project.description || 'No description'}
+            {project.description || t('projectPage.noDescription')}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span className={`px-2 py-1 text-xs font-medium rounded ${
@@ -1253,7 +1255,7 @@ export default function ProjectDetail() {
               project.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
               'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
             }`}>
-              {project.status === 'draft' ? 'Draft' : project.status === 'in_progress' ? 'In Progress' : project.status === 'completed' ? 'Completed' : 'Archived'}
+              {project.status === 'draft' ? t('projectPage.statusLabels.draft') : project.status === 'in_progress' ? t('projectPage.statusLabels.inProgress') : project.status === 'completed' ? t('projectPage.statusLabels.completed') : t('projectPage.statusLabels.archived')}
             </span>
             <div className="ml-auto flex items-center gap-2">
               {/* Status Dropdown */}
@@ -1266,12 +1268,12 @@ export default function ProjectDetail() {
                   {updatingStatus ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Updating...
+                      {t('projectPage.updating')}
                     </>
                   ) : (
                     <>
                       <Settings className="w-4 h-4" />
-                      Status
+                      {t('projectPage.status')}
                       <ChevronDown className="w-4 h-4" />
                     </>
                   )}
@@ -1286,7 +1288,7 @@ export default function ProjectDetail() {
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'draft' ? 'bg-gray-600' : 'bg-gray-300'}`}></span>
-                        Draft
+                        {t('projectPage.statusLabels.draft')}
                         {project?.status === 'draft' && <span className="ml-auto text-xs">✓</span>}
                       </button>
                       <button
@@ -1295,7 +1297,7 @@ export default function ProjectDetail() {
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'in_progress' ? 'bg-blue-600' : 'bg-gray-300'}`}></span>
-                        In Progress
+                        {t('projectPage.statusLabels.inProgress')}
                         {project?.status === 'in_progress' && <span className="ml-auto text-xs">✓</span>}
                       </button>
                       <button
@@ -1304,7 +1306,7 @@ export default function ProjectDetail() {
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'completed' ? 'bg-green-600' : 'bg-gray-300'}`}></span>
-                        Completed
+                        {t('projectPage.statusLabels.completed')}
                         {project?.status === 'completed' && <span className="ml-auto text-xs">✓</span>}
                       </button>
                       <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
@@ -1316,12 +1318,12 @@ export default function ProjectDetail() {
                         {project?.status === 'archived' ? (
                           <>
                             <ArchiveRestore className="w-4 h-4" />
-                            Unarchive
+                            {t('projectPage.unarchive')}
                           </>
                         ) : (
                           <>
                             <Archive className="w-4 h-4" />
-                            Archive
+                            {t('projectPage.archive')}
                           </>
                         )}
                       </button>
@@ -1335,7 +1337,7 @@ export default function ProjectDetail() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Settings className="w-4 h-4" />
-                Edit
+                {t('projectPage.edit')}
               </button>
               <button
                 onClick={handleDuplicateProject}
@@ -1345,12 +1347,12 @@ export default function ProjectDetail() {
                 {duplicating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Duplicating...
+                    {t('projectPage.duplicating')}
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    Duplicate
+                    {t('projectPage.duplicate')}
                   </>
                 )}
               </button>
@@ -1359,14 +1361,14 @@ export default function ProjectDetail() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Download className="w-4 h-4" />
-                Export
+                {t('projectPage.export')}
               </button>
               <button
                 onClick={() => setShowDeleteDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                Delete
+                {t('projectPage.delete')}
               </button>
             </div>
           </div>
@@ -1379,10 +1381,10 @@ export default function ProjectDetail() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                Export Project
+                {t('projectPage.exportDialog.title')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Choose a format to export your project. All chapters will be included.
+                {t('projectPage.exportDialog.description')}
               </p>
               <div className="space-y-2">
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -1399,8 +1401,8 @@ export default function ProjectDetail() {
                     className="sr-only"
                   />
                   <div className="ml-3">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Plain Text (.txt)</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Simple text format compatible with all devices</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('projectPage.exportDialog.plainText')}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.plainTextDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -1417,8 +1419,8 @@ export default function ProjectDetail() {
                     className="sr-only"
                   />
                   <div className="ml-3">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Word Document (.docx)</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Formatted document for Microsoft Word</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{t('projectPage.exportDialog.wordDoc')}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.wordDocDesc')}</div>
                   </div>
                 </label>
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -1436,10 +1438,10 @@ export default function ProjectDetail() {
                   />
                   <div className="ml-3">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">eBook (.epub)</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{t('projectPage.exportDialog.ebook')}</div>
                       <Crown className="w-4 h-4 text-amber-500" />
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">ePub format for e-readers with cover & metadata (Premium)</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.ebookDesc')}</div>
                   </div>
                 </label>
               </div>
@@ -1453,7 +1455,7 @@ export default function ProjectDetail() {
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                 disabled={exporting}
               >
-                Cancel
+                {t('projectPage.exportDialog.cancel')}
               </button>
               <button
                 onClick={() => handleExport(exportFormat)}
@@ -1463,12 +1465,12 @@ export default function ProjectDetail() {
                 {exporting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Exporting...
+                    {t('projectPage.exporting')}
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    Export
+                    {t('projectPage.exportDialog.export')}
                   </>
                 )}
               </button>
@@ -1483,17 +1485,17 @@ export default function ProjectDetail() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                EPUB Metadata
+                {t('projectPage.epub.title')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Add metadata and cover image for your eBook. This information will be embedded in the EPUB file.
+                {t('projectPage.epub.description')}
               </p>
 
               <div className="space-y-4">
                 {/* Cover Image Upload */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Cover Image
+                    {t('projectPage.epub.coverImage')}
                   </label>
                   <div className="space-y-3">
                     {coverImagePreview ? (
@@ -1509,7 +1511,7 @@ export default function ProjectDetail() {
                         <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
                           <ImageIcon className="w-8 h-8 text-blue-600" />
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {coverImageFile?.name || 'Cover image'}
+                            {coverImageFile?.name || t('projectPage.epub.coverImage')}
                           </span>
                           <button
                             onClick={() => {
@@ -1538,17 +1540,17 @@ export default function ProjectDetail() {
                             {uploadingCover ? (
                               <div className="flex flex-col items-center gap-2">
                                 <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                                <span className="text-sm text-gray-600 dark:text-gray-400">{t('projectPage.epub.uploading')}</span>
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-2">
                                 <ImageIcon className="w-10 h-10 text-gray-400" />
                                 <div>
                                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Click to upload cover image
+                                    {t('projectPage.epub.coverImageDesc')}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    JPEG, PNG, or WebP (max 5MB)
+                                    {t('projectPage.epub.coverImageHint')}
                                   </p>
                                 </div>
                               </div>
@@ -1564,31 +1566,31 @@ export default function ProjectDetail() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Author
+                      {t('projectPage.epub.author')}
                     </label>
                     <input
                       type="text"
                       value={epubMetadata.author}
                       onChange={(e) => setEpubMetadata({ ...epubMetadata, author: e.target.value })}
-                      placeholder="Author name"
+                      placeholder={t('projectPage.epub.authorPlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Publisher
+                      {t('projectPage.epub.publisher')}
                     </label>
                     <input
                       type="text"
                       value={epubMetadata.publisher}
                       onChange={(e) => setEpubMetadata({ ...epubMetadata, publisher: e.target.value })}
-                      placeholder="Publisher name"
+                      placeholder={t('projectPage.epub.publisherPlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ISBN
+                      {t('projectPage.epub.isbn')}
                     </label>
                     <input
                       type="text"
@@ -1600,7 +1602,7 @@ export default function ProjectDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Language
+                      {t('projectPage.epub.language')}
                     </label>
                     <select
                       value={epubMetadata.language}
@@ -1620,7 +1622,7 @@ export default function ProjectDetail() {
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                  All fields are optional. You can leave them blank if you don't have this information.
+                  {t('projectPage.epub.optionalFields')}
                 </p>
               </div>
 
@@ -1639,7 +1641,7 @@ export default function ProjectDetail() {
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   disabled={exporting}
                 >
-                  Back
+                  {t('common.back')}
                 </button>
                 <button
                   onClick={() => handleExport('epub')}
@@ -1649,12 +1651,12 @@ export default function ProjectDetail() {
                   {exporting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Exporting...
+                      {t('projectPage.exporting')}
                     </>
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      Export EPUB
+                      {t('projectPage.epub.generate')}
                     </>
                   )}
                 </button>
@@ -1951,7 +1953,7 @@ export default function ProjectDetail() {
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Chapters
+              {t('projectPage.chapters.title')}
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400">
               ({chapters.length})
@@ -1976,7 +1978,7 @@ export default function ProjectDetail() {
                 title="Generate a full novel outline with chapter summaries"
               >
                 <FileText className="w-4 h-4" />
-                {generatingOutline ? 'Generating...' : 'Generate Outline'}
+                {generatingOutline ? t('common.loading') : t('projectPage.chapters.generateOutline')}
               </button>
             )}
 
@@ -1989,7 +1991,7 @@ export default function ProjectDetail() {
                 title="Detect potential plot inconsistencies and holes"
               >
                 <RefreshCw className="w-4 h-4" />
-                {detectingPlotHoles ? 'Detecting...' : 'Detect Plot Holes'}
+                {detectingPlotHoles ? t('common.loading') : t('projectPage.chapters.detectPlotHoles')}
               </button>
             )}
 
@@ -2002,7 +2004,7 @@ export default function ProjectDetail() {
                 title="Check consistency of characters and locations across chapters"
               >
                 <Network className="w-4 h-4" />
-                {checkingConsistency ? 'Checking...' : 'Check Consistency'}
+                {checkingConsistency ? t('common.loading') : t('projectPage.chapters.checkConsistency')}
               </button>
             )}
 
@@ -2011,7 +2013,7 @@ export default function ProjectDetail() {
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Chapter
+              {t('projectPage.chapters.add')}
             </button>
           </div>
         </div>
@@ -2086,7 +2088,7 @@ export default function ProjectDetail() {
                 type="text"
                 value={newChapterTitle}
                 onChange={(e) => setNewChapterTitle(e.target.value)}
-                placeholder="Chapter title..."
+                placeholder={t('projectPage.chapters.titlePlaceholder')}
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={creating}
               />
@@ -2095,7 +2097,7 @@ export default function ProjectDetail() {
                 disabled={creating || !newChapterTitle.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                {creating ? 'Creating...' : 'Create'}
+                {creating ? t('common.loading') : t('common.create')}
               </button>
               <button
                 type="button"
@@ -2106,7 +2108,7 @@ export default function ProjectDetail() {
                 }}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -2145,8 +2147,8 @@ export default function ProjectDetail() {
           ) : chapters.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-              <p className="text-lg font-medium mb-1">No chapters yet</p>
-              <p className="text-sm">Create your first chapter to get started</p>
+              <p className="text-lg font-medium mb-1">{t('projectPage.chapters.noChapters')}</p>
+              <p className="text-sm">{t('projectPage.chapters.createFirst')}</p>
             </div>
           ) : (
             chapters.map((chapter, index) => (
@@ -2197,7 +2199,7 @@ export default function ProjectDetail() {
                         {chapter.status}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {chapter.word_count} words
+                        {chapter.word_count} {t('chapterEditor.wordCount')}
                       </span>
                     </div>
                   </div>
@@ -2238,7 +2240,7 @@ export default function ProjectDetail() {
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Sources
+              {t('projectPage.sources.title')}
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400">
               ({sources.length})
@@ -2252,7 +2254,7 @@ export default function ProjectDetail() {
                   onChange={(e) => setSelectedTagFilter(e.target.value)}
                   className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">All Tags</option>
+                  <option value="all">{t('sources.allTags')}</option>
                   {allTags.map(tag => (
                     <option key={tag} value={tag}>{tag}</option>
                   ))}
@@ -2266,14 +2268,14 @@ export default function ProjectDetail() {
               className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Globe className="w-4 h-4" />
-              Web Search
+              {t('projectPage.sources.webSearch')}
             </button>
             <button
               onClick={() => setShowBulkUpload(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Upload className="w-4 h-4" />
-              Upload Sources
+              {t('projectPage.sources.upload')}
             </button>
           </div>
         </div>
@@ -2320,8 +2322,8 @@ export default function ProjectDetail() {
           {sources.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-              <p className="text-lg font-medium mb-1">No sources yet</p>
-              <p className="text-sm">Upload reference materials to use in your project</p>
+              <p className="text-lg font-medium mb-1">{t('projectPage.sources.noSources')}</p>
+              <p className="text-sm">{t('projectPage.sources.uploadReference')}</p>
             </div>
           ) : (
             sources
@@ -2459,7 +2461,7 @@ export default function ProjectDetail() {
             <div className="flex items-center gap-2">
               <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Characters
+                {t('projectPage.characters.title')}
               </h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 ({characters.length})
@@ -2473,7 +2475,7 @@ export default function ProjectDetail() {
                   title="View character relationship map"
                 >
                   <Network className="w-4 h-4" />
-                  Relationship Map
+                  {t('relationships.title')}
                 </button>
               )}
               <button
@@ -2482,7 +2484,7 @@ export default function ProjectDetail() {
                 title="Upload a novel file to extract characters, locations, and plot events"
               >
                 <FileText className="w-4 h-4" />
-                Analyze Novel
+                {t('projectPage.characters.analyzeNovel')}
               </button>
               <button
                 onClick={() => {
@@ -2495,7 +2497,7 @@ export default function ProjectDetail() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Add Character
+                {t('projectPage.characters.add')}
               </button>
             </div>
           </div>
@@ -2504,21 +2506,21 @@ export default function ProjectDetail() {
           {showAddCharacter && (
             <form onSubmit={editingCharacter ? handleUpdateCharacter : handleCreateCharacter} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                {editingCharacter ? 'Edit Character' : 'Add New Character'}
+                {editingCharacter ? t('projectPage.characters.editTitle') : t('projectPage.characters.addTitle')}
               </h3>
               <div className="space-y-3">
                 <input
                   type="text"
                   value={characterForm.name}
                   onChange={(e) => setCharacterForm({ ...characterForm, name: e.target.value })}
-                  placeholder="Character name..."
+                  placeholder={t('projectPage.characters.namePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   disabled={creating}
                 />
                 <textarea
                   value={characterForm.description}
                   onChange={(e) => setCharacterForm({ ...characterForm, description: e.target.value })}
-                  placeholder="Physical description and appearance..."
+                  placeholder={t('projectPage.characters.descriptionPlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                   disabled={creating}
@@ -2526,7 +2528,7 @@ export default function ProjectDetail() {
                 <textarea
                   value={characterForm.traits}
                   onChange={(e) => setCharacterForm({ ...characterForm, traits: e.target.value })}
-                  placeholder="Personality traits (e.g., brave, cunning, kind)..."
+                  placeholder={t('projectPage.characters.traitsPlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                   disabled={creating}
@@ -2534,7 +2536,7 @@ export default function ProjectDetail() {
                 <textarea
                   value={characterForm.backstory}
                   onChange={(e) => setCharacterForm({ ...characterForm, backstory: e.target.value })}
-                  placeholder="Background and history..."
+                  placeholder={t('projectPage.characters.backstoryPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                   disabled={creating}
@@ -2543,7 +2545,7 @@ export default function ProjectDetail() {
                   type="text"
                   value={characterForm.role_in_story}
                   onChange={(e) => setCharacterForm({ ...characterForm, role_in_story: e.target.value })}
-                  placeholder="Role in story (e.g., protagonist, mentor, villain)..."
+                  placeholder={t('projectPage.characters.rolePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   disabled={creating}
                 />
@@ -2553,7 +2555,7 @@ export default function ProjectDetail() {
                     disabled={creating || !characterForm.name.trim()}
                     className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    {creating ? (editingCharacter ? 'Updating...' : 'Creating...') : (editingCharacter ? 'Update' : 'Create')}
+                    {creating ? t('common.loading') : t('common.create')}
                   </button>
                   <button
                     type="button"
@@ -2634,8 +2636,8 @@ export default function ProjectDetail() {
             {characters.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 <User className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-                <p className="text-lg font-medium mb-1">No characters yet</p>
-                <p className="text-sm">Create characters for your Romanziere project</p>
+                <p className="text-lg font-medium mb-1">{t('projectPage.characters.noCharacters')}</p>
+                <p className="text-sm">{t('projectPage.characters.createForProject')}</p>
               </div>
             ) : (
               characters.map((character) => (
@@ -2701,7 +2703,7 @@ export default function ProjectDetail() {
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Locations
+                {t('projectPage.locations.title')}
               </h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 ({locations.length})
@@ -2716,7 +2718,7 @@ export default function ProjectDetail() {
               className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Location
+              {t('projectPage.locations.add')}
             </button>
           </div>
 
@@ -2728,14 +2730,14 @@ export default function ProjectDetail() {
                   type="text"
                   value={locationForm.name}
                   onChange={(e) => setLocationForm({ ...locationForm, name: e.target.value })}
-                  placeholder="Location name..."
+                  placeholder={t('projectPage.locations.namePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   disabled={creating}
                 />
                 <textarea
                   value={locationForm.description}
                   onChange={(e) => setLocationForm({ ...locationForm, description: e.target.value })}
-                  placeholder="Physical description and environment..."
+                  placeholder={t('projectPage.locations.descriptionPlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                   disabled={creating}
@@ -2743,7 +2745,7 @@ export default function ProjectDetail() {
                 <textarea
                   value={locationForm.significance}
                   onChange={(e) => setLocationForm({ ...locationForm, significance: e.target.value })}
-                  placeholder="Significance in the story (plot importance, atmosphere, symbolic meaning)..."
+                  placeholder={t('projectPage.locations.significancePlaceholder')}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                   disabled={creating}
@@ -2754,7 +2756,7 @@ export default function ProjectDetail() {
                     disabled={creating || !locationForm.name.trim()}
                     className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    {creating ? (editingLocation ? 'Updating...' : 'Creating...') : (editingLocation ? 'Update' : 'Create')}
+                    {creating ? t('common.loading') : t('common.create')}
                   </button>
                   <button
                     type="button"
@@ -2766,7 +2768,7 @@ export default function ProjectDetail() {
                     }}
                     className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -2778,8 +2780,8 @@ export default function ProjectDetail() {
             {locations.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 <MapPin className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-                <p className="text-lg font-medium mb-1">No locations yet</p>
-                <p className="text-sm">Create locations for your Romanziere project</p>
+                <p className="text-lg font-medium mb-1">{t('projectPage.locations.noLocations')}</p>
+                <p className="text-sm">{t('projectPage.locations.createForProject')}</p>
               </div>
             ) : (
               locations.map((location) => (
@@ -2838,7 +2840,7 @@ export default function ProjectDetail() {
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Plot Events
+                {t('projectPage.plotEvents.title')}
               </h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 ({plotEvents.length})
@@ -2853,7 +2855,7 @@ export default function ProjectDetail() {
               className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Add Plot Event
+              {t('projectPage.plotEvents.add')}
             </button>
           </div>
 
@@ -2865,14 +2867,14 @@ export default function ProjectDetail() {
                   type="text"
                   value={plotEventForm.title}
                   onChange={(e) => setPlotEventForm({ ...plotEventForm, title: e.target.value })}
-                  placeholder="Plot event title..."
+                  placeholder={t('projectPage.plotEvents.titlePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={creating}
                 />
                 <textarea
                   value={plotEventForm.description}
                   onChange={(e) => setPlotEventForm({ ...plotEventForm, description: e.target.value })}
-                  placeholder="What happens in this plot event..."
+                  placeholder={t('projectPage.plotEvents.descriptionPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   disabled={creating}
@@ -2883,7 +2885,7 @@ export default function ProjectDetail() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={creating}
                 >
-                  <option value="">Link to chapter (optional)</option>
+                  <option value="">{t('projectPage.plotEvents.linkToChapter')}</option>
                   {chapters.map(chapter => (
                     <option key={chapter.id} value={chapter.id}>{chapter.title}</option>
                   ))}
@@ -2892,7 +2894,7 @@ export default function ProjectDetail() {
                   type="text"
                   value={plotEventForm.event_type}
                   onChange={(e) => setPlotEventForm({ ...plotEventForm, event_type: e.target.value })}
-                  placeholder="Event type (e.g., climax, twist, introduction)..."
+                  placeholder={t('projectPage.plotEvents.typePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={creating}
                 />
@@ -2902,7 +2904,7 @@ export default function ProjectDetail() {
                     disabled={creating || !plotEventForm.title.trim()}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    {creating ? (editingPlotEvent ? 'Updating...' : 'Creating...') : (editingPlotEvent ? 'Update' : 'Create')}
+                    {creating ? t('common.loading') : t('common.create')}
                   </button>
                   <button
                     type="button"
@@ -2914,7 +2916,7 @@ export default function ProjectDetail() {
                     }}
                     className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -2926,8 +2928,8 @@ export default function ProjectDetail() {
             {plotEvents.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
-                <p className="text-lg font-medium mb-1">No plot events yet</p>
-                <p className="text-sm">Create plot events to track your story timeline</p>
+                <p className="text-lg font-medium mb-1">{t('projectPage.plotEvents.noPlotEvents')}</p>
+                <p className="text-sm">{t('projectPage.plotEvents.createForProject')}</p>
               </div>
             ) : (
               plotEvents.map((plotEvent) => (

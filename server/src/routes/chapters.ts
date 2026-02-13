@@ -166,6 +166,10 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
       }
       updates.push('content = ?');
       values.push(content);
+      // Calculate and update word_count
+      const wordCount = content.trim() ? content.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+      updates.push('word_count = ?');
+      values.push(wordCount);
     }
     if (status !== undefined) {
       updates.push('status = ?');

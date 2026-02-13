@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
@@ -252,7 +253,8 @@ export default function HumanModelPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
+      <Breadcrumbs />
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">

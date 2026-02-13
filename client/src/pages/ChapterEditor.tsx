@@ -875,7 +875,14 @@ export default function ChapterEditor() {
 
   return (
     <div className={`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}>
-      {!isFullScreen && <Breadcrumbs />}
+      {!isFullScreen && (
+        <Breadcrumbs
+          labelOverrides={{
+            [projectId!]: project?.title,
+            [chapterId!]: chapter?.title
+          }}
+        />
+      )}
 
       {/* Editor Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface">
@@ -887,7 +894,7 @@ export default function ChapterEditor() {
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Project
+              {t('chapterEditor.backToProject')}
             </button>
 
             <div className="flex items-center gap-2">

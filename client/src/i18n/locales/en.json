@@ -214,6 +214,28 @@
         "createButton": "Create your first article"
       }
     },
+    "stats": {
+      "total": "Total projects",
+      "draft": "Drafts",
+      "inProgress": "In progress",
+      "completed": "Completed"
+    },
+    "areas": {
+      "title": "Your creative areas",
+      "projects": "projects",
+      "romanziere": {
+        "title": "Novelist",
+        "description": "Write complete novels chapter by chapter"
+      },
+      "saggista": {
+        "title": "Essayist",
+        "description": "Create in-depth essays with sources and citations"
+      },
+      "redattore": {
+        "title": "Editor",
+        "description": "Generate articles and SEO-optimized content"
+      }
+    },
     "onboarding": {
       "welcome": "Welcome to OmniWriter!",
       "subtitle": "Your professional AI writing platform. Choose an area to start your first project.",
@@ -274,6 +296,110 @@
     "duplicate": "Duplicate",
     "archive": "Archive",
     "confirmDelete": "Are you sure you want to delete this project?"
+  },
+  "projectPage": {
+    "status": "Status",
+    "edit": "Edit",
+    "duplicate": "Duplicate",
+    "export": "Export",
+    "delete": "Delete",
+    "noDescription": "No description",
+    "updating": "Updating...",
+    "duplicating": "Duplicating...",
+    "exporting": "Exporting...",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "archived": "Archived",
+    "archiveConfirm": "Archive \"{{title}}\"? It will be hidden from the main project list.",
+    "archiveSuccess": "Project archived",
+    "unarchiveSuccess": "Project unarchived",
+    "deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
+    "deleteSuccess": "Project deleted successfully",
+    "chapters": {
+      "title": "Chapters",
+      "noChapters": "No chapters yet",
+      "createFirst": "Create your first chapter to get started",
+      "add": "Add Chapter",
+      "titlePlaceholder": "Chapter title...",
+      "generateOutline": "Generate Outline",
+      "detectPlotHoles": "Detect Plot Holes",
+      "checkConsistency": "Check Consistency"
+    },
+    "sources": {
+      "title": "Sources",
+      "noSources": "No sources yet",
+      "uploadReference": "Upload reference materials to use in your project",
+      "webSearch": "Web Search",
+      "upload": "Upload Sources"
+    },
+    "characters": {
+      "title": "Characters",
+      "noCharacters": "No characters yet",
+      "createForProject": "Create characters for your project",
+      "add": "Add Character",
+      "analyzeNovel": "Analyze Novel",
+      "editTitle": "Edit Character",
+      "addTitle": "Add New Character",
+      "namePlaceholder": "Character name...",
+      "descriptionPlaceholder": "Physical description and appearance...",
+      "traitsPlaceholder": "Personality traits (e.g., brave, cunning, kind)...",
+      "backstoryPlaceholder": "Background and history...",
+      "rolePlaceholder": "Role in story (e.g., protagonist, mentor, villain)..."
+    },
+    "locations": {
+      "title": "Locations",
+      "noLocations": "No locations yet",
+      "createForProject": "Create locations for your project",
+      "add": "Add Location",
+      "namePlaceholder": "Location name...",
+      "descriptionPlaceholder": "Physical description and environment...",
+      "significancePlaceholder": "Significance in the story (plot importance, atmosphere, symbolic meaning)..."
+    },
+    "plotEvents": {
+      "title": "Plot Events",
+      "noPlotEvents": "No plot events yet",
+      "createForProject": "Create plot events to track your story timeline",
+      "add": "Add Plot Event",
+      "titlePlaceholder": "Plot event title...",
+      "descriptionPlaceholder": "What happens in this plot event...",
+      "typePlaceholder": "Event type (e.g., climax, twist, introduction)...",
+      "linkToChapter": "Link to chapter (optional)"
+    },
+    "statusLabels": {
+      "draft": "Draft",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "exportDialog": {
+      "title": "Export Project",
+      "description": "Choose a format to export your project. All chapters will be included.",
+      "plainText": "Plain Text (.txt)",
+      "plainTextDesc": "Simple text format compatible with all devices",
+      "wordDoc": "Word Document (.docx)",
+      "wordDocDesc": "Formatted document for Microsoft Word",
+      "ebook": "eBook (.epub)",
+      "ebookDesc": "ePub format for e-readers with cover & metadata (Premium)",
+      "cancel": "Cancel",
+      "export": "Export"
+    },
+    "epub": {
+      "title": "EPUB Metadata",
+      "description": "Add metadata and cover image for your eBook. This information will be embedded in the EPUB file.",
+      "coverImage": "Cover Image",
+      "coverImageDesc": "Click to upload or drag an image",
+      "coverImageHint": "PNG, JPG, WEBP up to 5MB",
+      "uploading": "Uploading...",
+      "author": "Author",
+      "authorPlaceholder": "Author name",
+      "publisher": "Publisher",
+      "publisherPlaceholder": "Publisher name",
+      "isbn": "ISBN (optional)",
+      "language": "Language",
+      "optionalFields": "All fields are optional. You can leave them blank if you don't have this information.",
+      "cancel": "Cancel",
+      "generate": "Generate EPUB"
+    }
   },
   "common": {
     "save": "Save",
@@ -419,6 +545,7 @@
     "close": "Close"
   },
   "chapterEditor": {
+    "backToProject": "Back to Project",
     "save": "Save",
     "autoSave": "Auto-save in",
     "seconds": "seconds",

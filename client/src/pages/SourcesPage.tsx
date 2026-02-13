@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiService, Source } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
+import Breadcrumbs from '../components/Breadcrumbs';
 import {
   FileText,
   Upload,
@@ -226,7 +227,8 @@ export default function SourcesPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="p-6">
+      <Breadcrumbs />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">

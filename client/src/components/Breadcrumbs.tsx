@@ -8,7 +8,12 @@ interface Breadcrumb {
   isDashboard?: boolean;
 }
 
-export default function Breadcrumbs() {
+interface BreadcrumbsProps {
+  /** Optional overrides for dynamic route labels (key: path segment, value: label) */
+  labelOverrides?: Record<string, string>;
+}
+
+export default function Breadcrumbs({ labelOverrides }: BreadcrumbsProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -50,12 +55,16 @@ export default function Breadcrumbs() {
         // Skip 'chapters' segment, handled by following UUID
       } else if (segment.match(/^[a-f0-9-]{36}$/)) {
         // UUID - could be project ID or chapter ID
-        if (pathSegments.includes('chapters')) {
-          // This is a chapter ID
-          crumbs.push({ label: t('breadcrumbs.chapter') }); // No path, it's current page
+        // Check if the PREVIOUS segment is 'chapters' to determine if this is a chapter ID
+        const prevSegment = pathSegments[index - 1];
+        if (prevSegment === 'chapters') {
+          // This is a chapter ID - use override if available
+          const chapterLabel = labelOverrides?.[segment] || t('breadcrumbs.chapter');
+          crumbs.push({ label: chapterLabel }); // No path, it's current page
         } else {
-          // This is a project ID
-          crumbs.push({ label: t('breadcrumbs.project'), path });
+          // This is a project ID - use override if available
+          const projectLabel = labelOverrides?.[segment] || t('breadcrumbs.project');
+          crumbs.push({ label: projectLabel, path });
         }
       } else if (segment === 'human-model') {
         crumbs.push({ label: t('breadcrumbs.humanModel'), path });
@@ -73,7 +82,7 @@ export default function Breadcrumbs() {
     });
 
     return crumbs;
-  }, [location.pathname, t]);
+  }, [location.pathname, t, labelOverrides]);
 
   // Don't show breadcrumbs on landing page or login/register
   if (location.pathname === '/' || location.pathname === '/login' || location.pathname === '/register') {
