@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
+import { apiService, HumanModel, HumanModelSource, CreateHumanModelData, Project, Chapter } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 import { useToastNotification } from '../components/Toast';
@@ -24,6 +24,12 @@ export default function HumanModelPage() {
   const [comparing, setComparing] = useState(false);
   const [testProjectId, setTestProjectId] = useState('');
   const [testChapterId, setTestChapterId] = useState('');
+
+  // Dropdown data for comparison test
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingChapters, setLoadingChapters] = useState(false);
 
   // Form state for creating a new model
   const [newModel, setNewModel] = useState<CreateHumanModelData>({
@@ -56,6 +62,49 @@ export default function HumanModelPage() {
   useEffect(() => {
     loadModels();
   }, []);
+
+  // Load projects when a model with 'ready' status is selected
+  useEffect(() => {
+    if (selectedModel?.training_status === 'ready') {
+      loadProjects();
+    }
+  }, [selectedModel?.id, selectedModel?.training_status]);
+
+  // Load chapters when project selection changes
+  useEffect(() => {
+    if (testProjectId) {
+      loadChapters(testProjectId);
+    } else {
+      setChapters([]);
+      setTestChapterId('');
+    }
+  }, [testProjectId]);
+
+  const loadProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await apiService.getProjects({ limit: 100 });
+      setProjects(response.projects);
+    } catch (err) {
+      console.error('Failed to load projects for comparison:', err);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const loadChapters = async (projectId: string) => {
+    try {
+      setLoadingChapters(true);
+      setChapters([]);
+      setTestChapterId('');
+      const response = await apiService.getProjectChapters(projectId);
+      setChapters(response.chapters);
+    } catch (err) {
+      console.error('Failed to load chapters for comparison:', err);
+    } finally {
+      setLoadingChapters(false);
+    }
+  };
 
   const loadModels = async () => {
     try {
@@ -231,7 +280,7 @@ export default function HumanModelPage() {
 
   const handleTestComparison = async () => {
     if (!selectedModel || !testProjectId || !testChapterId) {
-      toast.error('Please select a model and enter a project/chapter ID for testing');
+      toast.error(t('humanModel.selectModelAndChapter', 'Please select a model, project, and chapter for testing'));
       return;
     }
 
@@ -654,27 +703,81 @@ export default function HumanModelPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              {t('humanModel.testProjectId', 'Test Project ID')}
+                              {t('humanModel.testProject', 'Project')}
                             </label>
-                            <input
-                              type="text"
-                              value={testProjectId}
-                              onChange={e => setTestProjectId(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                              placeholder="uuid"
-                            />
+                            <div className="relative">
+                              <select
+                                value={testProjectId}
+                                onChange={e => setTestProjectId(e.target.value)}
+                                disabled={loadingProjects || projects.length === 0}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed appearance-none"
+                              >
+                                <option value="">
+                                  {loadingProjects
+                                    ? t('common.loading', 'Loading...')
+                                    : projects.length === 0
+                                    ? t('humanModel.noProjects', 'No projects available')
+                                    : t('humanModel.selectProject', 'Select a project...')}
+                                </option>
+                                {projects.map(project => (
+                                  <option key={project.id} value={project.id}>
+                                    {project.title} - {t(`areas.${project.area}`, project.area)}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {loadingProjects ? (
+                                  <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              {t('humanModel.testChapterId', 'Test Chapter ID')}
+                              {t('humanModel.testChapter', 'Chapter')}
                             </label>
-                            <input
-                              type="text"
-                              value={testChapterId}
-                              onChange={e => setTestChapterId(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                              placeholder="uuid"
-                            />
+                            <div className="relative">
+                              <select
+                                value={testChapterId}
+                                onChange={e => setTestChapterId(e.target.value)}
+                                disabled={!testProjectId || loadingChapters || chapters.length === 0}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed appearance-none"
+                              >
+                                <option value="">
+                                  {!testProjectId
+                                    ? t('humanModel.selectProjectFirst', 'Select a project first')
+                                    : loadingChapters
+                                    ? t('common.loading', 'Loading...')
+                                    : chapters.length === 0
+                                    ? t('humanModel.noChapters', 'No chapters available')
+                                    : t('humanModel.selectChapter', 'Select a chapter...')}
+                                </option>
+                                {chapters.map(chapter => (
+                                  <option key={chapter.id} value={chapter.id}>
+                                    {t('humanModel.chapterLabel', 'Cap.')} {chapter.order_index + 1}: {chapter.title}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {loadingChapters ? (
+                                  <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <button
