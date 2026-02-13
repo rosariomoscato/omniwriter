@@ -5,7 +5,7 @@ import fs from 'fs';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { HumanModel, CreateHumanModelInput } from '../models/HumanModel';
-import { analyzeWritingStyle, isAIAvailable } from '../services/ai-service';
+import { analyzeWritingStyle, isAIAvailable, hasUserProvider } from '../services/ai-service';
 
 const router = Router();
 
@@ -320,8 +320,19 @@ router.post('/:id/analyze', authenticateToken, async (req: AuthRequest, res: Res
       return;
     }
 
+    // Check if user has a configured provider or if env provider is available
+    const userHasProvider = userId ? hasUserProvider(userId) : false;
+    const envProviderAvailable = isAIAvailable();
+
     console.log('[HumanModels] Starting analysis for model:', modelId, 'language:', language);
-    console.log('[HumanModels] AI available:', isAIAvailable());
+    console.log('[HumanModels] User has provider:', userHasProvider, 'Env provider available:', envProviderAvailable);
+
+    if (!userHasProvider && !envProviderAvailable) {
+      res.status(400).json({
+        message: 'No AI provider configured. Please configure an AI provider in Settings or contact support.'
+      });
+      return;
+    }
 
     // Update status to analyzing
     db.prepare(
@@ -351,8 +362,8 @@ router.post('/:id/analyze', authenticateToken, async (req: AuthRequest, res: Res
         }
       }
 
-      // Analyze with AI service
-      const analysisResult = await analyzeWritingStyle(combinedText, language);
+      // Analyze with AI service - pass userId to use user's configured provider
+      const analysisResult = await analyzeWritingStyle(combinedText, language, userId);
 
       // Save analysis result
       db.prepare(
