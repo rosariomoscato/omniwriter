@@ -1,0 +1,49 @@
+# OmniWriter Progress Log
+
+## Session: 2025-02-13 - Feature #207 Complete
+
+### Completed Features: 207/207 (100%)
+
+### Feature #207: Add delete source file functionality in Human Model
+
+**Problem:** Users could not delete uploaded files in a Human Model profile. When a file didn't reach the required word count, users wanted to be able to delete it to upload another, but there was no option.
+
+**Implementation:**
+
+1. **Backend (server/src/routes/human-models.ts)**
+   - Added DELETE `/api/human-models/:id/sources/:sourceId` endpoint
+   - Verifies ownership of the human model
+   - Deletes the file from filesystem
+   - Removes source from database
+   - Updates `total_word_count` of the parent profile
+
+2. **API Service (client/src/services/api.ts)**
+   - Added `deleteHumanModelSource(id, sourceId)` method
+
+3. **Frontend (client/src/pages/HumanModelPage.tsx)**
+   - Added `handleDeleteSource` function with confirmation dialog
+   - Added trash icon button for each source file in the list
+   - Updates sources list and word count after deletion
+   - Shows toast notification on success/failure
+
+**Testing:**
+- API test passed: Upload → Delete → Verify word count = 0
+- Browser automation test passed:
+  - Login → Navigate to Human Model page
+  - Created test profile and uploaded source file
+  - Verified delete button visible in UI
+  - Clicked delete button → Confirmed dialog
+  - Verified source removed and word count updated to 0
+
+### Commit: 5f43396
+
+---
+
+## Session: 2025-02-13 - Feature #205 Complete (Previous)
+
+### Completed Features: 205/205 (100%)
+
+### Feature #205: Guida completa creazione romanzo
+- Created docs/guida-creazione-romanzo.md (comprehensive markdown documentation)
+- Renamed from GUIDA-CREAZIONE-ROMANZO.md to lowercase as specified
+- Expanded content to cover all 8 required phases
