@@ -587,6 +587,12 @@ class ApiService {
     return this.request<{ status: string; analysis: Record<string, unknown> }>(`/human-models/${id}/analysis`);
   }
 
+  async deleteHumanModelSource(id: string, sourceId: string): Promise<{ message: string; total_word_count: number }> {
+    return this.request<{ message: string; total_word_count: number }>(`/human-models/${id}/sources/${sourceId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Chapter endpoints
   async getProjectChapters(projectId: string): Promise<{ chapters: Chapter[] }> {
     return this.request<{ chapters: Chapter[] }>(`/projects/${projectId}/chapters`);

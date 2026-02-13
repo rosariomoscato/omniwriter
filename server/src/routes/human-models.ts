@@ -335,6 +335,59 @@ router.post('/:id/analyze', authenticateToken, (req: AuthRequest, res: Response)
   }
 });
 
+// DELETE /api/human-models/:id/sources/:sourceId - Delete a source file from a human model
+// @ts-expect-error - AuthRequest type compatibility with router
+router.delete('/:id/sources/:sourceId', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const modelId = req.params.id;
+    const sourceId = req.params.sourceId;
+
+    console.log('[HumanModels] Deleting source:', sourceId, 'from model:', modelId, 'for user:', userId);
+
+    // Check model ownership
+    const model = db.prepare('SELECT id, total_word_count FROM human_models WHERE id = ? AND user_id = ?').get(modelId, userId) as HumanModel | undefined;
+    if (!model) {
+      res.status(404).json({ message: 'Human model not found' });
+      return;
+    }
+
+    // Get source to retrieve file info
+    const source = db.prepare('SELECT * FROM human_model_sources WHERE id = ? AND human_model_id = ?').get(sourceId, modelId) as { file_path: string; word_count: number } | undefined;
+    if (!source) {
+      res.status(404).json({ message: 'Source not found' });
+      return;
+    }
+
+    // Delete file from filesystem
+    try {
+      if (fs.existsSync(source.file_path)) {
+        fs.unlinkSync(source.file_path);
+        console.log('[HumanModels] Deleted source file:', source.file_path);
+      }
+    } catch (err) {
+      console.warn('[HumanModels] Failed to delete file:', source.file_path, err);
+    }
+
+    // Delete source from database
+    db.prepare('DELETE FROM human_model_sources WHERE id = ? AND human_model_id = ?').run(sourceId, modelId);
+
+    // Update total word count
+    const newTotalWordCount = Math.max(0, model.total_word_count - source.word_count);
+    db.prepare(
+      "UPDATE human_models SET total_word_count = ?, updated_at = datetime('now') WHERE id = ?"
+    ).run(newTotalWordCount, modelId);
+
+    console.log('[HumanModels] Source deleted successfully:', sourceId, 'New word count:', newTotalWordCount);
+
+    res.json({ message: 'Source deleted successfully', total_word_count: newTotalWordCount });
+  } catch (error) {
+    console.error('[HumanModels] Delete source error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // GET /api/human-models/:id/analysis - Get analysis results
 // @ts-expect-error - AuthRequest type compatibility with router
 router.get('/:id/analysis', authenticateToken, (req: AuthRequest, res: Response) => {

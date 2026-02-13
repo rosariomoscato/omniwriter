@@ -239,6 +239,30 @@ export default function HumanModelPage() {
     }
   };
 
+  const handleDeleteSource = async (sourceId: string, sourceFileName: string) => {
+    if (!selectedModel) return;
+
+    if (!confirm(t('humanModel.confirmDeleteSource', `Are you sure you want to delete "${sourceFileName}"? This action cannot be undone.`))) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await apiService.deleteHumanModelSource(selectedModel.id, sourceId);
+      // Remove source from list
+      setSources(sources.filter(s => s.id !== sourceId));
+      // Update model word count
+      setSelectedModel({
+        ...selectedModel,
+        total_word_count: response.total_word_count,
+      });
+      toast.success(t('humanModel.sourceDeleted', 'Source deleted successfully'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete source');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete source');
+    }
+  };
+
   const handleFileRead = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -464,15 +488,26 @@ export default function HumanModelPage() {
                     <div className="space-y-2">
                       {sources.map(source => (
                         <div key={source.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{source.file_name}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-white truncate">{source.file_name}</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                               {source.word_count.toLocaleString()} {t('humanModel.words', 'words')}
                             </p>
                           </div>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(source.uploaded_at).toLocaleDateString()}
-                          </span>
+                          <div className="flex items-center gap-3 ml-4">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(source.uploaded_at).toLocaleDateString()}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteSource(source.id, source.file_name)}
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              title={t('humanModel.deleteSource', 'Delete source')}
+                            >
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
