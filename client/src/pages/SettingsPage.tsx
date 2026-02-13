@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService, AIModel } from '../services/api';
+import { apiService, LLMProvider, CreateLLMProviderData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
-import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Crown } from 'lucide-react';
+import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Plus, Eye, EyeOff, CheckCircle, XCircle, HelpCircle, Server, RefreshCw } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function SettingsPage() {
@@ -27,13 +27,34 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  // AI Model selection state (Feature #158)
-  const [aiModels, setAiModels] = useState<AIModel[]>([]);
+  // AI Model selection state (Feature #214 - Dynamic Model Selection)
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('');
+  const [dynamicModels, setDynamicModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isSavingModel, setIsSavingModel] = useState(false);
   const [modelError, setModelError] = useState('');
   const [modelSuccess, setModelSuccess] = useState('');
+  const [modelsLoadError, setModelsLoadError] = useState<string | null>(null);
+
+  // LLM Provider state (Feature #213)
+  const [llmProviders, setLlmProviders] = useState<LLMProvider[]>([]);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [showProviderDialog, setShowProviderDialog] = useState(false);
+  const [showProviderDeleteDialog, setShowProviderDeleteDialog] = useState(false);
+  const [providerToDelete, setProviderToDelete] = useState<LLMProvider | null>(null);
+  const [editingProvider, setEditingProvider] = useState<LLMProvider | null>(null);
+  const [providerForm, setProviderForm] = useState({
+    provider_type: 'openai' as CreateLLMProviderData['provider_type'],
+    display_name: '',
+    api_key: '',
+    api_base_url: '',
+    additional_config: ''
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isSavingProvider, setIsSavingProvider] = useState(false);
+  const [isDeletingProvider, setIsDeletingProvider] = useState(false);
+  const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
 
   // Password validation
   const [passwordValidations, setPasswordValidations] = useState({
@@ -64,29 +85,82 @@ export default function SettingsPage() {
 
   const isPasswordValid = Object.values(passwordValidations).every(Boolean);
 
-  // Load AI models and user preferences on mount
+  // Load LLM preferences on mount
   useEffect(() => {
-    const loadAISettings = async () => {
+    const loadLLMPreferences = async () => {
+      try {
+        // Load user's current LLM preferences
+        const prefsResponse = await apiService.getLLMPreferences();
+        if (prefsResponse.selected_provider_id) {
+          setSelectedProviderId(prefsResponse.selected_provider_id);
+        }
+        if (prefsResponse.selected_model_id) {
+          setSelectedModel(prefsResponse.selected_model_id);
+        }
+      } catch (error: any) {
+        console.error('Failed to load LLM preferences:', error);
+      }
+    };
+
+    loadLLMPreferences();
+  }, []);
+
+  // Load models when provider changes
+  useEffect(() => {
+    const loadModelsForProvider = async () => {
+      if (!selectedProviderId) {
+        setDynamicModels([]);
+        setSelectedModel('');
+        return;
+      }
+
       try {
         setIsLoadingModels(true);
-        // Load available models
-        const modelsResponse = await apiService.getAIModels();
-        setAiModels(modelsResponse.models);
+        setModelsLoadError(null);
+        const response = await apiService.getLLMProviderModels(selectedProviderId);
+        setDynamicModels(response.models || []);
 
-        // Load user's current preference
-        const prefsResponse = await apiService.getUserPreferences();
-        const currentModel = prefsResponse.preferences?.default_ai_model || '';
-        setSelectedModel(currentModel);
+        // If current model is not in the new list, clear it
+        if (selectedModel && !response.models?.includes(selectedModel)) {
+          setSelectedModel('');
+        }
       } catch (error: any) {
-        console.error('Failed to load AI settings:', error);
-        setModelError(t('settings.aiSettings.errorLoad'));
+        console.error('Failed to load models:', error);
+        setModelsLoadError(t('settings.modelSelection.modelsLoadError'));
+        setDynamicModels([]);
       } finally {
         setIsLoadingModels(false);
       }
     };
 
-    loadAISettings();
+    loadModelsForProvider();
+  }, [selectedProviderId]);
+
+  // Load LLM providers on mount
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        setIsLoadingProviders(true);
+        const response = await apiService.getLLMProviders();
+        setLlmProviders(response.providers || []);
+      } catch (error: any) {
+        console.error('Failed to load LLM providers:', error);
+        toast.error(t('settings.llmProviders.errors.loadFailed'));
+      } finally {
+        setIsLoadingProviders(false);
+      }
+    };
+
+    loadProviders();
   }, []);
+
+  const handleProviderChange = async (providerId: string) => {
+    setSelectedProviderId(providerId);
+    setSelectedModel('');
+    setModelError('');
+    setModelSuccess('');
+    setModelsLoadError(null);
+  };
 
   const handleModelChange = async (modelId: string) => {
     setSelectedModel(modelId);
@@ -99,26 +173,40 @@ export default function SettingsPage() {
       setIsSavingModel(true);
       setModelError('');
 
-      await apiService.updateUserPreferences({
-        default_ai_model: selectedModel
+      await apiService.updateLLMPreferences({
+        selected_provider_id: selectedProviderId || null,
+        selected_model_id: selectedModel
       });
 
-      setModelSuccess(t('settings.aiSettings.successMessage'));
-      toast.success(t('settings.aiSettings.successToast'));
+      setModelSuccess(t('settings.modelSelection.successMessage'));
+      toast.success(t('settings.modelSelection.successToast'));
 
       // Clear success message after 3 seconds
       setTimeout(() => setModelSuccess(''), 3000);
     } catch (error: any) {
-      console.error('Failed to save AI model:', error);
-      setModelError(error.message || t('settings.aiSettings.errorSave'));
-      toast.error(error.message || t('settings.aiSettings.errorSaveToast'));
+      console.error('Failed to save model preference:', error);
+      setModelError(error.message || t('settings.modelSelection.errorSave'));
+      toast.error(error.message || t('settings.modelSelection.errorSaveToast'));
     } finally {
       setIsSavingModel(false);
     }
   };
 
-  // Check if user is premium/lifetime/admin
-  const isPremiumUser = user?.role === 'premium' || user?.role === 'lifetime' || user?.role === 'admin';
+  const handleRefreshModels = async () => {
+    if (!selectedProviderId) return;
+
+    try {
+      setIsLoadingModels(true);
+      setModelsLoadError(null);
+      const response = await apiService.getLLMProviderModels(selectedProviderId);
+      setDynamicModels(response.models || []);
+    } catch (error: any) {
+      console.error('Failed to refresh models:', error);
+      setModelsLoadError(t('settings.modelSelection.modelsLoadError'));
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,6 +311,242 @@ export default function SettingsPage() {
 
   const navigateToProfile = () => {
     navigate('/profile');
+  };
+
+  // LLM Provider handlers
+  const openAddProviderDialog = () => {
+    setEditingProvider(null);
+    setProviderForm({
+      provider_type: 'openai',
+      display_name: '',
+      api_key: '',
+      api_base_url: '',
+      additional_config: ''
+    });
+    setShowApiKey(false);
+    setShowProviderDialog(true);
+  };
+
+  const openEditProviderDialog = (provider: LLMProvider) => {
+    setEditingProvider(provider);
+    setProviderForm({
+      provider_type: provider.provider_type,
+      display_name: provider.display_name,
+      api_key: '', // Don't show existing key
+      api_base_url: provider.api_base_url || '',
+      additional_config: provider.additional_config ? JSON.stringify(provider.additional_config, null, 2) : ''
+    });
+    setShowApiKey(false);
+    setShowProviderDialog(true);
+  };
+
+  const closeProviderDialog = () => {
+    setShowProviderDialog(false);
+    setEditingProvider(null);
+    setProviderForm({
+      provider_type: 'openai',
+      display_name: '',
+      api_key: '',
+      api_base_url: '',
+      additional_config: ''
+    });
+  };
+
+  const handleTestProvider = async (providerId: string) => {
+    setTestingProviderId(providerId);
+    try {
+      const result = await apiService.testLLMProvider(providerId);
+      if (result.success) {
+        toast.success(t('settings.llmProviders.testSuccess'));
+        // Update the provider status in local state
+        setLlmProviders(providers =>
+          providers.map(p => p.id === providerId
+            ? { ...p, connection_status: 'connected' as const, last_test_at: new Date().toISOString() }
+            : p
+          )
+        );
+      } else {
+        toast.error(result.message || t('settings.llmProviders.testFailed'));
+        setLlmProviders(providers =>
+          providers.map(p => p.id === providerId
+            ? { ...p, connection_status: 'failed' as const, last_test_at: new Date().toISOString() }
+            : p
+          )
+        );
+      }
+    } catch (error: any) {
+      toast.error(error.message || t('settings.llmProviders.testFailed'));
+      setLlmProviders(providers =>
+        providers.map(p => p.id === providerId
+          ? { ...p, connection_status: 'failed' as const }
+          : p
+        )
+      );
+    } finally {
+      setTestingProviderId(null);
+    }
+  };
+
+  const handleSaveProvider = async () => {
+    // Validation
+    if (!providerForm.display_name.trim()) {
+      toast.error(t('settings.llmProviders.dialog.displayNameRequired'));
+      return;
+    }
+    if (!editingProvider && !providerForm.api_key.trim()) {
+      toast.error(t('settings.llmProviders.dialog.apiKeyRequired'));
+      return;
+    }
+    if (providerForm.provider_type === 'custom' && !providerForm.api_base_url.trim()) {
+      toast.error(t('settings.llmProviders.dialog.baseUrlRequired'));
+      return;
+    }
+
+    // Validate JSON if provided
+    let additionalConfig = {};
+    if (providerForm.additional_config.trim()) {
+      try {
+        additionalConfig = JSON.parse(providerForm.additional_config);
+      } catch {
+        toast.error(t('settings.llmProviders.dialog.additionalConfigError'));
+        return;
+      }
+    }
+
+    try {
+      setIsSavingProvider(true);
+
+      const data: CreateLLMProviderData = {
+        provider_type: providerForm.provider_type,
+        display_name: providerForm.display_name.trim(),
+        api_key: providerForm.api_key,
+        api_base_url: providerForm.api_base_url || undefined,
+        additional_config: additionalConfig
+      };
+
+      if (editingProvider) {
+        // Update existing provider
+        const updateData: Partial<CreateLLMProviderData & { is_active?: boolean }> = {
+          display_name: data.display_name,
+          api_base_url: data.api_base_url
+        };
+        if (data.api_key) {
+          updateData.api_key = data.api_key;
+        }
+        if (Object.keys(additionalConfig).length > 0) {
+          updateData.additional_config = additionalConfig;
+        }
+        await apiService.updateLLMProvider(editingProvider.id, updateData);
+        toast.success(t('settings.llmProviders.dialog.updateSuccess'));
+        // Refresh providers
+        const response = await apiService.getLLMProviders();
+        setLlmProviders(response.providers || []);
+      } else {
+        // Create new provider
+        await apiService.createLLMProvider(data);
+        toast.success(t('settings.llmProviders.dialog.createSuccess'));
+        // Refresh providers
+        const response = await apiService.getLLMProviders();
+        setLlmProviders(response.providers || []);
+      }
+
+      closeProviderDialog();
+    } catch (error: any) {
+      console.error('Failed to save provider:', error);
+      toast.error(error.message || (editingProvider
+        ? t('settings.llmProviders.dialog.updateError')
+        : t('settings.llmProviders.dialog.createError')));
+    } finally {
+      setIsSavingProvider(false);
+    }
+  };
+
+  const openDeleteProviderDialog = (provider: LLMProvider) => {
+    setProviderToDelete(provider);
+    setShowProviderDeleteDialog(true);
+  };
+
+  const closeDeleteProviderDialog = () => {
+    setShowProviderDeleteDialog(false);
+    setProviderToDelete(null);
+  };
+
+  const handleDeleteProvider = async () => {
+    if (!providerToDelete) return;
+
+    try {
+      setIsDeletingProvider(true);
+      await apiService.deleteLLMProvider(providerToDelete.id);
+      toast.success(t('settings.llmProviders.deleteDialog.success'));
+      setLlmProviders(providers => providers.filter(p => p.id !== providerToDelete.id));
+      closeDeleteProviderDialog();
+    } catch (error: any) {
+      console.error('Failed to delete provider:', error);
+      if (error.message?.includes('active provider')) {
+        toast.error(t('settings.llmProviders.errors.deleteActive'));
+      } else {
+        toast.error(error.message || t('settings.llmProviders.deleteDialog.error'));
+      }
+    } finally {
+      setIsDeletingProvider(false);
+    }
+  };
+
+  const handleSetActiveProvider = async (provider: LLMProvider) => {
+    try {
+      await apiService.updateLLMPreferences({
+        selected_provider_id: provider.id,
+        selected_model_id: ''
+      });
+      toast.success(t('settings.llmProviders.setAsActive'));
+      // Update local state to reflect active provider
+      setLlmProviders(providers =>
+        providers.map(p => ({
+          ...p,
+          is_active: p.id === provider.id ? 1 : 0
+        }))
+      );
+    } catch (error: any) {
+      console.error('Failed to set active provider:', error);
+      toast.error(error.message || t('common.error'));
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle className="w-3 h-3" />
+            {t('settings.llmProviders.status.connected')}
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <XCircle className="w-3 h-3" />
+            {t('settings.llmProviders.status.failed')}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+            <HelpCircle className="w-3 h-3" />
+            {t('settings.llmProviders.status.not_tested')}
+          </span>
+        );
+    }
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return t('settings.llmProviders.never');
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -415,19 +739,17 @@ export default function SettingsPage() {
             </form>
           </div>
 
-          {/* AI Model Selection (Feature #158) */}
+          {/* Model Selection (Feature #214 - Dynamic) */}
           <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mt-6">
             <div className="flex items-center gap-3 mb-6">
               <Cpu className="w-6 h-6 text-gray-600 dark:text-gray-400" />
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  {t('settings.aiSettings.title')}
+                  {t('settings.modelSelection.title')}
                 </h2>
-                {!isPremiumUser && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                    {t('settings.aiSettings.premiumFeature')}
-                  </p>
-                )}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                  {t('settings.modelSelection.description')}
+                </p>
               </div>
             </div>
 
@@ -445,123 +767,430 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {isLoadingModels ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-spin" />
-                <span className="ml-3 text-gray-600 dark:text-gray-400">{t('settings.aiSettings.loadingModels')}</span>
+            {/* No providers warning */}
+            {llmProviders.length === 0 ? (
+              <div className="text-center py-6">
+                <Server className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 dark:text-gray-400 font-medium">{t('settings.modelSelection.noProviders')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 mb-4">
+                  {t('settings.modelSelection.noProvidersDesc')}
+                </p>
+                <button
+                  onClick={() => {
+                    const section = document.getElementById('llm-providers-section');
+                    if (section) section.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  {t('settings.modelSelection.goToProviders')}
+                </button>
               </div>
             ) : (
               <>
-                <div className="mb-4">
+                {/* Provider Selection */}
+                <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('settings.aiSettings.defaultModel')}
+                    {t('settings.modelSelection.selectProvider')}
                   </label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    {t('settings.aiSettings.description')}
-                  </p>
-
-                  {/* Model Selection */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {aiModels.map((model) => {
-                      const isPremiumModel = model.tier === 'premium';
-                      const isDisabled = !isPremiumUser && isPremiumModel;
-
-                      return (
-                        <div
-                          key={model.id}
-                          className={`relative p-4 rounded-lg border-2 transition-all ${
-                            selectedModel === model.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                          } ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                          onClick={() => !isDisabled && handleModelChange(model.id)}
-                        >
-                          {/* Premium Badge */}
-                          {isPremiumModel && (
-                            <div className="absolute top-2 right-2">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white">
-                                <Crown className="w-3 h-3" />
-                                {t('settings.aiSettings.premiumBadge')}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Model Header */}
-                          <div className="flex items-start gap-3 mb-2">
-                            <div className="flex-1">
-                              <h4 className={`font-semibold text-gray-900 dark:text-gray-100 mb-1 ${
-                                isDisabled ? 'text-gray-500' : ''
-                              }`}>
-                                {model.name}
-                              </h4>
-                              <p className={`text-xs text-gray-600 dark:text-gray-400 ${
-                                isDisabled ? 'text-gray-500' : ''
-                              }`}>
-                                {model.provider}
-                              </p>
-                            </div>
-                            {selectedModel === model.id && (
-                              <div className="flex-shrink-0">
-                                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Model Description */}
-                          <p className={`text-sm text-gray-700 dark:text-gray-300 mb-3 ${
-                            isDisabled ? 'text-gray-500' : ''
-                          }`}>
-                            {model.description}
-                          </p>
-
-                          {/* Model Features */}
-                          <div className="flex flex-wrap gap-1.5">
-                            {model.features.map((feature) => (
-                              <span
-                                key={feature}
-                                className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${
-                                  isDisabled
-                                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-500'
-                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                }`}
-                              >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <select
+                    value={selectedProviderId}
+                    onChange={(e) => handleProviderChange(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">{t('settings.modelSelection.selectProviderPlaceholder')}</option>
+                    {llmProviders.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.display_name} ({t(`settings.llmProviders.providerTypes.${provider.provider_type}`)})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Save Button */}
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {!isPremiumUser && (
-                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                        <Crown className="w-4 h-4" />
-                        {t('settings.aiSettings.upgradeText')}
-                      </span>
+                {/* Model Selection */}
+                {selectedProviderId && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {t('settings.modelSelection.selectModel')}
+                      </label>
+                      <button
+                        onClick={handleRefreshModels}
+                        disabled={isLoadingModels}
+                        className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isLoadingModels ? 'animate-spin' : ''}`} />
+                        {t('settings.modelSelection.refreshModels')}
+                      </button>
+                    </div>
+
+                    {isLoadingModels ? (
+                      <div className="flex items-center justify-center py-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">{t('settings.modelSelection.loadingModels')}</span>
+                      </div>
+                    ) : modelsLoadError ? (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <p className="text-red-700 dark:text-red-300 text-sm">{modelsLoadError}</p>
+                        <button
+                          onClick={handleRefreshModels}
+                          className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
+                        >
+                          {t('settings.modelSelection.retryLoad')}
+                        </button>
+                      </div>
+                    ) : dynamicModels.length === 0 ? (
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">{t('settings.modelSelection.noModels')}</p>
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => handleModelChange(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="">{t('settings.modelSelection.selectModelPlaceholder')}</option>
+                        {dynamicModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
                     )}
-                  </p>
+                  </div>
+                )}
+
+                {/* Save Button */}
+                <div className="flex justify-end">
                   <button
                     onClick={handleSaveModel}
-                    disabled={isSavingModel || !selectedModel}
+                    disabled={isSavingModel || !selectedProviderId || !selectedModel}
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {isSavingModel ? t('settings.aiSettings.saving') : t('settings.aiSettings.savePreference')}
+                    {isSavingModel ? t('settings.modelSelection.saving') : t('settings.modelSelection.savePreference')}
                   </button>
                 </div>
               </>
             )}
           </div>
+
+          {/* LLM Providers Section (Feature #213) */}
+          <div id="llm-providers-section" className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Server className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    {t('settings.llmProviders.title')}
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                    {t('settings.llmProviders.description')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={openAddProviderDialog}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                {t('settings.llmProviders.addProvider')}
+              </button>
+            </div>
+
+            {isLoadingProviders ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-spin" />
+                <span className="ml-3 text-gray-600 dark:text-gray-400">{t('common.loading')}</span>
+              </div>
+            ) : llmProviders.length === 0 ? (
+              <div className="text-center py-8">
+                <Server className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 dark:text-gray-400 font-medium">{t('settings.llmProviders.noProviders')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{t('settings.llmProviders.noProvidersDesc')}</p>
+                <button
+                  onClick={openAddProviderDialog}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  {t('settings.llmProviders.addProvider')}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {llmProviders.map((provider) => (
+                  <div
+                    key={provider.id}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      provider.is_active
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                              {provider.display_name}
+                            </h4>
+                            {getStatusBadge(provider.connection_status)}
+                            {provider.is_active === 1 && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                {t('settings.llmProviders.activeProvider')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {t(`settings.llmProviders.providerTypes.${provider.provider_type}`)}
+                            {provider.api_base_url && (
+                              <span className="ml-2 text-gray-500 dark:text-gray-500">
+                                ({provider.api_base_url})
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            {t('settings.llmProviders.lastTested')}: {formatDate(provider.last_test_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTestProvider(provider.id)}
+                          disabled={testingProviderId === provider.id}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          title={t('settings.llmProviders.testConnection')}
+                        >
+                          {testingProviderId === provider.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>{t('settings.llmProviders.status.testing')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4" />
+                              <span className="hidden sm:inline">{t('settings.llmProviders.testConnection')}</span>
+                            </>
+                          )}
+                        </button>
+                        {provider.is_active !== 1 && (
+                          <button
+                            onClick={() => handleSetActiveProvider(provider)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm border border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">{t('settings.llmProviders.setAsActive')}</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openEditProviderDialog(provider)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          {t('settings.llmProviders.edit')}
+                        </button>
+                        <button
+                          onClick={() => openDeleteProviderDialog(provider)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          {t('settings.llmProviders.delete')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Add/Edit Provider Dialog */}
+      {showProviderDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              {editingProvider
+                ? t('settings.llmProviders.dialog.editTitle')
+                : t('settings.llmProviders.dialog.addTitle')}
+            </h3>
+
+            <div className="space-y-4">
+              {/* Provider Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('settings.llmProviders.dialog.providerType')}
+                </label>
+                <select
+                  value={providerForm.provider_type}
+                  onChange={(e) => setProviderForm({ ...providerForm, provider_type: e.target.value as CreateLLMProviderData['provider_type'] })}
+                  disabled={!!editingProvider}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                >
+                  <option value="">{t('settings.llmProviders.dialog.selectProviderType')}</option>
+                  <option value="openai">{t('settings.llmProviders.providerTypes.openai')}</option>
+                  <option value="anthropic">{t('settings.llmProviders.providerTypes.anthropic')}</option>
+                  <option value="google_gemini">{t('settings.llmProviders.providerTypes.google_gemini')}</option>
+                  <option value="open_router">{t('settings.llmProviders.providerTypes.open_router')}</option>
+                  <option value="requesty">{t('settings.llmProviders.providerTypes.requesty')}</option>
+                  <option value="custom">{t('settings.llmProviders.providerTypes.custom')}</option>
+                </select>
+              </div>
+
+              {/* Display Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('settings.llmProviders.dialog.displayName')} *
+                </label>
+                <input
+                  type="text"
+                  value={providerForm.display_name}
+                  onChange={(e) => setProviderForm({ ...providerForm, display_name: e.target.value })}
+                  placeholder={t('settings.llmProviders.dialog.displayNamePlaceholder')}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* API Key */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('settings.llmProviders.dialog.apiKey')} {!editingProvider && '*'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={providerForm.api_key}
+                    onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
+                    placeholder={t('settings.llmProviders.dialog.apiKeyPlaceholder')}
+                    className="w-full px-4 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {editingProvider && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t('settings.llmProviders.dialog.apiKeyRequired')}
+                  </p>
+                )}
+              </div>
+
+              {/* Base URL - for custom providers */}
+              {providerForm.provider_type === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('settings.llmProviders.dialog.baseUrl')} *
+                  </label>
+                  <input
+                    type="url"
+                    value={providerForm.api_base_url}
+                    onChange={(e) => setProviderForm({ ...providerForm, api_base_url: e.target.value })}
+                    placeholder={t('settings.llmProviders.dialog.baseUrlPlaceholder')}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t('settings.llmProviders.dialog.baseUrlHint')}
+                  </p>
+                </div>
+              )}
+
+              {/* Additional Config */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('settings.llmProviders.dialog.additionalConfig')}
+                </label>
+                <textarea
+                  value={providerForm.additional_config}
+                  onChange={(e) => setProviderForm({ ...providerForm, additional_config: e.target.value })}
+                  placeholder={t('settings.llmProviders.dialog.additionalConfigPlaceholder')}
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closeProviderDialog}
+                disabled={isSavingProvider}
+                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                {t('settings.llmProviders.dialog.cancel')}
+              </button>
+              <button
+                onClick={handleSaveProvider}
+                disabled={isSavingProvider}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSavingProvider ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {t('settings.llmProviders.dialog.saving')}
+                  </>
+                ) : (
+                  t('settings.llmProviders.dialog.save')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Provider Dialog */}
+      {showProviderDeleteDialog && providerToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  {t('settings.llmProviders.deleteDialog.title')}
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-2">
+                {t('settings.llmProviders.deleteDialog.warning')}
+              </p>
+              <p className="font-medium text-gray-900 dark:text-gray-100">
+                {providerToDelete.display_name}
+              </p>
+              {providerToDelete.is_active === 1 && (
+                <p className="text-amber-600 dark:text-amber-400 text-sm mt-2">
+                  {t('settings.llmProviders.deleteDialog.activeWarning')}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={closeDeleteProviderDialog}
+                disabled={isDeletingProvider}
+                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                {t('settings.llmProviders.deleteDialog.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteProvider}
+                disabled={isDeletingProvider}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingProvider ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {t('settings.llmProviders.deleteDialog.deleting')}
+                  </>
+                ) : (
+                  t('settings.llmProviders.deleteDialog.delete')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Account Confirmation Dialog */}
       {showDeleteDialog && (

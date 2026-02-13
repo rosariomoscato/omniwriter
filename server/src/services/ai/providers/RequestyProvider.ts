@@ -1,8 +1,10 @@
 /**
  * Requesty Provider Implementation
- * Requesty is an LLM API aggregator that uses Anthropic-compatible API
- * Base URL: https://router.requesty.ai
- * Uses x-api-key header and /v1/messages endpoint (Anthropic-style)
+ * Requesty is an LLM API aggregator that uses OpenAI-compatible API
+ * Base URL: https://router.requesty.ai/v1
+ * Uses Authorization: Bearer header and /chat/completions endpoint (OpenAI-style)
+ *
+ * Reference: https://docs.requesty.ai/quickstart
  */
 
 import { BaseProvider } from '../BaseProvider';
@@ -18,33 +20,24 @@ import {
   TokenUsage
 } from '../types';
 
-// Requesty uses Anthropic-compatible response format
+// Requesty uses OpenAI-compatible response format
 interface RequestyResponse {
   id: string;
-  type: 'message';
-  role: 'assistant';
-  content: Array<{
-    type: 'text';
-    text: string;
+  choices: Array<{
+    message?: {
+      role: string;
+      content: string;
+    };
+    delta?: {
+      content?: string;
+    };
+    finish_reason: string | null;
   }>;
   model: string;
-  stop_reason: string | null;
-  usage: {
-    input_tokens: number;
-    output_tokens: number;
-  };
-}
-
-interface RequestyStreamEvent {
-  type: string;
-  message?: RequestyResponse;
-  delta?: {
-    type: string;
-    text?: string;
-  };
   usage?: {
-    input_tokens: number;
-    output_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
   };
 }
 
@@ -53,7 +46,6 @@ export class RequestyProvider extends BaseProvider {
   // Default model uses exact Requesty model ID format: provider/model-id
   // See: https://docs.requesty.ai/api-reference/endpoint/messages-create
   private static readonly DEFAULT_MODEL = 'anthropic/claude-sonnet-4-20250514';
-  private static readonly API_VERSION = '2023-06-01';
 
   // Known models available through Requesty router
   // Model IDs must follow Requesty format: provider/exact-model-id
@@ -129,14 +121,15 @@ export class RequestyProvider extends BaseProvider {
   }
 
   protected getDefaultBaseUrl(): string {
-    return 'https://router.requesty.ai';
+    // OpenAI-compatible mode: base URL includes /v1
+    return 'https://router.requesty.ai/v1';
   }
 
   protected getHeaders(): Record<string, string> {
+    // OpenAI-compatible mode: uses Authorization: Bearer
     return {
       'Content-Type': 'application/json',
-      'x-api-key': this.config.apiKey,
-      'anthropic-version': RequestyProvider.API_VERSION
+      'Authorization': `Bearer ${this.config.apiKey}`
     };
   }
 
@@ -188,7 +181,8 @@ export class RequestyProvider extends BaseProvider {
     return this.withRetry(async () => {
       const body = this.buildRequestBody(messages, { ...options, stream: false });
 
-      const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
+      // OpenAI-compatible endpoint
+      const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(body)
@@ -220,7 +214,8 @@ export class RequestyProvider extends BaseProvider {
 
     while (true) {
       try {
-        const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
+        // OpenAI-compatible endpoint
+        const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
           method: 'POST',
           headers: {
             ...this.getHeaders(),
@@ -278,33 +273,26 @@ export class RequestyProvider extends BaseProvider {
 
             const data = trimmed.slice(6);
 
+            if (data === '[DONE]') {
+              yield { type: 'done', content: totalContent, usage };
+              return;
+            }
+
             try {
-              const event = JSON.parse(data) as RequestyStreamEvent;
+              const parsed = JSON.parse(data) as RequestyResponse;
+              const delta = parsed.choices[0]?.delta?.content;
 
-              if (event.type === 'content_block_delta' && event.delta?.text) {
-                totalContent += event.delta.text;
-                yield { type: 'delta', content: event.delta.text };
+              if (delta) {
+                totalContent += delta;
+                yield { type: 'delta', content: delta };
               }
 
-              if (event.type === 'message_delta' && event.usage) {
+              if (parsed.usage) {
                 usage = {
-                  promptTokens: event.usage.input_tokens,
-                  completionTokens: event.usage.output_tokens,
-                  totalTokens: event.usage.input_tokens + event.usage.output_tokens
+                  promptTokens: parsed.usage.prompt_tokens,
+                  completionTokens: parsed.usage.completion_tokens,
+                  totalTokens: parsed.usage.total_tokens
                 };
-              }
-
-              if (event.type === 'message_start' && event.message?.usage) {
-                usage = {
-                  promptTokens: event.message.usage.input_tokens,
-                  completionTokens: event.message.usage.output_tokens,
-                  totalTokens: event.message.usage.input_tokens + event.message.usage.output_tokens
-                };
-              }
-
-              if (event.type === 'message_stop') {
-                yield { type: 'done', content: totalContent, usage };
-                return;
               }
             } catch {
               // Skip malformed JSON chunks
@@ -342,8 +330,8 @@ export class RequestyProvider extends BaseProvider {
 
   async testConnection(): Promise<ProviderStatus> {
     try {
-      // Requesty doesn't have a dedicated models endpoint, so we test with a minimal message
-      const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
+      // Test with a minimal chat completion request (OpenAI-compatible)
+      const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -381,29 +369,16 @@ export class RequestyProvider extends BaseProvider {
   ): Record<string, unknown> {
     const model = options?.model || this.getDefaultModel();
 
-    // Extract system message from messages array (Anthropic-style)
-    let systemPrompt: string | undefined;
-    const chatMessages = messages.filter(m => {
-      if (m.role === 'system') {
-        systemPrompt = m.content;
-        return false;
-      }
-      return true;
-    });
-
+    // OpenAI-compatible request body (no system extraction - keeps system in messages array)
     const body: Record<string, unknown> = {
       model,
-      messages: chatMessages.map(m => ({
+      messages: messages.map(m => ({
         role: m.role,
         content: m.content
       })),
       max_tokens: options?.maxTokens || 4096,
       stream: options?.stream || false
     };
-
-    if (systemPrompt) {
-      body.system = systemPrompt;
-    }
 
     if (options?.temperature !== undefined) {
       body.temperature = options.temperature;
@@ -412,7 +387,7 @@ export class RequestyProvider extends BaseProvider {
       body.top_p = options.topP;
     }
     if (options?.stopSequences && options.stopSequences.length > 0) {
-      body.stop_sequences = options.stopSequences;
+      body.stop = options.stopSequences;
     }
 
     return body;
@@ -420,24 +395,23 @@ export class RequestyProvider extends BaseProvider {
 
   protected parseResponse(response: unknown): CompletionResponse {
     const data = response as RequestyResponse;
+    const choice = data.choices[0];
 
-    // Extract text from content blocks (Anthropic-style)
-    const content = data.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('');
+    if (!choice) {
+      throw new AIError('invalid_request_error', 'No choices in response', this.providerType);
+    }
 
     const result: CompletionResponse = {
-      content,
+      content: choice.message?.content || '',
       model: data.model,
-      finishReason: data.stop_reason || undefined
+      finishReason: choice.finish_reason || undefined
     };
 
     if (data.usage) {
       result.usage = {
-        promptTokens: data.usage.input_tokens,
-        completionTokens: data.usage.output_tokens,
-        totalTokens: data.usage.input_tokens + data.usage.output_tokens
+        promptTokens: data.usage.prompt_tokens,
+        completionTokens: data.usage.completion_tokens,
+        totalTokens: data.usage.total_tokens
       };
     }
 

@@ -1367,6 +1367,10 @@ class ApiService {
     return this.request<{ models: string[]; count: number }>(`/llm-providers/${id}/models`);
   }
 
+  async getLLMPreferences(): Promise<{ selected_provider_id: string | null; selected_model_id: string }> {
+    return this.request<{ selected_provider_id: string | null; selected_model_id: string }>('/llm-providers/preferences/llm');
+  }
+
   async updateLLMPreferences(data: { selected_provider_id?: string | null; selected_model_id?: string }): Promise<{ message: string; selected_provider_id?: string; selected_model_id?: string }> {
     return this.request<{ message: string; selected_provider_id?: string; selected_model_id?: string }>('/llm-providers/preferences/llm', {
       method: 'PUT',

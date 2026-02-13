@@ -260,18 +260,18 @@ describe('Requesty Provider', () => {
     expect(provider.isConfigured()).toBe(true);
   });
 
-  it('should return correct default base URL (Requesty router)', () => {
-    expect((provider as any).getDefaultBaseUrl()).toBe('https://router.requesty.ai');
+  it('should return correct default base URL (OpenAI-compatible mode)', () => {
+    // OpenAI-compatible mode: base URL includes /v1
+    expect((provider as any).getDefaultBaseUrl()).toBe('https://router.requesty.ai/v1');
   });
 
-  it('should use x-api-key header (Anthropic-style)', () => {
+  it('should use Authorization: Bearer header (OpenAI-compatible)', () => {
     const headers = (provider as any).getHeaders();
-    expect(headers['x-api-key']).toBe(TEST_API_KEY);
-    expect(headers['anthropic-version']).toBeDefined();
-    expect(headers['Authorization']).toBeUndefined();
+    expect(headers['Authorization']).toBe(`Bearer ${TEST_API_KEY}`);
+    expect(headers['x-api-key']).toBeUndefined();
   });
 
-  it('should extract system message from messages array (Anthropic-style)', () => {
+  it('should keep system message in messages array (OpenAI-style)', () => {
     const messages: ChatMessage[] = [
       { role: 'system', content: 'System prompt' },
       { role: 'user', content: 'Hello!' }
@@ -279,9 +279,11 @@ describe('Requesty Provider', () => {
 
     const body = (provider as any).buildRequestBody(messages, {});
 
-    expect(body.system).toBe('System prompt');
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0].role).toBe('user');
+    // OpenAI-style: system message stays in messages array
+    expect(body.system).toBeUndefined();
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[0].content).toBe('System prompt');
   });
 
   it('should return correct default model', () => {
@@ -299,19 +301,19 @@ describe('Requesty Provider', () => {
     expect(models.some(m => m.id === 'openai/gpt-4o')).toBe(true);
   });
 
-  it('should parse Anthropic-style response correctly', () => {
+  it('should parse OpenAI-style response correctly', () => {
+    // OpenAI-compatible response format
     const mockResponse = {
-      id: 'msg-123',
-      type: 'message',
-      role: 'assistant',
-      content: [
-        { type: 'text', text: 'Hello from Requesty!' }
-      ],
+      id: 'chatcmpl-123',
+      choices: [{
+        message: { role: 'assistant', content: 'Hello from Requesty!' },
+        finish_reason: 'stop'
+      }],
       model: 'anthropic/claude-sonnet-4-20250514',
-      stop_reason: 'end_turn',
       usage: {
-        input_tokens: 20,
-        output_tokens: 10
+        prompt_tokens: 20,
+        completion_tokens: 10,
+        total_tokens: 30
       }
     };
 
@@ -319,7 +321,7 @@ describe('Requesty Provider', () => {
 
     expect(result.content).toBe('Hello from Requesty!');
     expect(result.model).toBe('anthropic/claude-sonnet-4-20250514');
-    expect(result.finishReason).toBe('end_turn');
+    expect(result.finishReason).toBe('stop');
     expect(result.usage?.promptTokens).toBe(20);
     expect(result.usage?.completionTokens).toBe(10);
     expect(result.usage?.totalTokens).toBe(30);

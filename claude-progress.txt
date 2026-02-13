@@ -1,5 +1,68 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #218 Complete
+
+### Completed Features: 218/218 (100%)
+
+### Feature #218: Fix Requesty API endpoint and authentication
+
+**Problem:** The Requesty connection test was returning HTTP 404 because the RequestyProvider was configured incorrectly.
+
+**Root Cause Analysis:**
+The code was using a hybrid configuration that didn't match either documented API mode:
+- Base URL: `https://router.requesty.ai` (Anthropic-style base)
+- Endpoint: `/v1/messages` (Anthropic-style)
+- This created URL: `https://router.requesty.ai/v1/messages`
+- But the OpenAI SDK compatible endpoint should be: `https://router.requesty.ai/v1/chat/completions`
+
+**Solution: Switch to OpenAI SDK Compatible Mode**
+
+Changed RequestyProvider to match OpenRouterProvider (OpenAI-compatible):
+
+| Aspect | Old (Wrong) | New (Correct) |
+|--------|-------------|---------------|
+| Base URL | https://router.requesty.ai | https://router.requesty.ai/v1 |
+| Auth Header | x-api-key | Authorization: Bearer |
+| Extra Header | anthropic-version | (removed) |
+| Endpoint | /v1/messages | /chat/completions |
+| System Prompt | Extracted to `system` field | Kept in messages array |
+| Response Format | content[].text | choices[].message.content |
+| Usage Format | input_tokens/output_tokens | prompt_tokens/completion_tokens |
+| Stop Param | stop_sequences | stop |
+
+**Implementation:**
+
+1. **RequestyProvider.ts - Complete Rewrite:**
+   - Changed `getDefaultBaseUrl()` to return `'https://router.requesty.ai/v1'`
+   - Changed `getHeaders()` to use `Authorization: Bearer` (removed x-api-key, anthropic-version)
+   - Changed `buildRequestBody()` to OpenAI format (keep system in messages, use `stop` instead of `stop_sequences`)
+   - Changed `parseResponse()` to OpenAI format (extract from choices[].message)
+   - Changed streaming to handle `[DONE]` marker and OpenAI delta format
+   - Updated `testConnection()` to POST to `/chat/completions`
+   - Removed Anthropic-specific interfaces, now uses OpenAI-compatible `RequestyResponse`
+
+2. **Tests Updated (providers.test.ts):**
+   - Changed base URL test to expect `'https://router.requesty.ai/v1'`
+   - Changed header test to expect `Authorization: Bearer` (not x-api-key)
+   - Changed request body test to expect system in messages array
+   - Changed response parsing test to use OpenAI choices format
+
+3. **Test Scripts:**
+   - `scripts/test-requesty-provider-openai.ts`: 21 tests verifying OpenAI-compatible config
+   - `scripts/test-requesty-endpoint.ts`: Live API test confirming correct endpoint
+
+**Verification:**
+- All 21 unit tests pass
+- Live endpoint test returns 403 (auth failed) not 404 (not found)
+- Requesty provider can be added via UI
+- Connection test uses correct OpenAI-compatible endpoint
+
+**Reference:** https://docs.requesty.ai/quickstart
+
+### Commit: (pending)
+
+---
+
 ## Session: 2025-02-13 - Feature #217 Complete
 
 ### Completed Features: 217/217 (100%)

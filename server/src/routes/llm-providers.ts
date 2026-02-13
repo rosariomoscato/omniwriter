@@ -664,4 +664,25 @@ router.put('/llm-providers/preferences/llm', authenticateToken, (req: AuthReques
   }
 });
 
+// GET /api/llm-providers/preferences/llm - Get LLM preferences (provider and model)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/llm-providers/preferences/llm', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+
+    const prefs = db.prepare(
+      'SELECT selected_provider_id, selected_model_id FROM user_preferences WHERE user_id = ?'
+    ).get(userId) as { selected_provider_id: string | null; selected_model_id: string | null } | undefined;
+
+    res.json({
+      selected_provider_id: prefs?.selected_provider_id || null,
+      selected_model_id: prefs?.selected_model_id || ''
+    });
+  } catch (error) {
+    console.error('[LLMProviders] Preferences get error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;

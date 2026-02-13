@@ -54,3 +54,6 @@ features.db
 
 # Archive (temporary/dev files)
 .archive/
+
+.playwright-cli/
+.playwright/
