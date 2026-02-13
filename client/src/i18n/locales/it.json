@@ -423,7 +423,7 @@
   },
   "humanModel": {
     "title": "Modello Umano",
-    "description": "Crea profili di stile analizzando i tuoi scritti",
+    "description": "Crea profili di stile personali caricando tuoi testi. L'AI analizzerà il tuo stile di scrittura.",
     "createNew": "Crea Nuovo Profilo",
     "yourProfiles": "I Tuoi Profili",
     "noProfiles": "Nessun profilo ancora. Creane uno per iniziare.",
@@ -440,7 +440,11 @@
     "analyze": "Analizza Stile",
     "uploadedFiles": "File Caricati",
     "noFiles": "Nessun file caricato ancora",
+    "noFilesTitle": "Carica i tuoi testi per iniziare",
+    "noFilesDesc": "Carica file di testo (TXT) contenenti i tuoi scritti. L'AI analizzerà il tuo stile.",
+    "uploadFirst": "Carica primo file",
     "createProfile": "Crea Profilo di Stile",
+    "createInfo": "Il profilo verrà creato vuoto. Dopo la creazione, potrai caricare i tuoi testi per l'analisi dello stile.",
     "profileName": "Nome Profilo",
     "profileNamePlaceholder": "Il Mio Stile di Scrittura",
     "descriptionPlaceholder": "Descrizione opzionale",
@@ -448,6 +452,11 @@
     "selectFile": "Seleziona File",
     "preview": "Anteprima",
     "upload": "Carica",
+    "step": {
+      "create": "Crea profilo",
+      "upload": "Carica testi",
+      "analyze": "Analizza"
+    },
     "status": {
       "pending": "In attesa",
       "analyzing": "Analisi in corso",

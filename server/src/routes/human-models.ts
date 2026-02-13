@@ -259,7 +259,7 @@ router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) 
     // Update total word count
     const newTotalWordCount = model.total_word_count + wordCount;
     db.prepare(
-      'UPDATE human_models SET total_word_count = ?, updated_at = datetime("now") WHERE id = ?'
+      "UPDATE human_models SET total_word_count = ?, updated_at = datetime('now') WHERE id = ?"
     ).run(newTotalWordCount, modelId);
 
     const source = db.prepare('SELECT * FROM human_model_sources WHERE id = ?').get(sourceId);
@@ -304,7 +304,7 @@ router.post('/:id/analyze', authenticateToken, (req: AuthRequest, res: Response)
 
     // Update status to analyzing
     db.prepare(
-      'UPDATE human_models SET training_status = ?, updated_at = datetime("now") WHERE id = ?'
+      "UPDATE human_models SET training_status = ?, updated_at = datetime('now') WHERE id = ?"
     ).run('analyzing', modelId);
 
     // In a real implementation, this would trigger an AI analysis job

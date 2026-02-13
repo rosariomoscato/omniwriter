@@ -15,6 +15,7 @@ export default function HumanModelPage() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [highlightUpload, setHighlightUpload] = useState(false);
 
   // Comparison feature states
   const [showComparison, setShowComparison] = useState(false);
@@ -92,6 +93,12 @@ export default function HumanModelPage() {
         style_strength: 50,
       });
       toast.success('Style profile created successfully');
+      // Auto-select the new profile to show the upload button
+      setSelectedModel(response.model);
+      setSources([]);
+      // Highlight the upload button temporarily
+      setHighlightUpload(true);
+      setTimeout(() => setHighlightUpload(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create model');
       toast.error(err instanceof Error ? err.message : 'Failed to create model');
@@ -261,7 +268,7 @@ export default function HumanModelPage() {
             {t('humanModel.title', 'Human Model')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {t('humanModel.description', 'Create style profiles by analyzing your writing')}
+            {t('humanModel.description', 'Crea profili di stile personali caricando tuoi testi. L\'AI analizzerà il tuo stile di scrittura.')}
           </p>
         </div>
         <button
@@ -403,7 +410,11 @@ export default function HumanModelPage() {
                   <button
                     onClick={() => setShowUploadDialog(true)}
                     disabled={selectedModel.training_status === 'analyzing'}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                    className={`px-4 py-2 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-all ${
+                      highlightUpload
+                        ? 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-300 dark:ring-blue-800 animate-pulse'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
                     {t('humanModel.uploadWritings', 'Upload Writings')}
                   </button>
@@ -430,9 +441,25 @@ export default function HumanModelPage() {
                 </div>
                 <div className="p-4">
                   {sources.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                      {t('humanModel.noFiles', 'No files uploaded yet')}
-                    </p>
+                    <div className="text-center py-6">
+                      <div className="mb-4">
+                        <svg className="mx-auto h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-400 font-medium mb-2">
+                        {t('humanModel.noFilesTitle', 'Carica i tuoi testi per iniziare')}
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
+                        {t('humanModel.noFilesDesc', 'Carica file di testo (TXT) contenenti i tuoi scritti. L\'AI analizzerà il tuo stile.')}
+                      </p>
+                      <button
+                        onClick={() => setShowUploadDialog(true)}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        {t('humanModel.uploadFirst', 'Carica primo file')}
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {sources.map(source => (
@@ -704,9 +731,39 @@ export default function HumanModelPage() {
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
               {t('humanModel.createProfile', 'Create Style Profile')}
             </h3>
+
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 mb-4 text-sm">
+              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">1</span>
+                <span>{t('humanModel.step.create', 'Crea profilo')}</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <div className="flex items-center gap-1 text-gray-400">
+                <span className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs">2</span>
+                <span>{t('humanModel.step.upload', 'Carica testi')}</span>
+              </div>
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <div className="flex items-center gap-1 text-gray-400">
+                <span className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs">3</span>
+                <span>{t('humanModel.step.analyze', 'Analizza')}</span>
+              </div>
+            </div>
+
+            {/* Explanatory text */}
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                {t('humanModel.createInfo', 'Il profilo verrà creato vuoto. Dopo la creazione, potrai caricare i tuoi testi per l\'analisi dello stile.')}
+              </p>
+            </div>
+
             <form onSubmit={handleCreateModel} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

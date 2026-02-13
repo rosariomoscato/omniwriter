@@ -423,7 +423,7 @@
   },
   "humanModel": {
     "title": "Human Model",
-    "description": "Create style profiles by analyzing your writing",
+    "description": "Create personal style profiles by uploading your texts. The AI will analyze your writing style.",
     "createNew": "Create New Profile",
     "yourProfiles": "Your Profiles",
     "noProfiles": "No profiles yet. Create one to get started.",
@@ -440,7 +440,11 @@
     "analyze": "Analyze Style",
     "uploadedFiles": "Uploaded Files",
     "noFiles": "No files uploaded yet",
+    "noFilesTitle": "Upload your texts to get started",
+    "noFilesDesc": "Upload text files (TXT) containing your writings. The AI will analyze your style.",
+    "uploadFirst": "Upload first file",
     "createProfile": "Create Style Profile",
+    "createInfo": "The profile will be created empty. After creation, you can upload your texts for style analysis.",
     "profileName": "Profile Name",
     "profileNamePlaceholder": "My Writing Style",
     "descriptionPlaceholder": "Optional description",
@@ -448,6 +452,11 @@
     "selectFile": "Select File",
     "preview": "Preview",
     "upload": "Upload",
+    "step": {
+      "create": "Create profile",
+      "upload": "Upload texts",
+      "analyze": "Analyze"
+    },
     "status": {
       "pending": "Pending",
       "analyzing": "Analyzing",
