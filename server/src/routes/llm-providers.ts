@@ -134,7 +134,7 @@ const fetchModelsFromProvider = async (
       }
 
       case 'requesty': {
-        const response = await fetch('https://api.requesty.ai/v1/models', {
+        const response = await fetch('https://router.requesty.ai/v1/models', {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         if (response.ok) {
@@ -232,7 +232,7 @@ const testProviderConnection = async (
       }
 
       case 'requesty': {
-        const response = await fetch('https://api.requesty.ai/v1/models', {
+        const response = await fetch('https://router.requesty.ai/v1/models', {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         if (response.ok) return { success: true };
