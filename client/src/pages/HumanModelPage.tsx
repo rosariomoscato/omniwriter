@@ -159,6 +159,15 @@ export default function HumanModelPage() {
     e.preventDefault();
     if (!selectedModel) return;
 
+    // Validate file size (max 10MB)
+    const contentSizeMB = new Blob([uploadFile.content_text]).size / (1024 * 1024);
+    if (contentSizeMB > 10) {
+      const errorMsg = t('humanModel.fileTooLarge', `File too large (${contentSizeMB.toFixed(2)} MB). Maximum allowed size is 10 MB.`);
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
     try {
       setError(null);
       const response = await apiService.uploadToHumanModel(
@@ -179,8 +188,11 @@ export default function HumanModelPage() {
         file_type: 'txt',
         content_text: '',
       });
+      toast.success(t('humanModel.uploadSuccess', 'File uploaded successfully'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload file';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -267,6 +279,17 @@ export default function HumanModelPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file size before reading (max 10MB)
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 10) {
+      const errorMsg = t('humanModel.fileTooLarge', `File too large (${fileSizeMB.toFixed(2)} MB). Maximum allowed size is 10 MB.`);
+      setError(errorMsg);
+      toast.error(errorMsg);
+      // Clear the file input
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
@@ -275,6 +298,11 @@ export default function HumanModelPage() {
         file_type: file.name.split('.').pop() || 'txt',
         content_text: content,
       });
+    };
+    reader.onerror = () => {
+      const errorMsg = t('humanModel.fileReadError', 'Failed to read file. Please try again.');
+      setError(errorMsg);
+      toast.error(errorMsg);
     };
     reader.readAsText(file);
   };
@@ -975,6 +1003,9 @@ export default function HumanModelPage() {
                   onChange={handleFileRead}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t('humanModel.maxFileSize', 'Maximum file size: 10 MB')}
+                </p>
               </div>
               {uploadFile.content_text && (
                 <div>
@@ -987,9 +1018,10 @@ export default function HumanModelPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
                     rows={6}
                   />
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {uploadFile.content_text.split(/\s+/).filter(w => w.length > 0).length} {t('humanModel.words', 'words')}
-                  </p>
+                  <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <span>{uploadFile.content_text.split(/\s+/).filter(w => w.length > 0).length} {t('humanModel.words', 'words')}</span>
+                    <span>{(new Blob([uploadFile.content_text]).size / 1024).toFixed(1)} KB</span>
+                  </div>
                 </div>
               )}
               <div className="flex gap-3 pt-4">

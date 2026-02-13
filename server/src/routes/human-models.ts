@@ -201,9 +201,12 @@ router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) 
     const userId = req.user?.id;
     const modelId = req.params.id;
 
+    console.log('[HumanModels] Upload request received for model:', modelId, 'by user:', userId);
+
     // Check ownership
     const model = db.prepare('SELECT id, total_word_count FROM human_models WHERE id = ? AND user_id = ?').get(modelId, userId) as HumanModel | undefined;
     if (!model) {
+      console.log('[HumanModels] Model not found:', modelId);
       res.status(404).json({ message: 'Human model not found' });
       return;
     }
@@ -212,8 +215,19 @@ router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) 
     // In a full implementation with multer, we would handle multipart/form-data
     const { file_name, file_type, content_text } = req.body;
 
+    console.log('[HumanModels] Upload details - file_name:', file_name, 'file_type:', file_type, 'content_length:', content_text?.length);
+
     if (!file_name || !file_type || !content_text) {
+      console.log('[HumanModels] Missing required fields');
       res.status(400).json({ message: 'file_name, file_type, and content_text are required' });
+      return;
+    }
+
+    // Validate content size (max 10MB per file)
+    const contentSizeMB = Buffer.byteLength(content_text, 'utf8') / (1024 * 1024);
+    if (contentSizeMB > 10) {
+      console.log('[HumanModels] File too large:', contentSizeMB.toFixed(2), 'MB');
+      res.status(413).json({ message: `File too large (${contentSizeMB.toFixed(2)} MB). Maximum allowed size is 10 MB.` });
       return;
     }
 
