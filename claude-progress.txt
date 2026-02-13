@@ -1,5 +1,72 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #216 Complete
+
+### Completed Features: 216/216 (100%)
+
+### Feature #216: Fix RequestyProvider configuration and API compatibility
+
+**Problem:** RequestyProvider was configured incorrectly for the Requesty API:
+- Wrong base URL: `https://api.requesty.ai/v1` → should be `https://router.requesty.ai`
+- Wrong auth header: `Authorization: Bearer` → should be `x-api-key` (like Anthropic)
+- Wrong endpoint: `/chat/completions` → should be `/v1/messages` (Anthropic-style)
+- Wrong request/response format: OpenAI-style → should be Anthropic-style
+
+**Implementation:**
+
+1. **RequestyProvider.ts - Complete Rewrite to Anthropic-style API:**
+   - Changed `DEFAULT_BASE_URL` from `https://api.requesty.ai/v1` to `https://router.requesty.ai`
+   - Changed `getHeaders()` to use `x-api-key` instead of `Authorization: Bearer`
+   - Added `anthropic-version` header (same as Anthropic: `2023-06-01`)
+   - Changed chat endpoint from `/chat/completions` to `/v1/messages`
+   - Updated `buildRequestBody()` to Anthropic format:
+     - Extracts system message from messages array into `system` field
+     - Uses `max_tokens` instead of OpenAI parameters
+     - Uses `stop_sequences` instead of `stop`
+   - Updated `parseResponse()` for Anthropic content blocks format:
+     - Extracts text from `{ type: 'text', text: '...' }` blocks
+     - Uses `input_tokens`/`output_tokens` instead of `prompt_tokens`/`completion_tokens`
+   - Updated `stream()` for Anthropic streaming events:
+     - Handles `content_block_delta`, `message_start`, `message_delta`, `message_stop` events
+   - Updated `testConnection()` to use minimal message test (like Anthropic)
+   - Removed OpenAI-style models fetch, now returns static known models list
+
+2. **Response Type Updates:**
+   - Changed `RequestyResponse` interface to Anthropic format:
+     - `content: Array<{ type: 'text', text: string }>` instead of `choices`
+     - `stop_reason` instead of `finish_reason`
+     - `usage.input_tokens/output_tokens` instead of `prompt_tokens/completion_tokens`
+   - Added `RequestyStreamEvent` interface matching Anthropic streaming format
+
+3. **Tests Updated (providers.test.ts):**
+   - Added test for correct base URL (`https://router.requesty.ai`)
+   - Added test for x-api-key header (not Authorization Bearer)
+   - Added test for anthropic-version header
+   - Added test for system message extraction
+   - Added test for default model
+   - Added test for known models list
+   - Added test for Anthropic-style response parsing
+
+4. **Configuration Test Script (scripts/test-requesty-provider.mjs):**
+   - Created standalone test script to verify configuration
+   - Tests base URL, headers, endpoint, request body, response parsing
+   - All 13 tests pass
+
+**Key Configuration Differences:**
+| Aspect | Old (Wrong) | New (Correct) |
+|--------|-------------|---------------|
+| Base URL | https://api.requesty.ai/v1 | https://router.requesty.ai |
+| Auth Header | Authorization: Bearer | x-api-key |
+| Extra Header | - | anthropic-version: 2023-06-01 |
+| Chat Endpoint | /chat/completions | /v1/messages |
+| System Prompt | In messages array | Separate `system` field |
+| Response Format | choices[].message.content | content[].text |
+| Usage Format | prompt_tokens/completion_tokens | input_tokens/output_tokens |
+
+### Commit: 5874748
+
+---
+
 ## Session: 2025-02-13 - Feature #215 Complete
 
 ### Completed Features: 213/215 (99.1%)
