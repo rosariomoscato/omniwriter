@@ -323,8 +323,30 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_chapter_comments_user_id ON chapter_comments(user_id);
     CREATE INDEX IF NOT EXISTS idx_llm_providers_user_id ON llm_providers(user_id);
     CREATE INDEX IF NOT EXISTS idx_llm_providers_is_active ON llm_providers(is_active);
-    CREATE INDEX IF NOT EXISTS idx_user_preferences_selected_provider_id ON user_preferences(selected_provider_id);
   `);
+
+  // Handle schema migrations for existing tables
+  // Add selected_provider_id and selected_model_id columns to user_preferences if they don't exist
+  try {
+    const userPrefsInfo = db.prepare('PRAGMA table_info(user_preferences)').all() as { name: string }[];
+    const columnNames = userPrefsInfo.map(col => col.name);
+
+    if (!columnNames.includes('selected_provider_id')) {
+      console.log('[Database] Adding selected_provider_id column to user_preferences...');
+      db.exec('ALTER TABLE user_preferences ADD COLUMN selected_provider_id TEXT REFERENCES llm_providers(id) ON DELETE SET NULL');
+    }
+
+    if (!columnNames.includes('selected_model_id')) {
+      console.log('[Database] Adding selected_model_id column to user_preferences...');
+      db.exec('ALTER TABLE user_preferences ADD COLUMN selected_model_id TEXT DEFAULT \'\'');
+    }
+
+    // Create index on selected_provider_id after ensuring column exists
+    db.exec('CREATE INDEX IF NOT EXISTS idx_user_preferences_selected_provider_id ON user_preferences(selected_provider_id)');
+  } catch (error) {
+    console.error('[Database] Error during schema migration:', error);
+    throw error;
+  }
 
   console.log('[Database] Migrations completed successfully');
 }

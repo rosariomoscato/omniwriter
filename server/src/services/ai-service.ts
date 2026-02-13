@@ -1,52 +1,35 @@
 /**
  * AI Service for OmniWriter
- * Handles communication with OpenAI and Anthropic APIs for style analysis
+ *
+ * Legacy compatibility layer that wraps the new modular AI architecture.
+ * This file maintains backward compatibility with existing code that imports
+ * analyzeWritingStyle and isAIAvailable.
+ *
+ * New code should import directly from './ai' instead.
  */
 
-interface StyleAnalysisResult {
-  tone: string;
-  sentence_structure: string;
-  vocabulary: string;
-  patterns: string[];
-}
-
-interface AIProvider {
-  name: string;
-  apiKey: string | undefined;
-  available: boolean;
-}
-
-// Check available AI providers
-function getAvailableProviders(): AIProvider[] {
-  const providers: AIProvider[] = [
-    {
-      name: 'openai',
-      apiKey: process.env.OPENAI_API_KEY,
-      available: !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your-openai-api-key'
-    },
-    {
-      name: 'anthropic',
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      available: !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-anthropic-api-key'
-    }
-  ];
-
-  return providers;
-}
-
-/**
- * Get the first available AI provider
- */
-function getActiveProvider(): AIProvider | null {
-  const providers = getAvailableProviders();
-  return providers.find(p => p.available) || null;
-}
+import {
+  getFirstAvailableProvider,
+  createProvider,
+  BaseProvider,
+  ChatMessage,
+  StyleAnalysisResult,
+  ProviderType,
+  ProviderConfig
+} from './ai/index';
 
 /**
  * Check if AI is available (has valid API keys)
  */
 export function isAIAvailable(): boolean {
-  return getActiveProvider() !== null;
+  return getFirstAvailableProvider() !== null;
+}
+
+/**
+ * Get the active provider (first available from environment)
+ */
+function getActiveProvider(): BaseProvider | null {
+  return getFirstAvailableProvider();
 }
 
 /**
@@ -93,45 +76,9 @@ Respond with ONLY valid JSON, no additional text.`;
 }
 
 /**
- * Call OpenAI API for style analysis
+ * Parse JSON response from AI
  */
-async function callOpenAI(prompt: string, apiKey: string): Promise<StyleAnalysisResult> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert literary analyst. Analyze writing styles with precision and respond only with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${errorData}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('Empty response from OpenAI');
-  }
-
-  // Parse the JSON response
+function parseStyleAnalysis(content: string, language: 'it' | 'en'): StyleAnalysisResult {
   try {
     const result = JSON.parse(content);
     return {
@@ -141,57 +88,7 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<StyleAnalysis
       patterns: Array.isArray(result.patterns) ? result.patterns : []
     };
   } catch (parseError) {
-    console.error('[AI-Service] Failed to parse OpenAI response:', content);
-    throw new Error('Failed to parse AI response as JSON');
-  }
-}
-
-/**
- * Call Anthropic API for style analysis
- */
-async function callAnthropic(prompt: string, apiKey: string): Promise<StyleAnalysisResult> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`Anthropic API error: ${response.status} - ${errorData}`);
-  }
-
-  const data = await response.json();
-  const content = data.content?.[0]?.text;
-
-  if (!content) {
-    throw new Error('Empty response from Anthropic');
-  }
-
-  // Parse the JSON response
-  try {
-    const result = JSON.parse(content);
-    return {
-      tone: result.tone || 'Not specified',
-      sentence_structure: result.sentence_structure || 'Not specified',
-      vocabulary: result.vocabulary || 'Not specified',
-      patterns: Array.isArray(result.patterns) ? result.patterns : []
-    };
-  } catch (parseError) {
-    console.error('[AI-Service] Failed to parse Anthropic response:', content);
+    console.error('[AI-Service] Failed to parse style analysis response:', content);
     throw new Error('Failed to parse AI response as JSON');
   }
 }
@@ -207,24 +104,33 @@ export async function analyzeWritingStyle(
 
   if (!provider) {
     console.warn('[AI-Service] No AI provider available, returning mock analysis');
-    // Return a mock analysis when no API keys are configured
     return getMockAnalysis(language);
   }
 
   const prompt = buildStyleAnalysisPrompt(text, language);
-
-  console.log(`[AI-Service] Calling ${provider.name} for style analysis in ${language}`);
+  console.log(`[AI-Service] Using ${provider.getProviderType()} for style analysis in ${language}`);
 
   try {
-    if (provider.name === 'openai') {
-      return await callOpenAI(prompt, provider.apiKey!);
-    } else if (provider.name === 'anthropic') {
-      return await callAnthropic(prompt, provider.apiKey!);
-    }
+    const response = await provider.chat(
+      [
+        {
+          role: 'system',
+          content: 'You are an expert literary analyst. Analyze writing styles with precision and respond only with valid JSON.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      {
+        temperature: 0.7,
+        maxTokens: 1000
+      }
+    );
 
-    throw new Error(`Unknown provider: ${provider.name}`);
+    return parseStyleAnalysis(response.content, language);
   } catch (error) {
-    console.error(`[AI-Service] Error calling ${provider.name}:`, error);
+    console.error(`[AI-Service] Error calling ${provider.getProviderType()}:`, error);
     // Fallback to mock analysis on error
     return getMockAnalysis(language);
   }
@@ -263,7 +169,20 @@ function getMockAnalysis(language: 'it' | 'en'): StyleAnalysisResult {
   };
 }
 
+// Re-export new modular components for convenience
+export {
+  createProvider,
+  getFirstAvailableProvider,
+  BaseProvider,
+  type ChatMessage,
+  type StyleAnalysisResult,
+  type ProviderType,
+  type ProviderConfig
+};
+
 export default {
   analyzeWritingStyle,
-  isAIAvailable
+  isAIAvailable,
+  createProvider,
+  getFirstAvailableProvider
 };
