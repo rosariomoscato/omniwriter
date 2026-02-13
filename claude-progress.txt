@@ -1,5 +1,68 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-13 - Feature #220 Complete
+
+### Completed Features: 220/220 (100%)
+
+### Feature #220: Improve Style Comparison Test with dropdown selectors
+
+**Problem:** The "Test Confronto Stile" section in the Human Model page required users to manually enter UUID strings for project and chapter IDs, which was very user-unfriendly.
+
+**Solution:** Replaced text inputs with cascading dropdown selectors:
+
+1. **Project Dropdown**: Loads all user projects with title + area display (e.g., "Test Novel Project - romanziere")
+2. **Chapter Dropdown**: Auto-populates when a project is selected, showing "Cap. N: Title" format
+3. **States**:
+   - Chapter dropdown disabled until project is selected (shows "Select a project first")
+   - Loading spinners shown while data is being fetched
+   - Button disabled until both project and chapter are selected
+
+**Changes:**
+- `client/src/pages/HumanModelPage.tsx`:
+  - Added imports for `Project` and `Chapter` types
+  - Added state variables: `projects`, `chapters`, `loadingProjects`, `loadingChapters`
+  - Added `useEffect` for loading projects when model is ready
+  - Added `useEffect` for loading chapters when project changes (cascading)
+  - Added `loadProjects()` and `loadChapters()` async functions
+  - Replaced `<input type="text">` with `<select>` dropdowns with custom styling
+  - Added loading spinner SVGs for both dropdowns
+  - Updated error message to use i18n
+
+**Testing:**
+- Verified project dropdown shows available projects
+- Verified selecting a project populates chapter dropdown
+- Verified chapter dropdown shows correct chapters (Cap. 1, Cap. 2)
+- Verified deselecting project disables chapter dropdown and resets selection
+- Verified button enables only when both project and chapter selected
+- Zero console errors
+- No mock data patterns found
+
+### Commit: 194f63a
+
+---
+
+## Session: 2026-02-13 - Feature #219 Complete
+
+### Completed Features: 219/219 (100%)
+
+### Feature #219: Fix Requesty API URL in llm-providers route
+
+**Problem:** The Requesty connection test and model fetching were failing with "Network connection failed" because the backend was using the wrong API URL (`https://api.requesty.ai/v1/models` instead of `https://router.requesty.ai/v1/models`).
+
+**Fix:**
+1. Changed URL in `fetchModelsFromProvider()` (line 137) from `api.requesty.ai` to `router.requesty.ai`
+2. Changed URL in `testProviderConnection()` (line 235) from `api.requesty.ai` to `router.requesty.ai`
+
+**Verification:**
+- Created a Requesty provider via the Settings UI
+- Ran connection test - showed "Connesso" (Connected) with green status
+- Confirmed no remaining references to `api.requesty.ai` in source code
+- Cleaned up test data after verification
+
+### Commit: fd942a5
+
+---
+
 ## Session: 2025-02-13 - Feature #218 Complete
 
 ### Completed Features: 218/218 (100%)
