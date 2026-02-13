@@ -260,6 +260,21 @@ function runMigrations(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS llm_providers (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider_type TEXT NOT NULL CHECK(provider_type IN ('openai', 'anthropic', 'google_gemini', 'open_router', 'requesty', 'custom')),
+      display_name TEXT NOT NULL,
+      api_key_encrypted TEXT NOT NULL,
+      api_base_url TEXT DEFAULT '',
+      additional_config_json TEXT DEFAULT '{}',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      connection_status TEXT NOT NULL DEFAULT 'not_tested' CHECK(connection_status IN ('not_tested', 'connected', 'failed')),
+      last_test_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS user_preferences (
       id TEXT PRIMARY KEY,
       user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -267,6 +282,8 @@ function runMigrations(db: Database.Database): void {
       default_quality_setting TEXT NOT NULL DEFAULT 'balanced' CHECK(default_quality_setting IN ('speed', 'balanced', 'quality')),
       dashboard_layout_json TEXT DEFAULT '{}',
       keyboard_shortcuts_json TEXT DEFAULT '{}',
+      selected_provider_id TEXT REFERENCES llm_providers(id) ON DELETE SET NULL,
+      selected_model_id TEXT DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -304,6 +321,9 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_citations_chapter_id ON citations(chapter_id);
     CREATE INDEX IF NOT EXISTS idx_chapter_comments_chapter_id ON chapter_comments(chapter_id);
     CREATE INDEX IF NOT EXISTS idx_chapter_comments_user_id ON chapter_comments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_llm_providers_user_id ON llm_providers(user_id);
+    CREATE INDEX IF NOT EXISTS idx_llm_providers_is_active ON llm_providers(is_active);
+    CREATE INDEX IF NOT EXISTS idx_user_preferences_selected_provider_id ON user_preferences(selected_provider_id);
   `);
 
   console.log('[Database] Migrations completed successfully');

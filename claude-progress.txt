@@ -1,5 +1,71 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #210 Complete
+
+### Completed Features: 209/215 (97.2%)
+
+### Feature #210: Add LLM Provider database schema
+
+**Objective:** Create the `llm_providers` table to store user AI provider configurations, and update `user_preferences` with provider/model selection fields.
+
+**Implementation:**
+
+1. **Database Schema (server/src/db/database.ts)**
+   - Added `llm_providers` table with all required columns:
+     - `id` (UUID PRIMARY KEY)
+     - `user_id` (FK → users, CASCADE delete)
+     - `provider_type` (ENUM: openai, anthropic, google_gemini, open_router, requesty, custom)
+     - `display_name` (custom name like "My OpenAI")
+     - `api_key_encrypted` (encrypted API key)
+     - `api_base_url` (for custom/self-hosted providers)
+     - `additional_config_json` (extra config like headers, parameters)
+     - `is_active` (boolean, currently active provider)
+     - `connection_status` (ENUM: not_tested, connected, failed)
+     - `last_test_at` (timestamp of last connection test)
+     - `created_at`, `updated_at`
+   - Updated `user_preferences` table:
+     - Added `selected_provider_id` (FK → llm_providers, SET NULL on delete)
+     - Added `selected_model_id` (model ID within selected provider)
+   - Added indexes:
+     - `idx_llm_providers_user_id`
+     - `idx_llm_providers_is_active`
+     - `idx_user_preferences_selected_provider_id`
+
+2. **Encryption Utility (server/src/utils/encryption.ts)**
+   - Created encryption module using AES-256-GCM
+   - Key derivation with PBKDF2 (100,000 iterations, SHA-512)
+   - Random salt (64 bytes) and IV (16 bytes) per encryption
+   - Authentication tag (16 bytes) for integrity verification
+   - Functions:
+     - `encrypt(plaintext)` → base64 encoded encrypted string
+     - `decrypt(encryptedBase64)` → original plaintext
+     - `isEncrypted(value)` → check if value appears encrypted
+     - `hash(value)` → SHA-256 one-way hash
+
+3. **Documentation (docs/database-schema.md)**
+   - Comprehensive documentation of entire database schema
+   - All tables, columns, constraints, indexes
+   - Encryption details and security notes
+   - Foreign key relationship diagram
+   - Index reference table
+
+**Testing:**
+- Created test script at `scripts/test-schema.js`
+- Verified all tables created correctly
+- Verified all columns match specification
+- Verified indexes created
+- Verified encryption/decryption works correctly
+
+**Security:**
+- API keys are encrypted with AES-256-GCM before storage
+- Each encryption uses unique salt and IV
+- Authentication tags verify data integrity
+- Production should set ENCRYPTION_KEY env variable
+
+### Commit: (pending)
+
+---
+
 ## Session: 2025-02-13 - Feature #208 Complete
 
 ### Completed Features: 208/208 (100%)
