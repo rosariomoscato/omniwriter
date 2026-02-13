@@ -260,8 +260,65 @@ describe('Requesty Provider', () => {
     expect(provider.isConfigured()).toBe(true);
   });
 
-  it('should return correct default base URL', () => {
-    expect((provider as any).getDefaultBaseUrl()).toBe('https://api.requesty.ai/v1');
+  it('should return correct default base URL (Requesty router)', () => {
+    expect((provider as any).getDefaultBaseUrl()).toBe('https://router.requesty.ai');
+  });
+
+  it('should use x-api-key header (Anthropic-style)', () => {
+    const headers = (provider as any).getHeaders();
+    expect(headers['x-api-key']).toBe(TEST_API_KEY);
+    expect(headers['anthropic-version']).toBeDefined();
+    expect(headers['Authorization']).toBeUndefined();
+  });
+
+  it('should extract system message from messages array (Anthropic-style)', () => {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'System prompt' },
+      { role: 'user', content: 'Hello!' }
+    ];
+
+    const body = (provider as any).buildRequestBody(messages, {});
+
+    expect(body.system).toBe('System prompt');
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0].role).toBe('user');
+  });
+
+  it('should return correct default model', () => {
+    expect(provider.getDefaultModel()).toBe('anthropic/claude-3.5-sonnet');
+  });
+
+  it('should return known models', async () => {
+    const models = await provider.getAvailableModels();
+    expect(models.length).toBeGreaterThan(0);
+    expect(models.some(m => m.id.includes('claude'))).toBe(true);
+    expect(models.some(m => m.id.includes('gpt'))).toBe(true);
+  });
+
+  it('should parse Anthropic-style response correctly', () => {
+    const mockResponse = {
+      id: 'msg-123',
+      type: 'message',
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Hello from Requesty!' }
+      ],
+      model: 'anthropic/claude-3.5-sonnet',
+      stop_reason: 'end_turn',
+      usage: {
+        input_tokens: 20,
+        output_tokens: 10
+      }
+    };
+
+    const result = (provider as any).parseResponse(mockResponse);
+
+    expect(result.content).toBe('Hello from Requesty!');
+    expect(result.model).toBe('anthropic/claude-3.5-sonnet');
+    expect(result.finishReason).toBe('end_turn');
+    expect(result.usage?.promptTokens).toBe(20);
+    expect(result.usage?.completionTokens).toBe(10);
+    expect(result.usage?.totalTokens).toBe(30);
   });
 });
 

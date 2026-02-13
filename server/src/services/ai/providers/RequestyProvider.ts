@@ -1,6 +1,8 @@
 /**
  * Requesty Provider Implementation
- * Requesty is an LLM API aggregator with OpenAI-compatible interface
+ * Requesty is an LLM API aggregator that uses Anthropic-compatible API
+ * Base URL: https://router.requesty.ai
+ * Uses x-api-key header and /v1/messages endpoint (Anthropic-style)
  */
 
 import { BaseProvider } from '../BaseProvider';
@@ -16,55 +18,111 @@ import {
   TokenUsage
 } from '../types';
 
-// Requesty uses OpenAI-compatible response format
+// Requesty uses Anthropic-compatible response format
 interface RequestyResponse {
   id: string;
-  choices: Array<{
-    message?: {
-      role: string;
-      content: string;
-    };
-    delta?: {
-      content?: string;
-    };
-    finish_reason: string | null;
+  type: 'message';
+  role: 'assistant';
+  content: Array<{
+    type: 'text';
+    text: string;
   }>;
   model: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+  stop_reason: string | null;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
   };
 }
 
-interface RequestyModelsResponse {
-  data: Array<{
-    id: string;
-    name?: string;
-    description?: string;
-    context_length?: number;
-  }>;
+interface RequestyStreamEvent {
+  type: string;
+  message?: RequestyResponse;
+  delta?: {
+    type: string;
+    text?: string;
+  };
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
 }
 
 export class RequestyProvider extends BaseProvider {
   private static readonly PROVIDER_TYPE = 'requesty';
   private static readonly DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet';
-  private static readonly MODELS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private static readonly API_VERSION = '2023-06-01';
 
-  private modelsCache: { models: ModelInfo[]; timestamp: number } | null = null;
+  // Known models available through Requesty router
+  private static readonly KNOWN_MODELS: ModelInfo[] = [
+    {
+      id: 'anthropic/claude-3.5-sonnet',
+      name: 'Claude 3.5 Sonnet (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 200000,
+      maxOutputTokens: 8192,
+      features: ['fast', 'intelligent', 'multimodal']
+    },
+    {
+      id: 'anthropic/claude-3-opus',
+      name: 'Claude 3 Opus (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 200000,
+      maxOutputTokens: 4096,
+      features: ['creative', 'nuanced', 'long-context']
+    },
+    {
+      id: 'anthropic/claude-3-sonnet',
+      name: 'Claude 3 Sonnet (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 200000,
+      maxOutputTokens: 4096,
+      features: ['balanced', 'intelligent']
+    },
+    {
+      id: 'anthropic/claude-3-haiku',
+      name: 'Claude 3 Haiku (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 200000,
+      maxOutputTokens: 4096,
+      features: ['fast', 'efficient']
+    },
+    {
+      id: 'openai/gpt-4-turbo',
+      name: 'GPT-4 Turbo (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 128000,
+      features: ['fast', 'intelligent']
+    },
+    {
+      id: 'openai/gpt-4o',
+      name: 'GPT-4o (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 128000,
+      features: ['fast', 'multimodal']
+    },
+    {
+      id: 'openai/gpt-3.5-turbo',
+      name: 'GPT-3.5 Turbo (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 16384,
+      features: ['fast', 'efficient']
+    }
+  ];
 
   constructor(config: ProviderConfig) {
     super(config, RequestyProvider.PROVIDER_TYPE);
   }
 
   protected getDefaultBaseUrl(): string {
-    return 'https://api.requesty.ai/v1';
+    return 'https://router.requesty.ai';
   }
 
   protected getHeaders(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.config.apiKey}`
+      'x-api-key': this.config.apiKey,
+      'anthropic-version': RequestyProvider.API_VERSION
     };
   }
 
@@ -73,29 +131,39 @@ export class RequestyProvider extends BaseProvider {
       return error;
     }
 
-    const err = error as { status?: number; message?: string; error?: { code?: number; message?: string } };
+    const err = error as { status?: number; message?: string; error?: { type?: string; message?: string } };
     const message = err.error?.message || err.message || 'Unknown Requesty error';
-    const status = err.status || err.error?.code;
+    const errorType = err.error?.type;
+    const status = err.status;
 
-    if (status === 401) {
+    // Map HTTP status codes and error types
+    if (status === 401 || errorType === 'authentication_error') {
       return new AIError('authentication_error', 'Invalid API key', this.providerType, error);
     }
-    if (status === 402 || status === 429) {
-      return new AIError('rate_limit_error', message, this.providerType, error);
+    if (status === 429 || errorType === 'rate_limit_error') {
+      return new AIError('rate_limit_error', 'Rate limit exceeded', this.providerType, error);
     }
-    if (status === 400) {
-      if (message.includes('context') || message.includes('token')) {
+    if (status === 400 || errorType === 'invalid_request_error') {
+      if (message.includes('max_tokens') || message.includes('too long') || message.includes('context')) {
         return new AIError('context_length_exceeded', message, this.providerType, error);
       }
       return new AIError('invalid_request_error', message, this.providerType, error);
     }
-    if (status === 404) {
+    if (status === 404 || errorType === 'model_not_found_error' || errorType === 'not_found_error') {
       return new AIError('model_not_found_error', 'Model not found', this.providerType, error);
     }
-    if (message.includes('timeout')) {
+    if (errorType === 'content_filter_error' || message.includes('content_filter')) {
+      return new AIError('content_filter_error', message, this.providerType, error);
+    }
+    if (errorType === 'timeout_error' || message.includes('timeout')) {
       return new AIError('timeout_error', message, this.providerType, error);
     }
-    if (message.includes('network') || message.includes('ECONNREFUSED')) {
+    if (errorType === 'api_error' || message.includes('overloaded')) {
+      return new AIError('rate_limit_error', message, this.providerType, error);
+    }
+
+    // Check for network errors
+    if (message.includes('network') || message.includes('ECONNREFUSED') || message.includes('ENOTFOUND')) {
       return new AIError('network_error', message, this.providerType, error);
     }
 
@@ -106,14 +174,14 @@ export class RequestyProvider extends BaseProvider {
     return this.withRetry(async () => {
       const body = this.buildRequestBody(messages, { ...options, stream: false });
 
-      const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
+      const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(body)
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        const errorData = await response.json().catch(() => ({})) as { error?: { type?: string; message?: string } };
         throw { status: response.status, message: errorData.error?.message || response.statusText, error: errorData.error };
       }
 
@@ -138,7 +206,7 @@ export class RequestyProvider extends BaseProvider {
 
     while (true) {
       try {
-        const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
+        const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
           method: 'POST',
           headers: {
             ...this.getHeaders(),
@@ -148,7 +216,7 @@ export class RequestyProvider extends BaseProvider {
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})) as { error?: { message?: string } };
+          const errorData = await response.json().catch(() => ({})) as { error?: { type?: string; message?: string } };
           const error = this.mapError({ status: response.status, message: errorData.error?.message, error: errorData.error });
 
           if (error.retryable && retries < maxRetries) {
@@ -196,26 +264,33 @@ export class RequestyProvider extends BaseProvider {
 
             const data = trimmed.slice(6);
 
-            if (data === '[DONE]') {
-              yield { type: 'done', content: totalContent, usage };
-              return;
-            }
-
             try {
-              const parsed = JSON.parse(data) as RequestyResponse;
-              const delta = parsed.choices[0]?.delta?.content;
+              const event = JSON.parse(data) as RequestyStreamEvent;
 
-              if (delta) {
-                totalContent += delta;
-                yield { type: 'delta', content: delta };
+              if (event.type === 'content_block_delta' && event.delta?.text) {
+                totalContent += event.delta.text;
+                yield { type: 'delta', content: event.delta.text };
               }
 
-              if (parsed.usage) {
+              if (event.type === 'message_delta' && event.usage) {
                 usage = {
-                  promptTokens: parsed.usage.prompt_tokens,
-                  completionTokens: parsed.usage.completion_tokens,
-                  totalTokens: parsed.usage.total_tokens
+                  promptTokens: event.usage.input_tokens,
+                  completionTokens: event.usage.output_tokens,
+                  totalTokens: event.usage.input_tokens + event.usage.output_tokens
                 };
+              }
+
+              if (event.type === 'message_start' && event.message?.usage) {
+                usage = {
+                  promptTokens: event.message.usage.input_tokens,
+                  completionTokens: event.message.usage.output_tokens,
+                  totalTokens: event.message.usage.input_tokens + event.message.usage.output_tokens
+                };
+              }
+
+              if (event.type === 'message_stop') {
+                yield { type: 'done', content: totalContent, usage };
+                return;
               }
             } catch {
               // Skip malformed JSON chunks
@@ -243,25 +318,29 @@ export class RequestyProvider extends BaseProvider {
   }
 
   async countTokens(text: string): Promise<number> {
-    return Math.ceil(text.length / 4);
+    // Approximation: ~3.5 characters per token for English
+    return Math.ceil(text.length / 3.5);
   }
 
   async getModelInfo(modelId: string): Promise<ModelInfo | null> {
-    try {
-      const models = await this.getAvailableModels();
-      return models.find(m => m.id === modelId) || null;
-    } catch {
-      return null;
-    }
+    return RequestyProvider.KNOWN_MODELS.find(m => m.id === modelId) || null;
   }
 
   async testConnection(): Promise<ProviderStatus> {
     try {
-      const response = await fetch(`${this.getBaseUrl()}/models`, {
-        headers: this.getHeaders()
+      // Requesty doesn't have a dedicated models endpoint, so we test with a minimal message
+      const response = await fetch(`${this.getBaseUrl()}/v1/messages`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          model: RequestyProvider.DEFAULT_MODEL,
+          max_tokens: 1,
+          messages: [{ role: 'user', content: 'Hi' }]
+        })
       });
 
-      if (response.ok) {
+      // 400 is acceptable - it means auth works but minimal request may have failed
+      if (response.ok || response.status === 400) {
         return { available: true, lastChecked: new Date() };
       }
 
@@ -274,66 +353,8 @@ export class RequestyProvider extends BaseProvider {
   }
 
   async getAvailableModels(): Promise<ModelInfo[]> {
-    // Check cache
-    if (this.modelsCache && Date.now() - this.modelsCache.timestamp < RequestyProvider.MODELS_CACHE_TTL) {
-      return this.modelsCache.models;
-    }
-
-    try {
-      const response = await fetch(`${this.getBaseUrl()}/models`, {
-        headers: this.getHeaders()
-      });
-
-      if (!response.ok) {
-        return this.getDefaultModels();
-      }
-
-      const data = await response.json() as RequestyModelsResponse;
-
-      const models: ModelInfo[] = data.data.map(m => ({
-        id: m.id,
-        name: m.name || m.id,
-        provider: 'requesty',
-        contextWindow: m.context_length,
-        description: m.description
-      }));
-
-      // Sort by name
-      const sortedModels = models.sort((a, b) => a.name.localeCompare(b.name));
-
-      // Cache results
-      this.modelsCache = { models: sortedModels, timestamp: Date.now() };
-
-      return sortedModels;
-    } catch {
-      return this.getDefaultModels();
-    }
-  }
-
-  private getDefaultModels(): ModelInfo[] {
-    // Return common models as fallback
-    return [
-      {
-        id: 'anthropic/claude-3.5-sonnet',
-        name: 'Claude 3.5 Sonnet',
-        provider: 'requesty'
-      },
-      {
-        id: 'anthropic/claude-3-opus',
-        name: 'Claude 3 Opus',
-        provider: 'requesty'
-      },
-      {
-        id: 'openai/gpt-4-turbo',
-        name: 'GPT-4 Turbo',
-        provider: 'requesty'
-      },
-      {
-        id: 'openai/gpt-4o',
-        name: 'GPT-4o',
-        provider: 'requesty'
-      }
-    ];
+    // Requesty doesn't have a models API endpoint, return known models
+    return RequestyProvider.KNOWN_MODELS;
   }
 
   getDefaultModel(): string {
@@ -346,26 +367,38 @@ export class RequestyProvider extends BaseProvider {
   ): Record<string, unknown> {
     const model = options?.model || this.getDefaultModel();
 
+    // Extract system message from messages array (Anthropic-style)
+    let systemPrompt: string | undefined;
+    const chatMessages = messages.filter(m => {
+      if (m.role === 'system') {
+        systemPrompt = m.content;
+        return false;
+      }
+      return true;
+    });
+
     const body: Record<string, unknown> = {
       model,
-      messages: messages.map(m => ({
+      messages: chatMessages.map(m => ({
         role: m.role,
         content: m.content
       })),
+      max_tokens: options?.maxTokens || 4096,
       stream: options?.stream || false
     };
 
+    if (systemPrompt) {
+      body.system = systemPrompt;
+    }
+
     if (options?.temperature !== undefined) {
       body.temperature = options.temperature;
-    }
-    if (options?.maxTokens !== undefined) {
-      body.max_tokens = options.maxTokens;
     }
     if (options?.topP !== undefined) {
       body.top_p = options.topP;
     }
     if (options?.stopSequences && options.stopSequences.length > 0) {
-      body.stop = options.stopSequences;
+      body.stop_sequences = options.stopSequences;
     }
 
     return body;
@@ -373,23 +406,24 @@ export class RequestyProvider extends BaseProvider {
 
   protected parseResponse(response: unknown): CompletionResponse {
     const data = response as RequestyResponse;
-    const choice = data.choices[0];
 
-    if (!choice) {
-      throw new AIError('invalid_request_error', 'No choices in response', this.providerType);
-    }
+    // Extract text from content blocks (Anthropic-style)
+    const content = data.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('');
 
     const result: CompletionResponse = {
-      content: choice.message?.content || '',
+      content,
       model: data.model,
-      finishReason: choice.finish_reason || undefined
+      finishReason: data.stop_reason || undefined
     };
 
     if (data.usage) {
       result.usage = {
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens
+        promptTokens: data.usage.input_tokens,
+        completionTokens: data.usage.output_tokens,
+        totalTokens: data.usage.input_tokens + data.usage.output_tokens
       };
     }
 
