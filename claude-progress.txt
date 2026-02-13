@@ -1,5 +1,62 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #217 Complete
+
+### Completed Features: 217/217 (100%)
+
+### Feature #217: Fix Requesty model ID format for 404 error
+
+**Problem:** The Requesty connection test was returning HTTP 404 even after fixing the endpoint. The issue was the MODEL ID format.
+
+**Root Cause:**
+- `DEFAULT_MODEL` was `'anthropic/claude-3.5-sonnet'` - NOT a valid Requesty model ID
+- `KNOWN_MODELS` list also contained invalid model IDs
+
+**Solution (from official Requesty docs):**
+- Correct format: `provider/exact-model-id` (e.g., `anthropic/claude-sonnet-4-20250514`)
+- Invalid: `anthropic/claude-3.5-sonnet`
+- Valid: `anthropic/claude-sonnet-4-20250514`
+
+**Implementation:**
+
+1. **RequestyProvider.ts - Updated Model IDs:**
+   - Changed `DEFAULT_MODEL` from `'anthropic/claude-3.5-sonnet'` to `'anthropic/claude-sonnet-4-20250514'`
+   - Updated `KNOWN_MODELS` with valid Requesty model IDs from docs:
+     - `anthropic/claude-sonnet-4-20250514` (Claude Sonnet 4)
+     - `anthropic/claude-3-7-sonnet` (Claude 3.7 Sonnet)
+     - `anthropic/claude-3-5-haiku-20241022` (Claude 3.5 Haiku)
+     - `openai/gpt-4o` (GPT-4o)
+     - `openai/gpt-4o-mini` (GPT-4o Mini)
+     - `google/gemini-2.0-flash-exp` (Gemini 2.0 Flash)
+     - `mistral/mistral-large-2411` (Mistral Large)
+     - `meta/llama-3.3-70b-instruct` (Llama 3.3 70B)
+   - Added documentation comments with reference to official docs
+
+2. **Tests Updated (providers.test.ts):**
+   - Updated default model test to expect `'anthropic/claude-sonnet-4-20250514'`
+   - Updated known models test to check for new valid model IDs
+   - Updated response parsing test with new model ID
+
+3. **Test Script Updated (scripts/test-requesty-provider.mjs):**
+   - Added tests for correct model ID format
+   - Added tests verifying old invalid models are NOT in list
+   - All 18 tests pass
+
+**Key Model ID Format Differences:**
+| Provider | Old (Invalid) | New (Valid) |
+|----------|---------------|-------------|
+| Anthropic | anthropic/claude-3.5-sonnet | anthropic/claude-sonnet-4-20250514 |
+| Anthropic | anthropic/claude-3-opus | anthropic/claude-3-7-sonnet |
+| OpenAI | openai/gpt-4-turbo | openai/gpt-4o |
+| OpenAI | openai/gpt-3.5-turbo | openai/gpt-4o-mini |
+| Google | (not present) | google/gemini-2.0-flash-exp |
+
+**Reference:** https://docs.requesty.ai/api-reference/endpoint/messages-create
+
+### Commit: fa39c8c
+
+---
+
 ## Session: 2025-02-13 - Feature #216 Complete
 
 ### Completed Features: 216/216 (100%)
