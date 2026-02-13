@@ -5,6 +5,7 @@ import fs from 'fs';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { HumanModel, CreateHumanModelInput } from '../models/HumanModel';
+import { analyzeWritingStyle, isAIAvailable } from '../services/ai-service';
 
 const router = Router();
 
@@ -292,11 +293,16 @@ router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) 
 
 // POST /api/human-models/:id/analyze - Start style analysis
 // @ts-expect-error - AuthRequest type compatibility with router
-router.post('/:id/analyze', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/:id/analyze', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const db = getDatabase();
     const userId = req.user?.id;
     const modelId = req.params.id;
+
+    // Get language from request body or Accept-Language header
+    // Default to Italian as per project specification
+    const language = req.body?.language ||
+                     (req.headers['accept-language']?.startsWith('en') ? 'en' : 'it') as 'it' | 'en';
 
     // Check ownership and word count
     const model = db.prepare('SELECT * FROM human_models WHERE id = ? AND user_id = ?').get(modelId, userId) as HumanModel | undefined;
@@ -314,23 +320,41 @@ router.post('/:id/analyze', authenticateToken, (req: AuthRequest, res: Response)
       return;
     }
 
-    console.log('[HumanModels] Starting analysis for model:', modelId);
+    console.log('[HumanModels] Starting analysis for model:', modelId, 'language:', language);
+    console.log('[HumanModels] AI available:', isAIAvailable());
 
     // Update status to analyzing
     db.prepare(
       "UPDATE human_models SET training_status = ?, updated_at = datetime('now') WHERE id = ?"
     ).run('analyzing', modelId);
 
-    // In a real implementation, this would trigger an AI analysis job
-    // For now, we'll simulate completion after a delay
-    setTimeout(() => {
-      const analysisResult = {
-        tone: 'Formal yet engaging',
-        sentence_structure: 'Varied, with frequent use of compound sentences',
-        vocabulary: 'Rich vocabulary, academic tone',
-        patterns: ['Uses metaphors', 'Frequent dialogue', 'Descriptive passages']
-      };
+    // Send immediate response - analysis runs in background
+    res.json({ message: 'Style analysis started', status: 'analyzing' });
 
+    // Run AI analysis asynchronously
+    try {
+      // Fetch all source texts for this model
+      const sources = db.prepare(
+        'SELECT file_path FROM human_model_sources WHERE human_model_id = ?'
+      ).all(modelId) as Array<{ file_path: string }>;
+
+      // Combine all source texts
+      let combinedText = '';
+      for (const source of sources) {
+        try {
+          if (fs.existsSync(source.file_path)) {
+            const content = fs.readFileSync(source.file_path, 'utf-8');
+            combinedText += content + '\n\n';
+          }
+        } catch (readError) {
+          console.warn('[HumanModels] Could not read source file:', source.file_path, readError);
+        }
+      }
+
+      // Analyze with AI service
+      const analysisResult = await analyzeWritingStyle(combinedText, language);
+
+      // Save analysis result
       db.prepare(
         `UPDATE human_models SET
           training_status = 'ready',
@@ -340,12 +364,17 @@ router.post('/:id/analyze', authenticateToken, (req: AuthRequest, res: Response)
       ).run(JSON.stringify(analysisResult), modelId);
 
       console.log('[HumanModels] Analysis completed for model:', modelId);
-    }, 2000);
+    } catch (analysisError) {
+      console.error('[HumanModels] Analysis failed for model:', modelId, analysisError);
 
-    res.json({ message: 'Style analysis started', status: 'analyzing' });
+      // Update status to failed
+      db.prepare(
+        "UPDATE human_models SET training_status = 'failed', updated_at = datetime('now') WHERE id = ?"
+      ).run(modelId);
+    }
   } catch (error) {
     console.error('[HumanModels] Analyze error:', error instanceof Error ? error.message : 'Unknown error');
-    res.status(500).json({ message: 'Internal server error' });
+    // Response already sent, just log the error
   }
 });
 

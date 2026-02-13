@@ -133,6 +133,28 @@ export interface AIModel {
   features: string[];
 }
 
+export interface LLMProvider {
+  id: string;
+  provider_type: 'openai' | 'anthropic' | 'google_gemini' | 'open_router' | 'requesty' | 'custom';
+  display_name: string;
+  api_base_url: string | null;
+  additional_config_json?: string;
+  additional_config?: Record<string, unknown>;
+  is_active: number;
+  connection_status: 'not_tested' | 'connected' | 'failed';
+  last_test_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLLMProviderData {
+  provider_type: 'openai' | 'anthropic' | 'google_gemini' | 'open_router' | 'requesty' | 'custom';
+  display_name: string;
+  api_key: string;
+  api_base_url?: string;
+  additional_config?: Record<string, unknown>;
+}
+
 export interface Chapter {
   id: string;
   project_id: string;
@@ -577,9 +599,10 @@ class ApiService {
     });
   }
 
-  async analyzeHumanModel(id: string): Promise<{ message: string; status: string }> {
+  async analyzeHumanModel(id: string, language?: string): Promise<{ message: string; status: string }> {
     return this.request<{ message: string; status: string }>(`/human-models/${id}/analyze`, {
       method: 'POST',
+      body: JSON.stringify({ language: language || 'it' }),
     });
   }
 
@@ -1303,6 +1326,52 @@ class ApiService {
 
   async getAIModel(modelId: string): Promise<{ model: AIModel }> {
     return this.request<{ model: AIModel }>(`/ai/models/${modelId}`);
+  }
+
+  // LLM Provider endpoints (Feature #211)
+  async getLLMProviders(): Promise<{ providers: LLMProvider[]; count: number }> {
+    return this.request<{ providers: LLMProvider[]; count: number }>('/llm-providers');
+  }
+
+  async getLLMProvider(id: string): Promise<{ provider: LLMProvider }> {
+    return this.request<{ provider: LLMProvider }>(`/llm-providers/${id}`);
+  }
+
+  async createLLMProvider(data: CreateLLMProviderData): Promise<{ provider: LLMProvider; message: string }> {
+    return this.request<{ provider: LLMProvider; message: string }>('/llm-providers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLLMProvider(id: string, data: Partial<CreateLLMProviderData & { is_active?: boolean }>): Promise<{ provider: LLMProvider; message: string }> {
+    return this.request<{ provider: LLMProvider; message: string }>(`/llm-providers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLLMProvider(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/llm-providers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async testLLMProvider(id: string): Promise<{ success: boolean; message: string; connection_status: string }> {
+    return this.request<{ success: boolean; message: string; connection_status: string }>(`/llm-providers/${id}/test`, {
+      method: 'POST',
+    });
+  }
+
+  async getLLMProviderModels(id: string): Promise<{ models: string[]; count: number }> {
+    return this.request<{ models: string[]; count: number }>(`/llm-providers/${id}/models`);
+  }
+
+  async updateLLMPreferences(data: { selected_provider_id?: string | null; selected_model_id?: string }): Promise<{ message: string; selected_provider_id?: string; selected_model_id?: string }> {
+    return this.request<{ message: string; selected_provider_id?: string; selected_model_id?: string }>('/llm-providers/preferences/llm', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   // Helper to store auth data

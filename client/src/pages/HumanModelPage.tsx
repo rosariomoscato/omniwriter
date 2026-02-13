@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiService, HumanModel, HumanModelSource, CreateHumanModelData } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
 
@@ -201,7 +202,9 @@ export default function HumanModelPage() {
 
     try {
       setError(null);
-      await apiService.analyzeHumanModel(selectedModel.id);
+      // Get current language from i18n
+      const currentLanguage = i18n.language || 'it';
+      await apiService.analyzeHumanModel(selectedModel.id, currentLanguage);
       // Update model status to analyzing
       setSelectedModel({
         ...selectedModel,
