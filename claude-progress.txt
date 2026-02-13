@@ -1,5 +1,64 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #215 Complete
+
+### Completed Features: 213/215 (99.1%)
+
+### Feature #215: Integrate AI providers into Human Model analysis
+
+**Objective:** Connect the multi-provider AI system to the Human Model style analysis feature, allowing users to use their configured AI providers for text analysis.
+
+**Implementation:**
+
+1. **AI Service Updates (server/src/services/ai-service.ts)**
+   - Added `getUserProviderFromDB(userId)` - Fetches user's selected provider from `llm_providers` table
+   - Added `getProviderForUser(userId)` - Tries user's provider first, falls back to environment
+   - Added `hasUserProvider(userId)` - Quick check if user has configured provider
+   - Added `decryptApiKey(encrypted)` - Decrypts API keys using same scheme as llm-providers.ts
+   - Added `chunkText(text, maxSize)` - Splits long texts into chunks at paragraph/sentence boundaries
+   - Added `buildAggregationPrompt(analyses, language)` - Creates prompt to merge multiple analyses
+   - Added `analyzeChunk(provider, chunk, language)` - Analyzes single text chunk
+   - Updated `analyzeWritingStyle(text, language, userId)` - Now accepts userId parameter
+   - Text chunking with 12000 char limit (~4000 tokens) for long documents
+   - Multi-chunk analysis with aggregation for coherent results
+
+2. **Human Models Route Updates (server/src/routes/human-models.ts)**
+   - Updated analyze endpoint to check user's provider availability
+   - Passes `userId` to `analyzeWritingStyle()` for provider selection
+   - Added error message when no provider configured
+   - Logs provider availability status for debugging
+
+3. **Provider Selection Logic:**
+   - First checks user's selected provider from `llm_providers` table
+   - Validates provider is active (`is_active = 1`)
+   - Decrypts API key from encrypted storage
+   - Falls back to environment-configured provider if user has none
+   - Returns mock analysis only if no provider available at all
+
+4. **Text Chunking Logic:**
+   - Maximum chunk size: 12000 characters (~4000 tokens)
+   - Tries to break at paragraph boundaries first
+   - Falls back to sentence boundaries, then word boundaries
+   - Forces break only if no good break point found
+   - Analyzes each chunk separately, then aggregates results
+
+5. **Error Handling:**
+   - Graceful fallback if chunk analysis fails
+   - Continues with remaining chunks on error
+   - Returns mock analysis only if all chunks fail
+   - Clear error messages for missing provider configuration
+
+**Key Design Decisions:**
+- User's configured provider takes priority over environment provider
+- API keys stored encrypted, decrypted on-demand
+- Long texts are chunked and aggregated for complete analysis
+- Mock analysis remains as fallback for development/demo
+- Consistent error handling across all code paths
+
+### Commit: fbf2fad
+
+---
+
 ## Session: 2025-02-13 - Feature #211 Complete
 
 ### Completed Features: 212/215 (98.6%)
