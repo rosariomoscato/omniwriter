@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -24,6 +25,7 @@ export default function ProfilePage() {
   const { user: authUser, updateUser } = useAuth();
   const navigate = useNavigate();
   const toast = useToastNotification();
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   // Log auth user for debugging (helps with TypeScript check)
@@ -55,7 +57,7 @@ export default function ProfilePage() {
       setBio(response.user.bio);
     } catch (error) {
       console.error('Failed to fetch profile:', error);
-      setErrorMessage('Failed to load profile. Please try again.');
+      setErrorMessage(t('profile.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +75,7 @@ export default function ProfilePage() {
       });
 
       setProfile(response.user);
-      toast.success('Profile updated successfully!');
+      toast.success(t('profile.updateSuccess'));
       setIsEditing(false);
 
       // Update auth context user
@@ -85,8 +87,8 @@ export default function ProfilePage() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error: any) {
       console.error('Failed to update profile:', error);
-      setErrorMessage(error.message || 'Failed to update profile. Please try again.');
-      toast.error(error.message || 'Failed to update profile');
+      setErrorMessage(error.message || t('profile.updateError'));
+      toast.error(error.message || t('profile.updateErrorToast'));
     } finally {
       setIsSaving(false);
     }
@@ -102,8 +104,9 @@ export default function ProfilePage() {
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Never';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return t('profile.never');
+    const locale = i18n.language === 'it' ? 'it-IT' : 'en-US';
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -112,10 +115,10 @@ export default function ProfilePage() {
 
   const getRoleBadge = (role: string) => {
     const badges = {
-      free: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', label: 'Free' },
-      premium: { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', label: 'Premium' },
-      lifetime: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', label: 'Lifetime' },
-      admin: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', label: 'Admin' },
+      free: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', label: t('profile.roles.free') },
+      premium: { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', label: t('profile.roles.premium') },
+      lifetime: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', label: t('profile.roles.lifetime') },
+      admin: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', label: t('profile.roles.admin') },
     };
     return badges[role as keyof typeof badges] || badges.free;
   };
@@ -131,12 +134,12 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600 dark:text-gray-400">Failed to load profile.</p>
+        <p className="text-gray-600 dark:text-gray-400">{t('profile.failedToLoadShort')}</p>
         <button
           onClick={() => navigate('/dashboard')}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          Back to Dashboard
+          {t('profile.backToDashboard')}
         </button>
       </div>
     );
@@ -185,7 +188,7 @@ export default function ProfilePage() {
                   onClick={() => setIsEditing(true)}
                   className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
                 >
-                  Edit Profile
+                  {t('profile.editProfile')}
                 </button>
               ) : (
                 <div className="flex space-x-2">
@@ -194,14 +197,14 @@ export default function ProfilePage() {
                     disabled={isSaving}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
                   >
-                    Cancel
+                    {t('profile.cancel')}
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    {isSaving ? 'Saving...' : 'Save'}
+                    {isSaving ? t('profile.saving') : t('profile.save')}
                   </button>
                 </div>
               )}
@@ -229,7 +232,7 @@ export default function ProfilePage() {
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Display Name
+                  {t('profile.displayName')}
                 </label>
                 {isEditing ? (
                   <input
@@ -237,17 +240,17 @@ export default function ProfilePage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Your display name"
+                    placeholder={t('profile.displayNamePlaceholder')}
                   />
                 ) : (
-                  <p className="text-gray-900 dark:text-gray-100">{profile.name || 'Not set'}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{profile.name || t('profile.notSet')}</p>
                 )}
               </div>
 
               {/* Bio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Bio
+                  {t('profile.bio')}
                 </label>
                 {isEditing ? (
                   <textarea
@@ -255,11 +258,11 @@ export default function ProfilePage() {
                     onChange={(e) => setBio(e.target.value)}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Tell us about yourself..."
+                    placeholder={t('profile.bioPlaceholder')}
                   />
                 ) : (
                   <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                    {profile.bio || 'No bio set'}
+                    {profile.bio || t('profile.noBioSet')}
                   </p>
                 )}
               </div>
@@ -268,19 +271,19 @@ export default function ProfilePage() {
             {/* Right Column - Account Info */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 border-b pb-2">
-                Account Information
+                {t('profile.accountInformation')}
               </h3>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
+                  {t('profile.email')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">{profile.email}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Subscription Status
+                  {t('profile.subscriptionStatus')}
                 </label>
                 <div className="flex items-center space-x-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${roleBadge.color}`}>
@@ -288,7 +291,7 @@ export default function ProfilePage() {
                   </span>
                   {profile.subscription_expires_at && (
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      Expires: {formatDate(profile.subscription_expires_at)}
+                      {t('profile.expires', { date: formatDate(profile.subscription_expires_at) })}
                     </span>
                   )}
                 </div>
@@ -296,28 +299,28 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Language Preference
+                  {t('profile.languagePreference')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100 capitalize">{profile.preferred_language}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Theme Preference
+                  {t('profile.themePreference')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100 capitalize">{profile.theme_preference}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Member Since
+                  {t('profile.memberSince')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">{formatDate(profile.created_at)}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Last Login
+                  {t('profile.lastLogin')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">{formatDate(profile.last_login_at)}</p>
               </div>
@@ -332,9 +335,9 @@ export default function ProfilePage() {
           onClick={() => navigate('/settings')}
           className="p-4 bg-white dark:bg-dark-card rounded-lg shadow hover:shadow-md transition-shadow text-left"
         >
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Settings</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{t('profile.quickLinks.settings')}</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Manage your app preferences
+            {t('profile.quickLinks.settingsDesc')}
           </p>
         </button>
 
@@ -342,9 +345,9 @@ export default function ProfilePage() {
           onClick={() => navigate('/human-model')}
           className="p-4 bg-white dark:bg-dark-card rounded-lg shadow hover:shadow-md transition-shadow text-left"
         >
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Human Model</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{t('profile.quickLinks.humanModel')}</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Configure your writing style
+            {t('profile.quickLinks.humanModelDesc')}
           </p>
         </button>
 
@@ -352,9 +355,9 @@ export default function ProfilePage() {
           onClick={() => navigate('/dashboard')}
           className="p-4 bg-white dark:bg-dark-card rounded-lg shadow hover:shadow-md transition-shadow text-left"
         >
-          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Dashboard</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{t('profile.quickLinks.dashboard')}</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            View your projects
+            {t('profile.quickLinks.dashboardDesc')}
           </p>
         </button>
       </div>

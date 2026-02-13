@@ -1,4 +1,0 @@
-Total messages: 4 (Errors: 1, Warnings: 1)
-Returning 1 messages for level "error"
-
-[ERROR] [JavaScript Error: "Loading module from “http://localhost:3000/src/pages/ChapterEditor.tsx?t=1770909691617” was blocked because of a disallowed MIME type (“”)." {file: "http://localhost:3000/login" line: 0}] @ http://localhost:3000/login:0

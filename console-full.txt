@@ -1,6 +1,0 @@
-Total messages: 4 (Errors: 1, Warnings: 1)
-
-[DEBUG] [vite] connecting... @ http://localhost:3000/@vite/client:494
-[ERROR] [JavaScript Error: "Loading module from “http://localhost:3000/src/pages/ChapterEditor.tsx?t=1770909598696” was blocked because of a disallowed MIME type (“”)." {file: "http://localhost:3000/" line: 0}] @ http://localhost:3000/:0
-[DEBUG] [vite] connected. @ http://localhost:3000/@vite/client:617
-[WARNING] [JavaScript Warning: "Loading failed for the module with source “http://localhost:3000/src/pages/ChapterEditor.tsx?t=1770909598696”." {file: "http://localhost:3000/src/App.tsx?t=1770909598696" line: 0}] @ http://localhost:3000/src/App.tsx?t=1770909598696:0

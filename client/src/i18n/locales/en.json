@@ -651,5 +651,46 @@
       "deleting": "Deleting...",
       "deleteButton": "Delete Account"
     }
+  },
+  "profile": {
+    "failedToLoad": "Failed to load profile. Please try again.",
+    "failedToLoadShort": "Failed to load profile.",
+    "backToDashboard": "Back to Dashboard",
+    "editProfile": "Edit Profile",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "save": "Save",
+    "updateSuccess": "Profile updated successfully!",
+    "updateError": "Failed to update profile. Please try again.",
+    "updateErrorToast": "Failed to update profile",
+    "displayName": "Display Name",
+    "displayNamePlaceholder": "Your display name",
+    "notSet": "Not set",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell us about yourself...",
+    "noBioSet": "No bio set",
+    "accountInformation": "Account Information",
+    "email": "Email",
+    "subscriptionStatus": "Subscription Status",
+    "expires": "Expires: {{date}}",
+    "languagePreference": "Language Preference",
+    "themePreference": "Theme Preference",
+    "memberSince": "Member Since",
+    "lastLogin": "Last Login",
+    "never": "Never",
+    "roles": {
+      "free": "Free",
+      "premium": "Premium",
+      "lifetime": "Lifetime",
+      "admin": "Admin"
+    },
+    "quickLinks": {
+      "settings": "Settings",
+      "settingsDesc": "Manage your app preferences",
+      "humanModel": "Human Model",
+      "humanModelDesc": "Configure your writing style",
+      "dashboard": "Dashboard",
+      "dashboardDesc": "View your projects"
+    }
   }
 }

@@ -51,3 +51,6 @@ ehthumbs.db
 # Autoforge
 .autoforge/
 features.db
+
+# Archive (temporary/dev files)
+.archive/

@@ -651,5 +651,46 @@
       "deleting": "Eliminazione...",
       "deleteButton": "Elimina Account"
     }
+  },
+  "profile": {
+    "failedToLoad": "Impossibile caricare il profilo. Riprova.",
+    "failedToLoadShort": "Impossibile caricare il profilo.",
+    "backToDashboard": "Torna alla Dashboard",
+    "editProfile": "Modifica Profilo",
+    "cancel": "Annulla",
+    "saving": "Salvataggio...",
+    "save": "Salva",
+    "updateSuccess": "Profilo aggiornato con successo!",
+    "updateError": "Impossibile aggiornare il profilo. Riprova.",
+    "updateErrorToast": "Impossibile aggiornare il profilo",
+    "displayName": "Nome visualizzato",
+    "displayNamePlaceholder": "Il tuo nome visualizzato",
+    "notSet": "Non impostato",
+    "bio": "Biografia",
+    "bioPlaceholder": "Raccontaci qualcosa di te...",
+    "noBioSet": "Nessuna biografia impostata",
+    "accountInformation": "Informazioni Account",
+    "email": "Email",
+    "subscriptionStatus": "Stato Abbonamento",
+    "expires": "Scade: {{date}}",
+    "languagePreference": "Preferenza Lingua",
+    "themePreference": "Preferenza Tema",
+    "memberSince": "Membro dal",
+    "lastLogin": "Ultimo Accesso",
+    "never": "Mai",
+    "roles": {
+      "free": "Free",
+      "premium": "Premium",
+      "lifetime": "Lifetime",
+      "admin": "Admin"
+    },
+    "quickLinks": {
+      "settings": "Impostazioni",
+      "settingsDesc": "Gestisci le tue preferenze dell'app",
+      "humanModel": "Modello Umano",
+      "humanModelDesc": "Configura il tuo stile di scrittura",
+      "dashboard": "Dashboard",
+      "dashboardDesc": "Visualizza i tuoi progetti"
+    }
   }
 }
