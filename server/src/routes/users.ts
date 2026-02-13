@@ -243,7 +243,8 @@ router.get('/preferences', authenticateToken, (req: AuthRequest, res: Response) 
 
     console.log('[Users] Fetching preferences for user:', req.user?.id);
     const preferences = db.prepare(
-      `SELECT default_ai_model, default_quality_setting, dashboard_layout_json, keyboard_shortcuts_json
+      `SELECT default_ai_model, default_quality_setting, dashboard_layout_json, keyboard_shortcuts_json,
+              selected_provider_id, selected_model_id
        FROM user_preferences WHERE user_id = ?`
     ).get(req.user?.id) as Record<string, unknown> | undefined;
 
@@ -255,6 +256,8 @@ router.get('/preferences', authenticateToken, (req: AuthRequest, res: Response) 
           default_quality_setting: 'balanced',
           dashboard_layout_json: '{}',
           keyboard_shortcuts_json: '{}',
+          selected_provider_id: null,
+          selected_model_id: '',
         },
       });
       return;

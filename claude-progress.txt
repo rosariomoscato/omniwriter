@@ -1,5 +1,81 @@
 # OmniWriter Progress Log
 
+## Session: 2025-02-13 - Feature #211 Complete
+
+### Completed Features: 211/215 (98.1%)
+
+### Feature #211: Backend API for LLM Provider management
+
+**Objective:** Create REST endpoints for managing user LLM providers with encrypted API keys, connection testing, and model listing.
+
+**Implementation:**
+
+1. **Backend Route (server/src/routes/llm-providers.ts)** [NEW FILE]
+   - Complete CRUD implementation for LLM providers
+   - API key encryption using `crypto.scryptSync` with AES-256-CBC
+   - Connection testing with real API calls
+   - Dynamic model fetching with 5-minute cache
+
+2. **Endpoints Implemented:**
+   - `GET /api/llm-providers` - List all providers (hides API key, shows last 4 chars)
+   - `GET /api/llm-providers/:id` - Get single provider
+   - `POST /api/llm-providers` - Create new provider (validates type, encrypts key)
+   - `PUT /api/llm-providers/:id` - Update provider (resets connection status on key change)
+   - `DELETE /api/llm-providers/:id` - Delete provider (prevents deleting active provider)
+   - `POST /api/llm-providers/:id/test` - Test connection (makes real API call)
+   - `GET /api/llm-providers/:id/models` - List available models
+   - `PUT /api/llm-providers/preferences/llm` - Set preferred provider/model
+
+3. **Provider Types Supported:**
+   - `openai` - OpenAI GPT models
+   - `anthropic` - Claude models (hardcoded list, no public API)
+   - `google_gemini` - Google Gemini models
+   - `open_router` - OpenRouter aggregator
+   - `requesty` - Requesty aggregator
+   - `custom` - Self-hosted (requires base_url)
+
+4. **Security Features:**
+   - API keys encrypted before storage using AES-256-CBC
+   - Random IV per encryption for uniqueness
+   - Keys never returned in API responses
+   - Connection status tracked (not_tested, connected, failed)
+   - Active provider protection on delete
+
+5. **Frontend API Service (client/src/services/api.ts)**
+   - Added `LLMProvider` and `CreateLLMProviderData` interfaces
+   - Added all LLM provider API methods:
+     - `getLLMProviders()`, `getLLMProvider(id)`
+     - `createLLMProvider(data)`, `updateLLMProvider(id, data)`
+     - `deleteLLMProvider(id)`
+     - `testLLMProvider(id)`
+     - `getLLMProviderModels(id)`
+     - `updateLLMPreferences(data)`
+
+6. **User Preferences Update (server/src/routes/users.ts)**
+   - Updated GET `/api/users/preferences` to include `selected_provider_id` and `selected_model_id`
+
+**Testing Performed:**
+- Created test user via API
+- Created OpenAI provider with fake key
+- Updated provider display name
+- Set/unset LLM preferences
+- Verified delete protection when provider is active
+- Created Anthropic provider, tested models endpoint (returns hardcoded list)
+- Tested connection with fake key (returns error from API)
+- Verified connection_status updates correctly
+- Tested all validation (invalid type, missing name, missing key, custom without URL)
+
+**Key Design Decisions:**
+- API keys encrypted with project's JWT secret as key derivation source
+- Models cached for 5 minutes to reduce API calls
+- Anthropic has no public models API, so returns curated list
+- Custom providers require base_url parameter
+- Delete protection prevents accidental removal of active provider
+
+### Commit: (pending)
+
+---
+
 ## Session: 2025-02-13 - Feature #212 Complete
 
 ### Completed Features: 210/215 (97.7%)

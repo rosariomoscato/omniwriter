@@ -27,6 +27,7 @@ const plot_events_1 = __importDefault(require("./routes/plot-events"));
 const generation_logs_1 = __importDefault(require("./routes/generation-logs"));
 const ai_1 = __importDefault(require("./routes/ai"));
 const chapter_comments_1 = __importDefault(require("./routes/chapter-comments"));
+const llm_providers_1 = __importDefault(require("./routes/llm-providers"));
 const path_1 = require("path");
 const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
 dotenv_1.default.config({ path: envPath });
@@ -39,8 +40,8 @@ app.use((0, cors_1.default)({
     origin: process.env.CLIENT_URL || 'http://localhost:3000',
     credentials: true,
 }));
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Passport and session middleware for OAuth
 app.use((0, express_session_1.default)({
     secret: process.env.SESSION_SECRET || 'omniwriter-session-secret-2024',
@@ -84,6 +85,7 @@ app.use('/api', export_1.default);
 app.use('/api', generation_logs_1.default);
 app.use('/api', ai_1.default);
 app.use('/api', chapter_comments_1.default);
+app.use('/api', llm_providers_1.default);
 app.use('/api/admin', admin_1.default);
 // 404 handler
 app.use((_req, res) => {

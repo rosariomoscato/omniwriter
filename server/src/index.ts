@@ -22,6 +22,7 @@ import plotEventsRouter from './routes/plot-events';
 import generationLogsRouter from './routes/generation-logs';
 import aiRouter from './routes/ai';
 import chapterCommentsRouter from './routes/chapter-comments';
+import llmProvidersRouter from './routes/llm-providers';
 import { resolve } from 'path';
 
 const envPath = resolve(__dirname, '..', '.env');
@@ -87,6 +88,7 @@ app.use('/api', exportRouter);
 app.use('/api', generationLogsRouter);
 app.use('/api', aiRouter);
 app.use('/api', chapterCommentsRouter);
+app.use('/api', llmProvidersRouter);
 app.use('/api/admin', adminRouter);
 
 // 404 handler
