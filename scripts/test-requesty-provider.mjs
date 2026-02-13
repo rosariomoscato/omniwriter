@@ -56,8 +56,10 @@ async function testRequestyProviderConfig() {
     return true;
   });
 
+  // Use correct Requesty model ID format: provider/exact-model-id
+  const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-20250514';
   const requestBody = {
-    model: 'anthropic/claude-3.5-sonnet',
+    model: DEFAULT_MODEL,
     messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
     max_tokens: 4096,
     stream: false
@@ -74,6 +76,8 @@ async function testRequestyProviderConfig() {
     'Request body should use max_tokens (not max_completion_tokens)');
   assert(requestBody.messages[0].role === 'user',
     'Remaining message should be user message');
+  assert(requestBody.model === 'anthropic/claude-sonnet-4-20250514',
+    'Default model should use Requesty format: anthropic/claude-sonnet-4-20250514');
 
   // Test 5: Response parsing (Anthropic-style)
   const mockResponse = {
@@ -83,7 +87,7 @@ async function testRequestyProviderConfig() {
     content: [
       { type: 'text', text: 'Hello from Requesty!' }
     ],
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4-20250514',
     stop_reason: 'end_turn',
     usage: {
       input_tokens: 20,
@@ -108,6 +112,28 @@ async function testRequestyProviderConfig() {
   const testConnectionUrl = `${DEFAULT_BASE_URL}/v1/messages`;
   assert(testConnectionUrl === 'https://router.requesty.ai/v1/messages',
     'Test connection should use /v1/messages endpoint');
+
+  // Test 7: Known models list (Requesty format)
+  const KNOWN_MODELS = [
+    'anthropic/claude-sonnet-4-20250514',
+    'anthropic/claude-3-7-sonnet',
+    'anthropic/claude-3-5-haiku-20241022',
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'google/gemini-2.0-flash-exp',
+    'mistral/mistral-large-2411',
+    'meta/llama-3.3-70b-instruct'
+  ];
+
+  assert(KNOWN_MODELS.includes('anthropic/claude-sonnet-4-20250514'),
+    'Known models should include claude-sonnet-4-20250514');
+  assert(KNOWN_MODELS.includes('openai/gpt-4o'),
+    'Known models should include gpt-4o');
+  assert(KNOWN_MODELS.includes('google/gemini-2.0-flash-exp'),
+    'Known models should include gemini-2.0-flash-exp');
+  // Old invalid models should NOT be in list
+  assert(!KNOWN_MODELS.includes('anthropic/claude-3.5-sonnet'),
+    'Known models should NOT include old invalid format claude-3.5-sonnet');
 
   console.log('\n=== All Configuration Tests Passed ===\n');
 }

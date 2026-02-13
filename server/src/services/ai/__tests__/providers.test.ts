@@ -285,7 +285,8 @@ describe('Requesty Provider', () => {
   });
 
   it('should return correct default model', () => {
-    expect(provider.getDefaultModel()).toBe('anthropic/claude-3.5-sonnet');
+    // Default model uses exact Requesty model ID format
+    expect(provider.getDefaultModel()).toBe('anthropic/claude-sonnet-4-20250514');
   });
 
   it('should return known models', async () => {
@@ -293,6 +294,9 @@ describe('Requesty Provider', () => {
     expect(models.length).toBeGreaterThan(0);
     expect(models.some(m => m.id.includes('claude'))).toBe(true);
     expect(models.some(m => m.id.includes('gpt'))).toBe(true);
+    // Check that models use Requesty format (provider/model-id)
+    expect(models.some(m => m.id === 'anthropic/claude-sonnet-4-20250514')).toBe(true);
+    expect(models.some(m => m.id === 'openai/gpt-4o')).toBe(true);
   });
 
   it('should parse Anthropic-style response correctly', () => {
@@ -303,7 +307,7 @@ describe('Requesty Provider', () => {
       content: [
         { type: 'text', text: 'Hello from Requesty!' }
       ],
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'anthropic/claude-sonnet-4-20250514',
       stop_reason: 'end_turn',
       usage: {
         input_tokens: 20,
@@ -314,7 +318,7 @@ describe('Requesty Provider', () => {
     const result = (provider as any).parseResponse(mockResponse);
 
     expect(result.content).toBe('Hello from Requesty!');
-    expect(result.model).toBe('anthropic/claude-3.5-sonnet');
+    expect(result.model).toBe('anthropic/claude-sonnet-4-20250514');
     expect(result.finishReason).toBe('end_turn');
     expect(result.usage?.promptTokens).toBe(20);
     expect(result.usage?.completionTokens).toBe(10);

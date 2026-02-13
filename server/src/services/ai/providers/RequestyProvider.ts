@@ -50,63 +50,77 @@ interface RequestyStreamEvent {
 
 export class RequestyProvider extends BaseProvider {
   private static readonly PROVIDER_TYPE = 'requesty';
-  private static readonly DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet';
+  // Default model uses exact Requesty model ID format: provider/model-id
+  // See: https://docs.requesty.ai/api-reference/endpoint/messages-create
+  private static readonly DEFAULT_MODEL = 'anthropic/claude-sonnet-4-20250514';
   private static readonly API_VERSION = '2023-06-01';
 
   // Known models available through Requesty router
+  // Model IDs must follow Requesty format: provider/exact-model-id
   private static readonly KNOWN_MODELS: ModelInfo[] = [
     {
-      id: 'anthropic/claude-3.5-sonnet',
-      name: 'Claude 3.5 Sonnet (via Requesty)',
+      id: 'anthropic/claude-sonnet-4-20250514',
+      name: 'Claude Sonnet 4 (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 200000,
+      maxOutputTokens: 16384,
+      features: ['fast', 'intelligent', 'multimodal']
+    },
+    {
+      id: 'anthropic/claude-3-7-sonnet',
+      name: 'Claude 3.7 Sonnet (via Requesty)',
       provider: 'requesty',
       contextWindow: 200000,
       maxOutputTokens: 8192,
       features: ['fast', 'intelligent', 'multimodal']
     },
     {
-      id: 'anthropic/claude-3-opus',
-      name: 'Claude 3 Opus (via Requesty)',
+      id: 'anthropic/claude-3-5-haiku-20241022',
+      name: 'Claude 3.5 Haiku (via Requesty)',
       provider: 'requesty',
       contextWindow: 200000,
-      maxOutputTokens: 4096,
-      features: ['creative', 'nuanced', 'long-context']
-    },
-    {
-      id: 'anthropic/claude-3-sonnet',
-      name: 'Claude 3 Sonnet (via Requesty)',
-      provider: 'requesty',
-      contextWindow: 200000,
-      maxOutputTokens: 4096,
-      features: ['balanced', 'intelligent']
-    },
-    {
-      id: 'anthropic/claude-3-haiku',
-      name: 'Claude 3 Haiku (via Requesty)',
-      provider: 'requesty',
-      contextWindow: 200000,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
       features: ['fast', 'efficient']
-    },
-    {
-      id: 'openai/gpt-4-turbo',
-      name: 'GPT-4 Turbo (via Requesty)',
-      provider: 'requesty',
-      contextWindow: 128000,
-      features: ['fast', 'intelligent']
     },
     {
       id: 'openai/gpt-4o',
       name: 'GPT-4o (via Requesty)',
       provider: 'requesty',
       contextWindow: 128000,
-      features: ['fast', 'multimodal']
+      maxOutputTokens: 16384,
+      features: ['fast', 'multimodal', 'intelligent']
     },
     {
-      id: 'openai/gpt-3.5-turbo',
-      name: 'GPT-3.5 Turbo (via Requesty)',
+      id: 'openai/gpt-4o-mini',
+      name: 'GPT-4o Mini (via Requesty)',
       provider: 'requesty',
-      contextWindow: 16384,
+      contextWindow: 128000,
+      maxOutputTokens: 16384,
       features: ['fast', 'efficient']
+    },
+    {
+      id: 'google/gemini-2.0-flash-exp',
+      name: 'Gemini 2.0 Flash (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 1000000,
+      maxOutputTokens: 8192,
+      features: ['fast', 'multimodal', 'long-context']
+    },
+    {
+      id: 'mistral/mistral-large-2411',
+      name: 'Mistral Large (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 128000,
+      maxOutputTokens: 8192,
+      features: ['intelligent', 'multilingual']
+    },
+    {
+      id: 'meta/llama-3.3-70b-instruct',
+      name: 'Llama 3.3 70B (via Requesty)',
+      provider: 'requesty',
+      contextWindow: 128000,
+      maxOutputTokens: 8192,
+      features: ['open-source', 'intelligent']
     }
   ];
 
