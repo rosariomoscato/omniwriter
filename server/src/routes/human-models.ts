@@ -39,7 +39,7 @@ const upload = multer({
       const error = new Error('INVALID_FILE_TYPE');
       (error as any).status = 400;
       (error as any).code = 'LIMIT_FILE_TYPE';
-      (error as any).message = 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF';
+      (error as any).message = 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF, PDF';
       cb(error as any, false);
     }
   },
@@ -249,7 +249,7 @@ router.post(
           }
           if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
             return res.status(400).json({
-              message: 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF'
+              message: 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF, PDF'
             });
           }
           return res.status(400).json({ message: err.message || 'File upload failed' });

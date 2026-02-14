@@ -5,12 +5,13 @@
  * - TXT: Plain text files (direct read)
  * - DOCX/DOC: Microsoft Word documents (using mammoth)
  * - RTF: Rich Text Format (regex-based extraction)
- * - PDF: Not supported (requires pdf-parse which needs installation)
+ * - PDF: PDF documents (using pdf2json)
  */
 
 import fs from 'fs';
 import path from 'path';
 import mammoth from 'mammoth';
+import PDFParser from 'pdf2json';
 
 export interface ExtractionResult {
   text: string;
@@ -42,19 +43,14 @@ export async function extractTextFromFile(filePath: string): Promise<ExtractionR
         break;
 
       case '.pdf':
-        // PDF requires pdf-parse which needs npm installation
-        // Return an error message for now
-        return {
-          text: '',
-          wordCount: 0,
-          error: 'PDF extraction is not available. Please convert your PDF to TXT, DOCX, or RTF format and try again. PDF support requires the pdf-parse library which needs to be installed by an administrator.',
-        };
+        text = await extractFromPdf(filePath);
+        break;
 
       default:
         return {
           text: '',
           wordCount: 0,
-          error: `Unsupported file format: ${ext}. Supported formats are: TXT, DOCX, DOC, RTF`,
+          error: `Unsupported file format: ${ext}. Supported formats are: TXT, DOCX, DOC, RTF, PDF`,
         };
     }
 
@@ -137,6 +133,52 @@ async function extractFromRtf(filePath: string): Promise<string> {
 }
 
 /**
+ * Extract text from a PDF file using pdf2json
+ */
+async function extractFromPdf(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const pdfParser = new (PDFParser as any)(null, 1);
+
+    pdfParser.on('pdfParser_dataError', (errData: any) => {
+      reject(new Error(errData.parserError || 'PDF parsing error'));
+    });
+
+    pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+      try {
+        // Extract text from all pages
+        const textParts: string[] = [];
+
+        if (pdfData && pdfData.Pages) {
+          for (const page of pdfData.Pages) {
+            if (page.Texts) {
+              for (const text of page.Texts) {
+                if (text.R) {
+                  for (const r of text.R) {
+                    if (r.T) {
+                      // Decode URI component for the text
+                      textParts.push(decodeURIComponent(r.T));
+                    }
+                  }
+                }
+              }
+            }
+            // Add newline between pages
+            textParts.push('\n');
+          }
+        }
+
+        const fullText = textParts.join(' ');
+        resolve(fullText);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    pdfParser.loadPDF(filePath);
+  });
+}
+
+/**
  * Count words in text
  */
 export function countWords(text: string): number {
@@ -148,7 +190,7 @@ export function countWords(text: string): number {
  * Check if a file extension is supported
  */
 export function isSupportedFormat(extension: string): boolean {
-  const supported = ['.txt', '.docx', '.doc', '.rtf'];
+  const supported = ['.txt', '.docx', '.doc', '.rtf', '.pdf'];
   return supported.includes(extension.toLowerCase());
 }
 
@@ -156,7 +198,7 @@ export function isSupportedFormat(extension: string): boolean {
  * Get list of supported formats
  */
 export function getSupportedFormats(): string[] {
-  return ['TXT', 'DOCX', 'DOC', 'RTF'];
+  return ['TXT', 'DOCX', 'DOC', 'RTF', 'PDF'];
 }
 
 /**

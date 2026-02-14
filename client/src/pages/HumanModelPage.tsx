@@ -404,7 +404,7 @@ export default function HumanModelPage() {
       };
       reader.readAsText(file);
     } else {
-      // For DOCX, DOC, RTF - store file reference and show file info
+      // For DOCX, DOC, RTF, PDF - store file reference and show file info
       let mimeType = 'application/octet-stream';
       if (extension === 'docx') {
         mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -412,6 +412,8 @@ export default function HumanModelPage() {
         mimeType = 'application/msword';
       } else if (extension === 'rtf') {
         mimeType = 'application/rtf';
+      } else if (extension === 'pdf') {
+        mimeType = 'application/pdf';
       }
 
       setUploadFile({
@@ -1170,7 +1172,7 @@ export default function HumanModelPage() {
                 </label>
                 <input
                   type="file"
-                  accept=".txt,.docx,.doc,.rtf"
+                  accept=".txt,.docx,.doc,.rtf,.pdf"
                   onChange={handleFileRead}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
