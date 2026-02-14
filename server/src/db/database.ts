@@ -326,8 +326,22 @@ function runMigrations(db: Database.Database): void {
   `);
 
   // Handle schema migrations for existing tables
-  // Add selected_provider_id and selected_model_id columns to user_preferences if they don't exist
+  // Add google_access_token and google_refresh_token columns to users if they don't exist
   try {
+    const usersInfo = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+    const userColumnNames = usersInfo.map(col => col.name);
+
+    if (!userColumnNames.includes('google_access_token')) {
+      console.log('[Database] Adding google_access_token column to users...');
+      db.exec('ALTER TABLE users ADD COLUMN google_access_token TEXT');
+    }
+
+    if (!userColumnNames.includes('google_refresh_token')) {
+      console.log('[Database] Adding google_refresh_token column to users...');
+      db.exec('ALTER TABLE users ADD COLUMN google_refresh_token TEXT');
+    }
+
+    // Add selected_provider_id and selected_model_id columns to user_preferences if they don't exist
     const userPrefsInfo = db.prepare('PRAGMA table_info(user_preferences)').all() as { name: string }[];
     const columnNames = userPrefsInfo.map(col => col.name);
 
