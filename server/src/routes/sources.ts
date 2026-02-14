@@ -605,6 +605,62 @@ router.delete('/sources/tags/:tagName', authenticateToken, (req: any, res: any) 
   }
 });
 
+// PUT /api/sources/:id/project - Link a standalone source to a project
+router.put('/sources/:id/project', authenticateToken, (req: any, res: any) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+  const sourceId = req.params.id;
+  const { projectId } = req.body;
+
+  // Validate required fields
+  if (!projectId) {
+    return res.status(400).json({ message: 'Project ID is required' });
+  }
+
+  try {
+    // Verify source belongs to user and is standalone (project_id is NULL)
+    const source: any = db
+      .prepare('SELECT id, project_id FROM sources WHERE id = ? AND user_id = ?')
+      .get(sourceId, userId);
+
+    if (!source) {
+      return res.status(404).json({ message: 'Source not found' });
+    }
+
+    if (source.project_id !== null) {
+      return res.status(400).json({ message: 'Source is already linked to a project' });
+    }
+
+    // Verify project belongs to user
+    const project = db
+      .prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?')
+      .get(projectId, userId);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Update source with project_id
+    db.prepare('UPDATE sources SET project_id = ? WHERE id = ?').run(projectId, sourceId);
+
+    console.log(`[Sources] Source ${sourceId} linked to project ${projectId}`);
+
+    // Fetch updated source
+    const updatedSource: any = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
+
+    // Convert tags_json to tags array
+    const sourceWithTags = {
+      ...updatedSource,
+      tags: updatedSource.tags_json ? JSON.parse(updatedSource.tags_json) : [],
+    };
+
+    res.json({ source: sourceWithTags });
+  } catch (error) {
+    console.error('[Sources] Error linking source to project:', error);
+    res.status(500).json({ message: 'Failed to link source to project' });
+  }
+});
+
 // POST /api/sources/web-search - Save web search result as source
 router.post('/sources/web-search', authenticateToken, async (req: any, res: any) => {
   const db = getDatabase();

@@ -330,7 +330,16 @@
       "noSources": "No sources yet",
       "uploadReference": "Upload reference materials to use in your project",
       "webSearch": "Web Search",
-      "upload": "Upload Sources"
+      "upload": "Upload Sources",
+      "linkSources": "Link Sources",
+      "linkModalTitle": "Link Existing Sources",
+      "linkModalDesc": "Select standalone sources to link to this project",
+      "noStandaloneSources": "No standalone sources available",
+      "selectedCount": "{count} selected",
+      "cancel": "Cancel",
+      "confirm": "Link Selected Sources",
+      "linkSuccess": "Source linked successfully",
+      "linkMultipleSuccess": "{count} sources linked successfully"
     },
     "characters": {
       "title": "Characters",

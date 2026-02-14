@@ -36,9 +36,13 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [showAddSource, setShowAddSource] = useState(false);
+  const [showLinkSources, setShowLinkSources] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showWebSearch, setShowWebSearch] = useState(false);
   const [showSourcePreview, setShowSourcePreview] = useState(false);
+  const [selectedSourcesToLink, setSelectedSourcesToLink] = useState<Set<string>>(new Set());
+  const [standaloneSources, setStandaloneSources] = useState<Source[]>([]);
+  const [loadingStandaloneSources, setLoadingStandaloneSources] = useState(false);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [showAddCharacter, setShowAddCharacter] = useState(false);
   const [showRelationshipMap, setShowRelationshipMap] = useState(false);
@@ -142,6 +146,12 @@ export default function ProjectDetail() {
       loadPlotEvents();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (showLinkSources) {
+      loadStandaloneSources();
+    }
+  }, [showLinkSources]);
 
   const loadProject = async () => {
     try {
@@ -254,6 +264,26 @@ export default function ProjectDetail() {
       setAllTags(response.tags);
     } catch (err) {
       console.error('Failed to load tags:', err);
+    }
+  };
+
+  const loadStandaloneSources = async () => {
+    try {
+      setLoadingStandaloneSources(true);
+      const response = await apiService.getAllSources();
+      // Filter only standalone sources (project_id is null)
+      const standalone = response.sources
+        .filter(s => !s.project_id)
+        .map(source => ({
+          ...source,
+          tags: source.tags || [],
+        }));
+      setStandaloneSources(standalone);
+    } catch (err: any) {
+      console.error('Failed to load standalone sources:', err);
+      toast.error(err.message || 'Failed to load standalone sources');
+    } finally {
+      setLoadingStandaloneSources(false);
     }
   };
 
@@ -591,6 +621,37 @@ export default function ProjectDetail() {
     if (newSources.length > 0) {
       const successCount = newSources.length;
       toast.success(`${successCount} ${successCount === 1 ? 'source' : 'sources'} uploaded successfully`);
+    }
+  };
+
+  const handleLinkSources = async () => {
+    if (selectedSourcesToLink.size === 0) {
+      return;
+    }
+
+    try {
+      setError('');
+      const linkedSources: Source[] = [];
+
+      for (const sourceId of Array.from(selectedSourcesToLink)) {
+        const response = await apiService.linkSourceToProject(sourceId, id!);
+        linkedSources.push({ ...response.source, tags: JSON.parse(response.source.tags_json || '[]') });
+      }
+
+      // Add linked sources to the project's sources list
+      setSources([...sources, ...linkedSources]);
+      setShowLinkSources(false);
+      setSelectedSourcesToLink(new Set());
+
+      // Show success message
+      if (linkedSources.length === 1) {
+        toast.success(t('projectPage.sources.linkSuccess'));
+      } else {
+        toast.success(t('projectPage.sources.linkMultipleSuccess', { count: linkedSources.length }));
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to link sources');
+      toast.error(err.message || 'Failed to link sources');
     }
   };
 
@@ -2264,6 +2325,16 @@ export default function ProjectDetail() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => {
+                setShowLinkSources(true);
+                setSelectedSourcesToLink(new Set());
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Network className="w-4 h-4" />
+              {t('projectPage.sources.linkSources')}
+            </button>
+            <button
               onClick={() => setShowWebSearch(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
@@ -2991,6 +3062,155 @@ export default function ProjectDetail() {
           onUploadComplete={handleBulkUploadComplete}
           onCancel={() => setShowBulkUpload(false)}
         />
+      )}
+
+      {/* Link Sources Dialog */}
+      {showLinkSources && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Network className="w-5 h-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('projectPage.sources.linkModalTitle')}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowLinkSources(false);
+                  setSelectedSourcesToLink(new Set());
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Description */}
+            <div className="px-4 pt-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('projectPage.sources.linkModalDesc')}
+              </p>
+              {selectedSourcesToLink.size > 0 && (
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mt-1">
+                  {t('projectPage.sources.selectedCount', { count: selectedSourcesToLink.size })}
+                </p>
+              )}
+            </div>
+
+            {/* Content - Standalone Sources List */}
+            <div className="flex-1 overflow-auto p-4">
+              {loadingStandaloneSources ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : standaloneSources.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                    {t('projectPage.sources.noStandaloneSources')}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {t('projectPage.sources.uploadReference')}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {standaloneSources.map((source) => {
+                    const isSelected = selectedSourcesToLink.has(source.id);
+                    return (
+                      <div
+                        key={source.id}
+                        onClick={() => {
+                          const newSelected = new Set(selectedSourcesToLink);
+                          if (newSelected.has(source.id)) {
+                            newSelected.delete(source.id);
+                          } else {
+                            newSelected.add(source.id);
+                          }
+                          setSelectedSourcesToLink(newSelected);
+                        }}
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                            isSelected
+                              ? 'bg-purple-600 border-purple-600'
+                              : 'border-gray-300 dark:border-gray-600'
+                          }`}>
+                            {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                          </div>
+                          <FileText className="w-5 h-5 text-gray-400" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-gray-900 dark:text-gray-100 font-medium truncate">
+                              {source.file_name}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                                {source.file_type.split('/')[1] || 'file'}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {((source.file_size || 0) / 1024).toFixed(1)} KB
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded ${
+                                  source.source_type === 'upload'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                    : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                }`}
+                              >
+                                {source.source_type === 'upload'
+                                  ? t('sources.typeUpload')
+                                  : t('sources.typeWebSearch')}
+                              </span>
+                              {source.tags && source.tags.length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {source.tags.map((tag, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowLinkSources(false);
+                  setSelectedSourcesToLink(new Set());
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+              >
+                {t('projectPage.sources.cancel')}
+              </button>
+              <button
+                onClick={handleLinkSources}
+                disabled={selectedSourcesToLink.size === 0}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+              >
+                {t('projectPage.sources.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Web Search Dialog */}

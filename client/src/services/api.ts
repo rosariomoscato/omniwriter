@@ -895,6 +895,13 @@ class ApiService {
     });
   }
 
+  async linkSourceToProject(sourceId: string, projectId: string): Promise<{ source: Source }> {
+    return this.request<{ source: Source }>(`/sources/${sourceId}/project`, {
+      method: 'PUT',
+      body: JSON.stringify({ projectId }),
+    });
+  }
+
   async getSourceTags(): Promise<{ tags: string[] }> {
     return this.request<{ tags: string[] }>('/sources/tags');
   }

@@ -330,7 +330,16 @@
       "noSources": "Nessuna fonte ancora",
       "uploadReference": "Carica materiali di riferimento da usare nel tuo progetto",
       "webSearch": "Ricerca Web",
-      "upload": "Carica Fonti"
+      "upload": "Carica Fonti",
+      "linkSources": "Collega Fonti",
+      "linkModalTitle": "Collega Fonti Esistenti",
+      "linkModalDesc": "Seleziona le fonti standalone da collegare a questo progetto",
+      "noStandaloneSources": "Nessuna fonte standalone disponibile",
+      "selectedCount": "{count} selezionate",
+      "cancel": "Annulla",
+      "confirm": "Collega Fonti Selezionate",
+      "linkSuccess": "Fonte collegata con successo",
+      "linkMultipleSuccess": "{count} fonti collegate con successo"
     },
     "characters": {
       "title": "Personaggi",
