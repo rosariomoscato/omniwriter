@@ -326,8 +326,7 @@ export async function analyzeWritingStyle(
   const provider = userId ? getProviderForUser(userId) : getActiveProvider();
 
   if (!provider) {
-    console.warn('[AI-Service] No AI provider available, returning mock analysis');
-    return getMockAnalysis(language);
+    throw new Error('No AI provider available. Please configure an AI provider in your environment variables or user settings.');
   }
 
   console.log(`[AI-Service] Using ${provider.getProviderType()} for style analysis in ${language}`);
@@ -358,8 +357,7 @@ export async function analyzeWritingStyle(
     }
 
     if (analyses.length === 0) {
-      console.error('[AI-Service] All chunk analyses failed');
-      return getMockAnalysis(language);
+      throw new Error('All text chunk analyses failed. Please check your AI provider configuration and try again.');
     }
 
     if (analyses.length === 1) {
@@ -391,42 +389,8 @@ export async function analyzeWritingStyle(
     return parseStyleAnalysis(aggregationResponse.content, language);
   } catch (error) {
     console.error(`[AI-Service] Error calling ${provider.getProviderType()}:`, error);
-    // Fallback to mock analysis on error
-    return getMockAnalysis(language);
+    throw new Error(`AI provider error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-}
-
-/**
- * Generate mock analysis for development/demo purposes
- */
-function getMockAnalysis(language: 'it' | 'en'): StyleAnalysisResult {
-  if (language === 'it') {
-    return {
-      tone: 'Formale ma coinvolgente, con tono narrativo che alterna momenti descrittivi a dialoghi vivaci',
-      sentence_structure: 'Frasi variate, con frequente uso di periodi composti e subordinate. Buon equilibrio tra frasi brevi e lunghe per creare ritmo',
-      vocabulary: 'Vocabolario ricco e articolato, con termini specifici del settore e espressioni letterarie ricercate',
-      patterns: [
-        'Uso frequente di metafore e similitudini',
-        'Dialoghi naturali con interruzioni realistiche',
-        'Passaggi descrittivi dettagliati prima dei momenti chiave',
-        'Ripetizione deliberata di temi e motivi',
-        'Alternanza tra narrazione oggettiva e soggettiva'
-      ]
-    };
-  }
-
-  return {
-    tone: 'Formal yet engaging, with a narrative tone that alternates between descriptive passages and lively dialogue',
-    sentence_structure: 'Varied sentences, with frequent use of compound periods and subordinate clauses. Good balance between short and long sentences to create rhythm',
-    vocabulary: 'Rich and articulate vocabulary, with specific technical terms and sophisticated literary expressions',
-    patterns: [
-      'Frequent use of metaphors and similes',
-      'Natural dialogue with realistic interruptions',
-      'Detailed descriptive passages before key moments',
-      'Deliberate repetition of themes and motifs',
-      'Alternation between objective and subjective narration'
-    ]
-  };
 }
 
 // Re-export new modular components for convenience
