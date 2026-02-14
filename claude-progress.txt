@@ -1,5 +1,52 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-14 - Feature #222 Complete
+
+### Completed Features: 222/222 (100%)
+
+### Feature #222: Fix upload fonti standalone - file non salvati nel database
+
+**Problem:** When uploading files from the standalone Sources page (/sources), uploads would sometimes fail with "UNIQUE constraint failed: sources.id" error.
+
+**Root Cause Analysis:**
+- The source ID generation used `Buffer.from(\`${userId}-${Date.now()}\`).toString('base64').slice(0, 36)`
+- This approach had two issues:
+  1. `Date.now()` only has millisecond precision
+  2. Truncating to 36 characters could cause collisions
+- When multiple uploads happened rapidly (same millisecond), duplicate IDs were generated
+
+**Fix:**
+1. Added `import { v4 as uuidv4 } from 'uuid';` to sources.ts
+2. Changed all 4 source ID generation points to use `uuidv4()` instead of base64-encoded timestamp
+
+**Files Changed:**
+- `server/src/routes/sources.ts`:
+  - Line 8: Added uuid import
+  - Line 189: Standalone source upload ID
+  - Line 282: Project source upload ID
+  - Line 407: Saga source upload ID
+  - Line 588: Web search source ID
+
+**Testing Performed:**
+- ✅ Single file upload works correctly
+- ✅ Rapid multiple uploads (3 files in same millisecond) - all succeed with unique IDs
+- ✅ Files appear in sources list immediately after upload
+- ✅ Files saved to filesystem (`server/data/sources/`)
+- ✅ Data persists across server restart
+- ✅ Delete source removes file from filesystem
+
+**Verification Commands:**
+```bash
+# All tests pass
+bash scripts/test-complete-flow.sh    # Single upload
+bash scripts/test-ui-full.sh          # Rapid uploads
+bash scripts/test-persistence.sh      # Restart persistence
+```
+
+### Commit: 48ce29c
+
+---
+
 ## Session: 2026-02-14 - Feature #221 Complete
 
 ### Completed Features: 221/221 (100%)
