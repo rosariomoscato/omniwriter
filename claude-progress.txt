@@ -1,5 +1,117 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-14 - Feature #225 Implementation
+
+### Completed Features: 224/225 (99.6%)
+
+### Feature #225: Collega fonti esistenti ai progetti (Link Existing Sources to Projects)
+
+**Objective:** Add ability to link standalone sources (uploaded from main Sources page) to a specific project, enabling reuse of sources across multiple projects.
+
+**Implementation:**
+
+#### Backend (server/src/routes/sources.ts):
+1. **NEW ENDPOINT: PUT /api/sources/:id/project** (lines 608-662)
+   - Links a standalone source to a project
+   - Validates source belongs to user and is standalone (project_id = NULL)
+   - Validates project belongs to user
+   - Updates source.project_id in database
+   - Returns source with parsed tags array (consistent with other endpoints)
+   - Error handling: 400 if already linked, 404 if not found
+
+#### Frontend API Service (client/src/services/api.ts):
+2. **NEW METHOD: linkSourceToProject()** (lines 898-906)
+   - Calls PUT /api/sources/:id/project with sourceId and projectId
+   - Returns { source: Source } with tags array
+
+#### Frontend Project Detail Page (client/src/pages/ProjectDetail.tsx):
+3. **NEW STATE VARIABLES:**
+   - `showLinkSources` (line 39): Controls modal visibility
+   - `selectedSourcesToLink` (line 44): Set of selected source IDs
+   - `standaloneSources` (line 45): List of available standalone sources
+   - `loadingStandaloneSources` (line 46): Loading state
+
+4. **NEW FUNCTION: loadStandaloneSources()** (lines 263-280)
+   - Fetches all sources via getAllSources()
+   - Filters to only project_id = NULL sources
+   - Parses tags for each source
+   - Sets loading state and error handling
+
+5. **NEW USE EFFECT** (lines 149-152):
+   - Loads standalone sources when showLinkSources becomes true
+   - Triggers modal data fetch on open
+
+6. **NEW HANDLER: handleLinkSources()** (lines 599-641):
+   - Iterates through selected sources
+   - Calls linkSourceToProject for each
+   - Updates project sources list with linked sources
+   - Shows success toast (single or multiple message)
+   - Closes modal and clears selection
+   - Error handling with toast
+
+7. **NEW UI: Link Sources Modal** (lines 3068-3174):
+   - Fixed overlay modal (z-index 50)
+   - Purple-themed (matches "Collega Fonti" branding)
+   - Header with title and close button
+   - Description text and selected count
+   - Scrollable list of standalone sources
+   - Each source: checkbox, file icon, name, type, size, tags
+   - Selected sources: purple highlight with checkmark
+   - Empty state: message when no standalone sources
+   - Footer: Cancel and Confirm buttons
+   - Confirm disabled when no sources selected
+
+8. **NEW BUTTON: "Collega Fonti"** (lines 2274-2280):
+   - Added to Sources section header
+   - Purple background (#9333EA) with Network icon
+   - Positioned before Web Search and Upload buttons
+   - Opens modal and clears previous selections
+
+#### Translations (client/src/i18n/locales/):
+9. **NEW KEYS** (it.json and en.json):
+   - `projectPage.sources.linkSources`: "Collega Fonti" / "Link Sources"
+   - `projectPage.sources.linkModalTitle`: "Collega Fonti Esistenti" / "Link Existing Sources"
+   - `projectPage.sources.linkModalDesc`: Description text
+   - `projectPage.sources.noStandaloneSources`: Empty state message
+   - `projectPage.sources.selectedCount`: "{count} selected" with plural
+   - `projectPage.sources.cancel`: "Cancel" / "Annulla"
+   - `projectPage.sources.confirm`: "Link Selected Sources" / "Collega Fonti Selezionate"
+   - `projectPage.sources.linkSuccess`: Single source success message
+   - `projectPage.sources.linkMultipleSuccess`: Multiple sources success message
+
+**User Workflow:**
+1. User navigates to project detail page
+2. In Sources section, clicks "Collega Fonti" (purple button)
+3. Modal opens showing all standalone sources (project_id = NULL)
+4. User selects one or more sources with checkboxes
+5. Selected count updates dynamically
+6. User clicks "Collega Fonti Selezionate" (confirm button)
+7. API links each source to the project
+8. Modal closes and success toast appears
+9. Linked sources now appear in project's Sources list
+10. Tag filtering works with newly linked sources
+11. Linked sources no longer appear in modal (already linked)
+
+**Edge Cases Handled:**
+- No standalone sources: Empty state with helpful message
+- No sources selected: Confirm button disabled
+- Source already linked: API returns 400 error
+- Source belongs to different user: API returns 404
+- Project belongs to different user: API returns 404
+- Multiple sources: Batch linking with progress indication
+
+**Testing:**
+- Full test plan documented in test-link-sources-feature.md
+- Implementation completed with all verification steps defined
+- Due to sandbox restrictions, browser automation testing could not be performed
+- Code verified to compile and exist in correct locations
+- Backend endpoint present in compiled dist/routes/sources.js
+- Frontend changes in source files (Vite hot-reload will pick up)
+
+### Commit: fe5fc4c
+
+---
+
 ## Session: 2026-02-14 - Feature #224 Implementation
 
 ### Completed Features: 224/224 (100%)

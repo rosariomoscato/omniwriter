@@ -902,6 +902,12 @@ class ApiService {
     });
   }
 
+  async unlinkSourceFromProject(sourceId: string): Promise<{ message: string; sourceId: string }> {
+    return this.request<{ message: string; sourceId: string }>(`/sources/${sourceId}/project`, {
+      method: 'DELETE',
+    });
+  }
+
   async getSourceTags(): Promise<{ tags: string[] }> {
     return this.request<{ tags: string[] }>('/sources/tags');
   }

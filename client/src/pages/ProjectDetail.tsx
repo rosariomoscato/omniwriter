@@ -2,12 +2,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, Globe, RefreshCw, Network, CheckCircle, Lightbulb } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
 import { ChapterListSkeleton } from '../components/Skeleton';
-import BulkSourceUpload from '../components/BulkSourceUpload';
 import RelationshipMap from '../components/RelationshipMap';
 import TableOfContents from '../components/TableOfContents';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
@@ -37,8 +36,6 @@ export default function ProjectDetail() {
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [showAddSource, setShowAddSource] = useState(false);
   const [showLinkSources, setShowLinkSources] = useState(false);
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
-  const [showWebSearch, setShowWebSearch] = useState(false);
   const [showSourcePreview, setShowSourcePreview] = useState(false);
   const [selectedSourcesToLink, setSelectedSourcesToLink] = useState<Set<string>>(new Set());
   const [standaloneSources, setStandaloneSources] = useState<Source[]>([]);
@@ -51,6 +48,8 @@ export default function ProjectDetail() {
   const [editingPlotEvent, setEditingPlotEvent] = useState<PlotEvent | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUnlinkSourceDialog, setShowUnlinkSourceDialog] = useState(false);
+  const [sourceToUnlink, setSourceToUnlink] = useState<Source | null>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -114,14 +113,6 @@ export default function ProjectDetail() {
   const [draggedChapterIndex, setDraggedChapterIndex] = useState<number | null>(null);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [editingSourceTags, setEditingSourceTags] = useState<string | null>(null);
-  const [newTagInput, setNewTagInput] = useState('');
-  const [webSearchQuery, setWebSearchQuery] = useState('');
-  const [webSearchResults, setWebSearchResults] = useState<any[]>([]);
-  const [webSearchSearching, setWebSearchSearching] = useState(false);
-  const [webSearchUrl, setWebSearchUrl] = useState('');
-  const [webSearchTitle, setWebSearchTitle] = useState('');
-  const [webSearchContent, setWebSearchContent] = useState('');
   const [showAnalyzeNovel, setShowAnalyzeNovel] = useState(false);
   const [analyzingNovel, setAnalyzingNovel] = useState(false);
   const [novelFile, setNovelFile] = useState<File | null>(null);
@@ -365,7 +356,7 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this location?')) {
+    if (!confirm(t('projectPage.locations.confirmDelete'))) {
       return;
     }
 
@@ -441,7 +432,7 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this plot event?')) {
+    if (!confirm(t('projectPage.plotEvents.confirmDelete'))) {
       return;
     }
 
@@ -497,7 +488,7 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this chapter?')) {
+    if (!confirm(t('projectPage.chapters.confirmDelete'))) {
       return;
     }
 
@@ -527,7 +518,7 @@ export default function ProjectDetail() {
     const chapter = chapters.find(ch => ch.id === chapterId);
     if (!chapter) return;
 
-    if (!confirm(`Are you sure you want to regenerate chapter "${chapter.title}"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged.`)) {
+    if (!confirm(t('projectPage.chapters.confirmRegenerate', { title: chapter.title }))) {
       return;
     }
 
@@ -592,35 +583,39 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleDeleteSource = async (sourceId: string) => {
-    // Prevent rapid double-clicks
-    if (deletingSourceIdRef.current === sourceId) {
-      return;
-    }
+  const handleDeleteSource = (sourceId: string) => {
+    // Find the source to unlink
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
 
-    if (!confirm('Are you sure you want to delete this source?')) {
+    // Show confirmation dialog
+    setSourceToUnlink(source);
+    setShowUnlinkSourceDialog(true);
+  };
+
+  const confirmUnlinkSource = async () => {
+    if (!sourceToUnlink) return;
+
+    // Prevent rapid double-clicks
+    if (deletingSourceIdRef.current === sourceToUnlink.id) {
       return;
     }
 
     // Mark as deleting immediately
-    deletingSourceIdRef.current = sourceId;
+    deletingSourceIdRef.current = sourceToUnlink.id;
 
     try {
-      await apiService.deleteSource(sourceId);
-      setSources(sources.filter(s => s.id !== sourceId));
+      // Unlink source from project (don't delete it completely)
+      await apiService.unlinkSourceFromProject(sourceToUnlink.id);
+      setSources(sources.filter(s => s.id !== sourceToUnlink.id));
+      toast.success(t('projectPage.sources.unlinkSuccess'));
+      setShowUnlinkSourceDialog(false);
+      setSourceToUnlink(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete source');
+      setError(err.message || 'Failed to remove source from project');
+      toast.error(err.message || 'Failed to remove source from project');
     } finally {
       deletingSourceIdRef.current = null;
-    }
-  };
-
-  const handleBulkUploadComplete = (newSources: any[]) => {
-    setSources([...sources, ...newSources]);
-    setShowBulkUpload(false);
-    if (newSources.length > 0) {
-      const successCount = newSources.length;
-      toast.success(`${successCount} ${successCount === 1 ? 'source' : 'sources'} uploaded successfully`);
     }
   };
 
@@ -652,102 +647,6 @@ export default function ProjectDetail() {
     } catch (err: any) {
       setError(err.message || 'Failed to link sources');
       toast.error(err.message || 'Failed to link sources');
-    }
-  };
-
-  const handleAddTag = async (sourceId: string, tag: string) => {
-    const trimmedTag = tag.trim();
-    if (!trimmedTag) return;
-
-    const source = sources.find(s => s.id === sourceId);
-    if (!source) return;
-
-    // Check if tag already exists
-    if (source.tags.includes(trimmedTag)) {
-      setNewTagInput('');
-      return;
-    }
-
-    try {
-      const updatedTags = [...source.tags, trimmedTag];
-      const response = await apiService.updateSourceTags(sourceId, updatedTags);
-      const updatedSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
-      setSources(sources.map(s => s.id === sourceId ? updatedSource : s));
-      await loadAllTags();
-      setNewTagInput('');
-      toast.success('Tag added');
-    } catch (err: any) {
-      setError(err.message || 'Failed to add tag');
-    }
-  };
-
-  const handleRemoveTag = async (sourceId: string, tagToRemove: string) => {
-    const source = sources.find(s => s.id === sourceId);
-    if (!source) return;
-
-    try {
-      const updatedTags = source.tags.filter(tag => tag !== tagToRemove);
-      const response = await apiService.updateSourceTags(sourceId, updatedTags);
-      const updatedSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
-      setSources(sources.map(s => s.id === sourceId ? updatedSource : s));
-      await loadAllTags();
-      toast.success('Tag removed');
-    } catch (err: any) {
-      setError(err.message || 'Failed to remove tag');
-    }
-  };
-
-  const handleWebSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!webSearchQuery.trim()) {
-      setError('Search query is required');
-      return;
-    }
-
-    try {
-      setWebSearchSearching(true);
-      setError('');
-
-      // TODO: Replace with actual web search API integration (e.g., Google Custom Search API, Bing Search API)
-      // For now, returning empty results with a message
-      setWebSearchResults([]);
-    } catch (err: any) {
-      setError(err.message || 'Search failed');
-    } finally {
-      setWebSearchSearching(false);
-    }
-  };
-
-  const handleSaveWebSearchResult = async () => {
-    if (!webSearchUrl || !webSearchTitle) {
-      setError('URL and title are required');
-      return;
-    }
-
-    try {
-      const response = await apiService.saveWebSearchResult({
-        projectId: id!,
-        url: webSearchUrl,
-        title: webSearchTitle,
-        content: webSearchContent,
-      });
-
-      const newSource = { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') };
-      setSources([newSource, ...sources]);
-      await loadAllTags();
-
-      // Reset form
-      setWebSearchUrl('');
-      setWebSearchTitle('');
-      setWebSearchContent('');
-      setWebSearchQuery('');
-      setWebSearchResults([]);
-      setShowWebSearch(false);
-
-      toast.success('Web search result saved as source');
-    } catch (err: any) {
-      setError(err.message || 'Failed to save web search result');
     }
   };
 
@@ -931,7 +830,7 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this character?')) {
+    if (!confirm(t('projectPage.characters.confirmDelete'))) {
       return;
     }
 
@@ -1954,24 +1853,24 @@ export default function ProjectDetail() {
                   <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Delete Project
+                  {t('projectPage.deleteDialog.title')}
                 </h3>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">"{project?.title}"</span>?
+                {t('projectPage.deleteDialog.confirmMessage')} <span className="font-semibold text-gray-900 dark:text-gray-100">"{project?.title}"</span>?
               </p>
               <p className="text-sm text-red-600 dark:text-red-400 mb-4">
-                This action cannot be undone. All chapters, sources, and characters will be permanently deleted.
+                {t('projectPage.deleteDialog.warning')}
               </p>
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-4">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  <strong className="text-gray-700 dark:text-gray-300">Warning:</strong> This will delete:
+                  <strong className="text-gray-700 dark:text-gray-300">{t('projectPage.deleteDialog.warningTitle')}</strong> {t('projectPage.deleteDialog.warningWillDelete')}
                 </p>
                 <ul className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
-                  <li>• All chapters ({chapters.length})</li>
-                  <li>• All sources ({sources.length})</li>
-                  <li>• All characters ({characters.length})</li>
-                  <li>• All generation logs and history</li>
+                  <li>• {t('projectPage.deleteDialog.allChapters')} ({chapters.length})</li>
+                  <li>• {t('projectPage.deleteDialog.allSources')} ({sources.length})</li>
+                  <li>• {t('projectPage.deleteDialog.allCharacters')} ({characters.length})</li>
+                  <li>• {t('projectPage.deleteDialog.allLogs')}</li>
                 </ul>
               </div>
             </div>
@@ -1984,7 +1883,7 @@ export default function ProjectDetail() {
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                 disabled={deleting}
               >
-                Cancel
+                {t('projectPage.deleteDialog.cancel')}
               </button>
               <button
                 onClick={handleDeleteProject}
@@ -1994,14 +1893,59 @@ export default function ProjectDetail() {
                 {deleting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Deleting...
+                    {t('projectPage.deleteDialog.deleting')}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    Delete Project
+                    {t('projectPage.deleteDialog.deleteButton')}
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlink Source Dialog */}
+      {showUnlinkSourceDialog && sourceToUnlink && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                  <Unlink className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('projectPage.sources.unlinkDialog.title')}
+                </h3>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                {t('projectPage.sources.unlinkDialog.confirmMessage')}
+              </p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                <span className="font-semibold">"{sourceToUnlink.file_name}"</span>
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t('projectPage.sources.unlinkDialog.note')}
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-b-lg flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowUnlinkSourceDialog(false);
+                  setSourceToUnlink(null);
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('projectPage.sources.unlinkDialog.cancel')}
+              </button>
+              <button
+                onClick={confirmUnlinkSource}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Unlink className="w-4 h-4" />
+                {t('projectPage.sources.unlinkDialog.unlinkButton')}
               </button>
             </div>
           </div>
@@ -2334,20 +2278,6 @@ export default function ProjectDetail() {
               <Network className="w-4 h-4" />
               {t('projectPage.sources.linkSources')}
             </button>
-            <button
-              onClick={() => setShowWebSearch(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Globe className="w-4 h-4" />
-              {t('projectPage.sources.webSearch')}
-            </button>
-            <button
-              onClick={() => setShowBulkUpload(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              {t('projectPage.sources.upload')}
-            </button>
           </div>
         </div>
 
@@ -2402,11 +2332,7 @@ export default function ProjectDetail() {
               .map((source) => (
               <div
                 key={source.id}
-                onClick={() => {
-                  setSelectedSource(source);
-                  setShowSourcePreview(true);
-                }}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group cursor-pointer"
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3 flex-1">
                   <FileText className="w-5 h-5 text-gray-400" />
@@ -2428,75 +2354,29 @@ export default function ProjectDetail() {
                       }`}>
                         {source.source_type === 'upload' ? 'Upload' : 'Web Search'}
                       </span>
-                      {/* Tags display */}
+                      {/* Tags display - read-only in project view, manage tags from Sources page */}
                       {source.tags && source.tags.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap">
                           {source.tags.map((tag, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
+                              className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
                             >
                               {tag}
-                              <button
-                                onClick={() => handleRemoveTag(source.id, tag)}
-                                className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
-                    {/* Add Tag Input */}
-                    {editingSourceTags === source.id && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={newTagInput}
-                          onChange={(e) => setNewTagInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newTagInput.trim()) {
-                              handleAddTag(source.id, newTagInput);
-                            } else if (e.key === 'Escape') {
-                              setEditingSourceTags(null);
-                              setNewTagInput('');
-                            }
-                          }}
-                          placeholder="Add tag and press Enter..."
-                          className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => {
-                            setEditingSourceTags(null);
-                            setNewTagInput('');
-                          }}
-                          className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
                   <button
-                    onClick={() => {
-                      setEditingSourceTags(editingSourceTags === source.id ? null : source.id);
-                      setNewTagInput('');
-                    }}
-                    className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Add tag"
-                  >
-                    <Tag className="w-4 h-4" />
-                  </button>
-                  <button
                     onClick={() => handleDeleteSource(source.id)}
                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Delete source"
+                    title={t('project.removeFromProject', 'Remove from project')}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Unlink className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -3055,15 +2935,6 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* Bulk Source Upload Dialog */}
-      {showBulkUpload && (
-        <BulkSourceUpload
-          projectId={id!}
-          onUploadComplete={handleBulkUploadComplete}
-          onCancel={() => setShowBulkUpload(false)}
-        />
-      )}
-
       {/* Link Sources Dialog */}
       {showLinkSources && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -3207,169 +3078,6 @@ export default function ProjectDetail() {
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
               >
                 {t('projectPage.sources.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Web Search Dialog */}
-      {showWebSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-green-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Web Search
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowWebSearch(false);
-                  setWebSearchQuery('');
-                  setWebSearchResults([]);
-                  setWebSearchUrl('');
-                  setWebSearchTitle('');
-                  setWebSearchContent('');
-                }}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-6">
-              {/* Search Form */}
-              <form onSubmit={handleWebSearch} className="mb-6">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={webSearchQuery}
-                    onChange={(e) => setWebSearchQuery(e.target.value)}
-                    placeholder="Enter search query..."
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                  <button
-                    type="submit"
-                    disabled={webSearchSearching}
-                    className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg font-medium transition-colors"
-                  >
-                    <Search className="w-4 h-4" />
-                    {webSearchSearching ? 'Searching...' : 'Search'}
-                  </button>
-                </div>
-              </form>
-
-              {/* Search Results */}
-              {webSearchResults.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Search Results</h4>
-                  {webSearchResults.map((result) => (
-                    <div
-                      key={result.id}
-                      onClick={() => {
-                        setWebSearchUrl(result.url);
-                        setWebSearchTitle(result.title);
-                        setWebSearchContent(result.snippet || '');
-                      }}
-                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                        webSearchUrl === result.url
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <FileText className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-1 truncate">
-                            {result.title}
-                          </h5>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                            {result.snippet}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">
-                              {result.source}
-                            </span>
-                            <span className="truncate">{result.url}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Manual Entry Form (when result is selected) */}
-              {webSearchUrl && (
-                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">Save Search Result</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Title <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={webSearchTitle}
-                        onChange={(e) => setWebSearchTitle(e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        URL <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="url"
-                        value={webSearchUrl}
-                        onChange={(e) => setWebSearchUrl(e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Content/Notes
-                      </label>
-                      <textarea
-                        value={webSearchContent}
-                        onChange={(e) => setWebSearchContent(e.target.value)}
-                        rows={4}
-                        placeholder="Add notes or excerpt from the page..."
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowWebSearch(false);
-                  setWebSearchQuery('');
-                  setWebSearchResults([]);
-                  setWebSearchUrl('');
-                  setWebSearchTitle('');
-                  setWebSearchContent('');
-                }}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveWebSearchResult}
-                disabled={!webSearchUrl || !webSearchTitle}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Save as Source
               </button>
             </div>
           </div>

@@ -315,6 +315,20 @@
     "unarchiveSuccess": "Progetto ripristinato",
     "deleteConfirm": "Sei sicuro di voler eliminare questo progetto? Questa azione non può essere annullata.",
     "deleteSuccess": "Progetto eliminato con successo",
+    "deleteDialog": {
+      "title": "Elimina Progetto",
+      "confirmMessage": "Sei sicuro di voler eliminare",
+      "warning": "Questa azione non può essere annullata. Tutti i capitoli, le fonti e i personaggi saranno eliminati definitivamente.",
+      "warningTitle": "Attenzione:",
+      "warningWillDelete": "Verranno eliminati:",
+      "allChapters": "Tutti i capitoli",
+      "allSources": "Tutte le fonti",
+      "allCharacters": "Tutti i personaggi",
+      "allLogs": "Tutti i log di generazione e cronologia",
+      "cancel": "Annulla",
+      "deleting": "Eliminazione...",
+      "deleteButton": "Elimina Progetto"
+    },
     "chapters": {
       "title": "Capitoli",
       "noChapters": "Nessun capitolo ancora",
@@ -323,7 +337,9 @@
       "titlePlaceholder": "Titolo capitolo...",
       "generateOutline": "Genera Indice",
       "detectPlotHoles": "Rileva Buchi di Trama",
-      "checkConsistency": "Verifica Coerenza"
+      "checkConsistency": "Verifica Coerenza",
+      "confirmDelete": "Sei sicuro di voler eliminare questo capitolo?",
+      "confirmRegenerate": "Sei sicuro di voler rigenerare il capitolo \"{{title}}\"?\n\nSolo questo capitolo sarà rigenerato. Tutti gli altri capitoli rimarranno invariati."
     },
     "sources": {
       "title": "Fonti",
@@ -339,7 +355,16 @@
       "cancel": "Annulla",
       "confirm": "Collega Fonti Selezionate",
       "linkSuccess": "Fonte collegata con successo",
-      "linkMultipleSuccess": "{count} fonti collegate con successo"
+      "linkMultipleSuccess": "{count} fonti collegate con successo",
+      "unlinkDialog": {
+        "title": "Scollega Fonte",
+        "confirmMessage": "Sei sicuro di voler scollegare questa fonte dal progetto?",
+        "note": "La fonte rimarrà disponibile nella pagina Fonti.",
+        "cancel": "Annulla",
+        "unlinkButton": "Scollega Fonte",
+        "unlinking": "Scollegamento..."
+      },
+      "unlinkSuccess": "Fonte scollegata dal progetto"
     },
     "characters": {
       "title": "Personaggi",
@@ -353,7 +378,8 @@
       "descriptionPlaceholder": "Descrizione fisica e aspetto...",
       "traitsPlaceholder": "Tratti della personalità (es. coraggioso, astuto, gentile)...",
       "backstoryPlaceholder": "Background e storia...",
-      "rolePlaceholder": "Ruolo nella storia (es. protagonista, mentore, antagonista)..."
+      "rolePlaceholder": "Ruolo nella storia (es. protagonista, mentore, antagonista)...",
+      "confirmDelete": "Sei sicuro di voler eliminare questo personaggio?"
     },
     "locations": {
       "title": "Luoghi",
@@ -362,7 +388,8 @@
       "add": "Aggiungi Luogo",
       "namePlaceholder": "Nome luogo...",
       "descriptionPlaceholder": "Descrizione fisica e ambiente...",
-      "significancePlaceholder": "Importanza nella storia (rilevanza per la trama, atmosfera, significato simbolico)..."
+      "significancePlaceholder": "Importanza nella storia (rilevanza per la trama, atmosfera, significato simbolico)...",
+      "confirmDelete": "Sei sicuro di voler eliminare questo luogo?"
     },
     "plotEvents": {
       "title": "Eventi di Trama",
@@ -372,7 +399,8 @@
       "titlePlaceholder": "Titolo evento di trama...",
       "descriptionPlaceholder": "Cosa accade in questo evento di trama...",
       "typePlaceholder": "Tipo di evento (es. climax, colpo di scena, introduzione)...",
-      "linkToChapter": "Collega al capitolo (opzionale)"
+      "linkToChapter": "Collega al capitolo (opzionale)",
+      "confirmDelete": "Sei sicuro di voler eliminare questo evento di trama?"
     },
     "statusLabels": {
       "draft": "Bozza",

@@ -661,6 +661,38 @@ router.put('/sources/:id/project', authenticateToken, (req: any, res: any) => {
   }
 });
 
+// DELETE /api/sources/:id/project - Unlink a source from its project (sets project_id to NULL)
+router.delete('/sources/:id/project', authenticateToken, (req: any, res: any) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+  const sourceId = req.params.id;
+
+  try {
+    // Verify source belongs to user
+    const source: any = db
+      .prepare('SELECT id, project_id FROM sources WHERE id = ? AND user_id = ?')
+      .get(sourceId, userId);
+
+    if (!source) {
+      return res.status(404).json({ message: 'Source not found' });
+    }
+
+    if (source.project_id === null) {
+      return res.status(400).json({ message: 'Source is not linked to any project' });
+    }
+
+    // Unlink source from project (set project_id to NULL)
+    db.prepare('UPDATE sources SET project_id = NULL WHERE id = ?').run(sourceId);
+
+    console.log(`[Sources] Source ${sourceId} unlinked from project`);
+
+    res.json({ message: 'Source unlinked successfully', sourceId });
+  } catch (error) {
+    console.error('[Sources] Error unlinking source from project:', error);
+    res.status(500).json({ message: 'Failed to unlink source from project' });
+  }
+});
+
 // POST /api/sources/web-search - Save web search result as source
 router.post('/sources/web-search', authenticateToken, async (req: any, res: any) => {
   const db = getDatabase();

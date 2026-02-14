@@ -315,6 +315,20 @@
     "unarchiveSuccess": "Project unarchived",
     "deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
     "deleteSuccess": "Project deleted successfully",
+    "deleteDialog": {
+      "title": "Delete Project",
+      "confirmMessage": "Are you sure you want to delete",
+      "warning": "This action cannot be undone. All chapters, sources, and characters will be permanently deleted.",
+      "warningTitle": "Warning:",
+      "warningWillDelete": "This will delete:",
+      "allChapters": "All chapters",
+      "allSources": "All sources",
+      "allCharacters": "All characters",
+      "allLogs": "All generation logs and history",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "deleteButton": "Delete Project"
+    },
     "chapters": {
       "title": "Chapters",
       "noChapters": "No chapters yet",
@@ -323,7 +337,9 @@
       "titlePlaceholder": "Chapter title...",
       "generateOutline": "Generate Outline",
       "detectPlotHoles": "Detect Plot Holes",
-      "checkConsistency": "Check Consistency"
+      "checkConsistency": "Check Consistency",
+      "confirmDelete": "Are you sure you want to delete this chapter?",
+      "confirmRegenerate": "Are you sure you want to regenerate chapter \"{{title}}\"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged."
     },
     "sources": {
       "title": "Sources",
@@ -339,7 +355,16 @@
       "cancel": "Cancel",
       "confirm": "Link Selected Sources",
       "linkSuccess": "Source linked successfully",
-      "linkMultipleSuccess": "{count} sources linked successfully"
+      "linkMultipleSuccess": "{count} sources linked successfully",
+      "unlinkDialog": {
+        "title": "Unlink Source",
+        "confirmMessage": "Are you sure you want to unlink this source from the project?",
+        "note": "The source will remain available in the Sources page.",
+        "cancel": "Cancel",
+        "unlinkButton": "Unlink Source",
+        "unlinking": "Unlinking..."
+      },
+      "unlinkSuccess": "Source unlinked from project"
     },
     "characters": {
       "title": "Characters",
@@ -353,7 +378,8 @@
       "descriptionPlaceholder": "Physical description and appearance...",
       "traitsPlaceholder": "Personality traits (e.g., brave, cunning, kind)...",
       "backstoryPlaceholder": "Background and history...",
-      "rolePlaceholder": "Role in story (e.g., protagonist, mentor, villain)..."
+      "rolePlaceholder": "Role in story (e.g., protagonist, mentor, villain)...",
+      "confirmDelete": "Are you sure you want to delete this character?"
     },
     "locations": {
       "title": "Locations",
@@ -362,7 +388,8 @@
       "add": "Add Location",
       "namePlaceholder": "Location name...",
       "descriptionPlaceholder": "Physical description and environment...",
-      "significancePlaceholder": "Significance in the story (plot importance, atmosphere, symbolic meaning)..."
+      "significancePlaceholder": "Significance in the story (plot importance, atmosphere, symbolic meaning)...",
+      "confirmDelete": "Are you sure you want to delete this location?"
     },
     "plotEvents": {
       "title": "Plot Events",
@@ -372,7 +399,8 @@
       "titlePlaceholder": "Plot event title...",
       "descriptionPlaceholder": "What happens in this plot event...",
       "typePlaceholder": "Event type (e.g., climax, twist, introduction)...",
-      "linkToChapter": "Link to chapter (optional)"
+      "linkToChapter": "Link to chapter (optional)",
+      "confirmDelete": "Are you sure you want to delete this plot event?"
     },
     "statusLabels": {
       "draft": "Draft",
