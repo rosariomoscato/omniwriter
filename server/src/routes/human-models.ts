@@ -1,13 +1,49 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { HumanModel, CreateHumanModelInput } from '../models/HumanModel';
 import { analyzeWritingStyle, isAIAvailable, hasUserProvider } from '../services/ai-service';
+import { extractTextFromFile, isSupportedFormat } from '../services/text-extraction';
 
 const router = Router();
+
+// Configure multer for file uploads in Human Model
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'data', 'human-model-sources');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    // Check if format is supported
+    if (isSupportedFormat(ext)) {
+      cb(null, true);
+    } else {
+      const error = new Error('INVALID_FILE_TYPE');
+      (error as any).status = 400;
+      (error as any).code = 'LIMIT_FILE_TYPE';
+      (error as any).message = 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF';
+      cb(error as any, false);
+    }
+  },
+});
 
 // Helper function to count words in text
 function countWords(text: string): number {
@@ -195,101 +231,175 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/human-models/:id/upload - Upload writing for style analysis
+// Supports both multipart/form-data (file upload) and JSON (text content)
 // @ts-expect-error - AuthRequest type compatibility with router
-router.post('/:id/upload', authenticateToken, (req: AuthRequest, res: Response) => {
-  try {
-    const db = getDatabase();
-    const userId = req.user?.id;
-    const modelId = req.params.id;
+router.post(
+  '/:id/upload',
+  authenticateToken,
+  (req: Request, res: Response, next: NextFunction) => {
+    // Check content type to decide how to handle the request
+    const contentType = req.headers['content-type'] || '';
 
-    console.log('[HumanModels] Upload request received for model:', modelId, 'by user:', userId);
-
-    // Check ownership
-    const model = db.prepare('SELECT id, total_word_count FROM human_models WHERE id = ? AND user_id = ?').get(modelId, userId) as HumanModel | undefined;
-    if (!model) {
-      console.log('[HumanModels] Model not found:', modelId);
-      res.status(404).json({ message: 'Human model not found' });
-      return;
-    }
-
-    // For now, we expect base64 encoded content in the request body
-    // In a full implementation with multer, we would handle multipart/form-data
-    const { file_name, file_type, content_text } = req.body;
-
-    console.log('[HumanModels] Upload details - file_name:', file_name, 'file_type:', file_type, 'content_length:', content_text?.length);
-
-    if (!file_name || !file_type || !content_text) {
-      console.log('[HumanModels] Missing required fields');
-      res.status(400).json({ message: 'file_name, file_type, and content_text are required' });
-      return;
-    }
-
-    // Validate content size (max 10MB per file)
-    const contentSizeMB = Buffer.byteLength(content_text, 'utf8') / (1024 * 1024);
-    if (contentSizeMB > 10) {
-      console.log('[HumanModels] File too large:', contentSizeMB.toFixed(2), 'MB');
-      res.status(413).json({ message: `File too large (${contentSizeMB.toFixed(2)} MB). Maximum allowed size is 10 MB.` });
-      return;
-    }
-
-    // Validate file type for Human Model uploads
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword',
-      'application/rtf',
-      'text/plain',
-    ];
-    const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
-    const fileExtension = path.extname(file_name).toLowerCase();
-
-    const isValidMimeType = allowedTypes.includes(file_type);
-    const isValidExtension = validExtensions.includes(fileExtension);
-
-    if (!isValidMimeType && !isValidExtension) {
-      return res.status(400).json({
-        message: 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.'
+    if (contentType.includes('multipart/form-data')) {
+      // Handle multipart file upload
+      upload.single('file')(req, res, (err: any) => {
+        if (err) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ message: 'File too large. Maximum size is 10MB.' });
+          }
+          if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
+            return res.status(400).json({
+              message: 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF'
+            });
+          }
+          return res.status(400).json({ message: err.message || 'File upload failed' });
+        }
+        next();
       });
+    } else {
+      // Pass through for JSON handling
+      next();
     }
+  },
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const db = getDatabase();
+      const userId = req.user?.id;
+      const modelId = req.params.id;
 
-    const sourceId = uuidv4();
-    const wordCount = countWords(content_text);
-    const uploadDir = path.join(__dirname, '../../data/human-model-sources');
+      console.log('[HumanModels] Upload request received for model:', modelId, 'by user:', userId);
 
-    // Ensure upload directory exists
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+      // Check ownership
+      const model = db.prepare('SELECT id, total_word_count FROM human_models WHERE id = ? AND user_id = ?').get(modelId, userId) as HumanModel | undefined;
+      if (!model) {
+        console.log('[HumanModels] Model not found:', modelId);
+        // Clean up uploaded file if exists
+        if (req.file && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        res.status(404).json({ message: 'Human model not found' });
+        return;
+      }
+
+      const contentType = req.headers['content-type'] || '';
+      let file_name: string;
+      let file_type: string;
+      let content_text: string;
+      let filePath: string;
+
+      if (contentType.includes('multipart/form-data') && req.file) {
+        // Handle file upload
+        console.log('[HumanModels] Processing file upload:', req.file.originalname);
+
+        file_name = req.file.originalname;
+        file_type = req.file.mimetype;
+        filePath = req.file.path;
+
+        // Extract text from the uploaded file
+        const extractionResult = await extractTextFromFile(req.file.path);
+
+        if (extractionResult.error) {
+          // Clean up uploaded file
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+          console.log('[HumanModels] Text extraction error:', extractionResult.error);
+          return res.status(400).json({ message: extractionResult.error });
+        }
+
+        content_text = extractionResult.text;
+        console.log('[HumanModels] Text extracted successfully. Word count:', extractionResult.wordCount);
+      } else {
+        // Handle JSON upload (backward compatibility)
+        const body = req.body;
+        file_name = body.file_name;
+        file_type = body.file_type;
+        content_text = body.content_text;
+
+        if (!file_name || !file_type || !content_text) {
+          console.log('[HumanModels] Missing required fields');
+          res.status(400).json({ message: 'file_name, file_type, and content_text are required' });
+          return;
+        }
+
+        // Validate content size (max 10MB per file)
+        const contentSizeMB = Buffer.byteLength(content_text, 'utf8') / (1024 * 1024);
+        if (contentSizeMB > 10) {
+          console.log('[HumanModels] File too large:', contentSizeMB.toFixed(2), 'MB');
+          res.status(413).json({ message: `File too large (${contentSizeMB.toFixed(2)} MB). Maximum allowed size is 10 MB.` });
+          return;
+        }
+
+        // Validate file type for Human Model uploads
+        const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
+        const fileExtension = path.extname(file_name).toLowerCase();
+
+        const isValidMimeType = file_type === 'text/plain' ||
+          file_type.includes('word') ||
+          file_type.includes('rtf') ||
+          file_type.includes('pdf');
+        const isValidExtension = validExtensions.includes(fileExtension);
+
+        if (!isValidMimeType && !isValidExtension) {
+          return res.status(400).json({
+            message: 'Invalid file type. Supported formats: TXT, DOCX, DOC, RTF'
+          });
+        }
+
+        const sourceId = uuidv4();
+        const uploadDir = path.join(__dirname, '../../data/human-model-sources');
+
+        // Ensure upload directory exists
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Save file (for JSON uploads, we save the extracted text as .txt)
+        filePath = path.join(uploadDir, `${sourceId}-${file_name}`);
+        fs.writeFileSync(filePath, content_text, 'utf-8');
+      }
+
+      const wordCount = countWords(content_text);
+
+      const sourceId = uuidv4();
+      console.log('[HumanModels] Uploading source:', sourceId, 'for model:', modelId);
+
+      // Save to database - store the extracted text file path
+      // For multipart uploads, we use the original file path
+      // For JSON uploads, we already have the filePath set
+      const finalFilePath = req.file ? req.file.path : filePath;
+
+      db.prepare(
+        `INSERT INTO human_model_sources (id, human_model_id, file_name, file_path, file_type, word_count, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).run(sourceId, modelId, file_name, finalFilePath, file_type, wordCount);
+
+      // Update total word count
+      const newTotalWordCount = model.total_word_count + wordCount;
+      db.prepare(
+        "UPDATE human_models SET total_word_count = ?, updated_at = datetime('now') WHERE id = ?"
+      ).run(newTotalWordCount, modelId);
+
+      const source = db.prepare('SELECT * FROM human_model_sources WHERE id = ?').get(sourceId);
+      console.log('[HumanModels] Source uploaded successfully:', sourceId);
+
+      res.status(201).json({
+        message: 'Writing uploaded successfully',
+        source,
+        total_word_count: newTotalWordCount
+      });
+    } catch (error) {
+      console.error('[HumanModels] Upload error:', error instanceof Error ? error.message : 'Unknown error');
+
+      // Clean up uploaded file on error
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      res.status(500).json({ message: 'Internal server error' });
     }
-
-    // Save file
-    const filePath = path.join(uploadDir, `${sourceId}-${file_name}`);
-    fs.writeFileSync(filePath, content_text, 'utf-8');
-
-    console.log('[HumanModels] Uploading source:', sourceId, 'for model:', modelId);
-    db.prepare(
-      `INSERT INTO human_model_sources (id, human_model_id, file_name, file_path, file_type, word_count, uploaded_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
-    ).run(sourceId, modelId, file_name, filePath, file_type, wordCount);
-
-    // Update total word count
-    const newTotalWordCount = model.total_word_count + wordCount;
-    db.prepare(
-      "UPDATE human_models SET total_word_count = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(newTotalWordCount, modelId);
-
-    const source = db.prepare('SELECT * FROM human_model_sources WHERE id = ?').get(sourceId);
-    console.log('[HumanModels] Source uploaded successfully:', sourceId);
-
-    res.status(201).json({
-      message: 'Writing uploaded successfully',
-      source,
-      total_word_count: newTotalWordCount
-    });
-  } catch (error) {
-    console.error('[HumanModels] Upload error:', error instanceof Error ? error.message : 'Unknown error');
-    res.status(500).json({ message: 'Internal server error' });
   }
-});
+);
 
 // POST /api/human-models/:id/analyze - Start style analysis
 // @ts-expect-error - AuthRequest type compatibility with router

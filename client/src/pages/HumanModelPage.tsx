@@ -50,13 +50,17 @@ export default function HumanModelPage() {
 
   // Form state for uploading a file
   const [uploadFile, setUploadFile] = useState<{
+    file: File | null;
     file_name: string;
     file_type: string;
     content_text: string;
+    preview: string;
   }>({
+    file: null,
     file_name: '',
     file_type: 'txt',
     content_text: '',
+    preview: '',
   });
 
   useEffect(() => {
@@ -209,6 +213,38 @@ export default function HumanModelPage() {
     e.preventDefault();
     if (!selectedModel) return;
 
+    // If we have a file, use FormData upload
+    if (uploadFile.file) {
+      try {
+        setError(null);
+        const response = await apiService.uploadFileToHumanModel(
+          selectedModel.id,
+          uploadFile.file
+        );
+        setSources([response.source, ...sources]);
+        // Update model word count
+        setSelectedModel({
+          ...selectedModel,
+          total_word_count: response.total_word_count,
+        });
+        setShowUploadDialog(false);
+        setUploadFile({
+          file: null,
+          file_name: '',
+          file_type: 'txt',
+          content_text: '',
+          preview: '',
+        });
+        toast.success(t('humanModel.uploadSuccess', 'File uploaded successfully'));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to upload file';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+      return;
+    }
+
+    // Fallback to text upload (for backward compatibility)
     // Validate file size (max 10MB)
     const contentSizeMB = new Blob([uploadFile.content_text]).size / (1024 * 1024);
     if (contentSizeMB > 10) {
@@ -234,9 +270,11 @@ export default function HumanModelPage() {
       });
       setShowUploadDialog(false);
       setUploadFile({
+        file: null,
         file_name: '',
         file_type: 'txt',
         content_text: '',
+        preview: '',
       });
       toast.success(t('humanModel.uploadSuccess', 'File uploaded successfully'));
     } catch (err) {
@@ -342,21 +380,48 @@ export default function HumanModelPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
+    // Get file extension
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'txt';
+
+    // For TXT files, read and show preview
+    // For other formats (DOCX, RTF), store the file for FormData upload
+    if (extension === 'txt') {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setUploadFile({
+          file: file,
+          file_name: file.name,
+          file_type: 'text/plain',
+          content_text: content,
+          preview: content.substring(0, 2000),
+        });
+      };
+      reader.onerror = () => {
+        const errorMsg = t('humanModel.fileReadError', 'Failed to read file. Please try again.');
+        setError(errorMsg);
+        toast.error(errorMsg);
+      };
+      reader.readAsText(file);
+    } else {
+      // For DOCX, DOC, RTF - store file reference and show file info
+      let mimeType = 'application/octet-stream';
+      if (extension === 'docx') {
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else if (extension === 'doc') {
+        mimeType = 'application/msword';
+      } else if (extension === 'rtf') {
+        mimeType = 'application/rtf';
+      }
+
       setUploadFile({
+        file: file,
         file_name: file.name,
-        file_type: file.name.split('.').pop() || 'txt',
-        content_text: content,
+        file_type: mimeType,
+        content_text: '',
+        preview: `[${extension.toUpperCase()} file - ${fileSizeMB.toFixed(2)} MB]`,
       });
-    };
-    reader.onerror = () => {
-      const errorMsg = t('humanModel.fileReadError', 'Failed to read file. Please try again.');
-      setError(errorMsg);
-      toast.error(errorMsg);
-    };
-    reader.readAsText(file);
+    }
   };
 
   const getMinWords = (modelType: string) => {
@@ -1101,33 +1166,51 @@ export default function HumanModelPage() {
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('humanModel.selectFile', 'Select File')} (TXT)
+                  {t('humanModel.selectFile', 'Select File')}
                 </label>
                 <input
                   type="file"
-                  accept=".txt"
+                  accept=".txt,.docx,.doc,.rtf"
                   onChange={handleFileRead}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('humanModel.maxFileSize', 'Maximum file size: 10 MB')}
+                  {t('humanModel.supportedFormats', 'Supported formats: TXT, DOCX, DOC, RTF. Maximum file size: 10 MB')}
                 </p>
               </div>
-              {uploadFile.content_text && (
+              {uploadFile.file && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {t('humanModel.preview', 'Preview')}
                   </label>
-                  <textarea
-                    value={uploadFile.content_text}
-                    onChange={e => setUploadFile({ ...uploadFile, content_text: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
-                    rows={6}
-                  />
-                  <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    <span>{uploadFile.content_text.split(/\s+/).filter(w => w.length > 0).length} {t('humanModel.words', 'words')}</span>
-                    <span>{(new Blob([uploadFile.content_text]).size / 1024).toFixed(1)} KB</span>
-                  </div>
+                  {uploadFile.content_text ? (
+                    <>
+                      <textarea
+                        value={uploadFile.preview || uploadFile.content_text}
+                        onChange={e => setUploadFile({ ...uploadFile, content_text: e.target.value, preview: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                        rows={6}
+                      />
+                      <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <span>{uploadFile.content_text.split(/\s+/).filter(w => w.length > 0).length} {t('humanModel.words', 'words')}</span>
+                        <span>{(new Blob([uploadFile.content_text]).size / 1024).toFixed(1)} KB</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full px-3 py-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                      <div className="flex items-center gap-3">
+                        <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{uploadFile.file_name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {(uploadFile.file.size / 1024).toFixed(1)} KB • {uploadFile.file_name.split('.').pop()?.toUpperCase()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex gap-3 pt-4">
@@ -1140,7 +1223,7 @@ export default function HumanModelPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!uploadFile.content_text}
+                  disabled={!uploadFile.file}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {t('humanModel.upload', 'Upload')}

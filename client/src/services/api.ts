@@ -616,6 +616,27 @@ class ApiService {
     });
   }
 
+  async uploadFileToHumanModel(id: string, file: File): Promise<{ source: HumanModelSource; total_word_count: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/human-models/${id}/upload`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   // Chapter endpoints
   async getProjectChapters(projectId: string): Promise<{ chapters: Chapter[] }> {
     return this.request<{ chapters: Chapter[] }>(`/projects/${projectId}/chapters`);
