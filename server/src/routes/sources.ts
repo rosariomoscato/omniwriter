@@ -5,6 +5,7 @@ import { requirePremium } from '../middleware/roles';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -185,7 +186,7 @@ router.post(
       const contentText = await extractTextContent(req.file.path, req.file.mimetype);
 
       // Generate source ID
-      const sourceId = Buffer.from(`${userId}-${Date.now()}`).toString('base64').slice(0, 36);
+      const sourceId = uuidv4();
 
       // Insert source into database with project_id and saga_id as NULL
       db.prepare(
@@ -278,7 +279,7 @@ router.post(
       const contentText = await extractTextContent(req.file.path, req.file.mimetype);
 
       // Generate source ID
-      const sourceId = Buffer.from(`${projectId}-${Date.now()}`).toString('base64').slice(0, 36);
+      const sourceId = uuidv4();
 
       // Insert source into database
       db.prepare(
@@ -403,7 +404,7 @@ router.post(
       const contentText = await extractTextContent(req.file.path, req.file.mimetype);
 
       // Generate source ID
-      const sourceId = Buffer.from(`${sagaId}-${Date.now()}`).toString('base64').slice(0, 36);
+      const sourceId = uuidv4();
 
       // Insert source with saga_id (project_id is NULL)
       db.prepare(
@@ -584,7 +585,7 @@ router.post('/sources/web-search', authenticateToken, async (req: any, res: any)
     }
 
     // Generate source ID
-    const sourceId = Buffer.from(`${projectId}-${Date.now()}`).toString('base64').slice(0, 36);
+    const sourceId = uuidv4();
 
     // Insert web search source into database
     db.prepare(
