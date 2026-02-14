@@ -1,5 +1,64 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-14 - Feature #221 Complete
+
+### Completed Features: 221/221 (100%)
+
+### Feature #221: Multi-format file upload support for Human Model (TXT, DOCX, DOC, RTF)
+
+**Objective:** Extend Human Model file upload to support multiple document formats beyond just TXT files.
+
+**Implementation:**
+
+1. **Backend - Text Extraction Service (`server/src/services/text-extraction.ts`)** [NEW FILE]
+   - Created modular text extraction service
+   - TXT: Direct file read
+   - DOCX/DOC: Uses mammoth library to extract raw text
+   - RTF: Regex-based extraction (strips control words)
+   - PDF: Returns error message (not supported - requires pdf-parse which couldn't be installed)
+   - Functions: `extractTextFromFile()`, `isSupportedFormat()`, `getSupportedFormats()`, `getMimeType()`, `countWords()`
+
+2. **Backend - Human Models Route (`server/src/routes/human-models.ts`)**
+   - Added multer configuration for multipart/form-data uploads
+   - File type validation using `isSupportedFormat()`
+   - Supports `.txt`, `.docx`, `.doc`, `.rtf` extensions
+   - 10MB file size limit
+   - Extracts text from uploaded files before saving to database
+   - Returns appropriate error for unsupported formats (including PDF)
+
+3. **Frontend - API Service (`client/src/services/api.ts`)**
+   - Added `uploadFileToHumanModel(id, file)` method
+   - Sends file as FormData with multipart/form-data
+   - Proper authorization header handling
+
+4. **Frontend - Human Model Page (`client/src/pages/HumanModelPage.tsx`)**
+   - Updated file input to accept `.txt,.docx,.doc,.rtf`
+   - Modified upload button to be disabled when no file selected (instead of no content_text)
+   - For binary files (DOCX, RTF), stores file reference and shows file info instead of text preview
+   - Uses FormData upload for all file types
+
+5. **i18n Translations (`client/src/i18n/locales/*.json`)**
+   - Updated `noFilesDesc` to mention all supported formats (TXT, DOCX, DOC, RTF)
+   - Added `supportedFormats` translation key
+
+**Testing Performed (via API):**
+- Created Human Model via API
+- Uploaded TXT file: ✅ Success (41 words extracted)
+- Uploaded DOCX file: ✅ Success (16 words extracted)
+- Uploaded RTF file: ✅ Success (16 words extracted)
+- Uploaded PDF file: ✅ Correctly rejected with error message "Invalid file type. Supported formats: TXT, DOCX, DOC, RTF"
+- Total word count correctly accumulated across uploads
+
+**Key Design Decisions:**
+- PDF not supported due to npm package installation restrictions
+- mammoth library already installed, used for DOCX extraction
+- RTF extraction uses regex (simpler approach, no external dependency needed)
+- Files stored on disk, extracted text saved separately
+
+### Commit: 7418990
+
+---
+
 ## Session: 2026-02-13 - Feature #220 Complete
 
 ### Completed Features: 220/220 (100%)
