@@ -170,7 +170,10 @@ export default function SourcesPage() {
     try {
       setError(null);
       const response = await apiService.updateSourceTags(sourceId, updatedTags);
-      setSources(sources.map(s => s.id === sourceId ? { ...s, tags: response.source.tags || [] } : s));
+      // Handle both tags array and tags_json (fallback for API compatibility)
+      const returnedTags = response.source.tags ||
+                          (response.source.tags_json ? JSON.parse(response.source.tags_json) : []);
+      setSources(sources.map(s => s.id === sourceId ? { ...s, tags: returnedTags } : s));
       setNewTagInput('');
       setEditingSourceTags(null);
 
@@ -195,7 +198,10 @@ export default function SourcesPage() {
     try {
       setError(null);
       const response = await apiService.updateSourceTags(sourceId, updatedTags);
-      setSources(sources.map(s => s.id === sourceId ? { ...s, tags: response.source.tags || [] } : s));
+      // Handle both tags array and tags_json (fallback for API compatibility)
+      const returnedTags = response.source.tags ||
+                          (response.source.tags_json ? JSON.parse(response.source.tags_json) : []);
+      setSources(sources.map(s => s.id === sourceId ? { ...s, tags: returnedTags } : s));
       toast.success(t('sources.tagRemoved'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove tag');

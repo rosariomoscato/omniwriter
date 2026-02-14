@@ -509,9 +509,15 @@ router.put('/sources/:id/tags', authenticateToken, (req: any, res: any) => {
     console.log(`[Sources] Updated tags for source ${sourceId}:`, tags);
 
     // Fetch updated source
-    const updatedSource = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
+    const updatedSource: any = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
 
-    res.json({ source: updatedSource });
+    // Convert tags_json to tags array (like GET /api/sources does)
+    const sourceWithTags = {
+      ...updatedSource,
+      tags: updatedSource.tags_json ? JSON.parse(updatedSource.tags_json) : [],
+    };
+
+    res.json({ source: sourceWithTags });
   } catch (error) {
     console.error('[Sources] Error updating tags:', error);
     res.status(500).json({ message: 'Failed to update tags' });
