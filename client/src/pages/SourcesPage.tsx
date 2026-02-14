@@ -7,7 +7,7 @@ import {
   FileText,
   Upload,
   Trash2,
-  Tag,
+  Tag as TagIcon,
   X,
   Search,
   Filter,
@@ -29,6 +29,10 @@ export default function SourcesPage() {
   // Tag editing states
   const [editingSourceTags, setEditingSourceTags] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState('');
+
+  // Tag management states
+  const [showTagManagement, setShowTagManagement] = useState(false);
+  const [deletingTag, setDeletingTag] = useState<string | null>(null);
 
   // Preview states
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
@@ -199,6 +203,44 @@ export default function SourcesPage() {
     }
   };
 
+  const handleDeleteTagGlobally = async (tag: string) => {
+    const confirmMessage = t('sources.confirmDeleteTag', { tag });
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setDeletingTag(tag);
+      setError(null);
+      const response = await apiService.deleteTag(tag);
+
+      // Update sources state to reflect the removed tag
+      setSources(sources.map(source => {
+        if (source.tags && source.tags.includes(tag)) {
+          return {
+            ...source,
+            tags: source.tags.filter(t => t !== tag)
+          };
+        }
+        return source;
+      }));
+
+      // Update allTags state
+      setAllTags(allTags.filter(t => t !== tag));
+
+      // Show success message with count
+      toast.success(t('sources.deleteTagSuccess', {
+        tag,
+        count: response.updatedCount
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete tag');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete tag');
+    } finally {
+      setDeletingTag(null);
+    }
+  };
+
   // Filter sources based on search and tag filter
   const filteredSources = sources.filter(source => {
     const matchesSearch = searchQuery === '' ||
@@ -257,7 +299,7 @@ export default function SourcesPage() {
               <p className="text-sm text-gray-600 dark:text-gray-400">{t('sources.totalTags')}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{allTags.length}</p>
             </div>
-            <Tag className="w-8 h-8 text-gray-400" />
+            <TagIcon className="w-8 h-8 text-gray-400" />
           </div>
         </div>
 
@@ -323,6 +365,90 @@ export default function SourcesPage() {
           )}
         </div>
       </div>
+
+      {/* Tag Management Section */}
+      {showTagManagement && (
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <TagIcon className="w-5 h-5 text-purple-600" />
+                {t('sources.manageTags')}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {t('sources.manageTagsDesc')}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowTagManagement(false)}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {allTags.length === 0 ? (
+            <div className="text-center py-8">
+              <TagIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+              <p className="text-gray-600 dark:text-gray-400">{t('sources.noTags')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allTags.map((tag) => {
+                // Count how many sources have this tag
+                const sourceCount = sources.filter(s =>
+                  s.tags && s.tags.includes(tag)
+                ).length;
+
+                return (
+                  <div
+                    key={tag}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 group hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <TagIcon className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {tag}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                        {sourceCount}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTagGlobally(tag)}
+                      disabled={deletingTag === tag}
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={t('sources.delete')}
+                    >
+                      {deletingTag === tag ? (
+                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toggle Tag Management Button */}
+      {!showTagManagement && allTags.length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowTagManagement(true)}
+            className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <TagIcon className="w-5 h-5" />
+            <span>{t('sources.manageTags')}</span>
+            <span className="text-sm bg-purple-700 px-2 py-0.5 rounded-full">
+              {t('sources.tagCount', { count: allTags.length })}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (
@@ -445,7 +571,7 @@ export default function SourcesPage() {
                   className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                   title={t('sources.addTag')}
                 >
-                  <Tag className="w-4 h-4" />
+                  <TagIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDeleteSource(source.id)}

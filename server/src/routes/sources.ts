@@ -552,6 +552,53 @@ router.get('/sources/tags', authenticateToken, (req: any, res: any) => {
   }
 });
 
+// DELETE /api/sources/tags/:tagName - Delete a tag globally from all sources
+router.delete('/sources/tags/:tagName', authenticateToken, (req: any, res: any) => {
+  const db = getDatabase();
+  const userId = req.user.id;
+  const tagName = decodeURIComponent(req.params.tagName);
+
+  if (!tagName) {
+    return res.status(400).json({ message: 'Tag name is required' });
+  }
+
+  try {
+    // Get all sources for user that contain this tag
+    const sources: any[] = db
+      .prepare('SELECT id, tags_json FROM sources WHERE user_id = ?')
+      .all(userId);
+
+    let updatedCount = 0;
+
+    // Update each source that contains the tag
+    for (const source of sources) {
+      try {
+        const tags = JSON.parse(source.tags_json || '[]');
+        if (Array.isArray(tags) && tags.includes(tagName)) {
+          const updatedTags = tags.filter((t: string) => t !== tagName);
+          const tagsJson = JSON.stringify(updatedTags);
+          db.prepare('UPDATE sources SET tags_json = ? WHERE id = ?').run(tagsJson, source.id);
+          updatedCount++;
+        }
+      } catch (e) {
+        // Skip invalid JSON
+        console.error(`[Sources] Error parsing tags for source ${source.id}:`, e);
+      }
+    }
+
+    console.log(`[Sources] Tag "${tagName}" deleted from ${updatedCount} sources for user ${userId}`);
+
+    res.json({
+      message: 'Tag deleted successfully',
+      tagName,
+      updatedCount
+    });
+  } catch (error) {
+    console.error('[Sources] Error deleting tag:', error);
+    res.status(500).json({ message: 'Failed to delete tag' });
+  }
+});
+
 // POST /api/sources/web-search - Save web search result as source
 router.post('/sources/web-search', authenticateToken, async (req: any, res: any) => {
   const db = getDatabase();

@@ -899,6 +899,12 @@ class ApiService {
     return this.request<{ tags: string[] }>('/sources/tags');
   }
 
+  async deleteTag(tagName: string): Promise<{ message: string; tagName: string; updatedCount: number }> {
+    return this.request<{ message: string; tagName: string; updatedCount: number }>(`/sources/tags/${encodeURIComponent(tagName)}`, {
+      method: 'DELETE',
+    });
+  }
+
   async saveWebSearchResult(data: {
     projectId: string;
     url: string;

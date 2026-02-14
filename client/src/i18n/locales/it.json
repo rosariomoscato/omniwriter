@@ -741,7 +741,14 @@
     "noSources": "Nessuna fonte ancora",
     "noFilteredSources": "Nessuna fonte corrisponde ai tuoi filtri",
     "tryDifferentFilters": "Prova a modificare la tua ricerca o i filtri",
-    "uploadFirstSource": "Carica la tua prima fonte per iniziare"
+    "uploadFirstSource": "Carica la tua prima fonte per iniziare",
+    "manageTags": "Gestisci Tag",
+    "manageTagsDesc": "Visualizza ed elimina i tag da tutte le fonti",
+    "confirmDeleteTag": "Sei sicuro di voler eliminare il tag \"{{tag}}\"? Questo lo rimuoverà da tutte le fonti che lo contengono.",
+    "deleteTagSuccess": "Tag \"{{tag}}\" eliminato con successo da {{count}} fonti",
+    "noTags": "Nessun tag disponibile",
+    "tagCount_one": "{{count}} tag",
+    "tagCount_other": "{{count}} tag"
   },
   "settings": {
     "title": "Impostazioni",

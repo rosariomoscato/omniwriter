@@ -741,7 +741,14 @@
     "noSources": "No sources yet",
     "noFilteredSources": "No sources match your filters",
     "tryDifferentFilters": "Try adjusting your search or filters",
-    "uploadFirstSource": "Upload your first source to get started"
+    "uploadFirstSource": "Upload your first source to get started",
+    "manageTags": "Manage Tags",
+    "manageTagsDesc": "View and delete tags from all sources",
+    "confirmDeleteTag": "Are you sure you want to delete the tag \"{{tag}}\"? This will remove it from all sources that contain it.",
+    "deleteTagSuccess": "Tag \"{{tag}}\" deleted successfully from {{count}} sources",
+    "noTags": "No tags available",
+    "tagCount_one": "{{count}} tag",
+    "tagCount_other": "{{count}} tags"
   },
   "settings": {
     "title": "Settings",
