@@ -1248,7 +1248,8 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
           chapterId,
           projectId,
           title,
-          `# ${title}\n\n**Outline Summary:**\n${summary}\n\n**Notes:**\nWrite this chapter focusing on character development and advancing the main plot. Use the ${tone} tone established in the project settings.\n\nTarget word count: ${avgChapterWords} words`
+          `# ${title}\n\n**Outline Summary:**\n${summary}\n\n**Notes:**\nWrite this chapter focusing on character development and advancing the main plot. Use the ${tone} tone established in the project settings.\n\nTarget word count: ${avgChapterWords} words`,
+          i // order_index: chapter position in the outline
         );
 
         createdChapters.push({ id: chapterId, title, summary });
