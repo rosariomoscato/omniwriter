@@ -1057,9 +1057,13 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
     console.log('[Projects] Generating outline for project:', projectId);
 
     // Verify project belongs to user and is a Romanziere project
+    // Also get user's preferred_language for localization
     const project = db.prepare(`
-      SELECT id, title, area, settings_json, genre, tone, target_audience, pov, word_count_target
-      FROM projects WHERE id = ? AND user_id = ?
+      SELECT p.id, p.title, p.area, p.settings_json, p.genre, p.tone, p.target_audience, p.pov, p.word_count_target,
+             u.preferred_language
+      FROM projects p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = ? AND p.user_id = ?
     `).get(projectId, userId) as {
       id: string;
       title: string;
@@ -1070,6 +1074,7 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
       target_audience: string;
       pov: string;
       word_count_target: number;
+      preferred_language: string;
     } | undefined;
 
     if (!project) {
@@ -1098,109 +1103,230 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
     // Generate chapter outline with summaries
     const chapters: Array<{ title: string; summary: string }> = [];
 
-    // Story structure templates based on genre
-    const genreStructures: Record<string, string[]> = {
-      fantasy: [
-        'The Awakening',
-        'The Call to Adventure',
-        'Crossing the Threshold',
-        'The First Trial',
-        'Allies and Enemies',
-        'The Dark Forest',
-        'The Revelation',
-        'The Loss',
-        'The Final Stand',
-        'Resolution'
-      ],
-      romance: [
-        'The Encounter',
-        'First Impressions',
-        'Growing Closer',
-        'The Obstacle',
-        'Misunderstandings',
-        'The Rival',
-        'The Heartbreak',
-        'Realization',
-        'The Grand Gesture',
-        'Happily Ever After'
-      ],
-      thriller: [
-        'The Crime',
-        'The Investigation Begins',
-        'First Clues',
-        'The Red Herring',
-        'The Stakes Rise',
-        'A Close Call',
-        'The Twist',
-        'The Trap',
-        'Confrontation',
-        'Justice'
-      ],
-      mystery: [
-        'The Discovery',
-        'Gathering Evidence',
-        'Interviewing Witnesses',
-        'Secrets Revealed',
-        'The Second Body',
-        'Connecting the Dots',
-        'The Accusation',
-        'The Alibi',
-        'The Truth',
-        'Case Closed'
-      ],
-      scifi: [
-        'The Discovery',
-        'The Experiment',
-        'Something Goes Wrong',
-        'The New World',
-        'First Contact',
-        'The Conflict',
-        'The Journey',
-        'The Sacrifice',
-        'The Return',
-        'A New Beginning'
-      ],
-      historical: [
-        'Setting the Scene',
-        'The Catalyst',
-        'War Declared',
-        'The Home Front',
-        'The Battle',
-        'Aftermath',
-        'Personal Loss',
-        'The Turning Tide',
-        'Victory',
-        'Reconstruction'
-      ],
-      default: [
-        'Introduction',
-        'Inciting Incident',
-        'Rising Action',
-        'First Plot Point',
-        'The Journey',
-        'The Midpoint',
-        'Complications',
-        'The Climax',
-        'Falling Action',
-        'Resolution'
-      ]
+    // Get user's preferred language (default to Italian for backward compatibility)
+    const userLang = project.preferred_language || 'it';
+
+    // Story structure templates based on genre - localized for IT and EN
+    const genreStructuresLocalized: Record<string, Record<string, string[]>> = {
+      fantasy: {
+        en: [
+          'The Awakening',
+          'The Call to Adventure',
+          'Crossing the Threshold',
+          'The First Trial',
+          'Allies and Enemies',
+          'The Dark Forest',
+          'The Revelation',
+          'The Loss',
+          'The Final Stand',
+          'Resolution'
+        ],
+        it: [
+          'Il Risveglio',
+          'La Chiamata all\'Avventura',
+          'Oltre la Soglia',
+          'La Prima Prova',
+          'Alleati e Nemici',
+          'La Foresta Oscura',
+          'La Rivelazione',
+          'La Perdita',
+          'Lo Scontro Finale',
+          'Risoluzione'
+        ]
+      },
+      romance: {
+        en: [
+          'The Encounter',
+          'First Impressions',
+          'Growing Closer',
+          'The Obstacle',
+          'Misunderstandings',
+          'The Rival',
+          'The Heartbreak',
+          'Realization',
+          'The Grand Gesture',
+          'Happily Ever After'
+        ],
+        it: [
+          'L\'Incontro',
+          'Prime Impressioni',
+          'Avvicinamento',
+          'L\'Ostacolo',
+          'Malintesi',
+          'Il Rivale',
+          'Il Cuore Spezzato',
+          'La Consapevolezza',
+          'Il Grande Gesto',
+          'Per Sempre'
+        ]
+      },
+      thriller: {
+        en: [
+          'The Crime',
+          'The Investigation Begins',
+          'First Clues',
+          'The Red Herring',
+          'The Stakes Rise',
+          'A Close Call',
+          'The Twist',
+          'The Trap',
+          'Confrontation',
+          'Justice'
+        ],
+        it: [
+          'Il Crimine',
+          'L\'Indagine Inizia',
+          'Primi Indizi',
+          'La Falsa Pista',
+          'Le Stakes Salgono',
+          'Un Brivido Vicino',
+          'La Svolta',
+          'La Trappola',
+          'Confronto',
+          'Giustizia'
+        ]
+      },
+      mystery: {
+        en: [
+          'The Discovery',
+          'Gathering Evidence',
+          'Interviewing Witnesses',
+          'Secrets Revealed',
+          'The Second Body',
+          'Connecting the Dots',
+          'The Accusation',
+          'The Alibi',
+          'The Truth',
+          'Case Closed'
+        ],
+        it: [
+          'La Scoperta',
+          'Raccolta Prove',
+          'Interrogatori',
+          'Segreti Rivelati',
+          'Il Secondo Corpo',
+          'Collegare i Punti',
+          'L\'Accusa',
+          'L\'Alibi',
+          'La Verità',
+          'Caso Chiuso'
+        ]
+      },
+      scifi: {
+        en: [
+          'The Discovery',
+          'The Experiment',
+          'Something Goes Wrong',
+          'The New World',
+          'First Contact',
+          'The Conflict',
+          'The Journey',
+          'The Sacrifice',
+          'The Return',
+          'A New Beginning'
+        ],
+        it: [
+          'La Scoperta',
+          'L\'Esperimento',
+          'Qualcosa va Storto',
+          'Il Nuovo Mondo',
+          'Primo Contatto',
+          'Il Conflitto',
+          'Il Viaggio',
+          'Il Sacrificio',
+          'Il Ritorno',
+          'Un Nuovo Inizio'
+        ]
+      },
+      historical: {
+        en: [
+          'Setting the Scene',
+          'The Catalyst',
+          'War Declared',
+          'The Home Front',
+          'The Battle',
+          'Aftermath',
+          'Personal Loss',
+          'The Turning Tide',
+          'Victory',
+          'Reconstruction'
+        ],
+        it: [
+          'Scena Storica',
+          'Il Catalizzatore',
+          'La Guerra Dichiarata',
+          'Il Fronte Domestico',
+          'La Battaglia',
+          'Le Conseguenze',
+          'Perdita Personale',
+          'Il Vento Gira',
+          'Vittoria',
+          'Ricostruzione'
+        ]
+      },
+      default: {
+        en: [
+          'Introduction',
+          'Inciting Incident',
+          'Rising Action',
+          'First Plot Point',
+          'The Journey',
+          'The Midpoint',
+          'Complications',
+          'The Climax',
+          'Falling Action',
+          'Resolution'
+        ],
+        it: [
+          'Introduzione',
+          'Incidente Scatenante',
+          'Azione Crescente',
+          'Primo Punto di Svolta',
+          'Il Viaggio',
+          'Il Punto Medio',
+          'Complicazioni',
+          'Il Climax',
+          'Azione Discendente',
+          'Risoluzione'
+        ]
+      }
     };
 
-    // Get chapter titles based on genre
+    // Get chapter titles based on genre and language
     const genre = (project.genre || 'default').toLowerCase();
-    const chapterTitles = genreStructures[genre as keyof typeof genreStructures] || genreStructures.default;
+    const genreStructure = genreStructuresLocalized[genre as keyof typeof genreStructuresLocalized] || genreStructuresLocalized.default;
+    const chapterTitles = genreStructure[userLang as keyof typeof genreStructure] || genreStructure.en;
 
-    // Generate chapter summaries based on tone
-    const toneAdjectives: Record<string, string> = {
-      dark: 'ominous',
-      light: 'hopeful',
-      serious: 'grave',
-      humorous: 'witty',
-      dramatic: 'intense',
-      romantic: 'passionate'
+    // Generate chapter summaries based on tone - localized
+    const toneAdjectives: Record<string, Record<string, string>> = {
+      dark: { en: 'ominous', it: 'ominoso' },
+      light: { en: 'hopeful', it: 'speranzoso' },
+      serious: { en: 'grave', it: 'serio' },
+      humorous: { en: 'witty', it: 'spiritoso' },
+      dramatic: { en: 'intense', it: 'intenso' },
+      romantic: { en: 'passionate', it: 'appassionato' }
     };
 
-    const tone = toneAdjectives[project.tone as keyof typeof toneAdjectives] || 'engaging';
+    const toneKey = (project.tone || 'dramatic').toLowerCase() as keyof typeof toneAdjectives;
+    const tone = toneAdjectives[toneKey] ? toneAdjectives[toneKey][userLang as keyof typeof toneAdjectives['dark']] : (userLang === 'it' ? 'coinvolgente' : 'engaging');
+
+    // Localized summary templates
+    const summaryTemplates = {
+      en: {
+        first: (toneAdj: string) => `Introduce the main character and their world. Establish the ${toneAdj} tone and the central conflict that will drive the narrative forward.`,
+        midpoint: () => `The midpoint of the story. A major revelation or plot twist shifts the direction of the narrative. The stakes are raised significantly.`,
+        last: (genreName: string) => `The conclusion. All plot threads are resolved. The character arc completes, and the thematic elements of the ${genreName || 'story'} find fulfillment.`,
+        middle: (toneAdj: string) => `Develop the narrative with ${toneAdj} pacing. Advance both plot and character development while building tension toward the story's climax.`
+      },
+      it: {
+        first: (toneAdj: string) => `Introduci il personaggio principale e il suo mondo. Stabilisci il tono ${toneAdj} e il conflitto centrale che guiderà la narrazione in avanti.`,
+        midpoint: () => `Il punto medio della storia. Una rivelazione importante o un colpo di scena cambia la direzione della narrazione. Le poste in gioco aumentano significativamente.`,
+        last: (genreName: string) => `La conclusione. Tutti i fili della trama vengono risolti. L'arco del personaggio si completa e gli elementi tematici del ${genreName || 'racconto'} trovano compimento.`,
+        middle: (toneAdj: string) => `Sviluppa la narrazione con un ritmo ${toneAdj}. Fai avanzare sia la trama che lo sviluppo del personaggio, costruendo tensione verso il climax della storia.`
+      }
+    };
+
+    const templates = summaryTemplates[userLang as keyof typeof summaryTemplates] || summaryTemplates.en;
 
     // Generate outline chapters
     for (let i = 0; i < numChapters; i++) {
@@ -1211,17 +1337,35 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
       // Generate contextual summary
       let summary = '';
       if (i === 0) {
-        summary = `Introduce the main character and their world. Establish the ${tone} tone and the central conflict that will drive the narrative forward.`;
+        summary = templates.first(tone);
       } else if (i === Math.floor(numChapters / 2)) {
-        summary = `The midpoint of the story. A major revelation or plot twist shifts the direction of the narrative. The stakes are raised significantly.`;
+        summary = templates.midpoint();
       } else if (i === numChapters - 1) {
-        summary = `The conclusion. All plot threads are resolved. The character arc completes, and the thematic elements of the ${project.genre || 'story'} find fulfillment.`;
+        summary = templates.last(project.genre || '');
       } else {
-        summary = `Develop the narrative with ${tone} pacing. Advance both plot and character development while building tension toward the story's climax.`;
+        summary = templates.middle(tone);
       }
 
       chapters.push({ title, summary });
     }
+
+    // Localized content templates
+    const contentTemplates = {
+      en: {
+        outlineSummary: 'Outline Summary',
+        notes: 'Notes',
+        notesContent: (toneAdj: string) => `Write this chapter focusing on character development and advancing the main plot. Use the ${toneAdj} tone established in the project settings.`,
+        targetWordCount: (words: number) => `Target word count: ${words} words`
+      },
+      it: {
+        outlineSummary: 'Riassunto dell\'Indice',
+        notes: 'Note',
+        notesContent: (toneAdj: string) => `Scrivi questo capitolo concentrandoti sullo sviluppo del personaggio e sull'avanzamento della trama principale. Usa il tono ${toneAdj} stabilito nelle impostazioni del progetto.`,
+        targetWordCount: (words: number) => `Numero di parole obiettivo: ${words} parole`
+      }
+    };
+
+    const contentTmpl = contentTemplates[userLang as keyof typeof contentTemplates] || contentTemplates.en;
 
     // Create chapters in database
     const createdChapters: Array<{ id: string; title: string; summary: string }> = [];
@@ -1241,6 +1385,9 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
           continue;
         }
 
+        // Build localized chapter content
+        const chapterContent = `# ${title}\n\n**${contentTmpl.outlineSummary}:**\n${summary}\n\n**${contentTmpl.notes}:**\n${contentTmpl.notesContent(tone)}\n\n${contentTmpl.targetWordCount(avgChapterWords)}`;
+
         db.prepare(
           `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
@@ -1248,7 +1395,7 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
           chapterId,
           projectId,
           title,
-          `# ${title}\n\n**Outline Summary:**\n${summary}\n\n**Notes:**\nWrite this chapter focusing on character development and advancing the main plot. Use the ${tone} tone established in the project settings.\n\nTarget word count: ${avgChapterWords} words`,
+          chapterContent,
           i // order_index: chapter position in the outline
         );
 
