@@ -10,6 +10,7 @@ import { ChapterListSkeleton } from '../components/Skeleton';
 import RelationshipMap from '../components/RelationshipMap';
 import TableOfContents from '../components/TableOfContents';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -58,6 +59,11 @@ export default function ProjectDetail() {
     id: string;
     name: string;
   } | null>(null);
+  // Feature #230: Chapter action confirmation dialogs
+  const [showDeleteChapterDialog, setShowDeleteChapterDialog] = useState(false);
+  const [chapterToDelete, setChapterToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [showRegenerateChapterDialog, setShowRegenerateChapterDialog] = useState(false);
+  const [chapterToRegenerate, setChapterToRegenerate] = useState<{ id: string; title: string } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -480,9 +486,23 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm(t('projectPage.chapters.confirmDelete'))) {
-      return;
-    }
+    // Show styled confirmation dialog instead of native confirm()
+    const chapter = chapters.find(ch => ch.id === chapterId);
+    if (!chapter) return;
+
+    setChapterToDelete({ id: chapterId, title: chapter.title });
+    setShowDeleteChapterDialog(true);
+  };
+
+  // Feature #230: Handler for confirmed chapter deletion
+  const handleDeleteChapterConfirm = async () => {
+    if (!chapterToDelete) return;
+
+    const chapterId = chapterToDelete.id;
+
+    // Close dialog first
+    setShowDeleteChapterDialog(false);
+    setChapterToDelete(null);
 
     // Mark as deleting immediately
     deletingChapterIdRef.current = chapterId;
@@ -490,11 +510,18 @@ export default function ProjectDetail() {
     try {
       await apiService.deleteChapter(chapterId);
       setChapters(chapters.filter(ch => ch.id !== chapterId));
+      toast.success(t('projectPage.chapters.deleteSuccess', 'Chapter deleted successfully'));
     } catch (err: any) {
       setError(err.message || 'Failed to delete chapter');
+      toast.error(err.message || 'Failed to delete chapter');
     } finally {
       deletingChapterIdRef.current = null;
     }
+  };
+
+  const handleDeleteChapterCancel = () => {
+    setShowDeleteChapterDialog(false);
+    setChapterToDelete(null);
   };
 
   // Feature #178: Regenerate a single chapter
@@ -510,16 +537,28 @@ export default function ProjectDetail() {
     const chapter = chapters.find(ch => ch.id === chapterId);
     if (!chapter) return;
 
-    if (!confirm(t('projectPage.chapters.confirmRegenerate', { title: chapter.title }))) {
-      return;
-    }
+    // Show styled confirmation dialog instead of native confirm()
+    setChapterToRegenerate({ id: chapterId, title: chapter.title });
+    setShowRegenerateChapterDialog(true);
+  };
+
+  // Feature #230: Handler for confirmed chapter regeneration
+  const handleRegenerateChapterConfirm = async () => {
+    if (!chapterToRegenerate) return;
+
+    const chapterId = chapterToRegenerate.id;
+    const chapterTitle = chapterToRegenerate.title;
+
+    // Close dialog first
+    setShowRegenerateChapterDialog(false);
+    setChapterToRegenerate(null);
 
     // Mark as regenerating immediately
     regeneratingChapterIdRef.current = chapterId;
     setRegeneratingChapterId(chapterId);
 
     try {
-      toast.info(`Regenerating chapter "${chapter.title}"...`);
+      toast.info(`Regenerating chapter "${chapterTitle}"...`);
       const response = await apiService.regenerateChapter(
         chapterId,
         project?.human_model_id || undefined,
@@ -531,7 +570,7 @@ export default function ProjectDetail() {
         ch.id === chapterId ? response.chapter : ch
       ));
 
-      toast.success(response.message || `Chapter "${chapter.title}" regenerated successfully`);
+      toast.success(response.message || `Chapter "${chapterTitle}" regenerated successfully`);
 
       // Log which chapters were unchanged for verification
       if (response.other_chapters_unchanged && response.other_chapters_unchanged.length > 0) {
@@ -543,6 +582,11 @@ export default function ProjectDetail() {
       regeneratingChapterIdRef.current = null;
       setRegeneratingChapterId(null);
     }
+  };
+
+  const handleRegenerateChapterCancel = () => {
+    setShowRegenerateChapterDialog(false);
+    setChapterToRegenerate(null);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3448,6 +3492,31 @@ export default function ProjectDetail() {
         onCancel={handleDeleteConfirmCancel}
         confirmText={t('common.delete', 'Delete')}
         cancelText={t('common.cancel', 'Cancel')}
+      />
+
+      {/* Feature #230: Styled Delete Chapter Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteChapterDialog}
+        title={t('projectPage.chapters.deleteTitle', 'Delete Chapter')}
+        message={t('projectPage.chapters.confirmDelete')}
+        itemName={chapterToDelete?.title}
+        onConfirm={handleDeleteChapterConfirm}
+        onCancel={handleDeleteChapterCancel}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
+
+      {/* Feature #230: Styled Regenerate Chapter Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showRegenerateChapterDialog}
+        title={t('projectPage.chapters.regenerateTitle', 'Regenerate Chapter')}
+        message={t('projectPage.chapters.confirmRegenerateSimple', 'Are you sure you want to regenerate this chapter? Only this chapter will be regenerated. All other chapters will remain unchanged.')}
+        itemName={chapterToRegenerate?.title}
+        onConfirm={handleRegenerateChapterConfirm}
+        onCancel={handleRegenerateChapterCancel}
+        confirmText={t('projectPage.chapters.regenerate', 'Regenerate')}
+        cancelText={t('common.cancel', 'Cancel')}
+        variant="info"
       />
     </div>
   );

@@ -1,5 +1,84 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #230 Implementation
+
+### Completed Features: 230/230 (100%)
+
+### Feature #230: Replace confirm() dialogs for chapter actions with styled modals
+
+**Objective:** Replace browser native `confirm()` dialogs for chapter delete and regenerate actions with styled modals that match the app's theme (light/dark mode).
+
+**Implementation:**
+
+#### 1. Created ConfirmDialog Component (client/src/components/ConfirmDialog.tsx)
+- Reusable confirmation dialog for non-delete actions
+- Supports `variant` prop: 'danger' (red), 'warning' (yellow), 'info' (blue)
+- Uses blue/info theme for regeneration (non-destructive action)
+- Supports light/dark themes through Tailwind CSS classes
+- Includes focus trap, Escape key to close, click outside to close
+- Register/unregister with modal registry for accessibility
+
+#### 2. Modified ProjectDetail.tsx - State Variables
+- Added `showDeleteChapterDialog` - controls delete chapter modal visibility
+- Added `chapterToDelete` - stores chapter info for delete confirmation
+- Added `showRegenerateChapterDialog` - controls regenerate chapter modal visibility
+- Added `chapterToRegenerate` - stores chapter info for regenerate confirmation
+
+#### 3. Modified ProjectDetail.tsx - Handler Functions
+- Modified `handleDeleteChapter` to show modal instead of native confirm()
+- Created `handleDeleteChapterConfirm` to execute deletion after confirmation
+- Created `handleDeleteChapterCancel` to close dialog without action
+- Modified `handleRegenerateChapter` to show modal instead of native confirm()
+- Created `handleRegenerateChapterConfirm` to execute regeneration after confirmation
+- Created `handleRegenerateChapterCancel` to close dialog without action
+
+#### 4. Added Dialog Components to JSX
+- `DeleteConfirmDialog` for chapter deletion (red theme, reuses existing component)
+- `ConfirmDialog` for chapter regeneration (blue/info theme, new component)
+
+#### 5. Updated Translations (it.json and en.json)
+- Added `projectPage.chapters.deleteTitle`: "Elimina Capitolo" / "Delete Chapter"
+- Added `projectPage.chapters.regenerateTitle`: "Rigenera Capitolo" / "Regenerate Chapter"
+- Added `projectPage.chapters.confirmRegenerateSimple`: Simple message without interpolation
+- Added `projectPage.chapters.regenerate`: "Rigenera" / "Regenerate"
+- Added `projectPage.chapters.deleteSuccess`: Success message
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test project "Test Chapter Dialogs Novel"
+2. ✅ Created test chapter "Test Chapter 1"
+3. ✅ Clicked delete button - styled modal appeared with:
+   - Title: "Elimina Capitolo"
+   - Message: "Sei sicuro di voler eliminare questo capitolo?"
+   - Chapter name displayed
+   - Cancel (gray) and Delete (red) buttons
+4. ✅ Clicked regenerate button - styled modal appeared with:
+   - Title: "Rigenera Capitolo"
+   - Message about only this chapter being regenerated
+   - Chapter name displayed
+   - Cancel (gray) and Rigenera (blue) buttons
+5. ✅ Switched to dark mode - both dialogs display correctly with dark theme
+6. ✅ Cancel buttons work correctly (close dialog without action)
+7. ✅ Confirm buttons trigger the correct API calls
+
+**Screenshots Captured:**
+- `.playwright-cli/page-2026-02-16T17-21-26-639Z.png` - Delete chapter dialog (light mode)
+- `.playwright-cli/page-2026-02-16T17-24-25-067Z.png` - Regenerate chapter dialog (light mode)
+- `.playwright-cli/page-2026-02-16T17-27-30-166Z.png` - Delete chapter dialog (dark mode)
+- `.playwright-cli/page-2026-02-16T17-29-49-598Z.png` - Regenerate chapter dialog (dark mode)
+
+**Feature Test Steps Verified:**
+1. ✅ "Creare o riutilizzare un componente ConfirmDialog riutilizzabile con supporto tema chiaro/scuro" - Created new ConfirmDialog with variant support
+2. ✅ "Aggiungere stato per gestire il dialogo di cancellazione capitolo" - Added showDeleteChapterDialog, chapterToDelete
+3. ✅ "Aggiungere stato per gestire il dialogo di rigenerazione capitolo" - Added showRegenerateChapterDialog, chapterToRegenerate
+4. ✅ "Sostituire confirm() in handleDeleteChapter con il nuovo componente modale" - Done
+5. ✅ "Sostituire confirm() in handleRegenerateChapter con il nuovo componente modale" - Done
+6. ✅ "Verificare che i dialoghi siano visibili e funzionanti in entrambi i temi" - Verified with browser automation
+7. ✅ "Testare cancellazione e rigenerazione capitoli" - Tested both actions
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-16 - Feature #229 Implementation
 
 ### Completed Features: 229/229 (100%)

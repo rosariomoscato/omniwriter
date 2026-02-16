@@ -339,7 +339,12 @@
       "detectPlotHoles": "Rileva Buchi di Trama",
       "checkConsistency": "Verifica Coerenza",
       "confirmDelete": "Sei sicuro di voler eliminare questo capitolo?",
-      "confirmRegenerate": "Sei sicuro di voler rigenerare il capitolo \"{{title}}\"?\n\nSolo questo capitolo sarà rigenerato. Tutti gli altri capitoli rimarranno invariati."
+      "confirmRegenerate": "Sei sicuro di voler rigenerare il capitolo \"{{title}}\"?\n\nSolo questo capitolo sarà rigenerato. Tutti gli altri capitoli rimarranno invariati.",
+      "deleteTitle": "Elimina Capitolo",
+      "regenerateTitle": "Rigenera Capitolo",
+      "confirmRegenerateSimple": "Sei sicuro di voler rigenerare questo capitolo?\n\nSolo questo capitolo sarà rigenerato. Tutti gli altri capitoli rimarranno invariati.",
+      "regenerate": "Rigenera",
+      "deleteSuccess": "Capitolo eliminato con successo"
     },
     "sources": {
       "title": "Fonti",

@@ -339,7 +339,12 @@
       "detectPlotHoles": "Detect Plot Holes",
       "checkConsistency": "Check Consistency",
       "confirmDelete": "Are you sure you want to delete this chapter?",
-      "confirmRegenerate": "Are you sure you want to regenerate chapter \"{{title}}\"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged."
+      "confirmRegenerate": "Are you sure you want to regenerate chapter \"{{title}}\"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged.",
+      "deleteTitle": "Delete Chapter",
+      "regenerateTitle": "Regenerate Chapter",
+      "confirmRegenerateSimple": "Are you sure you want to regenerate this chapter?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged.",
+      "regenerate": "Regenerate",
+      "deleteSuccess": "Chapter deleted successfully"
     },
     "sources": {
       "title": "Sources",
