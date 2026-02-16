@@ -1,5 +1,46 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #235 Implementation
+
+### Completed Features: 235/235 (100%)
+
+### Feature #235: Fix Preview/Edit button visibility and translation
+
+**Objective:** Risolvere due problemi nel bottone Preview/Edit dell'editor capitoli:
+1. **ICONA NON VISIBILE IN TEMA DARK**: Le icone `<Edit>` e `<Eye>` non avevano la classe dark: per il colore
+2. **TOOLTIP NON TRADOTTO**: aria-label e title erano hardcoded in inglese invece di usare le chiavi i18n
+
+**Implementation:**
+
+#### 1. Added Dark Mode Classes (client/src/pages/ChapterEditor.tsx)
+- Added `text-gray-700 dark:text-gray-300` to both Eye and Edit icons
+- Matches the styling of other toolbar buttons
+
+#### 2. Fixed Translations (client/src/pages/ChapterEditor.tsx)
+- Replaced `aria-label={isPreview ? 'Edit' : 'Preview'}` with `aria-label={isPreview ? t('chapterEditor.edit') : t('chapterEditor.preview')}`
+- Replaced `title={isPreview ? 'Edit' : 'Preview'}` with `title={isPreview ? t('chapterEditor.edit') : t('chapterEditor.preview')}`
+- Used existing translation keys (chapterEditor.edit = "Modifica" / "Edit", chapterEditor.preview = "Anteprima" / "Preview")
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test project "Test Chapter Editor" in Romanziere area
+2. ✅ Created test chapter "Test Chapter 1"
+3. ✅ Verified button shows "Anteprima" in Italian mode (before click)
+4. ✅ Verified button shows "Modifica" in Italian mode (after clicking to enter preview)
+5. ✅ Verified button shows "Preview" in English mode (before click)
+6. ✅ Verified button shows "Edit" in English mode (after clicking)
+7. ✅ Verified icon visibility in light mode via screenshot
+8. ✅ Verified icon visibility in dark mode via screenshot
+
+**Feature Test Steps Verified:**
+1. ✅ Aggiungere classi dark:text-gray-300 alle icone Eye e Edit
+2. ✅ Sostituire 'Edit' e 'Preview' hardcoded con t('chapterEditor.edit') e t('chapterEditor.preview')
+3. ✅ Verificare visibilità in tema dark
+4. ✅ Verificare traduzione tooltip in italiano
+
+### Commit: 29e39b3
+
+---
+
 ## Session: 2026-02-16 - Feature #234 Implementation
 
 ### Completed Features: 234/234 (100%)

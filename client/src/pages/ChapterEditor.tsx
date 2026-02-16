@@ -907,21 +907,22 @@ export default function ChapterEditor() {
 
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
+    // Note: All elements include dark mode classes for proper visibility in dark theme
     let html = content;
 
-    // Headers
-    html = html.replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4">$1</h1>');
-    html = html.replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mb-3">$1</h2>');
-    html = html.replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mb-2">$1</h3>');
+    // Headers - with dark mode text colors
+    html = html.replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">$1</h1>');
+    html = html.replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mb-3 text-gray-900 dark:text-gray-100">$1</h2>');
+    html = html.replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">$1</h3>');
 
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Bold - with dark mode text color
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-900 dark:text-gray-100 font-bold">$1</strong>');
 
-    // Italic
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Italic - with dark mode text color
+    html = html.replace(/\*(.*?)\*/g, '<em class="text-gray-900 dark:text-gray-100 italic">$1</em>');
 
-    // Paragraphs
-    html = html.split('\n\n').map(p => `<p class="mb-4">${p.replace(/\n/g, '<br>')}</p>`).join('');
+    // Paragraphs - with dark mode text color
+    html = html.split('\n\n').map(p => `<p class="mb-4 text-gray-900 dark:text-gray-100">${p.replace(/\n/g, '<br>')}</p>`).join('');
 
     return { __html: html };
   };
@@ -1437,7 +1438,7 @@ export default function ChapterEditor() {
       <div className="flex-1 overflow-y-auto relative flex">
         <div className="flex-1">
         {isPreview ? (
-          <div className="p-6">
+          <div className="p-6 bg-white dark:bg-dark-bg">
             <div
               className="prose dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={renderPreview()}
