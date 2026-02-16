@@ -379,7 +379,8 @@
       "traitsPlaceholder": "Tratti della personalità (es. coraggioso, astuto, gentile)...",
       "backstoryPlaceholder": "Background e storia...",
       "rolePlaceholder": "Ruolo nella storia (es. protagonista, mentore, antagonista)...",
-      "confirmDelete": "Sei sicuro di voler eliminare questo personaggio?"
+      "confirmDelete": "Sei sicuro di voler eliminare questo personaggio?",
+      "deleteTitle": "Elimina Personaggio"
     },
     "locations": {
       "title": "Luoghi",
@@ -389,7 +390,8 @@
       "namePlaceholder": "Nome luogo...",
       "descriptionPlaceholder": "Descrizione fisica e ambiente...",
       "significancePlaceholder": "Importanza nella storia (rilevanza per la trama, atmosfera, significato simbolico)...",
-      "confirmDelete": "Sei sicuro di voler eliminare questo luogo?"
+      "confirmDelete": "Sei sicuro di voler eliminare questo luogo?",
+      "deleteTitle": "Elimina Luogo"
     },
     "plotEvents": {
       "title": "Eventi di Trama",
@@ -400,7 +402,8 @@
       "descriptionPlaceholder": "Cosa accade in questo evento di trama...",
       "typePlaceholder": "Tipo di evento (es. climax, colpo di scena, introduzione)...",
       "linkToChapter": "Collega al capitolo (opzionale)",
-      "confirmDelete": "Sei sicuro di voler eliminare questo evento di trama?"
+      "confirmDelete": "Sei sicuro di voler eliminare questo evento di trama?",
+      "deleteTitle": "Elimina Evento di Trama"
     },
     "statusLabels": {
       "draft": "Bozza",
