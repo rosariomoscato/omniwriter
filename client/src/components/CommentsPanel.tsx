@@ -41,7 +41,7 @@ export default function CommentsPanel({
       setComments(commentsWithText);
     } catch (error) {
       console.error('Error loading comments:', error);
-      toast.showError('Failed to load comments');
+      toast.error('Failed to load comments');
     } finally {
       setLoading(false);
     }
@@ -58,10 +58,10 @@ export default function CommentsPanel({
       if (highlightedComment === commentId) {
         onHighlightComment(null);
       }
-      toast.showSuccess('Comment deleted');
+      toast.success('Comment deleted');
     } catch (error) {
       console.error('Error deleting comment:', error);
-      toast.showError('Failed to delete comment');
+      toast.error('Failed to delete comment');
     }
   };
 
@@ -72,7 +72,7 @@ export default function CommentsPanel({
 
   const handleSaveEdit = async (commentId: string) => {
     if (!editText.trim()) {
-      toast.showError('Comment text cannot be empty');
+      toast.error('Comment text cannot be empty');
       return;
     }
 
@@ -85,10 +85,10 @@ export default function CommentsPanel({
       ));
       setEditingComment(null);
       setEditText('');
-      toast.showSuccess('Comment updated');
+      toast.success('Comment updated');
     } catch (error) {
       console.error('Error updating comment:', error);
-      toast.showError('Failed to update comment');
+      toast.error('Failed to update comment');
     }
   };
 

@@ -9,6 +9,7 @@ import SaggistaConfig from '../components/SaggistaConfig';
 import { ChapterListSkeleton } from '../components/Skeleton';
 import RelationshipMap from '../components/RelationshipMap';
 import TableOfContents from '../components/TableOfContents';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -50,6 +51,13 @@ export default function ProjectDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUnlinkSourceDialog, setShowUnlinkSourceDialog] = useState(false);
   const [sourceToUnlink, setSourceToUnlink] = useState<Source | null>(null);
+  // Delete confirmation dialog state
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [deleteConfirmConfig, setDeleteConfirmConfig] = useState<{
+    type: 'character' | 'location' | 'plotEvent';
+    id: string;
+    name: string;
+  } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -356,23 +364,14 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm(t('projectPage.locations.confirmDelete'))) {
-      return;
-    }
-
-    // Mark as deleting immediately
-    deletingLocationIdRef.current = locationId;
-
-    try {
-      await apiService.deleteLocation(locationId);
-      setLocations(locations.filter(l => l.id !== locationId));
-      toast.success('Location deleted successfully');
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete location');
-      toast.error(err.message || 'Failed to delete location');
-    } finally {
-      deletingLocationIdRef.current = null;
-    }
+    // Show confirmation dialog instead of native confirm()
+    const location = locations.find(l => l.id === locationId);
+    setDeleteConfirmConfig({
+      type: 'location',
+      id: locationId,
+      name: location?.name || ''
+    });
+    setShowDeleteConfirmDialog(true);
   };
 
   const startEditLocation = (location: Location) => {
@@ -432,21 +431,14 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm(t('projectPage.plotEvents.confirmDelete'))) {
-      return;
-    }
-
-    // Mark as deleting immediately
-    deletingPlotEventIdRef.current = plotEventId;
-
-    try {
-      await apiService.deletePlotEvent(plotEventId);
-      setPlotEvents(plotEvents.filter(pe => pe.id !== plotEventId));
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete plot event');
-    } finally {
-      deletingPlotEventIdRef.current = null;
-    }
+    // Show confirmation dialog instead of native confirm()
+    const plotEvent = plotEvents.find(pe => pe.id === plotEventId);
+    setDeleteConfirmConfig({
+      type: 'plotEvent',
+      id: plotEventId,
+      name: plotEvent?.title || ''
+    });
+    setShowDeleteConfirmDialog(true);
   };
 
   const startEditPlotEvent = (plotEvent: PlotEvent) => {
@@ -527,7 +519,7 @@ export default function ProjectDetail() {
     setRegeneratingChapterId(chapterId);
 
     try {
-      toast.showInfo(`Regenerating chapter "${chapter.title}"...`);
+      toast.info(`Regenerating chapter "${chapter.title}"...`);
       const response = await apiService.regenerateChapter(
         chapterId,
         project?.human_model_id || undefined,
@@ -539,14 +531,14 @@ export default function ProjectDetail() {
         ch.id === chapterId ? response.chapter : ch
       ));
 
-      toast.showSuccess(response.message || `Chapter "${chapter.title}" regenerated successfully`);
+      toast.success(response.message || `Chapter "${chapter.title}" regenerated successfully`);
 
       // Log which chapters were unchanged for verification
       if (response.other_chapters_unchanged && response.other_chapters_unchanged.length > 0) {
         console.log('[Regenerate] Other chapters unchanged:', response.other_chapters_unchanged);
       }
     } catch (err: any) {
-      toast.showError(err.message || 'Failed to regenerate chapter');
+      toast.error(err.message || 'Failed to regenerate chapter');
     } finally {
       regeneratingChapterIdRef.current = null;
       setRegeneratingChapterId(null);
@@ -694,7 +686,7 @@ export default function ProjectDetail() {
     try {
       setGeneratingOutline(true);
       setError('');
-      toast.showInfo(`Generating outline for ${project.title}...`);
+      toast.info(`Generating outline for ${project.title}...`);
 
       const response = await apiService.generateOutline(id!);
 
@@ -706,7 +698,7 @@ export default function ProjectDetail() {
       setOutlineGenerated(true);
     } catch (err: any) {
       setError(err.message || 'Failed to generate outline');
-      toast.showError(err.message || 'Failed to generate outline');
+      toast.error(err.message || 'Failed to generate outline');
     } finally {
       setGeneratingOutline(false);
     }
@@ -716,7 +708,7 @@ export default function ProjectDetail() {
     if (!project) return;
 
     if (chapters.length === 0) {
-      toast.showError('Please generate some chapters first before detecting plot holes');
+      toast.error('Please generate some chapters first before detecting plot holes');
       return;
     }
 
@@ -724,7 +716,7 @@ export default function ProjectDetail() {
       setDetectingPlotHoles(true);
       setError('');
       setShowPlotHolesResults(false);
-      toast.showInfo('Analyzing plot for potential inconsistencies...');
+      toast.info('Analyzing plot for potential inconsistencies...');
 
       const response = await apiService.detectPlotHoles(id!);
 
@@ -734,7 +726,7 @@ export default function ProjectDetail() {
       setShowPlotHolesResults(true);
     } catch (err: any) {
       setError(err.message || 'Failed to detect plot holes');
-      toast.showError(err.message || 'Failed to detect plot holes');
+      toast.error(err.message || 'Failed to detect plot holes');
     } finally {
       setDetectingPlotHoles(false);
     }
@@ -744,7 +736,7 @@ export default function ProjectDetail() {
     if (!project) return;
 
     if (chapters.length === 0) {
-      toast.showError('Please generate some chapters first before checking consistency');
+      toast.error('Please generate some chapters first before checking consistency');
       return;
     }
 
@@ -752,7 +744,7 @@ export default function ProjectDetail() {
       setCheckingConsistency(true);
       setError('');
       setShowConsistencyResults(false);
-      toast.showInfo('Checking consistency across chapters...');
+      toast.info('Checking consistency across chapters...');
 
       const response = await apiService.checkConsistency(id!);
 
@@ -762,7 +754,7 @@ export default function ProjectDetail() {
       setShowConsistencyResults(true);
     } catch (err: any) {
       setError(err.message || 'Failed to check consistency');
-      toast.showError(err.message || 'Failed to check consistency');
+      toast.error(err.message || 'Failed to check consistency');
     } finally {
       setCheckingConsistency(false);
     }
@@ -830,21 +822,14 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (!confirm(t('projectPage.characters.confirmDelete'))) {
-      return;
-    }
-
-    // Mark as deleting immediately
-    deletingCharacterIdRef.current = characterId;
-
-    try {
-      await apiService.deleteCharacter(characterId);
-      setCharacters(characters.filter(ch => ch.id !== characterId));
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete character');
-    } finally {
-      deletingCharacterIdRef.current = null;
-    }
+    // Show confirmation dialog instead of native confirm()
+    const character = characters.find(ch => ch.id === characterId);
+    setDeleteConfirmConfig({
+      type: 'character',
+      id: characterId,
+      name: character?.name || ''
+    });
+    setShowDeleteConfirmDialog(true);
   };
 
   // Feature #181: Add relationship between characters
@@ -886,12 +871,61 @@ export default function ProjectDetail() {
       setCharacters(characters.map(ch => ch.id === fromCharacterId ? response.character : ch));
       toast.success(`Relationship added: "${relationshipType}"`);
     } catch (err: any) {
-      toast.showError(err.message || 'Failed to add relationship');
+      toast.error(err.message || 'Failed to add relationship');
     }
   };
 
   const openChapter = (chapterId: string) => {
     navigate(`/projects/${id}/chapters/${chapterId}`);
+  };
+
+  // Handle delete confirmation dialog actions
+  const handleDeleteConfirmCancel = () => {
+    setShowDeleteConfirmDialog(false);
+    setDeleteConfirmConfig(null);
+  };
+
+  const handleDeleteConfirmAction = async () => {
+    if (!deleteConfirmConfig) return;
+
+    const { type, id } = deleteConfirmConfig;
+
+    setShowDeleteConfirmDialog(false);
+    setDeleteConfirmConfig(null);
+
+    if (type === 'character') {
+      deletingCharacterIdRef.current = id;
+      try {
+        await apiService.deleteCharacter(id);
+        setCharacters(characters.filter(ch => ch.id !== id));
+      } catch (err: any) {
+        setError(err.message || 'Failed to delete character');
+      } finally {
+        deletingCharacterIdRef.current = null;
+      }
+    } else if (type === 'location') {
+      deletingLocationIdRef.current = id;
+      try {
+        await apiService.deleteLocation(id);
+        setLocations(locations.filter(l => l.id !== id));
+        toast.success('Location deleted successfully');
+      } catch (err: any) {
+        setError(err.message || 'Failed to delete location');
+        toast.error(err.message || 'Failed to delete location');
+      } finally {
+        deletingLocationIdRef.current = null;
+      }
+    } else if (type === 'plotEvent') {
+      deletingPlotEventIdRef.current = id;
+      try {
+        await apiService.deletePlotEvent(id);
+        setPlotEvents(plotEvents.filter(pe => pe.id !== id));
+      } catch (err: any) {
+        setError(err.message || 'Failed to delete plot event');
+      } finally {
+        deletingPlotEventIdRef.current = null;
+      }
+    }
   };
 
   const handleExport = async (format: 'txt' | 'docx' | 'epub') => {
@@ -987,12 +1021,12 @@ export default function ProjectDetail() {
       const data = await response.json();
       setCoverImageId(data.id);
       setCoverImageFile(file);
-      toast.show('Cover image uploaded successfully', 'success');
+      toast.success('Cover image uploaded successfully');
     } catch (err: any) {
       // Clear preview on error
       setCoverImagePreview(null);
       setError(err.message || 'Failed to upload cover image');
-      toast.show(err.message || 'Failed to upload cover image', 'error');
+      toast.error(err.message || 'Failed to upload cover image');
     } finally {
       setUploadingCover(false);
     }
@@ -3391,6 +3425,30 @@ export default function ProjectDetail() {
           onAddRelationship={handleAddRelationship}
         />
       )}
+
+      {/* Feature #226: Styled Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteConfirmDialog}
+        title={
+          deleteConfirmConfig?.type === 'character'
+            ? t('projectPage.characters.deleteTitle', 'Delete Character')
+            : deleteConfirmConfig?.type === 'location'
+            ? t('projectPage.locations.deleteTitle', 'Delete Location')
+            : t('projectPage.plotEvents.deleteTitle', 'Delete Plot Event')
+        }
+        message={
+          deleteConfirmConfig?.type === 'character'
+            ? t('projectPage.characters.confirmDelete')
+            : deleteConfirmConfig?.type === 'location'
+            ? t('projectPage.locations.confirmDelete')
+            : t('projectPage.plotEvents.confirmDelete')
+        }
+        itemName={deleteConfirmConfig?.name}
+        onConfirm={handleDeleteConfirmAction}
+        onCancel={handleDeleteConfirmCancel}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
     </div>
   );
 }
