@@ -1,5 +1,73 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #226 Implementation
+
+### Completed Features: 226/226 (100%)
+
+### Feature #226: Replace native confirm() dialogs with styled modals
+
+**Objective:** Replace browser native `confirm()` dialogs with styled modals that match the app's theme (light/dark mode). This affects delete confirmations for Characters, Locations, and Plot Events in the Project Detail page.
+
+**Implementation:**
+
+#### 1. Created DeleteConfirmDialog Component (client/src/components/DeleteConfirmDialog.tsx)
+A reusable confirmation dialog component with:
+- Support for light/dark themes through Tailwind CSS classes
+- Focus trap for accessibility
+- Keyboard support (Escape to close)
+- Click outside to close
+- Props: `isOpen`, `title`, `message`, `itemName`, `onConfirm`, `onCancel`, `confirmText`, `cancelText`
+- Styled with red warning theme for delete operations
+- Uses `useFocusTrapSimple` hook and modal registry from NetworkErrorDialog
+
+#### 2. Modified ProjectDetail.tsx
+- Added import for DeleteConfirmDialog component
+- Added state for delete confirmation dialog:
+  - `showDeleteConfirmDialog` - controls visibility
+  - `deleteConfirmConfig` - stores type, id, and name of item to delete
+- Modified `handleDeleteCharacter` to show modal instead of native confirm()
+- Modified `handleDeleteLocation` to show modal instead of native confirm()
+- Modified `handleDeletePlotEvent` to show modal instead of native confirm()
+- Added `handleDeleteConfirmCancel` to close dialog
+- Added `handleDeleteConfirmAction` to execute deletion based on type
+- Added DeleteConfirmDialog component in JSX with proper translations
+
+#### 3. Updated Translations (it.json and en.json)
+Added `deleteTitle` keys for each entity type:
+- `projectPage.characters.deleteTitle`: "Elimina Personaggio" / "Delete Character"
+- `projectPage.locations.deleteTitle`: "Elimina Luogo" / "Delete Location"
+- `projectPage.plotEvents.deleteTitle`: "Elimina Evento di Trama" / "Delete Plot Event"
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test project (Romanziere type)
+2. ✅ Created test character, clicked delete - styled modal appeared
+3. ✅ Verified modal shows: title "Elimina Personaggio", message, item name, Cancel/Delete buttons
+4. ✅ Confirmed delete - character was deleted
+5. ✅ Created test location, clicked delete - styled modal appeared
+6. ✅ Verified modal shows: title "Elimina Luogo", message, item name, Cancel/Delete buttons
+7. ✅ Created test plot event, clicked delete - styled modal appeared
+8. ✅ Verified modal shows: title "Elimina Evento di Trama", message, item name, Cancel/Delete buttons
+9. ✅ Switched to dark mode - modal styling correctly adapts to dark theme
+
+**Screenshots Captured:**
+- `.playwright-cli/page-2026-02-16T12-02-19-987Z.png` - Character delete dialog (light mode)
+- `.playwright-cli/page-2026-02-16T12-05-40-725Z.png` - Location delete dialog (light mode)
+- `.playwright-cli/page-2026-02-16T12-08-57-077Z.png` - Plot event delete dialog (light mode)
+- `.playwright-cli/page-2026-02-16T12-10-20-121Z.png` - Plot event delete dialog (dark mode)
+
+**Feature Test Steps Verified:**
+1. ✅ "Creare un componente DeleteConfirmDialog riutilizzabile con supporto tema chiaro/scuro" - Done
+2. ✅ "Aggiungere stato per gestire il dialogo di cancellazione" - Done
+3. ✅ "Sostituire confirm() in handleDeleteCharacter con il nuovo componente modale" - Done
+4. ✅ "Sostituire confirm() in handleDeleteLocation con il nuovo componente modale" - Done
+5. ✅ "Sostituire confirm() in handleDeletePlotEvent con il nuovo componente modale" - Done
+6. ✅ "Verificare che il dialogo sia visibile e funzionante in entrambi i temi" - Verified with browser automation
+7. ✅ "Testare la cancellazione di personaggi, luoghi ed eventi di trama" - All three tested successfully
+
+### Commit: c12984e
+
+---
+
 ## Session: 2026-02-16 - Feature #227 Implementation
 
 ### Completed Features: 227/227 (100%)
