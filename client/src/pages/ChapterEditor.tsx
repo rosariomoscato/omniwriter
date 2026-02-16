@@ -1,13 +1,13 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle, Wand2, User, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
 import VersionComparison from '../components/VersionComparison';
 import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
-import { apiService, Chapter, Project, ChapterVersion } from '../services/api';
+import { apiService, Chapter, Project, ChapterVersion, HumanModel } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
 
 export default function ChapterEditor() {
@@ -41,6 +41,16 @@ export default function ChapterEditor() {
     suggestions: string[];
   } | null>(null);
   const [showReadabilityPanel, setShowReadabilityPanel] = useState(false);
+
+  // AI Generation state (Feature #232)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState<string>('');
+  const [generationMessage, setGenerationMessage] = useState<string>('');
+  const [humanModels, setHumanModels] = useState<HumanModel[]>([]);
+  const [selectedHumanModelId, setSelectedHumanModelId] = useState<string | null>(null);
+  const [showHumanModelDropdown, setShowHumanModelDropdown] = useState(false);
+  const [generationAbortController, setGenerationAbortController] = useState<{ abort: () => void } | null>(null);
+  const [streamingContent, setStreamingContent] = useState<string>('');
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -145,6 +155,19 @@ export default function ChapterEditor() {
       loadProject();
     }
   }, [projectId]);
+
+  // Load Human Models for AI generation (Feature #232)
+  useEffect(() => {
+    const loadHumanModels = async () => {
+      try {
+        const response = await apiService.getHumanModels();
+        setHumanModels(response.models || []);
+      } catch (err) {
+        console.error('[ChapterEditor] Failed to load Human Models:', err);
+      }
+    };
+    loadHumanModels();
+  }, []);
 
   // Set up periodic auto-save every 30 seconds (feature #55)
   useEffect(() => {
@@ -427,6 +450,81 @@ export default function ChapterEditor() {
       setError(err.message || 'Failed to save chapter');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // AI Generation handlers (Feature #232)
+  const handleGenerateChapter = async (useHumanModel: boolean = false) => {
+    if (!chapterId || isGenerating) return;
+
+    // Reset streaming content
+    setStreamingContent('');
+    setIsGenerating(true);
+    setGenerationPhase('structure');
+    setGenerationMessage(t('chapterEditor.generation.analyzing', 'Analyzing project structure and context...'));
+
+    // Use a ref to track accumulated content
+    let accumulatedContent = '';
+
+    try {
+      const { abort, promise } = apiService.generateChapterStream(
+        chapterId,
+        {
+          human_model_id: useHumanModel ? selectedHumanModelId : undefined,
+        },
+        {
+          onPhase: (phase, message) => {
+            setGenerationPhase(phase);
+            setGenerationMessage(message);
+          },
+          onDelta: (deltaContent) => {
+            accumulatedContent += deltaContent;
+            setStreamingContent(accumulatedContent);
+            // Also update the content in real-time for the editor
+            setContent(accumulatedContent);
+          },
+          onDone: (data) => {
+            setIsGenerating(false);
+            setGenerationPhase('');
+            setGenerationMessage('');
+
+            // Final content is already set via onDelta
+            toast.success(data.message || t('chapterEditor.generation.success', 'Chapter generated successfully'));
+
+            if (data.warning) {
+              toast.info(data.warning);
+            }
+          },
+          onError: (error) => {
+            setIsGenerating(false);
+            setGenerationPhase('');
+            setGenerationMessage('');
+            toast.error(error || t('chapterEditor.generation.error', 'Failed to generate chapter'));
+          },
+        }
+      );
+
+      setGenerationAbortController({ abort });
+
+      await promise;
+    } catch (err: any) {
+      setIsGenerating(false);
+      setGenerationPhase('');
+      setGenerationMessage('');
+      toast.error(err.message || t('chapterEditor.generation.error', 'Failed to generate chapter'));
+    } finally {
+      setGenerationAbortController(null);
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (generationAbortController) {
+      generationAbortController.abort();
+      setIsGenerating(false);
+      setGenerationPhase('');
+      setGenerationMessage('');
+      setGenerationAbortController(null);
+      toast.info(t('chapterEditor.generation.cancelled', 'Generation cancelled'));
     }
   };
 
@@ -967,6 +1065,103 @@ export default function ChapterEditor() {
               >
                 <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
+
+              {/* AI Generation Buttons (Feature #232) */}
+              <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-300 dark:border-gray-600">
+                {isGenerating ? (
+                  <div className="flex items-center gap-3">
+                    {/* Generation Progress Indicator */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-700">
+                      <Loader2 className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-spin" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium text-purple-700 dark:text-purple-300 capitalize">
+                          {generationPhase}
+                        </span>
+                        <span className="text-xs text-purple-600 dark:text-purple-400">
+                          {generationMessage}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelGeneration}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      {t('chapterEditor.generation.cancel', 'Cancel')}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Generate Standard Button */}
+                    <button
+                      onClick={() => handleGenerateChapter(false)}
+                      disabled={isGenerating}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                      title={t('chapterEditor.generation.generateStandard', 'Generate chapter content with AI')}
+                    >
+                      <Wand2 className="w-4 h-4" />
+                      {t('chapterEditor.generation.generate', 'Generate')}
+                    </button>
+
+                    {/* Generate with Human Model Button */}
+                    <div className="relative">
+                      <button
+                        onClick={() => handleGenerateChapter(true)}
+                        disabled={isGenerating || humanModels.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                        title={humanModels.length === 0
+                          ? t('chapterEditor.generation.noHumanModels', 'No Human Models available. Create one in Settings.')
+                          : t('chapterEditor.generation.generateWithStyle', 'Generate with your personal writing style')
+                        }
+                      >
+                        <User className="w-4 h-4" />
+                        {t('chapterEditor.generation.generateWithStyle', 'With Style')}
+                      </button>
+
+                      {/* Human Model Dropdown */}
+                      {humanModels.length > 0 && (
+                        <div className="relative ml-1">
+                          <button
+                            onClick={() => setShowHumanModelDropdown(!showHumanModelDropdown)}
+                            className="p-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
+                            title={t('chapterEditor.generation.selectModel', 'Select Human Model')}
+                          >
+                            <ChevronDownIcon className="w-4 h-4" />
+                          </button>
+
+                          {showHumanModelDropdown && (
+                            <div className="absolute top-full right-0 mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                                {t('chapterEditor.generation.selectModel', 'Select Human Model')}
+                              </div>
+                              {humanModels.map(model => (
+                                <button
+                                  key={model.id}
+                                  onClick={() => {
+                                    setSelectedHumanModelId(model.id);
+                                    setShowHumanModelDropdown(false);
+                                  }}
+                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
+                                    selectedHumanModelId === model.id
+                                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  <span>{model.name}</span>
+                                  {selectedHumanModelId === model.id && (
+                                    <span className="text-purple-600 dark:text-purple-400">✓</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
               {project?.area === 'redattore' && (
                 <button
                   onClick={() => setShowReadabilityPanel(!showReadabilityPanel)}

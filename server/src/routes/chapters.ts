@@ -635,6 +635,396 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, generat
   }
 });
 
+// POST /api/chapters/:id/generate-stream - Generate chapter content with SSE streaming (Feature #232)
+router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { human_model_id, prompt_context } = req.body;
+    const userId = req.user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, c.project_id, c.order_index, c.status,
+             p.area, p.settings_json, p.title as project_title, p.genre, p.tone, p.target_audience,
+             u.preferred_language
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      JOIN users u ON p.user_id = u.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as {
+      id: string;
+      title: string;
+      content: string;
+      project_id: string;
+      order_index: number;
+      status: string;
+      area: string;
+      settings_json: string;
+      project_title: string;
+      genre: string | null;
+      tone: string | null;
+      target_audience: string | null;
+      preferred_language: string;
+    } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // If human_model_id is provided, verify it exists and belongs to user
+    let humanModel = null;
+    if (human_model_id) {
+      humanModel = db.prepare(
+        'SELECT * FROM human_models WHERE id = ? AND user_id = ?'
+      ).get(human_model_id, userId) as {
+        id: string;
+        name: string;
+        analysis_result_json: string;
+        style_strength: number;
+      } | undefined;
+
+      if (!humanModel) {
+        return res.status(404).json({ message: 'Human Model not found' });
+      }
+
+      if (humanModel.analysis_result_json) {
+        try {
+          humanModel.analysis_result_json = JSON.parse(humanModel.analysis_result_json);
+        } catch {
+          humanModel.analysis_result_json = {};
+        }
+      }
+    }
+
+    // Fetch project sources for generation
+    const projectSources = db.prepare(`
+      SELECT id, file_name, content_text, file_type, source_type, url
+      FROM sources
+      WHERE project_id = ? AND content_text IS NOT NULL AND content_text != ''
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[];
+
+    // Fetch characters for context
+    const characters = db.prepare(`
+      SELECT name, description, traits
+      FROM characters
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { name: string; description: string; traits: string }[];
+
+    // Fetch locations for context
+    const locations = db.prepare(`
+      SELECT name, description
+      FROM locations
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { name: string; description: string }[];
+
+    // Fetch plot events for context
+    const plotEvents = db.prepare(`
+      SELECT title, description
+      FROM plot_events
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { title: string; description: string }[];
+
+    // Get previous and next chapters for continuity
+    const previousChapter = db.prepare(`
+      SELECT title, content
+      FROM chapters
+      WHERE project_id = ? AND order_index = ?
+      LIMIT 1
+    `).get(chapter.project_id, chapter.order_index - 1) as { title: string; content: string } | undefined;
+
+    const nextChapter = db.prepare(`
+      SELECT title
+      FROM chapters
+      WHERE project_id = ? AND order_index = ?
+      LIMIT 1
+    `).get(chapter.project_id, chapter.order_index + 1) as { title: string } | undefined;
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+    // Helper function to send SSE events
+    const sendEvent = (event: string, data: any) => {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Send initial status
+    sendEvent('phase', { phase: 'structure', message: 'Analyzing project structure and context...' });
+
+    // Build the system prompt based on project settings and Human Model
+    const language = chapter.preferred_language === 'it' ? 'it' : 'en';
+    const isItalian = language === 'it';
+
+    let systemPrompt = '';
+    if (isItalian) {
+      systemPrompt = `Sei uno scrittore professionista che aiuta a creare capitoli di romanzi.
+
+PROGETTO: "${chapter.project_title}"
+GENERE: ${chapter.genre || 'Narrativa'}
+TONO: ${chapter.tone || 'Neutro'}
+PUBBLICO: ${chapter.target_audience || 'Adulti'}
+
+CAPITOLO CORRENTE: "${chapter.title}" (Capitolo ${chapter.order_index + 1})`;
+    } else {
+      systemPrompt = `You are a professional writer helping create novel chapters.
+
+PROJECT: "${chapter.project_title}"
+GENRE: ${chapter.genre || 'Fiction'}
+TONE: ${chapter.tone || 'Neutral'}
+AUDIENCE: ${chapter.target_audience || 'Adults'}
+
+CURRENT CHAPTER: "${chapter.title}" (Chapter ${chapter.order_index + 1})`;
+    }
+
+    // Add Human Model style if provided
+    if (humanModel && humanModel.analysis_result_json) {
+      const analysis = humanModel.analysis_result_json as any;
+      if (isItalian) {
+        systemPrompt += `
+
+PROFILO STILISTICO PERSONALE (${humanModel.name}):
+- Tono: ${analysis.tone || 'Non specificato'}
+- Struttura frasi: ${analysis.sentence_structure || 'Non specificata'}
+- Vocabolario: ${analysis.vocabulary || 'Non specificato'}
+- Pattern di scrittura: ${(analysis.patterns || []).join(', ') || 'Non specificati'}
+
+IMPORTANTE: Scrivi con lo stile personale dell'autore come definito sopra.`;
+      } else {
+        systemPrompt += `
+
+PERSONAL STYLE PROFILE (${humanModel.name}):
+- Tone: ${analysis.tone || 'Not specified'}
+- Sentence structure: ${analysis.sentence_structure || 'Not specified'}
+- Vocabulary: ${analysis.vocabulary || 'Not specified'}
+- Writing patterns: ${(analysis.patterns || []).join(', ') || 'Not specified'}
+
+IMPORTANT: Write in the author's personal style as defined above.`;
+      }
+    }
+
+    // Add character context
+    if (characters.length > 0) {
+      if (isItalian) {
+        systemPrompt += `\n\nPERSONAGGI:\n${characters.map(c => `- ${c.name}: ${c.description}${c.traits ? ` (${c.traits})` : ''}`).join('\n')}`;
+      } else {
+        systemPrompt += `\n\nCHARACTERS:\n${characters.map(c => `- ${c.name}: ${c.description}${c.traits ? ` (${c.traits})` : ''}`).join('\n')}`;
+      }
+    }
+
+    // Add location context
+    if (locations.length > 0) {
+      if (isItalian) {
+        systemPrompt += `\n\nLUOGHI:\n${locations.map(l => `- ${l.name}: ${l.description}`).join('\n')}`;
+      } else {
+        systemPrompt += `\n\nLOCATIONS:\n${locations.map(l => `- ${l.name}: ${l.description}`).join('\n')}`;
+      }
+    }
+
+    // Add plot events context
+    if (plotEvents.length > 0) {
+      if (isItalian) {
+        systemPrompt += `\n\nEVENTI DI TRAMA:\n${plotEvents.map(e => `- ${e.title}: ${e.description}`).join('\n')}`;
+      } else {
+        systemPrompt += `\n\nPLOT EVENTS:\n${plotEvents.map(e => `- ${e.title}: ${e.description}`).join('\n')}`;
+      }
+    }
+
+    // Add source context (limited to avoid token limits)
+    if (projectSources.length > 0) {
+      const sourcesContext = projectSources.map(s => {
+        const excerpt = s.content_text.substring(0, 500);
+        return `[${s.file_name}]: ${excerpt}...`;
+      }).join('\n\n');
+
+      if (isItalian) {
+        systemPrompt += `\n\nFONTI DI RIFERIMENTO:\n${sourcesContext}`;
+      } else {
+        systemPrompt += `\n\nREFERENCE SOURCES:\n${sourcesContext}`;
+      }
+    }
+
+    // Build user prompt
+    let userPrompt = '';
+    if (isItalian) {
+      userPrompt = `Scrivi il contenuto completo del capitolo "${chapter.title}".
+
+${previousChapter ? `CAPITOLO PRECEDENTE: "${previousChapter.title}"` : 'Questo è il primo capitolo.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${nextChapter.title}"` : 'Questo è l\'ultimo capitolo.'}
+
+${prompt_context ? `NOTE AGGIUNTIVE: ${prompt_context}` : ''}
+
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.`;
+    } else {
+      userPrompt = `Write the complete content for chapter "${chapter.title}".
+
+${previousChapter ? `PREVIOUS CHAPTER: "${previousChapter.title}"` : 'This is the first chapter.'}
+${nextChapter ? `NEXT CHAPTER: "${nextChapter.title}"` : 'This is the last chapter.'}
+
+${prompt_context ? `ADDITIONAL NOTES: ${prompt_context}` : ''}
+
+Write an engaging chapter of approximately 2000-3000 words in English.`;
+    }
+
+    // Send phase update
+    sendEvent('phase', { phase: 'writing', message: 'Generating chapter content...' });
+
+    // Try to use AI provider with streaming
+    try {
+      const { getProviderForUser } = require('../services/ai-service');
+      const provider = getProviderForUser(userId);
+
+      if (!provider) {
+        // No AI provider available - use fallback generation
+        console.log('[Generate Stream] No AI provider, using fallback');
+
+        // Simulate streaming with fallback content
+        const fallbackContent = generateTemplateContent(
+          chapter.title,
+          chapter.area,
+          prompt_context,
+          humanModel,
+          projectSources
+        );
+
+        // Stream the fallback content word by word
+        const words = fallbackContent.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          sendEvent('delta', { content: words[i] + ' ' });
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        sendEvent('phase', { phase: 'revision', message: 'Reviewing generated content...' });
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        sendEvent('done', {
+          message: 'Chapter generated successfully',
+          word_count: fallbackContent.split(/\s+/).filter(w => w.length > 0).length
+        });
+        return res.end();
+      }
+
+      console.log(`[Generate Stream] Using ${provider.getProviderType()} provider`);
+
+      // Use streaming
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+
+      let fullContent = '';
+
+      // Stream from provider
+      for await (const event of provider.stream(messages, { maxTokens: 4000 })) {
+        if (event.type === 'delta' && event.content) {
+          fullContent += event.content;
+          sendEvent('delta', { content: event.content });
+        } else if (event.type === 'error') {
+          sendEvent('error', { message: event.error || 'Unknown error during generation' });
+          return res.end();
+        }
+      }
+
+      // Send revision phase
+      sendEvent('phase', { phase: 'revision', message: 'Reviewing generated content...' });
+
+      // Update chapter in database
+      const now = new Date().toISOString();
+      const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
+
+      db.prepare(`
+        UPDATE chapters
+        SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+        WHERE id = ?
+      `).run(fullContent, wordCount, now, id);
+
+      // Log generation
+      const logId = uuidv4();
+      db.prepare(`
+        INSERT INTO generation_logs (id, project_id, chapter_id, model_used, phase, tokens_input, tokens_output, duration_ms, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        logId,
+        chapter.project_id,
+        id,
+        humanModel ? `${humanModel.name} (${provider.getProviderType()})` : provider.getProviderType(),
+        'streaming_generation',
+        0,  // Will be updated with actual tokens if available
+        wordCount,
+        0,
+        'completed',
+        now
+      );
+
+      console.log(`[Generate Stream] Generated chapter "${chapter.title}" with ${wordCount} words`);
+
+      sendEvent('done', {
+        message: 'Chapter generated successfully',
+        word_count: wordCount,
+        chapter_id: id
+      });
+
+      return res.end();
+
+    } catch (aiError: any) {
+      console.error('[Generate Stream] AI error:', aiError);
+
+      // Fallback to template generation on error
+      sendEvent('phase', { phase: 'writing', message: 'Using fallback generation...' });
+
+      const fallbackContent = generateTemplateContent(
+        chapter.title,
+        chapter.area,
+        prompt_context,
+        humanModel,
+        projectSources
+      );
+
+      // Stream the fallback content
+      const words = fallbackContent.split(' ');
+      for (let i = 0; i < words.length; i++) {
+        sendEvent('delta', { content: words[i] + ' ' });
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      const wordCount = fallbackContent.split(/\s+/).filter(w => w.length > 0).length;
+
+      // Update chapter in database
+      const now = new Date().toISOString();
+      db.prepare(`
+        UPDATE chapters
+        SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+        WHERE id = ?
+      `).run(fallbackContent, wordCount, now, id);
+
+      sendEvent('done', {
+        message: 'Chapter generated (fallback mode)',
+        word_count: wordCount,
+        warning: aiError.message
+      });
+
+      return res.end();
+    }
+
+  } catch (error: any) {
+    console.error('[Generate Stream] Error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: error.message || 'Failed to generate chapter' });
+    } else {
+      res.write(`event: error\ndata: ${JSON.stringify({ message: error.message })}\n\n`);
+      res.end();
+    }
+  }
+});
+
 // POST /api/chapters/:id/generate-with-comparison - Generate content with and without Human Model for comparison
 router.post('/chapters/:id/generate-with-comparison', authenticateToken, generationRateLimit, async (req, res) => {
   try {

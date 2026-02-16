@@ -658,7 +658,24 @@
     "unsavedChanges": "Hai modifiche non salvate",
     "unsavedChangesMessage": "Vuoi salvare le modifiche prima di uscire?",
     "stay": "Rimani",
-    "leaveWithoutSaving": "Esci senza salvare"
+    "leaveWithoutSaving": "Esci senza salvare",
+    "generation": {
+      "generate": "Genera",
+      "generateStandard": "Genera contenuto capitolo con AI",
+      "generateWithStyle": "Con Stile",
+      "selectModel": "Seleziona Modello Umano",
+      "noHumanModels": "Nessun Modello Umano disponibile. Creane uno nelle Impostazioni.",
+      "analyzing": "Analisi struttura progetto e contesto...",
+      "writing": "Generazione contenuto capitolo...",
+      "revision": "Revisione contenuto generato...",
+      "success": "Capitolo generato con successo",
+      "error": "Impossibile generare il capitolo",
+      "cancel": "Annulla",
+      "cancelled": "Generazione annullata",
+      "structure": "Struttura",
+      "writing_phase": "Scrittura",
+      "revision_phase": "Revisione"
+    }
   },
   "newProject": {
     "backToDashboard": "Torna alla Dashboard",

@@ -658,7 +658,24 @@
     "unsavedChanges": "You have unsaved changes",
     "unsavedChangesMessage": "Do you want to save your changes before leaving?",
     "stay": "Stay",
-    "leaveWithoutSaving": "Leave without saving"
+    "leaveWithoutSaving": "Leave without saving",
+    "generation": {
+      "generate": "Generate",
+      "generateStandard": "Generate chapter content with AI",
+      "generateWithStyle": "With Style",
+      "selectModel": "Select Human Model",
+      "noHumanModels": "No Human Models available. Create one in Settings.",
+      "analyzing": "Analyzing project structure and context...",
+      "writing": "Generating chapter content...",
+      "revision": "Reviewing generated content...",
+      "success": "Chapter generated successfully",
+      "error": "Failed to generate chapter",
+      "cancel": "Cancel",
+      "cancelled": "Generation cancelled",
+      "structure": "Structure",
+      "writing_phase": "Writing",
+      "revision_phase": "Revision"
+    }
   },
   "newProject": {
     "backToDashboard": "Back to Dashboard",
