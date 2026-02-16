@@ -1,5 +1,94 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #229 Implementation
+
+### Completed Features: 229/229 (100%)
+
+### Feature #229: Localize chapter outline generation based on user language
+
+**Objective:** Fix the issue where the "Genera Indice" function produces chapter titles and summaries hardcoded in English, regardless of the user's preferred language. The titles should be generated in the user's language (Italian or English) by retrieving `preferred_language` from the users table.
+
+**Implementation:**
+
+#### 1. Modified Project Query (server/src/routes/projects.ts, lines 1059-1078)
+- Added JOIN with users table to retrieve `preferred_language`
+- Changed query from:
+  ```sql
+  SELECT id, title, area, ... FROM projects WHERE id = ? AND user_id = ?
+  ```
+  To:
+  ```sql
+  SELECT p.id, p.title, p.area, ..., u.preferred_language
+  FROM projects p
+  JOIN users u ON p.user_id = u.id
+  WHERE p.id = ? AND p.user_id = ?
+  ```
+
+#### 2. Created Localized Genre Structures (lines 1106-1291)
+- Created `genreStructuresLocalized` object with nested language keys
+- Added Italian versions for all genre structures:
+  - `fantasy`: "Il Risveglio", "La Chiamata all'Avventura", "Oltre la Soglia", etc.
+  - `romance`: "L'Incontro", "Prime Impressioni", "Avvicinamento", etc.
+  - `thriller`: "Il Crimine", "L'Indagine Inizia", "Primi Indizi", etc.
+  - `mystery`: "La Scoperta", "Raccolta Prove", "Interrogatori", etc.
+  - `scifi`: "La Scoperta", "L'Esperimento", "Qualcosa va Storto", etc.
+  - `historical`: "Scena Storica", "Il Catalizzatore", "La Guerra Dichiarata", etc.
+  - `default`: "Introduzione", "Incidente Scatenante", "Azione Crescente", etc.
+- English versions preserved unchanged
+
+#### 3. Localized Tone Adjectives (lines 1296-1306)
+- Changed from simple string mapping to nested language mapping
+- Added Italian translations:
+  - dark: "ominoso"
+  - light: "speranzoso"
+  - serious: "serio"
+  - humorous: "spiritoso"
+  - dramatic: "intenso"
+  - romantic: "appassionato"
+
+#### 4. Localized Chapter Summary Templates (lines 1308-1331)
+- Created `summaryTemplates` object with `en` and `it` keys
+- Italian first chapter: "Introduci il personaggio principale e il suo mondo..."
+- Italian midpoint: "Il punto medio della storia. Una rivelazione importante..."
+- Italian last chapter: "La conclusione. Tutti i fili della trama vengono risolti..."
+- Italian middle chapters: "Sviluppa la narrazione con un ritmo {tone}..."
+
+#### 5. Localized Chapter Content Placeholder (lines 1333-1347)
+- Created `contentTemplates` object with `en` and `it` keys
+- Italian: "Riassunto dell'Indice:" (Outline Summary)
+- Italian: "Note:" (Notes)
+- Italian: "Scrivi questo capitolo concentrandoti sullo sviluppo del personaggio..."
+- Italian: "Numero di parole obiettivo: {words} parole" (Target word count)
+
+**Verification (Browser Automation Testing):**
+
+1. ✅ **Italian User Test:**
+   - Registered new user "Test Italian User" with Italian language preference
+   - Created Romanziere project "Romanzo Test Italiano"
+   - Clicked "Genera Indice" button
+   - Chapters generated with Italian titles: "Introduzione", "Incidente Scatenante", "Azione Crescente", etc.
+   - Chapter content contains Italian: "Riassunto dell'Indice:", "Note:", "Numero di parole obiettivo: 3000 parole"
+
+2. ✅ **English User Test:**
+   - Changed language preference to English
+   - Created Novelist project "English Test Novel"
+   - Clicked "Generate Outline" button
+   - Chapters generated with English titles: "Introduction", "Inciting Incident", "Rising Action", etc.
+   - Chapter content contains English: "Outline Summary:", "Notes:", "Target word count: 3000 words"
+
+**Feature Test Steps Verified:**
+1. ✅ "Modificare la query in generate/outline per fare JOIN con users e recuperare preferred_language" - Done
+2. ✅ "Creare versioni italiane di tutti i genreStructures (fantasy, romance, thriller, mystery, scifi, historical, default)" - Done
+3. ✅ "Selezionare la struttura appropriata (it/en) in base alla lingua dell'utente" - Done
+4. ✅ "Localizzare i riassunti dei capitoli (summary) - attualmente sono in inglese" - Done
+5. ✅ "Localizzare il contenuto placeholder del capitolo (Notes, Target word count, etc.)" - Done
+6. ✅ "Testare con utente italiano e verificare che i capitoli siano generati in italiano" - Verified
+7. ✅ "Testare con utente inglese e verificare che funzioni ancora correttamente" - Verified
+
+### Commit: 431d2d9
+
+---
+
 ## Session: 2026-02-16 - Feature #228 Implementation
 
 ### Completed Features: 228/228 (100%)
