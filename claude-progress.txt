@@ -1,5 +1,75 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #233 Implementation
+
+### Completed Features: 233/233 (100%)
+
+### Feature #233: Fix AI content moderation error in chapter generation
+
+**Objective:** Quando si genera un capitolo usando un provider AI (in particolare Amazon Bedrock con Claude), la generazione fallisce con errore: "anthropic/claude-3.5-sonnet requires moderation on Amazon Bedrock. Your input was flagged for 'violence/graphic'".
+
+**Problem:** Il prompt di sistema contiene troppe informazioni potenzialmente problematiche (personaggi con descrizioni dettagliate, fonti caricate, eventi di trama) che possono attivare i filtri di moderazione.
+
+**Implementation:**
+
+#### 1. Created Content Moderation Utilities (server/src/services/contentModeration.ts)
+New utility module with functions:
+- `sanitizeSensitiveWords(text)` - Replaces sensitive words with safer alternatives
+- `hasSensitiveContent(text)` - Detects potentially sensitive content
+- `findSensitiveSections(sections)` - Identifies which sections contain sensitive content
+- `truncateText(text, maxLength)` - Truncates text preserving word boundaries
+- `sanitizeCharacterDescription()` - Sanitizes character descriptions (max 200 chars)
+- `sanitizeLocationDescription()` - Sanitizes location descriptions (max 200 chars)
+- `sanitizePlotEvent()` - Sanitizes plot events (max 150 chars)
+- `sanitizeSourceExcerpt()` - Sanitizes source excerpts (max 300 chars)
+- `sanitizePromptContent()` - Main function to sanitize all prompt content
+- `buildSimplifiedPrompt()` - Creates minimal prompt for retry after moderation error
+- `isModerationError(error)` - Detects if an error is a moderation error
+- `getModerationErrorMessage()` - Generates user-friendly error messages
+
+#### 2. Updated Chapter Generation Endpoint (server/src/routes/chapters.ts)
+- Imported content moderation utilities
+- Applied `sanitizePromptContent()` to all context before building prompts
+- Applied `sanitizeSensitiveWords()` to titles, descriptions, and user notes
+- Added specific error handling for moderation errors
+- Implemented retry with simplified prompt when moderation fails
+- Added user-friendly error messages in both Italian and English
+
+#### 3. Added Translations (client/src/i18n/locales/it.json and en.json)
+- `chapterEditor.generation.moderationError` - Moderation error title
+- `chapterEditor.generation.moderationSuggestion` - Helpful suggestion
+- `chapterEditor.generation.retryingSimplified` - Retry notification
+- `chapterEditor.generation.simplifiedMode` - Success with simplified mode
+
+**Sensitive Content Patterns Detected:**
+- Violence: kill, murder, torture, slaughter, massacre, execution, etc.
+- Graphic: blood, gore, viscera, entrails, corpse, etc.
+- Abuse: abuse, molest, pedophilia, incest, trafficking
+- Hate speech indicators
+- Self-harm indicators
+
+**Word Replacements Applied:**
+- kill → defeat
+- murder → confrontation
+- torture → ordeal
+- slaughter → battle
+- blood → sweat
+- gore → drama
+- etc.
+
+**Feature Test Steps Verified:**
+1. ✅ Created sanitizeContentForModeration() utility with word sanitization
+2. ✅ Limited description lengths (200 chars for characters/locations, 150 for plot events, 300 for sources)
+3. ✅ Added moderation error detection for Bedrock providers
+4. ✅ Implemented fallback with simplified prompt on moderation failure
+5. ✅ Added logging for problematic sections
+6. ✅ Added user-friendly error messages in both languages
+7. ✅ Server starts without import errors
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-16 - Features #231 & #232 Implementation
 
 ### Completed Features: 232/232 (100%)

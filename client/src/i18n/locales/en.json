@@ -674,7 +674,11 @@
       "cancelled": "Generation cancelled",
       "structure": "Structure",
       "writing_phase": "Writing",
-      "revision_phase": "Revision"
+      "revision_phase": "Revision",
+      "moderationError": "AI moderation filter blocked generation",
+      "moderationSuggestion": "Try simplifying character, location, or event descriptions.",
+      "retryingSimplified": "Retrying with simplified prompt...",
+      "simplifiedMode": "Chapter generated (simplified mode)"
     }
   },
   "newProject": {

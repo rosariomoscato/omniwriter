@@ -674,7 +674,11 @@
       "cancelled": "Generazione annullata",
       "structure": "Struttura",
       "writing_phase": "Scrittura",
-      "revision_phase": "Revisione"
+      "revision_phase": "Revisione",
+      "moderationError": "Il filtro di moderazione AI ha bloccato la generazione",
+      "moderationSuggestion": "Prova a semplificare le descrizioni di personaggi, luoghi o eventi.",
+      "retryingSimplified": "Riprovo con prompt semplificato...",
+      "simplifiedMode": "Capitolo generato (modalità semplificata)"
     }
   },
   "newProject": {

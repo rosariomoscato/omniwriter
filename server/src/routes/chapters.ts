@@ -4,6 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { generationRateLimit } from '../middleware/rateLimit';
+import {
+  sanitizePromptContent,
+  buildSimplifiedPrompt,
+  isModerationError,
+  getModerationErrorMessage,
+  sanitizeSensitiveWords
+} from '../services/contentModeration';
 
 const router = express.Router();
 
@@ -635,7 +642,7 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, generat
   }
 });
 
-// POST /api/chapters/:id/generate-stream - Generate chapter content with SSE streaming (Feature #232)
+// POST /api/chapters/:id/generate-stream - Generate chapter content with SSE streaming (Feature #232, #233)
 router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
   try {
     const { id } = req.params;
@@ -764,25 +771,43 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
     const language = chapter.preferred_language === 'it' ? 'it' : 'en';
     const isItalian = language === 'it';
 
+    // Feature #233: Sanitize content to avoid moderation triggers
+    const sanitizedContent = sanitizePromptContent({
+      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits })),
+      locations: locations.map(l => ({ name: l.name, description: l.description })),
+      plotEvents: plotEvents.map(e => ({ title: e.title, description: e.description })),
+      sources: projectSources.map(s => ({ file_name: s.file_name, content_text: s.content_text })),
+      previousChapter: previousChapter ? { title: previousChapter.title, content: previousChapter.content } : undefined,
+      chapterTitle: chapter.title,
+      projectTitle: chapter.project_title,
+      projectContext: prompt_context
+    });
+
+    // Log any warnings from sanitization
+    if (sanitizedContent.warnings.length > 0) {
+      console.log('[Generate Stream] Content sanitization warnings:', sanitizedContent.warnings);
+    }
+
+    // Build sanitized system prompt
     let systemPrompt = '';
     if (isItalian) {
       systemPrompt = `Sei uno scrittore professionista che aiuta a creare capitoli di romanzi.
 
-PROGETTO: "${chapter.project_title}"
+PROGETTO: "${sanitizeSensitiveWords(chapter.project_title)}"
 GENERE: ${chapter.genre || 'Narrativa'}
 TONO: ${chapter.tone || 'Neutro'}
 PUBBLICO: ${chapter.target_audience || 'Adulti'}
 
-CAPITOLO CORRENTE: "${chapter.title}" (Capitolo ${chapter.order_index + 1})`;
+CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})`;
     } else {
       systemPrompt = `You are a professional writer helping create novel chapters.
 
-PROJECT: "${chapter.project_title}"
+PROJECT: "${sanitizeSensitiveWords(chapter.project_title)}"
 GENRE: ${chapter.genre || 'Fiction'}
 TONE: ${chapter.tone || 'Neutral'}
 AUDIENCE: ${chapter.target_audience || 'Adults'}
 
-CURRENT CHAPTER: "${chapter.title}" (Chapter ${chapter.order_index + 1})`;
+CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})`;
     }
 
     // Add Human Model style if provided
@@ -811,65 +836,60 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       }
     }
 
-    // Add character context
-    if (characters.length > 0) {
+    // Add sanitized character context
+    if (sanitizedContent.characters) {
       if (isItalian) {
-        systemPrompt += `\n\nPERSONAGGI:\n${characters.map(c => `- ${c.name}: ${c.description}${c.traits ? ` (${c.traits})` : ''}`).join('\n')}`;
+        systemPrompt += `\n\nPERSONAGGI:\n${sanitizedContent.characters}`;
       } else {
-        systemPrompt += `\n\nCHARACTERS:\n${characters.map(c => `- ${c.name}: ${c.description}${c.traits ? ` (${c.traits})` : ''}`).join('\n')}`;
+        systemPrompt += `\n\nCHARACTERS:\n${sanitizedContent.characters}`;
       }
     }
 
-    // Add location context
-    if (locations.length > 0) {
+    // Add sanitized location context
+    if (sanitizedContent.locations) {
       if (isItalian) {
-        systemPrompt += `\n\nLUOGHI:\n${locations.map(l => `- ${l.name}: ${l.description}`).join('\n')}`;
+        systemPrompt += `\n\nLUOGHI:\n${sanitizedContent.locations}`;
       } else {
-        systemPrompt += `\n\nLOCATIONS:\n${locations.map(l => `- ${l.name}: ${l.description}`).join('\n')}`;
+        systemPrompt += `\n\nLOCATIONS:\n${sanitizedContent.locations}`;
       }
     }
 
-    // Add plot events context
-    if (plotEvents.length > 0) {
+    // Add sanitized plot events context
+    if (sanitizedContent.plotEvents) {
       if (isItalian) {
-        systemPrompt += `\n\nEVENTI DI TRAMA:\n${plotEvents.map(e => `- ${e.title}: ${e.description}`).join('\n')}`;
+        systemPrompt += `\n\nEVENTI DI TRAMA:\n${sanitizedContent.plotEvents}`;
       } else {
-        systemPrompt += `\n\nPLOT EVENTS:\n${plotEvents.map(e => `- ${e.title}: ${e.description}`).join('\n')}`;
+        systemPrompt += `\n\nPLOT EVENTS:\n${sanitizedContent.plotEvents}`;
       }
     }
 
-    // Add source context (limited to avoid token limits)
-    if (projectSources.length > 0) {
-      const sourcesContext = projectSources.map(s => {
-        const excerpt = s.content_text.substring(0, 500);
-        return `[${s.file_name}]: ${excerpt}...`;
-      }).join('\n\n');
-
+    // Add sanitized source context
+    if (sanitizedContent.sources) {
       if (isItalian) {
-        systemPrompt += `\n\nFONTI DI RIFERIMENTO:\n${sourcesContext}`;
+        systemPrompt += `\n\nFONTI DI RIFERIMENTO:\n${sanitizedContent.sources}`;
       } else {
-        systemPrompt += `\n\nREFERENCE SOURCES:\n${sourcesContext}`;
+        systemPrompt += `\n\nREFERENCE SOURCES:\n${sanitizedContent.sources}`;
       }
     }
 
     // Build user prompt
     let userPrompt = '';
     if (isItalian) {
-      userPrompt = `Scrivi il contenuto completo del capitolo "${chapter.title}".
+      userPrompt = `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
-${previousChapter ? `CAPITOLO PRECEDENTE: "${previousChapter.title}"` : 'Questo è il primo capitolo.'}
-${nextChapter ? `PROSSIMO CAPITOLO: "${nextChapter.title}"` : 'Questo è l\'ultimo capitolo.'}
+${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
 
-${prompt_context ? `NOTE AGGIUNTIVE: ${prompt_context}` : ''}
+${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
 Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.`;
     } else {
-      userPrompt = `Write the complete content for chapter "${chapter.title}".
+      userPrompt = `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
-${previousChapter ? `PREVIOUS CHAPTER: "${previousChapter.title}"` : 'This is the first chapter.'}
-${nextChapter ? `NEXT CHAPTER: "${nextChapter.title}"` : 'This is the last chapter.'}
+${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
 
-${prompt_context ? `ADDITIONAL NOTES: ${prompt_context}` : ''}
+${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
 Write an engaging chapter of approximately 2000-3000 words in English.`;
     }
@@ -914,7 +934,7 @@ Write an engaging chapter of approximately 2000-3000 words in English.`;
 
       console.log(`[Generate Stream] Using ${provider.getProviderType()} provider`);
 
-      // Use streaming
+      // Use streaming with sanitized messages
       const messages = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -928,7 +948,67 @@ Write an engaging chapter of approximately 2000-3000 words in English.`;
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
         } else if (event.type === 'error') {
-          sendEvent('error', { message: event.error || 'Unknown error during generation' });
+          const errorMessage = event.error || 'Unknown error during generation';
+
+          // Feature #233: Check if this is a moderation error and retry with simplified prompt
+          if (isModerationError(errorMessage)) {
+            console.log('[Generate Stream] Moderation error detected, retrying with simplified prompt');
+            sendEvent('phase', { phase: 'writing', message: 'Retrying with simplified prompt...' });
+
+            // Build simplified prompt for retry
+            const simplified = buildSimplifiedPrompt(chapter.title, chapter.project_title, language);
+
+            try {
+              const simplifiedMessages = [
+                { role: 'system', content: simplified.systemPrompt },
+                { role: 'user', content: simplified.userPrompt }
+              ];
+
+              let retryContent = '';
+              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: 4000 })) {
+                if (retryEvent.type === 'delta' && retryEvent.content) {
+                  retryContent += retryEvent.content;
+                  sendEvent('delta', { content: retryEvent.content });
+                } else if (retryEvent.type === 'error') {
+                  // Even simplified prompt failed - provide user feedback
+                  const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+                  sendEvent('error', {
+                    message: userMessage,
+                    original_error: retryEvent.error,
+                    is_moderation: true
+                  });
+                  return res.end();
+                }
+              }
+
+              if (retryContent) {
+                // Success with simplified prompt
+                const now = new Date().toISOString();
+                const wordCount = retryContent.split(/\s+/).filter(w => w.length > 0).length;
+
+                db.prepare(`
+                  UPDATE chapters
+                  SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+                  WHERE id = ?
+                `).run(retryContent, wordCount, now, id);
+
+                sendEvent('done', {
+                  message: 'Chapter generated successfully (simplified mode)',
+                  word_count: wordCount,
+                  chapter_id: id,
+                  note: 'Used simplified prompt due to content sensitivity'
+                });
+                return res.end();
+              }
+            } catch (retryError: any) {
+              console.error('[Generate Stream] Retry with simplified prompt failed:', retryError);
+              const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+              sendEvent('error', { message: userMessage, is_moderation: true });
+              return res.end();
+            }
+          }
+
+          sendEvent('error', { message: errorMessage });
           return res.end();
         }
       }
@@ -977,7 +1057,15 @@ Write an engaging chapter of approximately 2000-3000 words in English.`;
     } catch (aiError: any) {
       console.error('[Generate Stream] AI error:', aiError);
 
-      // Fallback to template generation on error
+      // Feature #233: Check for moderation errors
+      if (isModerationError(aiError)) {
+        console.log('[Generate Stream] Moderation error in catch block');
+        const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+        sendEvent('error', { message: userMessage, is_moderation: true });
+        return res.end();
+      }
+
+      // Fallback to template generation on other errors
       sendEvent('phase', { phase: 'writing', message: 'Using fallback generation...' });
 
       const fallbackContent = generateTemplateContent(
