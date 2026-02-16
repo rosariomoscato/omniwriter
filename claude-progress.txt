@@ -1,5 +1,47 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #227 Implementation
+
+### Completed Features: 227/227 (100%)
+
+### Feature #227: Fix incorrect toast method names in ProjectDetail
+
+**Objective:** Fix runtime errors caused by incorrect toast method names in ProjectDetail.tsx and CommentsPanel.tsx. The code was using `toast.showInfo()`, `toast.showError()`, `toast.showSuccess()`, `toast.showWarning()` instead of the correct `toast.info()`, `toast.error()`, `toast.success()`, `toast.warning()`.
+
+**Root Cause:**
+The `useToastNotification()` hook (from `client/src/components/Toast.tsx`) returns an object with methods named `success`, `error`, `info`, `warning` - NOT `showSuccess`, `showError`, `showInfo`, `showWarning`. The code was incorrectly prefixing all method names with "show".
+
+**Implementation:**
+
+1. **ProjectDetail.tsx** - Fixed all incorrect toast method calls:
+   - `toast.showInfo` → `toast.info` (4 occurrences)
+   - `toast.showSuccess` → `toast.success` (2 occurrences)
+   - `toast.showError` → `toast.error` (11 occurrences)
+   - `toast.show('message', 'success')` → `toast.success('message')` (1 occurrence)
+   - `toast.show('message', 'error')` → `toast.error('message')` (1 occurrence)
+
+2. **CommentsPanel.tsx** - Fixed all incorrect toast method calls:
+   - `toast.showError` → `toast.error` (4 occurrences)
+   - `toast.showSuccess` → `toast.success` (2 occurrences)
+
+**Verification:**
+- Static code analysis confirms all `toast.show*` patterns removed
+- All toast calls now use correct method names matching the hook API
+- No other files in client/src contain the incorrect patterns
+
+**Feature Test Steps Verified:**
+1. ✅ "Sostituire tutte le occorrenze di toast.showInfo con toast.info" - Done
+2. ✅ "Sostituire tutte le occorrenze di toast.showError con toast.error" - Done
+3. ✅ "Sostituire tutte le occorrenze di toast.showSuccess con toast.success" - Done
+4. ✅ "Sostituire tutte le occorrenze di toast.showWarning con toast.warning" - No occurrences found
+5. ✅ Code patterns verified - no more `toast.show*` in codebase
+
+**Note:** Due to sandbox restrictions preventing server startup, browser automation testing could not be performed. However, the code changes are straightforward and correct based on the Toast hook API definition.
+
+### Commit: 2ae1c45
+
+---
+
 ## Session: 2026-02-14 - Feature #225 Implementation
 
 ### Completed Features: 224/225 (99.6%)
