@@ -1178,10 +1178,10 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setIsPreview(!isPreview)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                aria-label={isPreview ? 'Edit' : 'Preview'}
-                title={isPreview ? 'Edit' : 'Preview'}
+                aria-label={isPreview ? t('chapterEditor.edit') : t('chapterEditor.preview')}
+                title={isPreview ? t('chapterEditor.edit') : t('chapterEditor.preview')}
               >
-                {isPreview ? <Edit className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {isPreview ? <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Eye className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
               </button>
               <button
                 onClick={handleSave}
