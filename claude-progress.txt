@@ -1,5 +1,49 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #228 Implementation
+
+### Completed Features: 228/228 (100%)
+
+### Feature #228: Fix missing order_index in generate outline
+
+**Objective:** Fix the bug in the "Genera Indice" function (POST /api/projects/:id/generate/outline) where the chapters INSERT query had 5 placeholders but only 4 values were passed. The missing `order_index` parameter caused chapter creation to fail with "Too few parameter values were provided" error.
+
+**Root Cause:**
+The SQL INSERT statement in `server/src/routes/projects.ts` had 5 `?` placeholders:
+```sql
+INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))
+```
+
+But the `.run()` call only passed 4 values: `chapterId, projectId, title, content`
+
+The `order_index` parameter (which should be the loop index `i`) was missing.
+
+**Implementation:**
+
+1. **Added order_index parameter** (line 1252 in server/src/routes/projects.ts):
+   - Added `i` as the 5th parameter in the `.run()` call
+   - Added comment `// order_index: chapter position in the outline`
+   - Now all 5 placeholders are properly filled
+
+**Verification (Browser Automation Testing):**
+1. ✅ Registered new test user "Outline Tester"
+2. ✅ Created new Romanziere project "Outline Test Novel"
+3. ✅ Clicked "Genera Indice" button
+4. ✅ 10 chapters were created successfully
+5. ✅ Chapters appear in correct order (1., 2., 3., etc.) proving order_index works
+
+**Feature Test Steps Verified:**
+1. ✅ "Aprire server/src/routes/projects.ts alla riga 1244" - Done
+2. ✅ "Aggiungere il parametro order_index (valore i) nella chiamata .run()" - Done
+3. ✅ "Verificare che l'ordine dei parametri corrisponda ai placeholder nella query SQL" - Verified: 5 params match 5 placeholders
+4. ✅ "Testare Genera Indice su un progetto romanziere" - Tested with "Outline Test Novel"
+5. ✅ "Verificare che i capitoli vengano creati correttamente con order_index progressivo" - 10 chapters created with proper order
+
+### Commit: f807d75
+
+---
+
 ## Session: 2026-02-16 - Feature #226 Implementation
 
 ### Completed Features: 226/226 (100%)
