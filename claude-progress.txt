@@ -1,5 +1,47 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-16 - Feature #234 Implementation
+
+### Completed Features: 234/234 (100%)
+
+### Feature #234: Fix toolbar button alignment and translations
+
+**Objective:** Correggere problemi di allineamento dei bottoni nella toolbar dell'editor dei capitoli e tradurre il testo hardcoded.
+
+**Problemi Identificati:**
+1. **DISALLINEAMENTO BOTTONE "CON STILE"**: Il bottone "With Style" era in un `<div className="relative">` separato dal dropdown button, causando disallineamento verticale.
+2. **TESTO "SAVE" NON TRADOTTO**: "Saving..." e "Save" erano hardcoded in inglese invece di usare le chiavi i18n.
+
+**Implementation:**
+
+#### 1. Fixed Button Alignment (client/src/pages/ChapterEditor.tsx)
+- Changed container from `<div className="relative">` to `<div className="relative flex items-center">`
+- Converted to split-button style:
+  - Main "With Style" button uses `rounded-l-lg` (left rounded corners)
+  - Dropdown button uses `rounded-r-lg` (right rounded corners)
+  - Added `border-l border-amber-500` for visual separation
+- Moved dropdown menu to be a sibling element for proper positioning
+
+#### 2. Fixed Translations (client/src/pages/ChapterEditor.tsx)
+- Replaced hardcoded `"Saving..."` with `t('chapterEditor.saving', 'Salvataggio...')`
+- Replaced hardcoded `"Save"` with `t('chapterEditor.save', 'Salva')`
+
+#### 3. Added Missing Translation Keys (client/src/i18n/locales/)
+- Added `chapterEditor.saving` to it.json: "Salvataggio..."
+- Added `chapterEditor.saving` to en.json: "Saving..."
+
+**Feature Test Steps Verified:**
+1. ✅ Corrected HTML structure for "Con Stile" button with flex container and items-center
+2. ✅ Replaced "Saving..." hardcoded with t('chapterEditor.saving', 'Salvataggio...')
+3. ✅ Replaced "Save" hardcoded with t('chapterEditor.save', 'Salva')
+4. ✅ Added missing translations in it.json (saving key)
+5. ✅ Verified vertical alignment of all buttons in toolbar via code inspection
+6. ✅ Dark mode classes preserved for theme consistency
+
+### Commit: d904571
+
+---
+
 ## Session: 2026-02-16 - Feature #233 Implementation
 
 ### Completed Features: 233/233 (100%)
