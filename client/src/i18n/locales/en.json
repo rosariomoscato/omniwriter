@@ -635,6 +635,7 @@
   "chapterEditor": {
     "backToProject": "Back to Project",
     "save": "Save",
+    "saving": "Saving...",
     "autoSave": "Auto-save in",
     "seconds": "seconds",
     "lastSaved": "Last saved",

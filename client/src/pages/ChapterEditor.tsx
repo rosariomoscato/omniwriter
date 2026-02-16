@@ -1104,11 +1104,11 @@ export default function ChapterEditor() {
                     </button>
 
                     {/* Generate with Human Model Button */}
-                    <div className="relative">
+                    <div className="relative flex items-center">
                       <button
                         onClick={() => handleGenerateChapter(true)}
                         disabled={isGenerating || humanModels.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-l-lg text-sm font-medium transition-colors"
                         title={humanModels.length === 0
                           ? t('chapterEditor.generation.noHumanModels', 'No Human Models available. Create one in Settings.')
                           : t('chapterEditor.generation.generateWithStyle', 'Generate with your personal writing style')
@@ -1120,41 +1120,40 @@ export default function ChapterEditor() {
 
                       {/* Human Model Dropdown */}
                       {humanModels.length > 0 && (
-                        <div className="relative ml-1">
-                          <button
-                            onClick={() => setShowHumanModelDropdown(!showHumanModelDropdown)}
-                            className="p-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
-                            title={t('chapterEditor.generation.selectModel', 'Select Human Model')}
-                          >
-                            <ChevronDownIcon className="w-4 h-4" />
-                          </button>
+                        <button
+                          onClick={() => setShowHumanModelDropdown(!showHumanModelDropdown)}
+                          className="flex items-center px-1.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-r-lg text-sm transition-colors border-l border-amber-500"
+                          title={t('chapterEditor.generation.selectModel', 'Select Human Model')}
+                        >
+                          <ChevronDownIcon className="w-4 h-4" />
+                        </button>
+                      )}
 
-                          {showHumanModelDropdown && (
-                            <div className="absolute top-full right-0 mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
-                              <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                                {t('chapterEditor.generation.selectModel', 'Select Human Model')}
-                              </div>
-                              {humanModels.map(model => (
-                                <button
-                                  key={model.id}
-                                  onClick={() => {
-                                    setSelectedHumanModelId(model.id);
-                                    setShowHumanModelDropdown(false);
-                                  }}
-                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
-                                    selectedHumanModelId === model.id
-                                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                      : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  <span>{model.name}</span>
-                                  {selectedHumanModelId === model.id && (
-                                    <span className="text-purple-600 dark:text-purple-400">✓</span>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                      {/* Dropdown Menu */}
+                      {humanModels.length > 0 && showHumanModelDropdown && (
+                        <div className="absolute top-full right-0 mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                          <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                            {t('chapterEditor.generation.selectModel', 'Select Human Model')}
+                          </div>
+                          {humanModels.map(model => (
+                            <button
+                              key={model.id}
+                              onClick={() => {
+                                setSelectedHumanModelId(model.id);
+                                setShowHumanModelDropdown(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
+                                selectedHumanModelId === model.id
+                                  ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <span>{model.name}</span>
+                              {selectedHumanModelId === model.id && (
+                                <span className="text-purple-600 dark:text-purple-400">✓</span>
+                              )}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -1192,12 +1191,12 @@ export default function ChapterEditor() {
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    {t('chapterEditor.saving', 'Salvataggio...')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save
+                    {t('chapterEditor.save', 'Salva')}
                   </>
                 )}
               </button>
