@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3, FolderOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Project {
@@ -33,6 +33,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
     { id: 'dashboard', label: t('nav.dashboard'), icon: Home, path: '/dashboard' },
     { id: 'human-model', label: t('nav.humanModel'), icon: User, path: '/human-model' },
     { id: 'sources', label: t('nav.sources'), icon: FileText, path: '/sources' },
+    { id: 'sagas', label: t('nav.sagas'), icon: FolderOpen, path: '/sagas' },
     { id: 'settings', label: t('nav.settings'), icon: Settings, path: '/settings' },
   ];
 

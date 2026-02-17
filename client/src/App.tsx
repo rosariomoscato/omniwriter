@@ -28,6 +28,7 @@ import AdminStatsPage from './pages/AdminStatsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import SourcesPage from './pages/SourcesPage';
+import SagasPage from './pages/SagasPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -36,6 +37,7 @@ const PROTECTED_ROUTES = [
   '/projects/new',
   '/human-model',
   '/sources',
+  '/sagas',
   '/settings',
   '/profile',
   '/admin'
@@ -200,6 +202,28 @@ function AppContent() {
                       `}
                     >
                       <SourcesPage />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/sagas"
+                element={
+                  <>
+                    <Sidebar
+                      isCollapsed={isSidebarCollapsed}
+                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      recentProjects={recentProjects}
+                    />
+                    <Header isSidebarCollapsed={isSidebarCollapsed} />
+                    <main
+                      className={`
+                        fixed top-16 right-0 bottom-0 overflow-y-auto
+                        transition-all duration-300 bg-white dark:bg-dark-bg
+                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
+                      `}
+                    >
+                      <SagasPage />
                     </main>
                   </>
                 }
