@@ -986,7 +986,7 @@ export default function ChapterEditor() {
   }
 
   return (
-    <div className={`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}>
+    <div className={`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50 pl-20' : ''}`}>
       {!isFullScreen && (
         <Breadcrumbs
           labelOverrides={{
