@@ -64,6 +64,10 @@ export default function ProjectDetail() {
   const [chapterToDelete, setChapterToDelete] = useState<{ id: string; title: string } | null>(null);
   const [showRegenerateChapterDialog, setShowRegenerateChapterDialog] = useState(false);
   const [chapterToRegenerate, setChapterToRegenerate] = useState<{ id: string; title: string } | null>(null);
+  // Feature #240: Additional confirmation dialogs
+  const [showOutlineConfirmDialog, setShowOutlineConfirmDialog] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -720,12 +724,18 @@ export default function ProjectDetail() {
   const handleGenerateOutline = async () => {
     if (!project) return;
 
-    // Check if any chapters already exist
+    // Check if any chapters already exist - show confirmation dialog
     if (chapters.length > 0) {
-      if (!confirm('This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?')) {
-        return;
-      }
+      setShowOutlineConfirmDialog(true);
+      return;
     }
+
+    // No chapters exist, proceed directly
+    await executeGenerateOutline();
+  };
+
+  const executeGenerateOutline = async () => {
+    if (!project) return;
 
     try {
       setGeneratingOutline(true);
@@ -1193,16 +1203,18 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleDuplicateProject = async () => {
+  const handleDuplicateProject = () => {
     if (!project) return;
+    setShowDuplicateDialog(true);
+  };
 
-    if (!confirm(`Create a copy of "${project.title}"? All chapters, characters, locations, and sources will be duplicated.`)) {
-      return;
-    }
+  const executeDuplicateProject = async () => {
+    if (!project) return;
 
     try {
       setDuplicating(true);
       setError('');
+      setShowDuplicateDialog(false);
 
       const response = await apiService.duplicateProject(id!);
       toast.success(`Project duplicated as "${response.project.title}"`);
@@ -1235,36 +1247,46 @@ export default function ProjectDetail() {
     }
   };
 
-  const handleArchive = async () => {
+  const handleArchive = () => {
     if (!project) return;
 
     if (project.status === 'archived') {
-      // Unarchive
-      try {
-        setUpdatingStatus(true);
-        const response = await apiService.unarchiveProject(id!);
-        setProject(response.project);
-        toast.success('Project unarchived');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to unarchive project');
-      } finally {
-        setUpdatingStatus(false);
-      }
+      // Unarchive - no confirmation needed
+      executeUnarchive();
     } else {
-      // Archive
-      if (!confirm(`Archive "${project.title}"? It will be hidden from the main project list.`)) {
-        return;
-      }
-      try {
-        setUpdatingStatus(true);
-        const response = await apiService.archiveProject(id!);
-        setProject(response.project);
-        toast.success('Project archived');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to archive project');
-      } finally {
-        setUpdatingStatus(false);
-      }
+      // Archive - show confirmation dialog
+      setShowArchiveDialog(true);
+    }
+  };
+
+  const executeArchive = async () => {
+    if (!project) return;
+
+    try {
+      setUpdatingStatus(true);
+      setShowArchiveDialog(false);
+      const response = await apiService.archiveProject(id!);
+      setProject(response.project);
+      toast.success(t('projectPage.archiveSuccess'));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to archive project');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const executeUnarchive = async () => {
+    if (!project) return;
+
+    try {
+      setUpdatingStatus(true);
+      const response = await apiService.unarchiveProject(id!);
+      setProject(response.project);
+      toast.success(t('projectPage.unarchiveSuccess'));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to unarchive project');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -3517,6 +3539,47 @@ export default function ProjectDetail() {
         confirmText={t('projectPage.chapters.regenerate', 'Regenerate')}
         cancelText={t('common.cancel', 'Cancel')}
         variant="info"
+      />
+
+      {/* Feature #240: Outline Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showOutlineConfirmDialog}
+        title={t('projectPage.outlineConfirm.title', 'Generate Outline')}
+        message={t('projectPage.outlineConfirm.message', 'This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?')}
+        onConfirm={() => {
+          setShowOutlineConfirmDialog(false);
+          executeGenerateOutline();
+        }}
+        onCancel={() => setShowOutlineConfirmDialog(false)}
+        confirmText={t('common.confirm', 'Continue')}
+        cancelText={t('common.cancel', 'Cancel')}
+        variant="warning"
+      />
+
+      {/* Feature #240: Duplicate Project Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDuplicateDialog}
+        title={t('projectPage.duplicateConfirm.title', 'Duplicate Project')}
+        message={t('projectPage.duplicateConfirm.message', 'All chapters, characters, locations, and sources will be duplicated.')}
+        itemName={project?.title}
+        onConfirm={executeDuplicateProject}
+        onCancel={() => setShowDuplicateDialog(false)}
+        confirmText={t('projectPage.duplicate', 'Duplicate')}
+        cancelText={t('common.cancel', 'Cancel')}
+        variant="info"
+      />
+
+      {/* Feature #240: Archive Project Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showArchiveDialog}
+        title={t('projectPage.archiveConfirmTitle', 'Archive Project')}
+        message={t('projectPage.archiveConfirm', 'It will be hidden from the main project list.')}
+        itemName={project?.title}
+        onConfirm={executeArchive}
+        onCancel={() => setShowArchiveDialog(false)}
+        confirmText={t('projectPage.archive', 'Archive')}
+        cancelText={t('common.cancel', 'Cancel')}
+        variant="warning"
       />
     </div>
   );

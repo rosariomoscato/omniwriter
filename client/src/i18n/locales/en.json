@@ -310,7 +310,8 @@
     "archive": "Archive",
     "unarchive": "Unarchive",
     "archived": "Archived",
-    "archiveConfirm": "Archive \"{{title}}\"? It will be hidden from the main project list.",
+    "archiveConfirm": "It will be hidden from the main project list.",
+    "archiveConfirmTitle": "Archive Project",
     "archiveSuccess": "Project archived",
     "unarchiveSuccess": "Project unarchived",
     "deleteConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
@@ -328,6 +329,14 @@
       "cancel": "Cancel",
       "deleting": "Deleting...",
       "deleteButton": "Delete Project"
+    },
+    "duplicateConfirm": {
+      "title": "Duplicate Project",
+      "message": "All chapters, characters, locations, and sources will be duplicated."
+    },
+    "outlineConfirm": {
+      "title": "Generate Outline",
+      "message": "This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?"
     },
     "chapters": {
       "title": "Chapters",

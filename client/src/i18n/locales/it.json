@@ -310,7 +310,8 @@
     "archive": "Archivia",
     "unarchive": "Ripristina",
     "archived": "Archiviato",
-    "archiveConfirm": "Archiviare \"{{title}}\"? Sarà nascosto dalla lista principale dei progetti.",
+    "archiveConfirm": "Sarà nascosto dalla lista principale dei progetti.",
+    "archiveConfirmTitle": "Archivia Progetto",
     "archiveSuccess": "Progetto archiviato",
     "unarchiveSuccess": "Progetto ripristinato",
     "deleteConfirm": "Sei sicuro di voler eliminare questo progetto? Questa azione non può essere annullata.",
@@ -328,6 +329,14 @@
       "cancel": "Annulla",
       "deleting": "Eliminazione...",
       "deleteButton": "Elimina Progetto"
+    },
+    "duplicateConfirm": {
+      "title": "Duplica Progetto",
+      "message": "Tutti i capitoli, personaggi, luoghi e fonti saranno duplicati."
+    },
+    "outlineConfirm": {
+      "title": "Genera Indice",
+      "message": "Questo progetto ha già dei capitoli. Generare un indice aggiungerà nuovi capitoli a quelli esistenti. Continuare?"
     },
     "chapters": {
       "title": "Capitoli",
