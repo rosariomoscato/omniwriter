@@ -1,5 +1,66 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #240 Implementation
+
+### Completed Features: 240/240 (100%)
+
+### Feature #240: Replace all native confirm() dialogs with themed modals
+
+**Objective:** Sostituire tutti i popup confirm() nativi del browser con dialoghi modali stilizzati che supportino tema chiaro/scuro e localizzazione i18n.
+
+**Popup da sostituire:**
+1. **Genera Indice** - Quando il progetto ha già dei capitoli
+2. **Duplica Progetto** - Conferma duplicazione
+3. **Archivia Progetto** - Conferma archiviazione
+
+**Implementation:**
+
+#### 1. Added State Variables (client/src/pages/ProjectDetail.tsx)
+- `showOutlineConfirmDialog` - Controls outline confirmation dialog
+- `showDuplicateDialog` - Controls duplicate confirmation dialog
+- `showArchiveDialog` - Controls archive confirmation dialog
+
+#### 2. Modified Handler Functions
+- `handleGenerateOutline()` - Shows confirmation dialog if chapters exist
+- `executeGenerateOutline()` - Executes outline generation after confirmation
+- `handleDuplicateProject()` - Shows confirmation dialog instead of confirm()
+- `executeDuplicateProject()` - Executes duplication after confirmation
+- `handleArchive()` - Shows confirmation dialog for archiving
+- `executeArchive()` - Executes archive after confirmation
+- `executeUnarchive()` - Unarchive (no confirmation needed)
+
+#### 3. Added Dialog Components to JSX
+- Outline Confirmation Dialog with variant="warning"
+- Duplicate Project Dialog with variant="info"
+- Archive Project Dialog with variant="warning"
+
+#### 4. Added Translations (it.json and en.json)
+- `projectPage.outlineConfirm.title/message` - Outline confirmation messages
+- `projectPage.duplicateConfirm.title/message` - Duplicate confirmation messages
+- `projectPage.archiveConfirm` - Updated to remove interpolation
+- `projectPage.archiveConfirmTitle` - New key for archive dialog title
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test project "Test Confirm Dialogs Project" in Romanziere area
+2. ✅ Verified Outline Confirmation dialog appears when chapters exist
+3. ✅ Verified Duplicate Project dialog appears with correct translations
+4. ✅ Verified Archive Project dialog appears with correct translations
+5. ✅ Verified dialogs work in light mode
+6. ✅ Verified dialogs work in dark mode
+7. ✅ Verified English translations (Duplicate Project → "Duplicate Project")
+8. ✅ Verified Italian translations (Duplica Progetto → "Duplica Progetto")
+
+**Screenshots Captured:**
+- `.playwright-cli/page-2026-02-17T11-13-08-727Z.png` - Outline confirmation dialog (light mode)
+- `.playwright-cli/page-2026-02-17T11-13-59-254Z.png` - Duplicate dialog (light mode)
+- `.playwright-cli/page-2026-02-17T11-15-10-322Z.png` - Archive dialog (light mode)
+- `.playwright-cli/page-2026-02-17T11-16-08-288Z.png` - Duplicate dialog (dark mode)
+- `.playwright-cli/page-2026-02-17T11-17-44-395Z.png` - Duplicate dialog (English)
+
+### Commit: 9075a51
+
+---
+
 ## Session: 2026-02-17 - Feature #237 Implementation
 
 ### Completed Features: 237/237 (100%)
