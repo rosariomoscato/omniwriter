@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { Language } from '../locales';
 // import * as mammoth from 'mammoth'; // Temporarily disabled - package not installed
 
 const router = Router();
@@ -1435,8 +1436,11 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
     const db = getDatabase();
     const userId = req.user?.id;
     const projectId = req.params.id;
+    // Get language from request body or Accept-Language header (default to 'it')
+    const language: Language = req.body?.language ||
+                 (req.headers['accept-language']?.startsWith('en') ? 'en' : 'it') as Language;
 
-    console.log('[Projects] Detecting plot holes for project:', projectId);
+    console.log('[Projects] Detecting plot holes for project:', projectId, 'language:', language);
 
     // Verify project belongs to user and is a Romanziere project
     const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
@@ -1479,23 +1483,23 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
 
     // 1. Check for character inconsistencies
     const characterNames = characters.map(c => c.name.toLowerCase());
-    const characterInconsistencies = analyzeCharacterConsistency(chapters, characterNames);
+    const characterInconsistencies = analyzeCharacterConsistency(chapters, characterNames, language);
     plotHoles.push(...characterInconsistencies);
 
     // 2. Check for timeline inconsistencies
-    const timelineIssues = analyzeTimelineConsistency(chapters, plotEvents);
+    const timelineIssues = analyzeTimelineConsistency(chapters, plotEvents, language);
     plotHoles.push(...timelineIssues);
 
     // 3. Check for unexplained plot developments
-    const unexplainedEvents = analyzeUnexplainedDevelopments(chapters, plotEvents);
+    const unexplainedEvents = analyzeUnexplainedDevelopments(chapters, plotEvents, language);
     plotHoles.push(...unexplainedEvents);
 
     // 4. Check for logical inconsistencies
-    const logicalInconsistencies = analyzeLogicalInconsistencies(chapters, fullText);
+    const logicalInconsistencies = analyzeLogicalInconsistencies(chapters, fullText, language);
     plotHoles.push(...logicalInconsistencies);
 
     // 5. Check for resolution gaps
-    const resolutionGaps = analyzeResolutionGaps(chapters);
+    const resolutionGaps = analyzeResolutionGaps(chapters, language);
     plotHoles.push(...resolutionGaps);
 
     console.log('[Projects] Plot hole detection completed:', {
@@ -1523,7 +1527,8 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
 // Helper function to analyze character consistency
 function analyzeCharacterConsistency(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  characterNames: string[]
+  characterNames: string[],
+  lang: Language = 'it'
 ): Array<{
   type: string;
   severity: 'low' | 'medium' | 'high';
@@ -1538,6 +1543,8 @@ function analyzeCharacterConsistency(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   // Check for characters appearing inconsistently
   characterNames.forEach(charName => {
@@ -1556,9 +1563,13 @@ function analyzeCharacterConsistency(
       issues.push({
         type: 'character',
         severity: 'medium',
-        description: `Character "${charName}" disappears from the story after chapter "${lastAppearance.title}" without resolution`,
+        description: isItalian
+          ? `Il personaggio "${charName}" scompare dalla storia dopo il capitolo "${lastAppearance.title}" senza una risoluzione`
+          : `Character "${charName}" disappears from the story after chapter "${lastAppearance.title}" without resolution`,
         chapter_references: chapters.filter((_, i) => appearances.includes(i)).map(ch => ch.title),
-        suggestion: `Consider bringing ${charName} back for a resolution or explaining their absence`
+        suggestion: isItalian
+          ? `Considera di far tornare ${charName} per una risoluzione o di spiegare la sua assenza`
+          : `Consider bringing ${charName} back for a resolution or explaining their absence`
       });
     }
 
@@ -1570,9 +1581,13 @@ function analyzeCharacterConsistency(
           issues.push({
             type: 'character',
             severity: 'low',
-            description: `Character "${charName}" reappears after a long absence (${gap} chapters)`,
+            description: isItalian
+              ? `Il personaggio "${charName}" riappare dopo una lunga assenza (${gap} capitoli)`
+              : `Character "${charName}" reappears after a long absence (${gap} chapters)`,
             chapter_references: [chapters[appearances[i]].title, chapters[appearances[i + 1]].title],
-            suggestion: `Add a brief reference to ${charName} during their absence to maintain continuity`
+            suggestion: isItalian
+              ? `Aggiungi un breve riferimento a ${charName} durante la sua assenza per mantenere la continuità`
+              : `Add a brief reference to ${charName} during their absence to maintain continuity`
           });
         }
       }
@@ -1585,7 +1600,8 @@ function analyzeCharacterConsistency(
 // Helper function to analyze timeline consistency
 function analyzeTimelineConsistency(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>
+  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>,
+  lang: Language = 'it'
 ): Array<{
   type: string;
   severity: 'low' | 'medium' | 'high';
@@ -1600,6 +1616,8 @@ function analyzeTimelineConsistency(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   // Look for temporal inconsistencies in content
   const timeIndicators = ['day later', 'next morning', 'hours later', 'weeks passed', 'month later', 'years later'];
@@ -1620,9 +1638,13 @@ function analyzeTimelineConsistency(
           issues.push({
             type: 'timeline',
             severity: 'medium',
-            description: `Possible timeline inconsistency between "${prevChapter.title}" and "${chapter.title}"`,
+            description: isItalian
+              ? `Possibile incoerenza temporale tra "${prevChapter.title}" e "${chapter.title}"`
+              : `Possible timeline inconsistency between "${prevChapter.title}" and "${chapter.title}"`,
             chapter_references: [prevChapter.title, chapter.title],
-            suggestion: 'Clarify the time transition or adjust the scene break to make the time jump clear'
+            suggestion: isItalian
+              ? 'Chiarisci la transizione temporale o modifica l\'interruzione della scena per rendere chiaro il salto temporale'
+              : 'Clarify the time transition or adjust the scene break to make the time jump clear'
           });
         }
       }
@@ -1641,9 +1663,13 @@ function analyzeTimelineConsistency(
       issues.push({
         type: 'timeline',
         severity: 'low',
-        description: `Chapter "${chapter.title}" has frequent time-of-day shifts that may be confusing`,
+        description: isItalian
+          ? `Il capitolo "${chapter.title}" ha frequenti cambiamenti di orario che potrebbero confondere`
+          : `Chapter "${chapter.title}" has frequent time-of-day shifts that may be confusing`,
         chapter_references: [chapter.title],
-        suggestion: 'Consider structuring scenes more clearly or adding scene breaks to indicate time changes'
+        suggestion: isItalian
+          ? 'Considera di strutturare le scene in modo più chiaro o di aggiungere interruzioni per indicare i cambiamenti temporali'
+          : 'Consider structuring scenes more clearly or adding scene breaks to indicate time changes'
       });
     }
   });
@@ -1654,7 +1680,8 @@ function analyzeTimelineConsistency(
 // Helper function to analyze unexplained plot developments
 function analyzeUnexplainedDevelopments(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>
+  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>,
+  lang: Language = 'it'
 ): Array<{
   type: string;
   severity: 'low' | 'medium' | 'high';
@@ -1669,6 +1696,8 @@ function analyzeUnexplainedDevelopments(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   // Look for sudden plot twists without foreshadowing
   const twistIndicators = ['suddenly', 'unexpectedly', 'shockingly', 'to everyone\'s surprise', 'out of nowhere'];
@@ -1688,9 +1717,13 @@ function analyzeUnexplainedDevelopments(
           issues.push({
             type: 'unexplained',
             severity: 'medium',
-            description: `Major development in "${chapter.title}" may lack proper setup`,
+            description: isItalian
+              ? `Un importante sviluppo in "${chapter.title}" potrebbe mancare di una preparazione adeguata`
+              : `Major development in "${chapter.title}" may lack proper setup`,
             chapter_references: [chapter.title],
-            suggestion: 'Add subtle foreshadowing in earlier chapters to make this development feel earned'
+            suggestion: isItalian
+              ? 'Aggiungi sottili indizi nei capitoli precedenti per rendere questo sviluppo più naturale'
+              : 'Add subtle foreshadowing in earlier chapters to make this development feel earned'
           });
         }
       }
@@ -1703,7 +1736,8 @@ function analyzeUnexplainedDevelopments(
 // Helper function to analyze logical inconsistencies
 function analyzeLogicalInconsistencies(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  fullText: string
+  fullText: string,
+  lang: Language = 'it'
 ): Array<{
   type: string;
   severity: 'low' | 'medium' | 'high';
@@ -1719,23 +1753,29 @@ function analyzeLogicalInconsistencies(
     suggestion: string;
   }> = [];
 
+  const isItalian = lang === 'it';
+
   // Check for contradictory statements
   const contradictions = [
-    { pattern: /didn't know.*but knew/gi, description: 'Character knowledge contradiction' },
-    { pattern: /never.*but always/gi, description: 'Absolute statement contradiction' },
-    { pattern: /impossible.*but happened/gi, description: 'Logical impossibility' },
+    { pattern: /didn't know.*but knew/gi, descriptionIt: 'contraddizione della conoscenza del personaggio', descriptionEn: 'Character knowledge contradiction' },
+    { pattern: /never.*but always/gi, descriptionIt: 'contraddizione di affermazione assoluta', descriptionEn: 'Absolute statement contradiction' },
+    { pattern: /impossible.*but happened/gi, descriptionIt: 'impossibilità logica', descriptionEn: 'Logical impossibility' },
   ];
 
   chapters.forEach(chapter => {
-    contradictions.forEach(({ pattern, description }) => {
+    contradictions.forEach(({ pattern, descriptionIt, descriptionEn }) => {
       const matches = chapter.content.match(pattern);
       if (matches) {
         issues.push({
           type: 'logical',
           severity: 'high',
-          description: `Possible logical contradiction in "${chapter.title}": ${description}`,
+          description: isItalian
+            ? `Possibile contraddizione logica in "${chapter.title}": ${descriptionIt}`
+            : `Possible logical contradiction in "${chapter.title}": ${descriptionEn}`,
           chapter_references: [chapter.title],
-          suggestion: 'Review the context to ensure the statement makes sense'
+          suggestion: isItalian
+            ? 'Rivedi il contesto per assicurarti che l\'affermazione abbia senso'
+            : 'Review the context to ensure the statement makes sense'
         });
       }
     });
@@ -1766,9 +1806,13 @@ function analyzeLogicalInconsistencies(
         issues.push({
           type: 'logical',
           severity: 'low',
-          description: `Character knowledge inconsistency in "${chapter.title}"`,
+          description: isItalian
+            ? `Incoerenza nella conoscenza del personaggio in "${chapter.title}"`
+            : `Character knowledge inconsistency in "${chapter.title}"`,
           chapter_references: [chapter.title],
-          suggestion: 'Ensure character knowledge states are consistent'
+          suggestion: isItalian
+            ? 'Assicurati che gli stati di conoscenza del personaggio siano coerenti'
+            : 'Ensure character knowledge states are consistent'
         });
       }
     });
@@ -1779,7 +1823,8 @@ function analyzeLogicalInconsistencies(
 
 // Helper function to analyze resolution gaps
 function analyzeResolutionGaps(
-  chapters: Array<{ id: string; title: string; content: string; order_index: number }>
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  lang: Language = 'it'
 ): Array<{
   type: string;
   severity: 'low' | 'medium' | 'high';
@@ -1794,6 +1839,8 @@ function analyzeResolutionGaps(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   if (chapters.length < 3) return issues;
 
@@ -1821,9 +1868,13 @@ function analyzeResolutionGaps(
         issues.push({
           type: 'resolution',
           severity: 'medium',
-          description: `Potential unresolved plot point from "${chapter.title}"`,
+          description: isItalian
+            ? `Potenziale punto di trama irrisolto da "${chapter.title}"`
+            : `Potential unresolved plot point from "${chapter.title}"`,
           chapter_references: [chapter.title],
-          suggestion: 'Consider addressing this plot point in the story\'s resolution'
+          suggestion: isItalian
+            ? 'Considera di affrontare questo punto della trama nella risoluzione della storia'
+            : 'Consider addressing this plot point in the story\'s resolution'
         });
       }
     }
@@ -1839,8 +1890,11 @@ router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest
     const db = getDatabase();
     const userId = req.user?.id;
     const projectId = req.params.id;
+    // Get language from request body or Accept-Language header (default to 'it')
+    const language: Language = req.body?.language ||
+                 (req.headers['accept-language']?.startsWith('en') ? 'en' : 'it') as Language;
 
-    console.log('[Projects] Checking consistency for project:', projectId);
+    console.log('[Projects] Checking consistency for project:', projectId, 'language:', language);
 
     // Verify project belongs to user and is a Romanziere project
     const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
@@ -1878,19 +1932,19 @@ router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest
     }> = [];
 
     // 1. Check character description consistency
-    const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters);
+    const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters, language);
     inconsistencies.push(...characterIssues);
 
     // 2. Check location description consistency
-    const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations);
+    const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations, language);
     inconsistencies.push(...locationIssues);
 
     // 3. Check character trait consistency
-    const traitIssues = analyzeCharacterTraitConsistency(chapters, characters);
+    const traitIssues = analyzeCharacterTraitConsistency(chapters, characters, language);
     inconsistencies.push(...traitIssues);
 
     // 4. Check timeline continuity
-    const timelineIssues = analyzeTimelineContinuity(chapters);
+    const timelineIssues = analyzeTimelineContinuity(chapters, language);
     inconsistencies.push(...timelineIssues);
 
     console.log('[Projects] Consistency check completed:', {
@@ -1917,7 +1971,8 @@ router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest
 // Helper function to analyze character description consistency
 function analyzeCharacterDescriptionConsistency(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  characters: Array<{ name: string; description: string; traits: string }>
+  characters: Array<{ name: string; description: string; traits: string }>,
+  lang: Language = 'it'
 ): Array<{
   type: 'character';
   entity_name: string;
@@ -1932,6 +1987,8 @@ function analyzeCharacterDescriptionConsistency(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   characters.forEach(character => {
     const charName = character.name;
@@ -1968,9 +2025,13 @@ function analyzeCharacterDescriptionConsistency(
       issues.push({
         type: 'character',
         entity_name: charName,
-        description: 'Inconsistent hair color descriptions',
+        description: isItalian
+          ? 'Descrizioni del colore dei capelli incoerenti'
+          : 'Inconsistent hair color descriptions',
         chapter_references: appearances.map(ch => ch.title),
-        suggestion: `Review ${charName}'s physical descriptions for consistency`
+        suggestion: isItalian
+          ? `Rivedi le descrizioni fisiche di ${charName} per coerenza`
+          : `Review ${charName}'s physical descriptions for consistency`
       });
     }
   });
@@ -1981,7 +2042,8 @@ function analyzeCharacterDescriptionConsistency(
 // Helper function to analyze location description consistency
 function analyzeLocationDescriptionConsistency(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  locations: Array<{ name: string; description: string; significance: string }>
+  locations: Array<{ name: string; description: string; significance: string }>,
+  lang: Language = 'it'
 ): Array<{
   type: 'location';
   entity_name: string;
@@ -1996,6 +2058,8 @@ function analyzeLocationDescriptionConsistency(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   locations.forEach(location => {
     const locName = location.name;
@@ -2033,9 +2097,13 @@ function analyzeLocationDescriptionConsistency(
         issues.push({
           type: 'location',
           entity_name: locName,
-          description: 'Location may be ambiguously described as both indoor and outdoor',
+          description: isItalian
+            ? 'La posizione potrebbe essere descritta in modo ambiguo come sia interna che esterna'
+            : 'Location may be ambiguously described as both indoor and outdoor',
           chapter_references: appearances.map(ch => ch.title),
-          suggestion: `Clarify ${locName}'s setting or use more specific location names`
+          suggestion: isItalian
+            ? `Chiarisci l'ambientazione di ${locName} o usa nomi di posizione più specifici`
+            : `Clarify ${locName}'s setting or use more specific location names`
         });
       }
     }
@@ -2047,7 +2115,8 @@ function analyzeLocationDescriptionConsistency(
 // Helper function to analyze character trait consistency
 function analyzeCharacterTraitConsistency(
   chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
-  characters: Array<{ name: string; description: string; traits: string }>
+  characters: Array<{ name: string; description: string; traits: string }>,
+  lang: Language = 'it'
 ): Array<{
   type: 'character';
   entity_name: string;
@@ -2062,6 +2131,8 @@ function analyzeCharacterTraitConsistency(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   characters.forEach(character => {
     const charName = character.name;
@@ -2086,9 +2157,13 @@ function analyzeCharacterTraitConsistency(
         issues.push({
           type: 'character',
           entity_name: charName,
-          description: 'Character behavior contradicts "brave" trait',
+          description: isItalian
+            ? 'Il comportamento del personaggio contraddice il tratto "coraggioso"'
+            : 'Character behavior contradicts "brave" trait',
           chapter_references: cowardlyActs.map(ch => ch.title),
-          suggestion: `Consider if ${charName}'s fear is justified (character growth) or if trait needs adjustment`
+          suggestion: isItalian
+            ? `Considera se la paura di ${charName} è giustificata (crescita del personaggio) o se il tratto deve essere modificato`
+            : `Consider if ${charName}'s fear is justified (character growth) or if trait needs adjustment`
         });
       }
     }
@@ -2104,9 +2179,13 @@ function analyzeCharacterTraitConsistency(
         issues.push({
           type: 'character',
           entity_name: charName,
-          description: 'Character consistently acts boldly despite "shy" trait',
+          description: isItalian
+            ? 'Il personaggio agisce in modo audace nonostante il tratto "timido"'
+            : 'Character consistently acts boldly despite "shy" trait',
           chapter_references: boldActs.map(ch => ch.title),
-          suggestion: `Consider if ${charName} has overcome shyness (character arc) or if trait needs updating`
+          suggestion: isItalian
+            ? `Considera se ${charName} ha superato la timidezza (arco del personaggio) o se il tratto deve essere aggiornato`
+            : `Consider if ${charName} has overcome shyness (character arc) or if trait needs updating`
         });
       }
     }
@@ -2117,7 +2196,8 @@ function analyzeCharacterTraitConsistency(
 
 // Helper function to analyze timeline continuity
 function analyzeTimelineContinuity(
-  chapters: Array<{ id: string; title: string; content: string; order_index: number }>
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  lang: Language = 'it'
 ): Array<{
   type: 'timeline';
   entity_name: string;
@@ -2132,6 +2212,8 @@ function analyzeTimelineContinuity(
     chapter_references: string[];
     suggestion: string;
   }> = [];
+
+  const isItalian = lang === 'it';
 
   // Check for time jumps without clear indication
   const timeMarkers = ['hours later', 'days later', 'weeks later', 'months later', 'years later'];
@@ -2150,10 +2232,14 @@ function analyzeTimelineContinuity(
       if (!hasSceneBreak && !previousChapter.content.endsWith('...')) {
         issues.push({
           type: 'timeline',
-          entity_name: `Chapter ${idx + 1}`,
-          description: 'Time jump may not be clearly indicated',
+          entity_name: isItalian ? `Capitolo ${idx + 1}` : `Chapter ${idx + 1}`,
+          description: isItalian
+            ? 'Il salto temporale potrebbe non essere chiaramente indicato'
+            : 'Time jump may not be clearly indicated',
           chapter_references: [previousChapter.title, chapter.title],
-          suggestion: 'Add a scene break or clearer transition to indicate the time passage'
+          suggestion: isItalian
+            ? 'Aggiungi un\'interruzione di scena o una transizione più chiara per indicare il passaggio del tempo'
+            : 'Add a scene break or clearer transition to indicate the time passage'
         });
       }
     }

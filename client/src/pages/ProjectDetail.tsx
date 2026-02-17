@@ -15,7 +15,7 @@ import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } 
 import { useToastNotification } from '../components/Toast';
 
 export default function ProjectDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const toast = useToastNotification();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -772,7 +772,7 @@ export default function ProjectDetail() {
       setShowPlotHolesResults(false);
       toast.info('Analyzing plot for potential inconsistencies...');
 
-      const response = await apiService.detectPlotHoles(id!);
+      const response = await apiService.detectPlotHoles(id!, i18n.language);
 
       toast.success(`Plot hole detection completed: ${response.total_issues} issues found`);
 
@@ -800,7 +800,7 @@ export default function ProjectDetail() {
       setShowConsistencyResults(false);
       toast.info('Checking consistency across chapters...');
 
-      const response = await apiService.checkConsistency(id!);
+      const response = await apiService.checkConsistency(id!, i18n.language);
 
       toast.success(`Consistency check completed: ${response.total_inconsistencies} issues found`);
 

@@ -1076,7 +1076,7 @@ class ApiService {
   }
 
   // Plot hole detection (Feature #182)
-  async detectPlotHoles(projectId: string): Promise<{
+  async detectPlotHoles(projectId: string, language: string = 'it'): Promise<{
     message: string;
     plot_holes: Array<{
       type: string;
@@ -1099,11 +1099,12 @@ class ApiService {
       total_issues: number;
     }>(`/projects/${projectId}/detect-plot-holes`, {
       method: 'POST',
+      body: JSON.stringify({ language }),
     });
   }
 
   // Consistency checker across chapters (Feature #183)
-  async checkConsistency(projectId: string): Promise<{
+  async checkConsistency(projectId: string, language: string = 'it'): Promise<{
     message: string;
     inconsistencies: Array<{
       type: 'character' | 'location' | 'timeline' | 'description';
@@ -1126,6 +1127,7 @@ class ApiService {
       total_inconsistencies: number;
     }>(`/projects/${projectId}/check-consistency`, {
       method: 'POST',
+      body: JSON.stringify({ language }),
     });
   }
 
