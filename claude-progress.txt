@@ -1,5 +1,90 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #250 Implementation
+
+### Completed Features: 250/250 (100%)
+
+### Feature #250: AI-Generated Novel Synopsis - Save and Display
+
+**Objective:** When using "Analizza Romanzo" (Analyze Novel), the AI should also generate a synopsis/summary of the novel. This synopsis should be stored in the database and accessible via a "Leggi Sinossi" (Read Synopsis) button in the project detail page.
+
+**Implementation:**
+
+#### 1. Database Migration (server/src/db/database.ts)
+- Added `synopsis TEXT DEFAULT ''` column to projects table
+- Migration runs automatically on server startup
+
+#### 2. Backend - AI Prompt Updates (server/src/routes/projects.ts)
+Updated `buildNovelAnalysisPrompt()` to request synopsis in JSON response:
+- Italian prompt: "Una sinossi del testo in 300-500 parole che riassuma la trama principale..."
+- English prompt: "A synopsis of the text in 300-500 words that summarizes the main plot..."
+
+#### 3. Backend - Response Parser Updates (server/src/routes/projects.ts)
+Updated `parseNovelAnalysisResponse()`:
+- Added `synopsis: string` to `ParsedAnalysis` interface
+- Extracts synopsis field from AI response
+- Returns empty string if not provided
+
+#### 4. Backend - Synopsis Consolidation (server/src/routes/projects.ts)
+Updated `analyzeNovelWithAI()`:
+- Collects all synopsis parts from multi-chunk analysis
+- Selects longest synopsis (most complete)
+- Returns synopsis alongside characters/locations/events
+
+#### 5. Backend - Synopsis Saving (server/src/routes/projects.ts)
+Updated analyze-novel endpoint:
+- Saves synopsis to projects table after extraction
+- Logs synopsis generation status
+
+#### 6. Backend - Synopsis API Endpoint (server/src/routes/projects.ts)
+Added `GET /api/projects/:id/synopsis`:
+- Returns `{ synopsis: string }` for the project
+- Only available for Romanziere projects
+- Returns 404 if project not found
+
+#### 7. Frontend - API Service (client/src/services/api.ts)
+- Updated `analyzeNovel()` return type to include `synopsis: boolean`
+- Added `getSynopsis(projectId)` method
+
+#### 8. Frontend - Translations (client/src/i18n/locales/it.json & en.json)
+Added `projectPage.synopsis` section:
+- `readSynopsis`: "Leggi Sinossi" / "Read Synopsis"
+- `title`: "Sinossi del Romanzo" / "Novel Synopsis"
+- `noSynopsis`: "Nessuna sinossi disponibile" / "No synopsis available"
+- `noSynopsisDescription`: "Analizza un romanzo per generare automaticamente una sinossi."
+- `loading`: "Caricamento sinossi..." / "Loading synopsis..."
+- `errorLoading`: "Impossibile caricare la sinossi" / "Failed to load synopsis"
+Added `successMessageWithSynopsis` for analyze novel success toast
+
+#### 9. Frontend - UI Components (client/src/pages/ProjectDetail.tsx)
+- Added state variables: `showSynopsisModal`, `synopsisContent`, `loadingSynopsis`, `synopsisError`
+- Added `handleViewSynopsis()` function to fetch and display synopsis
+- Added "Leggi Sinossi" button with teal styling next to "Analizza Romanzo" button
+- Added synopsis modal with proper theming and dark mode support
+- Modal shows loading state, error state, synopsis content, or empty state
+
+**API Testing Results:**
+1. ✅ Created test project via API
+2. ✅ Verified synopsis column exists in project response
+3. ✅ GET /api/projects/:id/synopsis returns empty string initially
+4. ✅ Manually set test synopsis in database
+5. ✅ GET /api/projects/:id/synopsis returns correct synopsis content
+6. ✅ Zero server errors during testing
+
+**Note:** AI-generated synopsis requires a configured AI provider. Regex fallback does not generate synopsis (returns empty string).
+
+**Files Modified:**
+- server/src/db/database.ts (migration)
+- server/src/routes/projects.ts (prompt, parser, API endpoints)
+- client/src/services/api.ts (API methods)
+- client/src/pages/ProjectDetail.tsx (UI, modal, handlers)
+- client/src/i18n/locales/it.json (translations)
+- client/src/i18n/locales/en.json (translations)
+
+### Commit: 99ceb18
+
+---
+
 ## Session: 2026-02-17 - Feature #248 Implementation
 
 ### Completed Features: 248/248 (100%)
