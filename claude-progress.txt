@@ -1,5 +1,103 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Features #255 & #256 Implementation
+
+### Completed Features: 257/257 (100%)
+
+### Feature #255: Create Sequel - One-click Project Copy with AI Continuation
+
+**Objective:** When viewing a completed novel, user can click 'Create Sequel' to create a new project with all context preserved and AI-generated sequel proposal.
+
+**Implementation:**
+
+#### 1. Backend Endpoint (server/src/routes/projects.ts)
+- Added `POST /api/projects/:id/sequel` endpoint
+- Creates new project with title "Title - Part 2" (customizable)
+- Copies all characters from original project (marked as returning)
+- Copies all locations from original project
+- Copies original synopsis as reference source
+- Copies original source materials
+- Auto-creates or assigns saga for series linkage
+- Generates AI sequel proposal if AI provider available
+- Saves proposal as source with type 'ai_proposal'
+
+#### 2. Frontend API Service (client/src/services/api.ts)
+- Added `createSequel(id, options)` method
+- Returns new project ID, saga ID, and copy statistics
+
+#### 3. CreateSequelModal Component (client/src/components/CreateSequelModal.tsx)
+- Form with customizable sequel title
+- Checkbox to enable/disable AI proposal generation
+- Shows what will be copied (characters, locations, synopsis, sources, saga)
+- Loading state during creation
+- i18n support for all text
+
+#### 4. ProjectDetail Updates (client/src/pages/ProjectDetail.tsx)
+- Added "Create Sequel" button (indigo color) - only for romanziere projects
+- Integrated CreateSequelModal
+- Navigation to new sequel project on success
+
+#### 5. i18n Translations (client/src/i18n/locales/it.json, en.json)
+- Added `projectPage.sequel.*` keys for:
+  - button, title, description, sequelTitle, titleHint
+  - generateProposal, generateProposalHint
+  - whatCopied, characters, locations, synopsis, sources, saga
+  - creating, create, success
+
+**Verification (Browser Automation):**
+1. ✅ Created test user account
+2. ✅ Created Romanziere project "Test Novel for Sequel"
+3. ✅ Clicked "Crea Seguito" button - modal appeared
+4. ✅ Clicked "Crea Seguito" in modal - sequel created
+5. ✅ Redirected to new sequel project
+6. ✅ Title: "Test Novel for Sequel - Part 2"
+7. ✅ Saga created and linked
+
+**Server Logs Confirmed:**
+- Created new saga
+- Copied characters/locations/sources (0 in test case)
+- Sequel project created successfully
+
+---
+
+### Feature #256: AI Sequel Proposal Generation
+
+**Objective:** AI-powered sequel proposal generator that analyzes the original novel and generates creative suggestions for the sequel.
+
+**Implementation:**
+
+The AI proposal generation is integrated into the sequel creation flow in `server/src/routes/projects.ts`:
+
+#### generateSequelProposal() Function
+- Analyzes: synopsis, characters, locations, plot events, chapters
+- Builds context with summaries of each element
+- Creates IT/EN prompts based on user language
+- Requests structured JSON response with:
+  - plotDirections (3-5 options)
+  - characterArcs (evolution suggestions)
+  - newCharacters (antagonists, allies)
+  - settingSuggestions (new/returning locations)
+  - chapterOutline (10-15 chapters)
+  - themes (exploration topics)
+
+#### formatSequelProposal() Function
+- Formats proposal as readable markdown
+- Supports IT/EN output
+- Sections: Plot Directions, Character Arcs, New Characters, Settings, Chapter Outline, Themes
+
+**Proposal Storage:**
+- Saved as a source with type 'ai_proposal'
+- Tagged with 'ai-generated', 'sequel-proposal'
+- Accessible in the Sources section of the sequel project
+
+**Note:** AI proposal generation requires an AI provider to be configured. When no provider is available, the sequel is still created but without the proposal.
+
+---
+
+### Commit: 109e9c2
+
+---
+
 ## Session: 2026-02-17 - Feature #252 Implementation
 
 ### Completed Features: 252/252 (100%)
