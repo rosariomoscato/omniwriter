@@ -703,11 +703,18 @@ export default function ProjectDetail() {
       setError('');
       const response = await apiService.analyzeNovel(id!, novelFile);
 
-      toast.success(t('projectPage.analyzeNovelForm.successMessage', {
-        characters: response.extracted.characters,
-        locations: response.extracted.locations,
-        plotEvents: response.extracted.plotEvents
-      }));
+      const totalExtracted = response.extracted.characters + response.extracted.locations + response.extracted.plotEvents;
+
+      if (totalExtracted === 0) {
+        // Show warning if nothing was extracted
+        toast.warning(t('projectPage.analyzeNovelForm.noResultsMessage'));
+      } else {
+        toast.success(t('projectPage.analyzeNovelForm.successMessage', {
+          characters: response.extracted.characters,
+          locations: response.extracted.locations,
+          plotEvents: response.extracted.plotEvents
+        }));
+      }
 
       // Reload characters, locations, and plot events
       await Promise.all([

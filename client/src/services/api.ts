@@ -306,8 +306,11 @@ class ApiService {
     const url = `${this.baseUrl}${endpoint}`;
     const token = localStorage.getItem('token');
 
+    // Don't set Content-Type for FormData - let the browser set it with correct boundary
+    const isFormData = options.body instanceof FormData;
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     };
 

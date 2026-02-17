@@ -405,6 +405,7 @@
       "analyzeButton": "Analyze Novel",
       "cancelButton": "Cancel",
       "successMessage": "Novel analyzed: {{characters}} characters, {{locations}} locations, {{plotEvents}} plot events extracted",
+      "noResultsMessage": "Analysis complete, but no characters, locations, or events were found. The text may be too short or use an unrecognized format. Try with longer text or a standard format.",
       "errorMessage": "Failed to analyze novel. Please try again."
     },
     "locations": {

@@ -405,6 +405,7 @@
       "analyzeButton": "Analizza Romanzo",
       "cancelButton": "Annulla",
       "successMessage": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama estratti",
+      "noResultsMessage": "Analisi completata, ma non sono stati trovati personaggi, luoghi o eventi. Il testo potrebbe essere troppo breve o utilizzare un formato non riconosciuto. Prova con un testo più lungo o in formato standard.",
       "errorMessage": "Impossibile analizzare il romanzo. Riprova."
     },
     "locations": {

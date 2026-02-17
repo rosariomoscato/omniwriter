@@ -1,5 +1,76 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #248 Implementation
+
+### Completed Features: 248/248 (100%)
+
+### Feature #248: Fix Analyze Novel - Add Italian patterns and improve extraction
+
+**Objective:** La funzione "Analizza Romanzo" non funzionava correttamente per testi italiani:
+1. Pattern di estrazione solo in inglese (said, asked, replied, etc.)
+2. Pattern troppo restrittivi
+3. Bug SQL nel codice di inserimento (13 valori per 12 colonne)
+4. Content-Type header errato per FormData
+
+**Implementation:**
+
+#### 1. Backend - Italian Pattern Support (server/src/routes/projects.ts)
+Updated `extractEntities()` function:
+- Added Italian verb patterns alongside English:
+  - Character verbs: disse|chiese|rispose|pensò|camminò|corse|guardò|sentì (Italian) + English equivalents
+  - Location prepositions: in|a|da|verso|dentro|fuori|presso (Italian) + English equivalents
+  - Event verbs: scoprì|realizzò|trovò|perse|vinse|fuggì|morì|combatté|baciò|sposò|tradì|salvò (Italian)
+- Added Italian dialogue patterns: "Nome:" and "- Nome,"
+- Added Italian location indicators: "città di", "castello di", "villaggio di", etc.
+- Added excludeWords set to filter common non-entity words (articles, prepositions, days, months)
+
+#### 2. Backend - SQL Fixes (server/src/routes/projects.ts)
+Fixed INSERT statements:
+- Characters: Removed extra placeholder causing "13 values for 12 columns" error
+- Plot Events: Added missing `event_type` parameter
+
+#### 3. Frontend - FormData Fix (client/src/services/api.ts)
+Fixed request method to not set Content-Type for FormData:
+- Changed logic to detect FormData and skip Content-Type header
+- This allows browser to set correct multipart/form-data with boundary
+
+#### 4. Frontend - No Results Feedback (client/src/pages/ProjectDetail.tsx)
+Added warning toast when analysis returns 0 results:
+- Shows specific message about possible issues (text too short, unrecognized format)
+
+#### 5. Translations (client/src/i18n/locales/it.json & en.json)
+Added new translation key:
+- `noResultsMessage`: "Analisi completata, ma non sono stati trovati personaggi, luoghi o eventi..."
+
+**Verification (Browser Automation Testing):**
+1. ✅ Logged in as test248@example.com
+2. ✅ Created Romanziere project "Test Analyze Novel Project"
+3. ✅ Uploaded Italian test novel (3263 characters)
+4. ✅ Analysis extracted: 7 characters, 1 location, 1 plot event
+5. ✅ Characters displayed: Giulia, Marco, Antonio, contessa (with Italian descriptions)
+6. ✅ Location displayed: Monteverde
+7. ✅ Plot event extracted
+8. ✅ Zero console errors
+
+**Files Modified:**
+- server/src/routes/projects.ts (pattern fixes, SQL fixes)
+- client/src/services/api.ts (FormData handling)
+- client/src/pages/ProjectDetail.tsx (no results feedback)
+- client/src/i18n/locales/it.json (noResultsMessage)
+- client/src/i18n/locales/en.json (noResultsMessage)
+
+**Server Logs Confirming Success:**
+```
+[Projects] Extracted 7 characters, 1 locations, 1 plot events
+[Projects] Novel analysis completed: { characters: 7, locations: 1, plotEvents: 1 }
+[Characters] Found 7 characters
+[PlotEvents] Found 1 plot events
+```
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-17 - Feature #247 Implementation
 
 ### Completed Features: 247/247 (100%)

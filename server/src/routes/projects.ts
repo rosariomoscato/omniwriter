@@ -871,6 +871,7 @@ async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<s
 
 // Helper function to extract entities using simple pattern matching
 // In production, this would use AI for more accurate extraction
+// Supports both English and Italian text patterns
 function extractEntities(novelContent: string): {
   characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string }>;
   locations: Array<{ name: string; description: string; significance: string }>;
@@ -883,30 +884,77 @@ function extractEntities(novelContent: string): {
   // Simple extraction using pattern matching
   // This is a basic implementation - production should use AI
 
-  // Extract potential character names (capitalized words followed by descriptions)
-  const characterPattern = /([A-Z][a-z]+)\s+(said|asked|replied|thought|walked|ran|looked|felt)/g;
+  // Common words to exclude from character detection (articles, prepositions, etc.)
+  const excludeWords = new Set([
+    // English
+    'The', 'A', 'An', 'This', 'That', 'These', 'Those', 'What', 'Which', 'Who', 'When', 'Where', 'Why', 'How',
+    'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'Up', 'Down', 'Out', 'Over', 'Under',
+    'He', 'She', 'It', 'They', 'We', 'You', 'I', 'His', 'Her', 'Its', 'Their', 'Our', 'Your', 'My',
+    'But', 'And', 'Or', 'Nor', 'So', 'Yet', 'Both', 'Either', 'Neither',
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December',
+    // Italian
+    'Il', 'Lo', 'La', 'Gli', 'Le', 'Un', 'Uno', 'Una', 'Questo', 'Questa', 'Quello', 'Quella',
+    'In', 'A', 'Da', 'Per', 'Di', 'Con', 'Su', 'Tra', 'Fra', 'Verso', 'Attraverso',
+    'Lui', 'Lei', 'Essi', 'Esse', 'Noi', 'Voi', 'Io', 'Suo', 'Sua', 'Loro', 'Nostro', 'Nostra', 'Vostro', 'Vostra', 'Mio', 'Mia',
+    'Ma', 'E', 'Ed', 'O', 'Oppure', 'Però', 'Dunque', 'Quindi', 'Perciò',
+    'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica',
+    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+    'Quando', 'Dove', 'Come', 'Perché', 'Chi', 'Quale', 'Cosa', 'Quanto'
+  ]);
+
+  // Extract potential character names (capitalized words followed by action/dialogue verbs)
+  // English: said, asked, replied, thought, walked, ran, looked, felt
+  // Italian: disse, chiese, rispose, pensò, camminò, corse, guardò, sentì
+  // Also include common verb endings in Italian (accented forms)
+  const characterPattern = /\b([A-Z][a-zàèéìòù]+)\s+(said|asked|replied|thought|walked|ran|looked|felt|disse|chiese|rispose|pensò|pensarono|camminò|corse|guardò|guardarono|sentì|sentirono|rispose|esclamò|mormorò|sussurrò|gridò|urlò|aggiunse|continuò|osservò|notò|vide|videro|udì|affermò|confessò|spiegò|domandò|rispose|scattò|sorride|sorrise|sospirò|scosse|annuì| Scrollò|alzò|abbassò|strinse|aprì|chiuse)\b/gi;
   const characterMatches = new Set();
   let match;
   while ((match = characterPattern.exec(novelContent)) !== null) {
-    characterMatches.add(match[1]);
+    const name = match[1];
+    // Only add if not in exclude list
+    if (!excludeWords.has(name)) {
+      characterMatches.add(name);
+    }
+  }
+
+  // Also try pattern for Italian dialogue (Nome: "dialogo" or - Nome, - dialogo)
+  const italianDialoguePattern = /(?:^|\n)\s*[-–—]?\s*([A-Z][a-zàèéìòù]+)\s*[,:]|\b([A-Z][a-zàèéìòù]+)\s+disse\s*:|\b([A-Z][a-zàèéìòù]+)\s+esclamò\s*:/gm;
+  while ((match = italianDialoguePattern.exec(novelContent)) !== null) {
+    const name = match[1] || match[2] || match[3];
+    if (name && !excludeWords.has(name)) {
+      characterMatches.add(name);
+    }
   }
 
   // Convert to character objects
   characterMatches.forEach((name: any) => {
     characters.push({
       name,
-      description: `Character extracted from uploaded novel`,
+      description: `Personaggio estratto dal romanzo caricato`,
       traits: '',
       backstory: '',
-      role_in_story: 'Character'
+      role_in_story: 'Personaggio'
     });
   });
 
-  // Extract locations (words following 'in', 'at', 'to')
-  const locationPattern = /\b(in|at|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g;
+  // Extract locations (words following prepositions)
+  // English: in, at, to
+  // Italian: in, a, da, verso, dentro, fuori, presso, presso
+  const locationPattern = /\b(?:in|at|to|a|da|verso|dentro|fuori|presso|attraverso)\s+([A-Z][a-zàèéìòù]+(?:\s+[A-Z][a-zàèéìòù]+)?)\b/g;
   const locationMatches = new Set();
   while ((match = locationPattern.exec(novelContent)) !== null) {
-    locationMatches.add(match[2]);
+    const location = match[1];
+    // Exclude common non-location words
+    if (!excludeWords.has(location) && !excludeWords.has(location.split(' ')[0])) {
+      locationMatches.add(location);
+    }
+  }
+
+  // Also look for specific location indicators (Italian: "città di", "paese di", "castello di")
+  const locationIndicators = /\b(?:città|paese|villaggio|castello|palazzo|chiesa|foresta|bosco|montagna|fiume|lago|mare|isola|regno|casa|villa|giardino|piazza|strada|via)\s+(?:di|del|della|dei|degli)\s+([A-Z][a-zàèéìòù]+)/gi;
+  while ((match = locationIndicators.exec(novelContent)) !== null) {
+    locationMatches.add(match[1]);
   }
 
   // Convert to location objects (limit to reasonable number)
@@ -914,19 +962,23 @@ function extractEntities(novelContent: string): {
     if (locations.length < 20) {
       locations.push({
         name,
-        description: `Location extracted from uploaded novel`,
-        significance: 'Setting'
+        description: `Luogo estratto dal romanzo caricato`,
+        significance: 'Ambientazione'
       });
     }
   });
 
-  // Extract plot events (sentences with action verbs)
-  const eventPattern = /([A-Z][^!?]*?\b(?:discovered|realized|found|lost|won|escaped|died|fought|kissed|married|betrayed|saved)\b[^!?]*[!?])/g;
+  // Extract plot events (sentences with action/dramatic verbs)
+  // English: discovered, realized, found, lost, won, escaped, died, fought, kissed, married, betrayed, saved
+  // Italian: scoprì, realizzò, trovò, perse, vinse, fuggì, morì, combatté, baciò, sposò, tradì, salvò
+  // Also accept sentences ending with . or ! or ?
+  const eventPattern = /([A-Z][^.!?\n]*?\b(?:discovered|realized|found|lost|won|escaped|died|fought|kissed|married|betrayed|saved|scoprì|scoprirono|realizzò|capì|trovò|perse|vinse|fuggì|morì|combatté|baciò|sposò|tradì|salvò|uccise|ferì|amò|odiarono|incontrò|lasciò|arrivò|partì|tornò|entrò|uscì|cadde|salì|discese|presero|fuggirono|morirono|vinsero|persero|amarono)\b[^.!?\n]*[.!?\n])/gi;
   while ((match = eventPattern.exec(novelContent)) !== null) {
     if (plotEvents.length < 30) {
+      const sentence = match[1].trim();
       plotEvents.push({
-        title: match[1].substring(0, 50) + (match[1].length > 50 ? '...' : ''),
-        description: match[1],
+        title: sentence.substring(0, 50) + (sentence.length > 50 ? '...' : ''),
+        description: sentence,
         event_type: 'plot_event'
       });
     }
@@ -990,7 +1042,7 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
         const characterId = uuidv4();
         db.prepare(
           `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
         ).run(
           characterId,
           projectId,
@@ -1042,7 +1094,8 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
           projectId,
           event.title,
           event.description,
-          plotEventsCreated
+          plotEventsCreated,
+          event.event_type
         );
         plotEventsCreated++;
       } catch (err) {
