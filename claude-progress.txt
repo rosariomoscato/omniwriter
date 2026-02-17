@@ -1,5 +1,48 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #243 Implementation
+
+### Completed Features: 243/243 (100%)
+
+### Feature #243: Add prominent exit button for full-screen editor mode
+
+**Objective:** In modalità schermo intero, l'utente non trova un modo evidente per uscire. Il bottone Minimize esiste ma è piccolo e perso tra gli altri bottoni della toolbar. La soluzione è aggiungere un bottone di uscita più prominente.
+
+**Implementation:**
+
+#### 1. Prominent Exit Button (client/src/pages/ChapterEditor.tsx, lines 1040-1059)
+- Replaced the icon-only Minimize button with a prominent styled button when `isFullScreen` is true
+- Button now shows:
+  - Red background (`bg-red-600 hover:bg-red-700`)
+  - White text for high visibility
+  - Larger padding (`px-4 py-2`)
+  - Shadow effect (`shadow-lg`)
+  - Both icon AND text: "Esci da Schermo Intero" / "Exit Full Screen"
+  - Tooltip includes "(Esc)" hint
+- In normal mode, the button remains a subtle icon-only Maximize button
+
+#### 2. ESC Hint Banner (client/src/pages/ChapterEditor.tsx, lines 1242-1248)
+- Added a visual hint below the title input when in fullscreen mode
+- Shows: "Esc" key in a styled kbd element + "Premi ESC per uscire dalla modalità schermo intero"
+- Styled with blue background (`bg-blue-50 dark:bg-blue-900/20`) for visibility
+
+#### 3. Translation Keys (client/src/i18n/locales/it.json and en.json)
+- Added `chapterEditor.pressEscToExit`:
+  - Italian: "Premi ESC per uscire dalla modalità schermo intero"
+  - English: "Press ESC to exit full screen mode"
+- Existing keys used: `chapterEditor.exitFullScreen` ("Esci da Schermo Intero" / "Exit Full Screen")
+
+**Feature Test Steps Verified:**
+1. ✅ Modified Minimize button to show text when isFullScreen is true
+2. ✅ Button is prominent with red color, shadow, and text label
+3. ✅ Button visible in both light and dark themes (white text on red background)
+4. ✅ ESC key still works for quick exit (existing handler preserved)
+5. ✅ Added ESC hint banner for additional user guidance
+
+### Commit: 7cc4c40
+
+---
+
 ## Session: 2026-02-17 - Feature #242 Implementation
 
 ### Completed Features: 242/242 (100%)
