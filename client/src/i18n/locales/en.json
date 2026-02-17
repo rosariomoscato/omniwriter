@@ -11,6 +11,7 @@
     "redattore": "Editor",
     "humanModel": "Human Model",
     "sources": "Sources",
+    "sagas": "Sagas",
     "settings": "Settings",
     "profile": "Profile",
     "admin": "Admin",
@@ -334,6 +335,24 @@
       "title": "Duplicate Project",
       "message": "All chapters, characters, locations, and sources will be duplicated."
     },
+    "sequel": {
+      "button": "Create Sequel",
+      "title": "Create Sequel",
+      "description": "Create a sequel to \"{{title}}\" with all characters and locations copied over.",
+      "sequelTitle": "Sequel Title",
+      "titleHint": "Leave empty to use default: {{defaultTitle}}",
+      "generateProposal": "Generate AI Sequel Proposal",
+      "generateProposalHint": "AI will analyze your novel and suggest plot directions, character arcs, and chapter outlines for the sequel.",
+      "whatCopied": "What will be copied:",
+      "characters": "All characters (marked as returning)",
+      "locations": "All locations",
+      "synopsis": "Original synopsis (as reference)",
+      "sources": "All source materials",
+      "saga": "Saga/series linkage",
+      "creating": "Creating...",
+      "create": "Create Sequel",
+      "success": "Sequel created successfully!"
+    },
     "outlineConfirm": {
       "title": "Generate Outline",
       "message": "This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?"
@@ -370,6 +389,11 @@
       "confirm": "Link Selected Sources",
       "linkSuccess": "Source linked successfully",
       "linkMultipleSuccess": "{count} sources linked successfully",
+      "shareWithSaga": "Share with all projects in this saga",
+      "sagaSource": "Saga",
+      "sharedWithSaga": "Shared",
+      "uploadSuccess": "Source uploaded successfully",
+      "uploadSharedSuccess": "Source uploaded and shared with saga",
       "unlinkDialog": {
         "title": "Unlink Source",
         "confirmMessage": "Are you sure you want to unlink this source from the project?",
@@ -608,6 +632,7 @@
     "project": "Project",
     "humanModel": "Human Model",
     "sources": "Sources",
+    "sagas": "Sagas",
     "settings": "Settings",
     "profile": "Profile",
     "login": "Log In",
@@ -1108,5 +1133,45 @@
       "dashboard": "Dashboard",
       "dashboardDesc": "View your projects"
     }
+  },
+  "sagas": {
+    "title": "Sagas",
+    "sagaTitle": "Title",
+    "description": "Manage your novel series and shared sources across related projects.",
+    "createNew": "Create Saga",
+    "yourSagas": "Your Sagas",
+    "noSagas": "No sagas yet",
+    "noSagasDesc": "Create a saga to group related novels and share sources.",
+    "createFirst": "Create your first saga",
+    "selectSaga": "Select a Saga",
+    "selectSagaDesc": "Choose a saga from the left to view details and projects",
+    "noDescription": "No description",
+    "area": "Area",
+    "created": "Created",
+    "addProject": "Add Project to Saga",
+    "projectsInSaga": "Projects in this Saga",
+    "noProjects": "No projects yet",
+    "noProjectsDesc": "Add your first project to this saga to get started.",
+    "addFirstProject": "Add first project",
+    "createSaga": "Create Saga",
+    "createInfo": "A saga allows you to group related novels together and share sources across them. Sagas can only contain projects of the same area.",
+    "titlePlaceholder": "e.g., The Fantasy Trilogy",
+    "descriptionPlaceholder": "Optional description of the saga...",
+    "create": "Create",
+    "creating": "Creating...",
+    "titleRequired": "Title is required",
+    "createSuccess": "Saga created successfully",
+    "deleteTitle": "Delete Saga",
+    "deleteConfirm": "Are you sure you want to delete this saga?",
+    "deleteWarning": "This will not delete the projects in this saga, but they will no longer be grouped together.",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "deleteSuccess": "Saga deleted successfully",
+    "deleteSaga": "Delete saga"
+  },
+  "areas": {
+    "romanziere": "Novelist",
+    "saggista": "Essayist",
+    "redattore": "Editor"
   }
 }

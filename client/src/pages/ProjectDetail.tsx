@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink, Loader2 } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink, Loader2, Layers, Share2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -11,6 +11,7 @@ import RelationshipMap from '../components/RelationshipMap';
 import TableOfContents from '../components/TableOfContents';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CreateSequelModal from '../components/CreateSequelModal';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -68,6 +69,8 @@ export default function ProjectDetail() {
   const [showOutlineConfirmDialog, setShowOutlineConfirmDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  // Feature #255: Create Sequel
+  const [showSequelModal, setShowSequelModal] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -90,6 +93,7 @@ export default function ProjectDetail() {
   const [selectAllChapters, setSelectAllChapters] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [shareWithSaga, setShareWithSaga] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [characterForm, setCharacterForm] = useState({
@@ -616,11 +620,15 @@ export default function ProjectDetail() {
     try {
       setUploading(true);
       setError('');
-      const response = await apiService.uploadProjectSource(id!, file);
-      setSources([...sources, response.source]);
+      const response = await apiService.uploadProjectSource(id!, file, shareWithSaga);
+      setSources([...sources, { ...response.source, tags: JSON.parse(response.source.tags_json || '[]') }]);
       setShowAddSource(false);
+      setShareWithSaga(false); // Reset toggle
       // Reset file input
       e.target.value = '';
+      toast.success(shareWithSaga && project?.saga_id
+        ? t('projectPage.sources.uploadSharedSuccess', 'Source uploaded and shared with saga')
+        : t('projectPage.sources.uploadSuccess', 'Source uploaded successfully'));
     } catch (err: any) {
       setError(err.message || 'Failed to upload file');
     } finally {
@@ -1460,6 +1468,16 @@ export default function ProjectDetail() {
                   </>
                 )}
               </button>
+              {/* Feature #255: Create Sequel - Only for romanziere projects */}
+              {project?.area === 'romanziere' && (
+                <button
+                  onClick={() => setShowSequelModal(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Layers className="w-4 h-4" />
+                  {t('projectPage.sequel.button', 'Create Sequel')}
+                </button>
+              )}
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -1477,6 +1495,23 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Feature #255: Create Sequel Modal */}
+      {project && (
+        <CreateSequelModal
+          isOpen={showSequelModal}
+          onClose={() => setShowSequelModal(false)}
+          project={{ id: project.id, title: project.title, area: project.area }}
+          language={i18n.language === 'en' ? 'en' : 'it'}
+          onSuccess={(newProjectId) => {
+            toast.success(t('projectPage.sequel.success', 'Sequel created successfully!'));
+            navigate(`/projects/${newProjectId}`);
+          }}
+          onError={(error) => {
+            toast.error(error);
+          }}
+        />
       )}
 
       {/* Export Dialog */}
@@ -2428,36 +2463,54 @@ export default function ProjectDetail() {
         {/* Upload Source Form */}
         {showAddSource && (
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center gap-4">
-              <label className="flex-1">
-                <div className="flex items-center justify-center w-full h-32 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
-                  <div className="flex flex-col items-center">
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      PDF, DOCX, DOC, RTF, TXT (Max 25MB)
-                    </span>
-                  </div>
+            <div className="flex flex-col gap-4">
+              {/* Share with Saga Toggle - only show if project is in a saga */}
+              {project?.saga_id && (
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.docx,.doc,.rtf,.txt"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
+                    type="checkbox"
+                    checked={shareWithSaga}
+                    onChange={(e) => setShareWithSaga(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 dark:focus:ring-amber-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                   />
-                </div>
-              </label>
-              <button
-                onClick={() => {
-                  setShowAddSource(false);
-                  setError('');
-                }}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
+                  <Share2 className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {t('projectPage.sources.shareWithSaga', 'Share with all projects in this saga')}
+                  </span>
+                </label>
+              )}
+              <div className="flex items-center gap-4">
+                <label className="flex-1">
+                  <div className="flex items-center justify-center w-full h-32 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
+                    <div className="flex flex-col items-center">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        PDF, DOCX, DOC, RTF, TXT (Max 25MB)
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.docx,.doc,.rtf,.txt"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                    />
+                  </div>
+                </label>
+                <button
+                  onClick={() => {
+                    setShowAddSource(false);
+                    setError('');
+                    setShareWithSaga(false);
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2473,58 +2526,78 @@ export default function ProjectDetail() {
           ) : (
             sources
               .filter(source => selectedTagFilter === 'all' || (source.tags && source.tags.includes(selectedTagFilter)))
-              .map((source) => (
-              <div
-                key={source.id}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <FileText className="w-5 h-5 text-gray-400" />
-                  <div className="flex-1">
-                    <h3 className="text-gray-900 dark:text-gray-100 font-medium">
-                      {source.file_name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
-                        {source.file_type.split('/')[1] || 'file'}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {(source.file_size / 1024).toFixed(1)} KB
-                      </span>
-                      <span className={`px-2 py-0.5 text-xs rounded ${
-                        source.source_type === 'upload'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                          : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                      }`}>
-                        {source.source_type === 'upload' ? 'Upload' : 'Web Search'}
-                      </span>
-                      {/* Tags display - read-only in project view, manage tags from Sources page */}
-                      {source.tags && source.tags.length > 0 && (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {source.tags.map((tag, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+              .map((source) => {
+                // Determine if this is a saga-wide source (shared from another project or saga-level)
+                const isSagaSource = source.saga_id && source.saga_id === project?.saga_id && source.project_id !== project?.id;
+                const isSharedWithSaga = source.saga_id && source.saga_id === project?.saga_id && source.project_id === project?.id;
+
+                return (
+                <div
+                  key={source.id}
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <FileText className="w-5 h-5 text-gray-400" />
+                    <div className="flex-1">
+                      <h3 className="text-gray-900 dark:text-gray-100 font-medium flex items-center gap-2">
+                        {source.file_name}
+                        {isSagaSource && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 rounded-full">
+                            <Layers className="w-3 h-3" />
+                            {t('projectPage.sources.sagaSource', 'Saga')}
+                          </span>
+                        )}
+                        {isSharedWithSaga && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-700">
+                            <Share2 className="w-3 h-3" />
+                            {t('projectPage.sources.sharedWithSaga', 'Shared')}
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                          {source.file_type.split('/')[1] || 'file'}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {(source.file_size / 1024).toFixed(1)} KB
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs rounded ${
+                          source.source_type === 'upload'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                            : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                        }`}>
+                          {source.source_type === 'upload' ? 'Upload' : 'Web Search'}
+                        </span>
+                        {/* Tags display - read-only in project view, manage tags from Sources page */}
+                        {source.tags && source.tags.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {source.tags.map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    {/* Only show unlink button for project-specific sources, not saga sources from other projects */}
+                    {!isSagaSource && (
+                      <button
+                        onClick={() => handleDeleteSource(source.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        title={t('project.removeFromProject', 'Remove from project')}
+                      >
+                        <Unlink className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => handleDeleteSource(source.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    title={t('project.removeFromProject', 'Remove from project')}
-                  >
-                    <Unlink className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))
+              );})
           )}
         </div>
       </div>

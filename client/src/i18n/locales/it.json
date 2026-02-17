@@ -11,6 +11,7 @@
     "redattore": "Redattore",
     "humanModel": "Modello Umano",
     "sources": "Fonti",
+    "sagas": "Saghe",
     "settings": "Impostazioni",
     "profile": "Profilo",
     "admin": "Amministrazione",
@@ -334,6 +335,24 @@
       "title": "Duplica Progetto",
       "message": "Tutti i capitoli, personaggi, luoghi e fonti saranno duplicati."
     },
+    "sequel": {
+      "button": "Crea Seguito",
+      "title": "Crea Seguito",
+      "description": "Crea un seguito per \"{{title}}\" con tutti i personaggi e luoghi copiati.",
+      "sequelTitle": "Titolo del Seguito",
+      "titleHint": "Lascia vuoto per usare il default: {{defaultTitle}}",
+      "generateProposal": "Genera Proposta AI per il Seguito",
+      "generateProposalHint": "L'AI analizzerà il tuo romanzo e suggerirà direzioni di trama, archi dei personaggi e schemi dei capitoli per il seguito.",
+      "whatCopied": "Cosa verrà copiato:",
+      "characters": "Tutti i personaggi (marcati come ritornanti)",
+      "locations": "Tutti i luoghi",
+      "synopsis": "Sinossi originale (come riferimento)",
+      "sources": "Tutti i materiali di fonte",
+      "saga": "Collegamento alla saga/serie",
+      "creating": "Creazione in corso...",
+      "create": "Crea Seguito",
+      "success": "Seguito creato con successo!"
+    },
     "outlineConfirm": {
       "title": "Genera Indice",
       "message": "Questo progetto ha già dei capitoli. Generare un indice aggiungerà nuovi capitoli a quelli esistenti. Continuare?"
@@ -370,6 +389,11 @@
       "confirm": "Collega Fonti Selezionate",
       "linkSuccess": "Fonte collegata con successo",
       "linkMultipleSuccess": "{count} fonti collegate con successo",
+      "shareWithSaga": "Condividi con tutti i progetti della saga",
+      "sagaSource": "Saga",
+      "sharedWithSaga": "Condivisa",
+      "uploadSuccess": "Fonte caricata con successo",
+      "uploadSharedSuccess": "Fonte caricata e condivisa con la saga",
       "unlinkDialog": {
         "title": "Scollega Fonte",
         "confirmMessage": "Sei sicuro di voler scollegare questa fonte dal progetto?",
@@ -608,6 +632,7 @@
     "project": "Progetto",
     "humanModel": "Modello Umano",
     "sources": "Fonti",
+    "sagas": "Saghe",
     "settings": "Impostazioni",
     "profile": "Profilo",
     "login": "Accedi",
@@ -1108,5 +1133,45 @@
       "dashboard": "Dashboard",
       "dashboardDesc": "Visualizza i tuoi progetti"
     }
+  },
+  "sagas": {
+    "title": "Saghe",
+    "sagaTitle": "Titolo",
+    "description": "Gestisci le tue serie di romanzi e le fonti condivise tra progetti correlati.",
+    "createNew": "Crea Saga",
+    "yourSagas": "Le Tue Saghe",
+    "noSagas": "Nessuna saga ancora",
+    "noSagasDesc": "Crea una saga per raggruppare romanzi correlati e condividere fonti.",
+    "createFirst": "Crea la tua prima saga",
+    "selectSaga": "Seleziona una Saga",
+    "selectSagaDesc": "Scegli una saga a sinistra per vedere i dettagli e i progetti",
+    "noDescription": "Nessuna descrizione",
+    "area": "Area",
+    "created": "Creata",
+    "addProject": "Aggiungi Progetto alla Saga",
+    "projectsInSaga": "Progetti in questa Saga",
+    "noProjects": "Nessun progetto ancora",
+    "noProjectsDesc": "Aggiungi il tuo primo progetto a questa saga per iniziare.",
+    "addFirstProject": "Aggiungi primo progetto",
+    "createSaga": "Crea Saga",
+    "createInfo": "Una saga permette di raggruppare romanzi correlati e condividere fonti tra loro. Le saghe possono contenere solo progetti della stessa area.",
+    "titlePlaceholder": "es: La Trilogia Fantasy",
+    "descriptionPlaceholder": "Descrizione opzionale della saga...",
+    "create": "Crea",
+    "creating": "Creazione...",
+    "titleRequired": "Il titolo è obbligatorio",
+    "createSuccess": "Saga creata con successo",
+    "deleteTitle": "Elimina Saga",
+    "deleteConfirm": "Sei sicuro di voler eliminare questa saga?",
+    "deleteWarning": "Questo non eliminerà i progetti nella saga, ma non saranno più raggruppati insieme.",
+    "delete": "Elimina",
+    "deleting": "Eliminazione...",
+    "deleteSuccess": "Saga eliminata con successo",
+    "deleteSaga": "Elimina saga"
+  },
+  "areas": {
+    "romanziere": "Romanziere",
+    "saggista": "Saggista",
+    "redattore": "Redattore"
   }
 }

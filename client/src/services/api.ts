@@ -495,6 +495,32 @@ class ApiService {
     });
   }
 
+  // Feature #255: Create Sequel
+  async createSequel(id: string, options?: {
+    title?: string;
+    generateProposal?: boolean;
+    language?: 'it' | 'en';
+  }): Promise<{
+    project: Project;
+    sagaId: string;
+    charactersCopied: number;
+    locationsCopied: number;
+    sourcesCopied: number;
+    proposalGenerated: boolean;
+  }> {
+    return this.request<{
+      project: Project;
+      sagaId: string;
+      charactersCopied: number;
+      locationsCopied: number;
+      sourcesCopied: number;
+      proposalGenerated: boolean;
+    }>(`/projects/${id}/sequel`, {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  }
+
   // Citation methods
   async getProjectCitations(projectId: string): Promise<{ citations: any[]; count: number }> {
     return this.request<{ citations: any[]; count: number }>(`/projects/${projectId}/citations`);
@@ -964,9 +990,12 @@ class ApiService {
     return response.json();
   }
 
-  async uploadProjectSource(projectId: string, file: File): Promise<{ source: Source }> {
+  async uploadProjectSource(projectId: string, file: File, shareWithSaga: boolean = false): Promise<{ source: Source }> {
     const formData = new FormData();
     formData.append('file', file);
+    if (shareWithSaga) {
+      formData.append('shareWithSaga', 'true');
+    }
 
     const token = localStorage.getItem('token');
     const url = `${this.baseUrl}/projects/${projectId}/sources/upload`;
