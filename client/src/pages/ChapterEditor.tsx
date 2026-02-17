@@ -997,7 +997,7 @@ export default function ChapterEditor() {
       )}
 
       {/* Editor Header */}
-      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface">
+      <div className={`border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-surface ${isFullScreen ? 'px-6' : ''}`}>
         <div className="p-4">
           {/* Back button and actions */}
           <div className="flex items-center justify-between mb-4">

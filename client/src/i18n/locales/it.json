@@ -678,6 +678,8 @@
       "selectHint": "Seleziona 2 versioni per confrontarle affiancate o ripristina una versione precedente.",
       "selectForCompare": "Seleziona per confronto",
       "restoreTooltip": "Ripristina questa versione",
+      "restoreTitle": "Ripristina Versione",
+      "restore": "Ripristina",
       "confirmRestore": "Sei sicuro di voler ripristinare alla versione {{version}}? Verrà creata una nuova versione dal contenuto attuale prima del ripristino.",
       "restoreSuccess": "Ripristinato con successo alla versione {{version}}"
     },

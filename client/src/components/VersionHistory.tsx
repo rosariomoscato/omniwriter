@@ -3,6 +3,7 @@ import { Clock, FileText, RotateCcw, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiService, ChapterVersion } from '../services/api';
 import { useToastNotification } from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 
 interface VersionHistoryProps {
   chapterId: string;
@@ -19,6 +20,10 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
   const [error, setError] = useState('');
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
   const [restoring, setRestoring] = useState<string | null>(null);
+
+  // Confirmation dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<{ versionId: string; versionNumber: number } | null>(null);
 
   useEffect(() => {
     loadVersions();
@@ -37,9 +42,17 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
   };
 
   const handleRestore = async (versionId: string, versionNumber: number) => {
-    if (!confirm(t('chapterEditor.versionHistory.confirmRestore', { version: versionNumber }))) {
-      return;
-    }
+    // Show confirmation dialog instead of native confirm()
+    setPendingRestore({ versionId, versionNumber });
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!pendingRestore) return;
+
+    const { versionId, versionNumber } = pendingRestore;
+    setShowConfirmDialog(false);
+    setPendingRestore(null);
 
     try {
       setRestoring(versionId);
@@ -55,6 +68,11 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
     } finally {
       setRestoring(null);
     }
+  };
+
+  const handleCancelRestore = () => {
+    setShowConfirmDialog(false);
+    setPendingRestore(null);
   };
 
   const toggleCompareSelection = (version: ChapterVersion) => {
@@ -127,87 +145,101 @@ export default function VersionHistory({ chapterId, onClose, onRestore, onCompar
   }
 
   return (
-    <div className="p-6 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <Clock className="w-5 h-5" />
-          {t('chapterEditor.versionHistory.title')}
-        </h3>
-        <button
-          onClick={onClose}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-        >
-          <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-        </button>
-      </div>
+    <>
+      <div className="p-6 flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            {t('chapterEditor.versionHistory.title')}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
 
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        {t('chapterEditor.versionHistory.selectHint')}
-      </p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          {t('chapterEditor.versionHistory.selectHint')}
+        </p>
 
-      {/* Scrollable versions container */}
-      <div className="flex-1 max-h-[60vh] overflow-y-auto pr-2 -mr-2">
-        <div className="space-y-2">
-          {versions.map((version) => (
-            <div
-              key={version.id}
-              className={`p-3 rounded-lg border transition-all ${
-                selectedForCompare.has(version.id)
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {t('chapterEditor.versionHistory.version')} {version.version_number}
-                    </span>
-                    {selectedForCompare.has(version.id) && (
-                      <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(version.created_at)}
-                  </div>
-                  {version.change_description && (
-                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      {version.change_description}
+        {/* Scrollable versions container */}
+        <div className="flex-1 max-h-[60vh] overflow-y-auto pr-2 -mr-2">
+          <div className="space-y-2">
+            {versions.map((version) => (
+              <div
+                key={version.id}
+                className={`p-3 rounded-lg border transition-all ${
+                  selectedForCompare.has(version.id)
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {t('chapterEditor.versionHistory.version')} {version.version_number}
+                      </span>
+                      {selectedForCompare.has(version.id) && (
+                        <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      )}
                     </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => toggleCompareSelection(version)}
-                    className={`p-2 rounded-lg transition-colors text-sm ${
-                      selectedForCompare.has(version.id)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                    title={t('chapterEditor.versionHistory.selectForCompare')}
-                  >
-                    <FileText className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleRestore(version.id, version.version_number)}
-                    disabled={restoring === version.id}
-                    className="p-2 rounded-lg bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 transition-colors text-sm disabled:opacity-50"
-                    title={t('chapterEditor.versionHistory.restoreTooltip')}
-                  >
-                    {restoring === version.id ? (
-                      <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <RotateCcw className="w-4 h-4" />
+                    <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDate(version.created_at)}
+                    </div>
+                    {version.change_description && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        {version.change_description}
+                      </div>
                     )}
-                  </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => toggleCompareSelection(version)}
+                      className={`p-2 rounded-lg transition-colors text-sm ${
+                        selectedForCompare.has(version.id)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                      title={t('chapterEditor.versionHistory.selectForCompare')}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleRestore(version.id, version.version_number)}
+                      disabled={restoring === version.id}
+                      className="p-2 rounded-lg bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 transition-colors text-sm disabled:opacity-50"
+                      title={t('chapterEditor.versionHistory.restoreTooltip')}
+                    >
+                      {restoring === version.id ? (
+                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <RotateCcw className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Themed Confirmation Dialog for Version Restore */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        title={t('chapterEditor.versionHistory.restoreTitle')}
+        message={pendingRestore ? t('chapterEditor.versionHistory.confirmRestore', { version: pendingRestore.versionNumber }) : ''}
+        onConfirm={handleConfirmRestore}
+        onCancel={handleCancelRestore}
+        confirmText={t('chapterEditor.versionHistory.restore')}
+        cancelText={t('common.cancel')}
+        variant="info"
+      />
+    </>
   );
 }
