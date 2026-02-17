@@ -1104,6 +1104,9 @@ function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
     // Parse the JSON
     const parsed = JSON.parse(jsonStr);
 
+    // Log synopsis extraction for debugging
+    console.log(`[NovelAnalysis] parseNovelAnalysisResponse - synopsis found: ${parsed.synopsis ? 'YES (' + String(parsed.synopsis).length + ' chars)' : 'NO'}`);
+
     return {
       synopsis: String(parsed.synopsis || '').trim(),
       characters: (parsed.characters || []).map((c: any) => ({
@@ -1324,8 +1327,11 @@ async function analyzeNovelWithAI(
         maxTokens: 4000
       });
 
+      // Log raw AI response for debugging (first 500 chars)
+      console.log(`[NovelAnalysis] Chunk ${i + 1} raw AI response (first 500 chars):`, response.content.substring(0, 500));
+
       const parsed = parseNovelAnalysisResponse(response.content);
-      console.log(`[NovelAnalysis] Chunk ${i + 1} extracted: ${parsed.characters.length} characters, ${parsed.locations.length} locations, ${parsed.plotEvents.length} events`);
+      console.log(`[NovelAnalysis] Chunk ${i + 1} extracted: ${parsed.characters.length} characters, ${parsed.locations.length} locations, ${parsed.plotEvents.length} events, synopsis: ${parsed.synopsis.length} chars`);
 
       allAnalyses.push(parsed);
     } catch (chunkError) {
@@ -1344,6 +1350,13 @@ async function analyzeNovelWithAI(
   const allEvents = allAnalyses.flatMap(a => a.plotEvents);
   // Collect all synopsis parts (take the longest one as it's likely the most complete)
   const allSynopses = allAnalyses.map(a => a.synopsis).filter(s => s.length > 0);
+
+  // Debug: log synopsis status from all chunks
+  console.log(`[NovelAnalysis] Synopsis consolidation: ${allAnalyses.length} chunks analyzed, ${allSynopses.length} chunks returned synopsis`);
+  allAnalyses.forEach((a, idx) => {
+    console.log(`[NovelAnalysis] Chunk ${idx + 1} synopsis length: ${a.synopsis.length}`);
+  });
+
   const bestSynopsis = allSynopses.reduce((longest, current) =>
     current.length > longest.length ? current : longest
   , '');
@@ -1351,6 +1364,8 @@ async function analyzeNovelWithAI(
   console.log(`[NovelAnalysis] Before deduplication: ${allCharacters.length} characters, ${allLocations.length} locations, ${allEvents.length} events`);
   if (bestSynopsis) {
     console.log(`[NovelAnalysis] Synopsis extracted: ${bestSynopsis.length} characters`);
+  } else {
+    console.warn(`[NovelAnalysis] WARNING: No synopsis extracted from any chunk!`);
   }
 
   // Deduplicate and merge
@@ -1624,13 +1639,16 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     }
 
     // Save synopsis to project if generated
+    console.log('[Projects] Synopsis to save:', synopsis ? `${synopsis.length} chars` : 'EMPTY');
     if (synopsis) {
       try {
         db.prepare('UPDATE projects SET synopsis = ?, updated_at = datetime(\'now\') WHERE id = ? AND user_id = ?').run(synopsis, projectId, userId);
-        console.log('[Projects] Synopsis saved to project');
+        console.log('[Projects] Synopsis saved to project successfully');
       } catch (synopsisErr) {
         console.warn('[Projects] Failed to save synopsis:', synopsisErr);
       }
+    } else {
+      console.warn('[Projects] Synopsis is empty, not saving to database');
     }
 
     console.log('[Projects] Novel analysis completed:', {

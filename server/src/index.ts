@@ -35,7 +35,23 @@ const HOST = process.env.HOST || '0.0.0.0';
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
+    if (!origin) return callback(null, true);
+
+    // Allow any localhost port for development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+
+    // In production, use the configured CLIENT_URL
+    const allowedOrigins = [process.env.CLIENT_URL, 'http://localhost:3000'].filter(Boolean);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
