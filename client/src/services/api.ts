@@ -1040,6 +1040,7 @@ class ApiService {
       characters: number;
       locations: number;
       plotEvents: number;
+      synopsis: boolean;
     };
   }> {
     const formData = new FormData();
@@ -1047,12 +1048,16 @@ class ApiService {
     formData.append('language', language);
     return this.request<{
       message: string;
-      extracted: { characters: number; locations: number; plotEvents: number };
+      extracted: { characters: number; locations: number; plotEvents: number; synopsis: boolean };
     }>(`/projects/${projectId}/analyze-novel`, {
       method: 'POST',
       body: formData,
       headers: {}, // Let browser set Content-Type for FormData
     });
+  }
+
+  async getSynopsis(projectId: string): Promise<{ synopsis: string }> {
+    return this.request<{ synopsis: string }>(`/projects/${projectId}/synopsis`);
   }
 
   async generateOutline(projectId: string): Promise<{

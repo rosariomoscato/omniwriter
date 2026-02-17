@@ -144,6 +144,11 @@ export default function ProjectDetail() {
   const [showConsistencyResults, setShowConsistencyResults] = useState(false);
   const [humanModels, setHumanModels] = useState<any[]>([]);
   const [loadingHumanModels, setLoadingHumanModels] = useState(false);
+  // Synopsis modal state
+  const [showSynopsisModal, setShowSynopsisModal] = useState(false);
+  const [synopsisContent, setSynopsisContent] = useState('');
+  const [loadingSynopsis, setLoadingSynopsis] = useState(false);
+  const [synopsisError, setSynopsisError] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -710,6 +715,12 @@ export default function ProjectDetail() {
       if (totalExtracted === 0) {
         // Show warning if nothing was extracted
         toast.warning(t('projectPage.analyzeNovelForm.noResultsMessage'));
+      } else if (response.extracted.synopsis) {
+        toast.success(t('projectPage.analyzeNovelForm.successMessageWithSynopsis', {
+          characters: response.extracted.characters,
+          locations: response.extracted.locations,
+          plotEvents: response.extracted.plotEvents
+        }));
       } else {
         toast.success(t('projectPage.analyzeNovelForm.successMessage', {
           characters: response.extracted.characters,
@@ -731,6 +742,23 @@ export default function ProjectDetail() {
       setError(err.message || t('projectPage.analyzeNovelForm.errorMessage'));
     } finally {
       setAnalyzingNovel(false);
+    }
+  };
+
+  const handleViewSynopsis = async () => {
+    if (!id) return;
+
+    try {
+      setLoadingSynopsis(true);
+      setSynopsisError('');
+      const response = await apiService.getSynopsis(id);
+      setSynopsisContent(response.synopsis);
+      setShowSynopsisModal(true);
+    } catch (err: any) {
+      console.error('Failed to load synopsis:', err);
+      setSynopsisError(t('projectPage.synopsis.errorLoading'));
+    } finally {
+      setLoadingSynopsis(false);
     }
   };
 
@@ -2551,6 +2579,15 @@ export default function ProjectDetail() {
                 {t('projectPage.characters.analyzeNovel')}
               </button>
               <button
+                onClick={handleViewSynopsis}
+                disabled={loadingSynopsis}
+                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                title="Read the synopsis generated from the analyzed novel"
+              >
+                <BookOpen className="w-4 h-4" />
+                {loadingSynopsis ? t('projectPage.synopsis.loading') : t('projectPage.synopsis.readSynopsis')}
+              </button>
+              <button
                 onClick={() => {
                   setShowAddCharacter(!showAddCharacter);
                   setEditingCharacter(null);
@@ -3600,6 +3637,56 @@ export default function ProjectDetail() {
         cancelText={t('common.cancel', 'Cancel')}
         variant="warning"
       />
+
+      {/* Feature #250: Synopsis Modal */}
+      {showSynopsisModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSynopsisModal(false)}>
+          <div
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                {t('projectPage.synopsis.title')}
+              </h2>
+              <button
+                onClick={() => setShowSynopsisModal(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {synopsisError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600 dark:text-red-400">{synopsisError}</p>
+                </div>
+              ) : synopsisContent ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {synopsisContent}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">{t('projectPage.synopsis.noSynopsis')}</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">{t('projectPage.synopsis.noSynopsisDescription')}</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <button
+                onClick={() => setShowSynopsisModal(false)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('common.close', 'Close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

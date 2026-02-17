@@ -405,8 +405,17 @@
       "analyzeButton": "Analizza Romanzo",
       "cancelButton": "Annulla",
       "successMessage": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama estratti",
+      "successMessageWithSynopsis": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama e sinossi estratti",
       "noResultsMessage": "Analisi completata, ma non sono stati trovati personaggi, luoghi o eventi. Il testo potrebbe essere troppo breve o utilizzare un formato non riconosciuto. Prova con un testo più lungo o in formato standard.",
       "errorMessage": "Impossibile analizzare il romanzo. Riprova."
+    },
+    "synopsis": {
+      "readSynopsis": "Leggi Sinossi",
+      "title": "Sinossi del Romanzo",
+      "noSynopsis": "Nessuna sinossi disponibile",
+      "noSynopsisDescription": "Analizza un romanzo per generare automaticamente una sinossi.",
+      "loading": "Caricamento sinossi...",
+      "errorLoading": "Impossibile caricare la sinossi"
     },
     "locations": {
       "title": "Luoghi",

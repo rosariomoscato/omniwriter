@@ -357,6 +357,15 @@ function runMigrations(db: Database.Database): void {
 
     // Create index on selected_provider_id after ensuring column exists
     db.exec('CREATE INDEX IF NOT EXISTS idx_user_preferences_selected_provider_id ON user_preferences(selected_provider_id)');
+
+    // Add synopsis column to projects table for AI-generated novel summaries
+    const projectsInfo = db.prepare('PRAGMA table_info(projects)').all() as { name: string }[];
+    const projectColumnNames = projectsInfo.map(col => col.name);
+
+    if (!projectColumnNames.includes('synopsis')) {
+      console.log('[Database] Adding synopsis column to projects...');
+      db.exec('ALTER TABLE projects ADD COLUMN synopsis TEXT DEFAULT \'\'');
+    }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);
     throw error;

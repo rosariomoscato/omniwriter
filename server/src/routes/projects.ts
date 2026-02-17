@@ -235,6 +235,33 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /api/projects/:id/synopsis - Get synopsis for a project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/:id/synopsis', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    const project = db.prepare('SELECT id, synopsis, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; synopsis: string | null; area: string } | undefined;
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'romanziere') {
+      res.status(400).json({ message: 'Synopsis is only available for Romanziere projects' });
+      return;
+    }
+
+    res.json({ synopsis: project.synopsis || '' });
+  } catch (error) {
+    console.error('[Projects] Get synopsis error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // PUT /api/projects/:id - Update project
 // @ts-expect-error - AuthRequest type compatibility with router
 router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
@@ -941,6 +968,7 @@ ${chunk}
 
 Rispondi con un JSON con la seguente struttura:
 {
+  "synopsis": "Una sinossi del testo in 300-500 parole che riassuma la trama principale, i personaggi chiave e i temi centrali",
   "characters": [
     {
       "name": "Nome completo del personaggio",
@@ -988,6 +1016,7 @@ ${chunk}
 
 Respond with JSON in the following structure:
 {
+  "synopsis": "A synopsis of the text in 300-500 words that summarizes the main plot, key characters, and central themes",
   "characters": [
     {
       "name": "Full character name",
@@ -1045,6 +1074,7 @@ interface ParsedPlotEvent {
 }
 
 interface ParsedAnalysis {
+  synopsis: string;
   characters: ParsedCharacter[];
   locations: ParsedLocation[];
   plotEvents: ParsedPlotEvent[];
@@ -1055,6 +1085,7 @@ interface ParsedAnalysis {
  */
 function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
   const defaultResult: ParsedAnalysis = {
+    synopsis: '',
     characters: [],
     locations: [],
     plotEvents: []
@@ -1074,6 +1105,7 @@ function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
     const parsed = JSON.parse(jsonStr);
 
     return {
+      synopsis: String(parsed.synopsis || '').trim(),
       characters: (parsed.characters || []).map((c: any) => ({
         name: String(c.name || '').trim(),
         description: String(c.description || '').trim(),
@@ -1310,8 +1342,16 @@ async function analyzeNovelWithAI(
   const allCharacters = allAnalyses.flatMap(a => a.characters);
   const allLocations = allAnalyses.flatMap(a => a.locations);
   const allEvents = allAnalyses.flatMap(a => a.plotEvents);
+  // Collect all synopsis parts (take the longest one as it's likely the most complete)
+  const allSynopses = allAnalyses.map(a => a.synopsis).filter(s => s.length > 0);
+  const bestSynopsis = allSynopses.reduce((longest, current) =>
+    current.length > longest.length ? current : longest
+  , '');
 
   console.log(`[NovelAnalysis] Before deduplication: ${allCharacters.length} characters, ${allLocations.length} locations, ${allEvents.length} events`);
+  if (bestSynopsis) {
+    console.log(`[NovelAnalysis] Synopsis extracted: ${bestSynopsis.length} characters`);
+  }
 
   // Deduplicate and merge
   const dedupedCharacters = deduplicateCharacters(allCharacters);
@@ -1321,6 +1361,7 @@ async function analyzeNovelWithAI(
   console.log(`[NovelAnalysis] After deduplication: ${dedupedCharacters.length} characters, ${dedupedLocations.length} locations, ${dedupedEvents.length} events`);
 
   return {
+    synopsis: bestSynopsis,
     characters: dedupedCharacters,
     locations: dedupedLocations,
     plotEvents: dedupedEvents
@@ -1489,13 +1530,15 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string }>;
     let locations: Array<{ name: string; description: string; significance: string }>;
     let plotEvents: Array<{ title: string; description: string; event_type: string }>;
+    let synopsis = '';
 
     try {
       const aiResult = await analyzeNovelWithAI(novelContent, userId || '', language);
       characters = aiResult.characters;
       locations = aiResult.locations;
       plotEvents = aiResult.plotEvents;
-      console.log('[Projects] AI analysis extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+      synopsis = aiResult.synopsis;
+      console.log('[Projects] AI analysis extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events, synopsis:', synopsis.length, 'chars');
     } catch (aiError) {
       console.error('[Projects] AI analysis failed, falling back to regex:', aiError);
       // Fall back to regex-based extraction if AI fails
@@ -1503,6 +1546,7 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
       characters = regexResult.characters;
       locations = regexResult.locations;
       plotEvents = regexResult.plotEvents;
+      synopsis = '';
       console.log('[Projects] Regex fallback extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
     }
 
@@ -1579,10 +1623,21 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
       }
     }
 
+    // Save synopsis to project if generated
+    if (synopsis) {
+      try {
+        db.prepare('UPDATE projects SET synopsis = ?, updated_at = datetime(\'now\') WHERE id = ? AND user_id = ?').run(synopsis, projectId, userId);
+        console.log('[Projects] Synopsis saved to project');
+      } catch (synopsisErr) {
+        console.warn('[Projects] Failed to save synopsis:', synopsisErr);
+      }
+    }
+
     console.log('[Projects] Novel analysis completed:', {
       characters: charactersCreated,
       locations: locationsCreated,
-      plotEvents: plotEventsCreated
+      plotEvents: plotEventsCreated,
+      synopsis: synopsis ? 'generated' : 'none'
     });
 
     res.json({
@@ -1590,7 +1645,8 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
       extracted: {
         characters: charactersCreated,
         locations: locationsCreated,
-        plotEvents: plotEventsCreated
+        plotEvents: plotEventsCreated,
+        synopsis: synopsis ? true : false
       }
     });
   } catch (error) {
