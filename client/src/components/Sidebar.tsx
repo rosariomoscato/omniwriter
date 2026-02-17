@@ -62,7 +62,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {isCollapsed ? <ChevronRight size={20} className="text-gray-600 dark:text-gray-300" /> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-300" />}
           </button>
         </div>
       </div>
