@@ -3277,10 +3277,10 @@ export default function ProjectDetail() {
                 <RefreshCw className="w-6 h-6 text-rose-600 dark:text-rose-400" />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Plot Hole Detection Results
+                    {t('projectPage.plotHoles.title')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {plotHolesResults.length} issue{plotHolesResults.length !== 1 ? 's' : ''} found
+                    {t('projectPage.plotHoles.issue', { count: plotHolesResults.length })}
                   </p>
                 </div>
               </div>
@@ -3301,10 +3301,10 @@ export default function ProjectDetail() {
                 <div className="text-center py-12">
                   <RefreshCw className="w-16 h-16 mx-auto mb-4 text-green-500" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    No Plot Holes Detected!
+                    {t('projectPage.plotHoles.noIssuesTitle')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Your story appears to be consistent and well-structured.
+                    {t('projectPage.plotHoles.noIssuesDesc')}
                   </p>
                 </div>
               ) : (
@@ -3343,7 +3343,7 @@ export default function ProjectDetail() {
 
                       {hole.chapter_references && hole.chapter_references.length > 0 && (
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">Referenced chapters:</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{t('projectPage.plotHoles.referencedChapters')}</span>
                           <div className="flex flex-wrap gap-1">
                             {hole.chapter_references.map((ref: string, i: number) => (
                               <span
@@ -3362,7 +3362,7 @@ export default function ProjectDetail() {
                           <div className="flex items-start gap-2">
                             <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                             <p className="text-sm text-gray-700 dark:text-gray-300">
-                              <strong>Suggestion:</strong> {hole.suggestion}
+                              <strong>{t('projectPage.plotHoles.suggestion')}</strong> {hole.suggestion}
                             </p>
                           </div>
                         </div>
@@ -3386,10 +3386,10 @@ export default function ProjectDetail() {
                 <Network className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Consistency Check Results
+                    {t('projectPage.consistency.title')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {consistencyResults.length} issue{consistencyResults.length !== 1 ? 's' : ''} found
+                    {t('projectPage.consistency.issue', { count: consistencyResults.length })}
                   </p>
                 </div>
               </div>
@@ -3410,10 +3410,10 @@ export default function ProjectDetail() {
                 <div className="text-center py-12">
                   <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    No Inconsistencies Detected!
+                    {t('projectPage.consistency.noIssuesTitle')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Your story is consistent across all chapters.
+                    {t('projectPage.consistency.noIssuesDesc')}
                   </p>
                 </div>
               ) : (
@@ -3434,7 +3434,13 @@ export default function ProjectDetail() {
                               ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
                               : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                           }`}>
-                            {issue.type.toUpperCase()}
+                            {issue.type === 'character'
+                              ? t('projectPage.consistency.typeCharacter').toUpperCase()
+                              : issue.type === 'location'
+                              ? t('projectPage.consistency.typeLocation').toUpperCase()
+                              : issue.type === 'timeline'
+                              ? t('projectPage.consistency.typeTimeline').toUpperCase()
+                              : t('projectPage.consistency.typeOther').toUpperCase()}
                           </span>
                           {issue.entity_name && (
                             <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -3450,7 +3456,7 @@ export default function ProjectDetail() {
 
                       {issue.chapter_references && issue.chapter_references.length > 0 && (
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">Referenced chapters:</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{t('projectPage.consistency.referencedChapters')}</span>
                           <div className="flex flex-wrap gap-1">
                             {issue.chapter_references.map((ref: string, i: number) => (
                               <span
@@ -3469,7 +3475,7 @@ export default function ProjectDetail() {
                           <div className="flex items-start gap-2">
                             <Lightbulb className="w-4 h-4 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0" />
                             <p className="text-sm text-gray-700 dark:text-gray-300">
-                              <strong>Suggestion:</strong> {issue.suggestion}
+                              <strong>{t('projectPage.consistency.suggestion')}</strong> {issue.suggestion}
                             </p>
                           </div>
                         </div>

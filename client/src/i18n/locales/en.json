@@ -453,6 +453,28 @@
       "optionalFields": "All fields are optional. You can leave them blank if you don't have this information.",
       "cancel": "Cancel",
       "generate": "Generate EPUB"
+    },
+    "plotHoles": {
+      "title": "Plot Hole Detection Results",
+      "issue_one": "{{count}} issue found",
+      "issue_other": "{{count}} issues found",
+      "noIssuesTitle": "No Plot Holes Detected!",
+      "noIssuesDesc": "Your story appears to be consistent and well-structured.",
+      "referencedChapters": "Referenced chapters:",
+      "suggestion": "Suggestion:"
+    },
+    "consistency": {
+      "title": "Consistency Check Results",
+      "issue_one": "{{count}} issue found",
+      "issue_other": "{{count}} issues found",
+      "noIssuesTitle": "No Inconsistencies Detected!",
+      "noIssuesDesc": "Your story is consistent across all chapters.",
+      "referencedChapters": "Referenced chapters:",
+      "suggestion": "Suggestion:",
+      "typeCharacter": "character",
+      "typeLocation": "location",
+      "typeTimeline": "timeline",
+      "typeOther": "other"
     }
   },
   "common": {

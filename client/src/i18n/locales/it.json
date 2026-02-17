@@ -453,6 +453,28 @@
       "optionalFields": "Tutti i campi sono opzionali. Puoi lasciarli vuoti se non hai queste informazioni.",
       "cancel": "Annulla",
       "generate": "Genera EPUB"
+    },
+    "plotHoles": {
+      "title": "Risultati Rilevamento Buchi di Trama",
+      "issue_one": "{{count}} problema trovato",
+      "issue_other": "{{count}} problemi trovati",
+      "noIssuesTitle": "Nessun Buco di Trama Rilevato!",
+      "noIssuesDesc": "La tua storia sembra coerente e ben strutturata.",
+      "referencedChapters": "Capitoli referenziati:",
+      "suggestion": "Suggerimento:"
+    },
+    "consistency": {
+      "title": "Risultati Verifica Coerenza",
+      "issue_one": "{{count}} problema trovato",
+      "issue_other": "{{count}} problemi trovati",
+      "noIssuesTitle": "Nessuna Incoerenza Rilevata!",
+      "noIssuesDesc": "La tua storia è coerente in tutti i capitoli.",
+      "referencedChapters": "Capitoli referenziati:",
+      "suggestion": "Suggerimento:",
+      "typeCharacter": "personaggio",
+      "typeLocation": "luogo",
+      "typeTimeline": "timeline",
+      "typeOther": "altro"
     }
   },
   "common": {
