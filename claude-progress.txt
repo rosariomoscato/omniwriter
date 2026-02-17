@@ -1,5 +1,63 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #252 Implementation
+
+### Completed Features: 252/252 (100%)
+
+### Feature #252: Fix Synopsis Not Being Saved - Add Debug Logging
+
+**Objective:** The synopsis is not being saved even when novel analysis succeeds. Analysis shows that "Robocrazia Episodio 2" has 19 characters, 23 locations, 63 events extracted, but synopsis is empty. Need to add verbose logging to debug the issue.
+
+**Problems Identified:**
+1. Missing log for synopsis extraction in analyzeNovelWithAI() - only logs characters/locations/events
+2. AI may not be returning synopsis in JSON response
+3. Need to verify if synopsis is being extracted from AI response and saved to database
+
+**Implementation:**
+
+#### 1. Added Raw AI Response Logging (server/src/routes/projects.ts)
+- Added logging of first 500 chars of raw AI response per chunk
+- Helps verify if AI is actually returning synopsis in the JSON response
+
+#### 2. Added Synopsis Extraction Logging in parseNovelAnalysisResponse()
+- Added log to show if synopsis was found in parsed JSON and its length
+- Format: `[NovelAnalysis] parseNovelAnalysisResponse - synopsis found: YES (123 chars)` or `NO`
+
+#### 3. Added Synopsis Consolidation Logging in analyzeNovelWithAI()
+- Added log showing how many chunks returned synopsis vs total chunks
+- Added per-chunk synopsis length logging
+- Added warning when no synopsis was extracted from any chunk
+
+#### 4. Added Synopsis Save Logging in analyze-novel Endpoint
+- Added log before save attempt showing synopsis length or "EMPTY"
+- Added success log when synopsis saved to database
+- Added warning when synopsis is empty (not saving)
+
+#### 5. Fixed CORS for Development (server/src/index.ts)
+- Updated CORS to allow any localhost port (3000, 3001, 3002, etc.)
+- Previous CORS only allowed port 3000, causing issues with Vite's port rotation
+
+**Debug Logging Points Added:**
+1. Raw AI response (first 500 chars) - Line ~1331
+2. Parsed synopsis status per chunk - Line ~1334
+3. Synopsis found in JSON (YES/NO + length) - Line ~1108
+4. Synopsis consolidation summary - Lines ~1355-1358
+5. Synopsis save status (EMPTY/chars saved) - Line ~1642
+6. Synopsis save success/failure - Lines ~1646, ~1648, ~1651
+
+**Note:** Regex fallback does NOT generate synopsis (returns empty string). This is expected behavior - only AI-based analysis can generate synopsis. The debug logging helps identify whether:
+1. AI is not returning synopsis in JSON response
+2. Synopsis is being parsed but lost during consolidation
+3. Synopsis is being extracted but not saved to database
+
+**Files Modified:**
+- server/src/routes/projects.ts (debug logging for synopsis extraction and save)
+- server/src/index.ts (CORS fix for any localhost port)
+
+### Commit: 1346c27
+
+---
+
 ## Session: 2026-02-17 - Feature #251 Implementation
 
 ### Completed Features: 251/251 (100%)
