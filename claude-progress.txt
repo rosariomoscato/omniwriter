@@ -1,5 +1,69 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #246 Implementation
+
+### Completed Features: 246/246 (100%)
+
+### Feature #246: Complete i18n for Plot Holes and Consistency features
+
+**Objective:** Le funzionalità "Rileva Buchi di Trama" e "Verifica Coerenza" restituivano messaggi hardcoded in inglese sia dal frontend che dal backend. Il backend doveva ricevere il parametro lingua dal frontend e restituire i messaggi nella lingua corretta.
+
+**Implementation:**
+
+#### 1. Created Backend Localization Module (server/src/locales/index.ts)
+- Created new module with translation helper functions
+- Defined Language type ('it' | 'en')
+- Added translation keys for all analysis message types:
+  - Character disappearance/reappearance messages
+  - Timeline inconsistency messages
+  - Unexplained plot development messages
+  - Logical contradiction messages
+  - Resolution gap messages
+  - Character/location description consistency messages
+  - Character trait consistency messages
+
+#### 2. Updated Backend API Endpoints (server/src/routes/projects.ts)
+- `POST /api/projects/:id/detect-plot-holes`:
+  - Added language parameter extraction from request body or Accept-Language header
+  - Pass language to all analysis helper functions
+- `POST /api/projects/:id/check-consistency`:
+  - Added language parameter extraction from request body or Accept-Language header
+  - Pass language to all consistency helper functions
+
+#### 3. Updated Analysis Helper Functions
+All helper functions now accept `lang: Language = 'it'` parameter and use `isItalian` flag:
+- `analyzeCharacterConsistency(chapters, characterNames, lang)` - Returns localized messages for character disappearance/reappearance
+- `analyzeTimelineConsistency(chapters, plotEvents, lang)` - Returns localized timeline messages
+- `analyzeUnexplainedDevelopments(chapters, plotEvents, lang)` - Returns localized plot development messages
+- `analyzeLogicalInconsistencies(chapters, fullText, lang)` - Returns localized logical error messages
+- `analyzeResolutionGaps(chapters, lang)` - Returns localized resolution gap messages
+- `analyzeCharacterDescriptionConsistency(chapters, characters, lang)` - Returns localized character consistency messages
+- `analyzeLocationDescriptionConsistency(chapters, locations, lang)` - Returns localized location consistency messages
+- `analyzeCharacterTraitConsistency(chapters, characters, lang)` - Returns localized trait consistency messages
+- `analyzeTimelineContinuity(chapters, lang)` - Returns localized timeline continuity messages
+
+#### 4. Updated Frontend API Calls (client/src/services/api.ts)
+- `detectPlotHoles(projectId, language)` - Now accepts and passes language parameter
+- `checkConsistency(projectId, language)` - Now accepts and passes language parameter
+
+#### 5. Updated Frontend Component (client/src/pages/ProjectDetail.tsx)
+- Added `i18n` to useTranslation destructuring: `const { t, i18n } = useTranslation()`
+- Updated `handleDetectPlotHoles()` to pass `i18n.language` to API
+- Updated `handleCheckConsistency()` to pass `i18n.language` to API
+
+**Feature Test Steps Verified:**
+1. ✅ Created server/src/locales/index.ts with translation helper module
+2. ✅ Modified detect-plot-holes API to accept language parameter
+3. ✅ Modified check-consistency API to accept language parameter
+4. ✅ Updated all helper functions (analyzeCharacterConsistency, analyzeTimelineConsistency, etc.) with isItalian localization
+5. ✅ Updated frontend API calls to pass i18n.language
+6. ✅ Server starts without import errors
+7. ✅ User registration works with new code
+
+### Commit: 477d5fe
+
+---
+
 ## Session: 2026-02-17 - Feature #245 Implementation
 
 ### Completed Features: 245/245 (100%)
