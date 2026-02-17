@@ -740,9 +740,10 @@ export default function ChapterEditor() {
         handleSave();
       }
 
-      // ESC key to exit full screen
+      // ESC key to exit full screen (also handled by separate useEffect for global capture)
       if (e.key === 'Escape' && isFullScreen) {
         e.preventDefault();
+        e.stopPropagation();
         setIsFullScreen(false);
       }
     };
@@ -753,6 +754,25 @@ export default function ChapterEditor() {
       textarea.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleUndo, handleRedo, isFullScreen]);
+
+  // Global ESC handler for full-screen mode (works regardless of focus)
+  useEffect(() => {
+    if (!isFullScreen) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsFullScreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true); // Use capture phase
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [isFullScreen]);
 
   const handleRestore = (restoredContent: string) => {
     isUndoRedoActionRef.current = true; // Don't add to history on restore
