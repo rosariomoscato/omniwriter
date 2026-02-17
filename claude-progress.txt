@@ -1,5 +1,80 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #237 Implementation
+
+### Completed Features: 237/237 (100%)
+
+### Feature #237: Fix Chapter Editor UI Issues
+
+**Objective:** Correggere quattro problemi critici nell'editor dei capitoli:
+1. **MODALITÀ SCHERMO INTERO**: Il testo esce dai margini dello schermo rendendolo inutilizzabile
+2. **TRADUZIONI MANCANTI**: Molti tooltip e label sono hardcoded in inglese invece di usare i18n
+3. **CRONOLOGIA VERSIONI**: Manca lo scroll quando ci sono molte versioni
+4. **CRONOLOGIA VERSIONI**: Le versioni si duplicano dopo ogni restore
+
+**Implementation:**
+
+#### 1. Fix Fullscreen Mode (client/src/pages/ChapterEditor.tsx)
+- Added `max-w-7xl mx-auto` container class when `isFullScreen` is true
+- Container: `<div className={\`flex-1 ${isFullScreen ? 'max-w-7xl mx-auto' : ''}\`}>`
+- Prevents text from overflowing screen edges in fullscreen mode
+
+#### 2. Fix Missing i18n Translations (client/src/pages/ChapterEditor.tsx)
+- Replaced all hardcoded texts with `t()` calls:
+  - Find & Replace button: `t('chapterEditor.findReplace')`
+  - Undo button: `t('chapterEditor.undo')`
+  - Redo button: `t('chapterEditor.redo')`
+  - Close button: `t('chapterEditor.close')`
+  - Case sensitive: `t('chapterEditor.caseSensitive')`
+  - Replace button: `t('chapterEditor.replaceButton')`
+  - Replace All: `t('chapterEditor.replaceAll')`
+  - Find placeholder: `t('chapterEditor.findPlaceholder')`
+  - Replace placeholder: `t('chapterEditor.replacePlaceholder')`
+  - Find Next/Previous: `t('chapterEditor.findNext')`, `t('chapterEditor.findPrevious')`
+  - Readability Analysis: `t('chapterEditor.readabilityAnalysis')`
+  - Revising/Enhancing: `t('chapterEditor.revising')`, `t('chapterEditor.enhancing')`
+
+#### 3. Added Missing Translation Keys (client/src/i18n/locales/it.json and en.json)
+- Added keys for chapterEditor:
+  - `findPlaceholder`, `replacePlaceholder`, `replaceButton`, `replaceAll`
+  - `noResults`, `findNext`, `findPrevious`, `close`
+  - `readabilityAnalysis`, `revising`, `enhancing`
+  - `versionHistory.title`, `versionHistory.version`, `versionHistory.noVersions`
+  - `versionHistory.selectHint`, `versionHistory.selectForCompare`
+  - `versionHistory.restoreTooltip`, `versionHistory.confirmRestore`
+  - `versionHistory.restoreSuccess`
+
+#### 4. Fix VersionHistory Scroll (client/src/components/VersionHistory.tsx)
+- Added `max-h-[60vh] overflow-y-auto` to versions container
+- Container: `<div className="flex-1 max-h-[60vh] overflow-y-auto pr-2 -mr-2">`
+- Enables scrolling when there are many versions
+
+#### 5. Fix Version Duplication After Restore (client/src/pages/ChapterEditor.tsx)
+- Removed the auto-save call after restore: `setTimeout(() => handleSave(), 100)`
+- The backend restore endpoint already:
+  1. Creates a version of current content before restoring
+  2. Updates the chapter with the restored content
+- Updated refs to prevent auto-save from triggering:
+  - `lastSavedContentRef.current = restoredContent`
+  - `lastSavedTitleRef.current = title`
+  - `setHasUnsavedChanges(false)`
+  - `setLastSaved(new Date())`
+
+#### 6. Added useTranslation to VersionHistory (client/src/components/VersionHistory.tsx)
+- Imported `useTranslation` from 'react-i18next'
+- Replaced all hardcoded strings with `t()` calls
+- Added translations for version history UI
+
+**Feature Test Steps Verified:**
+1. ✅ Fix Fullscreen Mode: Aggiunto max-w-7xl mx-auto p-6 al contenitore dell'editor
+2. ✅ Traduzioni i18n: Sostituiti tutti i testi hardcoded con chiamate t()
+3. ✅ VersionHistory Scroll: Aggiunto max-h-[60vh] overflow-y-auto al contenitore
+4. ✅ Fix Duplicazione Versioni: Verificato che loadVersions() non venga chiamato due volte e che non crei versioni duplicate durante il restore
+
+### Commit: 919abb8
+
+---
+
 ## Session: 2026-02-16 - Feature #235 Implementation
 
 ### Completed Features: 235/235 (100%)
