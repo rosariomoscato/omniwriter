@@ -1,5 +1,40 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #3 Verification
+
+### Completed Features: 243/244 (99.6%)
+
+### Feature #3: Data persists across server restart
+
+**Objective:** Verify data created via the API survives a complete server stop and restart.
+
+**Test Steps Executed:**
+
+1. ✅ Started the development server on port 4000
+2. ✅ Created a test user via POST /api/auth/register:
+   - Email: `restart_test_unique_2026@example.com`
+   - Password: `Test1234!`
+   - User ID: `28e94883-3239-4e9b-92a8-7bfb888cccfe`
+3. ✅ Verified user appears via API (login successful)
+4. ✅ STOPPED the server completely (`kill -9` on port 4000 process)
+5. ✅ Verified server is stopped (health check returns nothing)
+6. ✅ RESTARTED the server (`npm run dev`)
+7. ✅ Login with same credentials - SUCCESS!
+   - Same user ID returned
+   - Same email, name, role, preferences
+   - New token issued correctly
+
+**Result:** Data persists across server restart. The SQLite database at `server/data/omniwriter.db` correctly stores all data, and no in-memory mock implementations are used.
+
+**Mock Data Detection:**
+- No `globalThis.devStore` or similar patterns found
+- No `dev-store`, `mockDb`, `mockData`, `fakeData` patterns in production code
+- Database connection confirmed via health check
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-17 - Feature #244 Implementation
 
 ### Completed Features: 244/244 (100%)
