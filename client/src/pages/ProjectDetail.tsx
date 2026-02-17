@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink, Loader2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -748,12 +748,15 @@ export default function ProjectDetail() {
   const handleViewSynopsis = async () => {
     if (!id) return;
 
+    // Open modal immediately to provide feedback to user
+    setShowSynopsisModal(true);
+    setLoadingSynopsis(true);
+    setSynopsisError('');
+    setSynopsisContent(''); // Clear previous content
+
     try {
-      setLoadingSynopsis(true);
-      setSynopsisError('');
       const response = await apiService.getSynopsis(id);
       setSynopsisContent(response.synopsis);
-      setShowSynopsisModal(true);
     } catch (err: any) {
       console.error('Failed to load synopsis:', err);
       setSynopsisError(t('projectPage.synopsis.errorLoading'));
@@ -3658,7 +3661,12 @@ export default function ProjectDetail() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {synopsisError ? (
+              {loadingSynopsis ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-12 h-12 text-teal-600 dark:text-teal-400 mx-auto mb-4 animate-spin" />
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">{t('projectPage.synopsis.loading')}</p>
+                </div>
+              ) : synopsisError ? (
                 <div className="text-center py-8">
                   <p className="text-red-600 dark:text-red-400">{synopsisError}</p>
                 </div>
