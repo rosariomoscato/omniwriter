@@ -1,5 +1,52 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #251 Implementation
+
+### Completed Features: 251/251 (100%)
+
+### Feature #251: Fix Synopsis Modal - Show modal even on API error
+
+**Objective:** The Synopsis modal did not open when the API call failed. The `setShowSynopsisModal(true)` was only called after a successful API response. If the API failed (404, 500, etc.), the modal never opened, leaving users without any feedback.
+
+**Implementation:**
+
+#### 1. Updated handleViewSynopsis() (client/src/pages/ProjectDetail.tsx)
+- Moved `setShowSynopsisModal(true)` to the beginning of the function (before API call)
+- Modal now opens immediately when user clicks the button
+- Cleared previous content with `setSynopsisContent('')` to avoid stale data
+- Kept error handling to display errors inside the modal
+
+#### 2. Added Loading State to Modal (client/src/pages/ProjectDetail.tsx)
+- Added `Loader2` icon import from lucide-react
+- Added loading condition as first check in modal content
+- Shows spinning loader with "Loading synopsis..." message while fetching
+- Loading state takes precedence over error and empty states
+
+#### 3. Modal Content Display Order
+Now the modal displays content in this priority:
+1. Loading spinner (while `loadingSynopsis` is true)
+2. Error message (if `synopsisError` is set)
+3. Synopsis content (if `synopsisContent` exists)
+4. Empty state (no synopsis available)
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created new user account (test251@test.com)
+2. ✅ Created Romanziere project "Test Synopsis Modal 251"
+3. ✅ Clicked "Leggi Sinossi" button
+4. ✅ Modal opened immediately even though no synopsis exists
+5. ✅ Modal showed "Impossibile caricare la sinossi" error (404 from API)
+6. ✅ Modal displays correctly in light mode
+7. ✅ Modal displays correctly in dark mode
+8. ✅ Close button works correctly
+9. ✅ Zero console errors (except expected 404 API response)
+
+**Files Modified:**
+- client/src/pages/ProjectDetail.tsx (handleViewSynopsis, modal content, Loader2 import)
+
+### Commit: 0f66af2
+
+---
+
 ## Session: 2026-02-17 - Feature #250 Implementation
 
 ### Completed Features: 250/250 (100%)
