@@ -1,5 +1,51 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #245 Implementation
+
+### Completed Features: 245/245 (100%)
+
+### Feature #245: Translate Plot Holes and Consistency modals
+
+**Objective:** I modal di "Rileva Buchi di Trama" (Plot Hole Detection) e "Verifica Coerenza" (Consistency Check) mostravano tutto il contenuto in inglese hardcoded invece di usare le traduzioni i18n.
+
+**Implementation:**
+
+#### 1. Added Italian Translations (client/src/i18n/locales/it.json)
+Added `projectPage.plotHoles` and `projectPage.consistency` sections:
+- `plotHoles.title`: "Risultati Rilevamento Buchi di Trama"
+- `plotHoles.issue_one/other`: "{{count}} problema/i trovato/i"
+- `plotHoles.noIssuesTitle`: "Nessun Buco di Trama Rilevato!"
+- `plotHoles.noIssuesDesc`: "La tua storia sembra coerente e ben strutturata."
+- `plotHoles.referencedChapters`: "Capitoli referenziati:"
+- `plotHoles.suggestion`: "Suggerimento:"
+- `consistency.title`: "Risultati Verifica Coerenza"
+- `consistency.noIssuesTitle`: "Nessuna Incoerenza Rilevata!"
+- `consistency.noIssuesDesc`: "La tua storia è coerente in tutti i capitoli."
+- `consistency.typeCharacter/Location/Timeline/Other`: "personaggio", "luogo", "timeline", "altro"
+
+#### 2. Added English Translations (client/src/i18n/locales/en.json)
+Added matching translations in English with proper pluralization.
+
+#### 3. Updated ProjectDetail.tsx (lines 3271-3488)
+- Replaced all hardcoded strings with t() calls:
+  - Modal titles
+  - Issue count display (with proper pluralization)
+  - Empty state messages
+  - "Referenced chapters:" labels
+  - "Suggestion:" labels
+  - Issue type badges (character/location/timeline/other)
+
+**Feature Test Steps Verified:**
+1. ✅ Added translations in it.json under projectPage.plotHoles and projectPage.consistency
+2. ✅ Added corresponding translations in en.json
+3. ✅ Replaced hardcoded strings in Plot Hole Detection modal (lines 3271-3377)
+4. ✅ Replaced hardcoded strings in Consistency Check modal (lines 3379-3488)
+5. ✅ Vite HMR reloaded files without errors
+
+### Commit: 24947c9
+
+---
+
 ## Session: 2026-02-17 - Feature #3 Verification
 
 ### Completed Features: 243/244 (99.6%)
