@@ -396,6 +396,17 @@
       "confirmDelete": "Sei sicuro di voler eliminare questo personaggio?",
       "deleteTitle": "Elimina Personaggio"
     },
+    "analyzeNovelForm": {
+      "title": "Analizza Romanzo per Personaggi, Luoghi ed Eventi di Trama",
+      "description": "Carica un file romanzo (TXT, DOCX o PDF) e il sistema estrarrà automaticamente personaggi, luoghi ed eventi di trama.",
+      "uploadText": "Clicca per caricare o trascina",
+      "analyzing": "Analisi in corso...",
+      "formatHint": "TXT, DOCX, PDF (Max 10MB)",
+      "analyzeButton": "Analizza Romanzo",
+      "cancelButton": "Annulla",
+      "successMessage": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama estratti",
+      "errorMessage": "Impossibile analizzare il romanzo. Riprova."
+    },
     "locations": {
       "title": "Luoghi",
       "noLocations": "Nessun luogo ancora",

@@ -694,7 +694,7 @@ export default function ProjectDetail() {
     e.preventDefault();
 
     if (!novelFile) {
-      setError('Please select a file to analyze');
+      setError(t('projectPage.analyzeNovelForm.errorMessage'));
       return;
     }
 
@@ -703,7 +703,11 @@ export default function ProjectDetail() {
       setError('');
       const response = await apiService.analyzeNovel(id!, novelFile);
 
-      toast.success(`Novel analyzed: ${response.extracted.characters} characters, ${response.extracted.locations} locations, ${response.extracted.plotEvents} plot events`);
+      toast.success(t('projectPage.analyzeNovelForm.successMessage', {
+        characters: response.extracted.characters,
+        locations: response.extracted.locations,
+        plotEvents: response.extracted.plotEvents
+      }));
 
       // Reload characters, locations, and plot events
       await Promise.all([
@@ -715,7 +719,7 @@ export default function ProjectDetail() {
       setShowAnalyzeNovel(false);
       setNovelFile(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to analyze novel');
+      setError(err.message || t('projectPage.analyzeNovelForm.errorMessage'));
     } finally {
       setAnalyzingNovel(false);
     }
@@ -2629,10 +2633,10 @@ export default function ProjectDetail() {
           {showAnalyzeNovel && (
             <form onSubmit={handleAnalyzeNovel} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/20">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Analyze Novel for Characters, Locations & Plot Events
+                {t('projectPage.analyzeNovelForm.title')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Upload a novel file (TXT or DOCX) and the system will extract characters, locations, and plot events automatically.
+                {t('projectPage.analyzeNovelForm.description')}
               </p>
               <div className="space-y-3">
                 <label className="flex-1">
@@ -2640,16 +2644,16 @@ export default function ProjectDetail() {
                     <div className="flex flex-col items-center">
                       <FileText className="w-8 h-8 text-gray-400 mb-2" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {analyzingNovel ? 'Analyzing...' : novelFile ? novelFile.name : 'Click to upload or drag and drop'}
+                        {analyzingNovel ? t('projectPage.analyzeNovelForm.analyzing') : novelFile ? novelFile.name : t('projectPage.analyzeNovelForm.uploadText')}
                       </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        TXT, DOCX (Max 10MB)
+                        {t('projectPage.analyzeNovelForm.formatHint')}
                       </span>
                     </div>
                     <input
                       type="file"
                       className="hidden"
-                      accept=".txt,.docx,.doc"
+                      accept=".txt,.docx,.doc,.pdf"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) setNovelFile(file);
@@ -2664,7 +2668,7 @@ export default function ProjectDetail() {
                     disabled={analyzingNovel || !novelFile}
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    {analyzingNovel ? 'Analyzing...' : 'Analyze Novel'}
+                    {analyzingNovel ? t('projectPage.analyzeNovelForm.analyzing') : t('projectPage.analyzeNovelForm.analyzeButton')}
                   </button>
                   <button
                     type="button"
@@ -2675,7 +2679,7 @@ export default function ProjectDetail() {
                     }}
                     className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Cancel
+                    {t('projectPage.analyzeNovelForm.cancelButton')}
                   </button>
                 </div>
               </div>

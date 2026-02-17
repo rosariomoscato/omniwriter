@@ -15,19 +15,20 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (_req, file, cb) => {
-    // Accept DOCX and TXT files
+    // Accept DOCX, DOC, TXT, and PDF files
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'text/plain', // .txt
       'application/msword', // .doc (legacy)
+      'application/pdf', // .pdf
     ];
-    const allowedExtensions = ['.docx', '.txt', '.doc'];
+    const allowedExtensions = ['.docx', '.txt', '.doc', '.pdf'];
     const fileExtension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
 
     if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error('Only DOCX, DOC, and TXT files are allowed'));
+      cb(new Error('Only DOCX, DOC, TXT, and PDF files are allowed'));
     }
   },
 });
@@ -833,8 +834,30 @@ router.delete('/:id/tags/:tagName', authenticateToken, (req: AuthRequest, res: R
 
 // Helper function to extract text from uploaded file
 async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<string> {
-  if (file.mimetype === 'text/plain' || file.originalname.toLowerCase().endsWith('.txt')) {
+  const fileExtension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+
+  if (file.mimetype === 'text/plain' || fileExtension === '.txt') {
     return file.buffer.toString('utf-8');
+  } else if (file.mimetype === 'application/pdf' || fileExtension === '.pdf') {
+    // Extract text from PDF using pdf2json
+    const PDFParser = (await import('pdf2json')).default;
+    return new Promise((resolve, reject) => {
+      const pdfParser = new (PDFParser as any)(null, 1);
+      pdfParser.on('pdfParser_dataError', (errData: any) => {
+        console.error('[Projects] PDF parsing error:', errData.parserError);
+        reject(new Error('Failed to parse PDF file'));
+      });
+      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        // Extract text from all pages
+        const text = pdfData.Pages.map((page: any) =>
+          page.Texts.map((text: any) =>
+            decodeURIComponent(text.R[0].T)
+          ).join(' ')
+        ).join('\n');
+        resolve(text);
+      });
+      pdfParser.parseBuffer(file.buffer);
+    });
   } else {
     // For DOCX, extract text (basic implementation)
     const text = file.buffer.toString('utf-8');

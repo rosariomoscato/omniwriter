@@ -396,6 +396,17 @@
       "confirmDelete": "Are you sure you want to delete this character?",
       "deleteTitle": "Delete Character"
     },
+    "analyzeNovelForm": {
+      "title": "Analyze Novel for Characters, Locations & Plot Events",
+      "description": "Upload a novel file (TXT, DOCX, or PDF) and the system will extract characters, locations, and plot events automatically.",
+      "uploadText": "Click to upload or drag and drop",
+      "analyzing": "Analyzing...",
+      "formatHint": "TXT, DOCX, PDF (Max 10MB)",
+      "analyzeButton": "Analyze Novel",
+      "cancelButton": "Cancel",
+      "successMessage": "Novel analyzed: {{characters}} characters, {{locations}} locations, {{plotEvents}} plot events extracted",
+      "errorMessage": "Failed to analyze novel. Please try again."
+    },
     "locations": {
       "title": "Locations",
       "noLocations": "No locations yet",
