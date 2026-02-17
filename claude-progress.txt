@@ -1,5 +1,75 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #247 Implementation
+
+### Completed Features: 247/247 (100%)
+
+### Feature #247: Complete i18n and PDF support for Analyze Novel feature
+
+**Objective:** La funzione "Analizza Romanzo" aveva diversi problemi:
+1. Traduzioni mancanti nel frontend - tutti i testi erano hardcoded in inglese
+2. Supporto PDF mancante nel backend - Multer accettava solo DOCX, DOC, TXT
+3. I messaggi di successo/errore non erano tradotti
+
+**Implementation:**
+
+#### 1. Backend - PDF Support in Multer (server/src/routes/projects.ts)
+- Updated fileFilter to accept `application/pdf` mimetype
+- Added `.pdf` to allowedExtensions array
+- Updated error message to include PDF
+
+#### 2. Backend - PDF Text Extraction (server/src/routes/projects.ts)
+- Updated `extractTextFromUploadedFile()` to handle PDF files
+- Used pdf2json (already installed) to parse PDF content
+- Implemented Promise-based async parsing with error handling
+- Extracts text from all pages using pdfParser.parseBuffer()
+
+#### 3. Frontend - Italian Translations (client/src/i18n/locales/it.json)
+Added `projectPage.analyzeNovelForm` section:
+- `title`: "Analizza Romanzo per Personaggi, Luoghi ed Eventi di Trama"
+- `description`: "Carica un file romanzo (TXT, DOCX o PDF)..."
+- `uploadText`: "Clicca per caricare o trascina"
+- `analyzing`: "Analisi in corso..."
+- `formatHint`: "TXT, DOCX, PDF (Max 10MB)"
+- `analyzeButton`: "Analizza Romanzo"
+- `cancelButton`: "Annulla"
+- `successMessage`: "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama estratti"
+- `errorMessage`: "Impossibile analizzare il romanzo. Riprova."
+
+#### 4. Frontend - English Translations (client/src/i18n/locales/en.json)
+Added matching translations in English.
+
+#### 5. Frontend - Component Updates (client/src/pages/ProjectDetail.tsx)
+- Replaced all hardcoded strings with t() calls
+- Updated file input accept attribute: `.txt,.docx,.doc,.pdf`
+- Updated toast messages to use i18n with interpolation for counts
+- Updated error messages to use translations
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created new Romanziere project "Test Analyze Feature"
+2. ✅ Clicked "Analizza Romanzo" button - form appeared
+3. ✅ Verified Italian translations:
+   - Title: "Analizza Romanzo per Personaggi, Luoghi ed Eventi di Trama"
+   - Description includes PDF: "(TXT, DOCX o PDF)"
+   - Format hint: "TXT, DOCX, PDF (Max 10MB)"
+   - Buttons translated correctly
+4. ✅ Switched to English - verified all translations
+5. ✅ Screenshots captured for visual verification
+
+**Feature Test Steps Verified:**
+1. ✅ Installare pdf-parse nel backend (already had pdf2json installed)
+2. ✅ Aggiornare Multer fileFilter per accettare PDF
+3. ✅ Aggiornare extractTextFromUploadedFile per estrarre testo dai PDF
+4. ✅ Aggiungere traduzioni nel file it.json
+5. ✅ Aggiungere traduzioni corrispondenti nel file en.json
+6. ✅ Sostituire tutte le stringhe hardcoded con chiamate t()
+7. ✅ Aggiornare accept per includere .pdf
+8. ✅ Aggiornare il format hint per includere PDF
+
+### Commit: 8275b8a
+
+---
+
 ## Session: 2026-02-17 - Feature #246 Implementation
 
 ### Completed Features: 246/246 (100%)
