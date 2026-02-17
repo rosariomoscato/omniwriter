@@ -1034,7 +1034,7 @@ class ApiService {
     });
   }
 
-  async analyzeNovel(projectId: string, file: File): Promise<{
+  async analyzeNovel(projectId: string, file: File, language: 'it' | 'en' = 'it'): Promise<{
     message: string;
     extracted: {
       characters: number;
@@ -1044,6 +1044,7 @@ class ApiService {
   }> {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('language', language);
     return this.request<{
       message: string;
       extracted: { characters: number; locations: number; plotEvents: number };

@@ -4,6 +4,8 @@ import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { Language } from '../locales';
+import { getProviderForUser } from '../services/ai-service';
+import { ChatMessage } from '../services/ai';
 // import * as mammoth from 'mammoth'; // Temporarily disabled - package not installed
 
 const router = Router();
@@ -869,6 +871,462 @@ async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<s
   }
 }
 
+// ============================================================================
+// AI-Based Novel Analysis (Feature #249)
+// Replaces regex-based extraction with intelligent AI analysis
+// ============================================================================
+
+/**
+ * Maximum characters per chunk for AI analysis
+ */
+const MAX_ANALYSIS_CHUNK_SIZE = 12000;
+
+/**
+ * Split text into chunks for AI processing
+ */
+function chunkTextForAnalysis(text: string, maxSize: number = MAX_ANALYSIS_CHUNK_SIZE): string[] {
+  if (text.length <= maxSize) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxSize) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Try to find a good break point (end of paragraph or sentence)
+    let breakPoint = remaining.lastIndexOf('\n\n', maxSize);
+    if (breakPoint < maxSize * 0.5) {
+      breakPoint = remaining.lastIndexOf('.\n', maxSize);
+    }
+    if (breakPoint < maxSize * 0.5) {
+      breakPoint = remaining.lastIndexOf('. ', maxSize);
+    }
+    if (breakPoint < maxSize * 0.5) {
+      breakPoint = remaining.lastIndexOf(' ', maxSize);
+    }
+    if (breakPoint < maxSize * 0.3) {
+      breakPoint = maxSize; // Force break if no good point found
+    }
+
+    chunks.push(remaining.substring(0, breakPoint + 1));
+    remaining = remaining.substring(breakPoint + 1).trim();
+  }
+
+  return chunks;
+}
+
+/**
+ * Build the AI prompt for novel analysis based on language
+ */
+function buildNovelAnalysisPrompt(chunk: string, language: 'it' | 'en'): { systemPrompt: string; userPrompt: string } {
+  const isItalian = language === 'it';
+
+  if (isItalian) {
+    return {
+      systemPrompt: `Sei un esperto analista letterario specializzato nell'estrazione di personaggi, luoghi ed eventi di trama dai romanzi.
+Il tuo compito è analizzare il testo fornito ed estrarre TUTTI i personaggi, luoghi ed eventi di trama significativi.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.
+Ogni entità deve avere descrizioni basate ESCLUSIVAMENTE sul testo fornito.`,
+      userPrompt: `Analizza il seguente estratto di un romanzo ed estrai personaggi, luoghi ed eventi di trama.
+
+TESTO:
+"""
+${chunk}
+"""
+
+Rispondi con un JSON con la seguente struttura:
+{
+  "characters": [
+    {
+      "name": "Nome completo del personaggio",
+      "description": "Descrizione fisica e comportamentale basata sul testo",
+      "role_in_story": "Ruolo nella storia (es: protagonista, antagonista, comprimario)",
+      "traits": "Tratti caratteriali emersi dal testo",
+      "backstory": "Eventi passati menzionati nel testo"
+    }
+  ],
+  "locations": [
+    {
+      "name": "Nome del luogo",
+      "description": "Descrizione del luogo basata sul testo",
+      "significance": "Importanza nella narrazione"
+    }
+  ],
+  "plotEvents": [
+    {
+      "title": "Titolo breve dell'evento",
+      "description": "Descrizione dettagliata dell'accaduto",
+      "event_type": "Tipo (es: plot_event, character_introduction, conflict, resolution, turning_point)"
+    }
+  ]
+}
+
+IMPORTANTE:
+- Estrai SOLO entità che appaiono chiaramente nel testo fornito
+- Non inventare informazioni non presenti nel testo
+- I nomi dei personaggi devono essere coerenti (usa lo stesso nome per lo stesso personaggio)
+- Se non trovi entità di un tipo, restituisci un array vuoto per quel tipo`
+    };
+  }
+
+  return {
+    systemPrompt: `You are an expert literary analyst specializing in extracting characters, locations, and plot events from novels.
+Your task is to analyze the provided text and extract ALL significant characters, locations, and plot events.
+Respond ONLY with valid JSON, no additional text.
+Each entity must have descriptions based EXCLUSIVELY on the provided text.`,
+    userPrompt: `Analyze the following novel excerpt and extract characters, locations, and plot events.
+
+TEXT:
+"""
+${chunk}
+"""
+
+Respond with JSON in the following structure:
+{
+  "characters": [
+    {
+      "name": "Full character name",
+      "description": "Physical and behavioral description based on the text",
+      "role_in_story": "Role in the story (e.g., protagonist, antagonist, supporting)",
+      "traits": "Character traits that emerge from the text",
+      "backstory": "Past events mentioned in the text"
+    }
+  ],
+  "locations": [
+    {
+      "name": "Location name",
+      "description": "Description of the location based on the text",
+      "significance": "Importance in the narrative"
+    }
+  ],
+  "plotEvents": [
+    {
+      "title": "Brief title of the event",
+      "description": "Detailed description of what happened",
+      "event_type": "Type (e.g., plot_event, character_introduction, conflict, resolution, turning_point)"
+    }
+  ]
+}
+
+IMPORTANT:
+- Extract ONLY entities that clearly appear in the provided text
+- Do not invent information not present in the text
+- Character names should be consistent (use the same name for the same character)
+- If you find no entities of a type, return an empty array for that type`
+  };
+}
+
+/**
+ * Parsed entity types from AI response
+ */
+interface ParsedCharacter {
+  name: string;
+  description: string;
+  role_in_story: string;
+  traits: string;
+  backstory: string;
+}
+
+interface ParsedLocation {
+  name: string;
+  description: string;
+  significance: string;
+}
+
+interface ParsedPlotEvent {
+  title: string;
+  description: string;
+  event_type: string;
+}
+
+interface ParsedAnalysis {
+  characters: ParsedCharacter[];
+  locations: ParsedLocation[];
+  plotEvents: ParsedPlotEvent[];
+}
+
+/**
+ * Parse AI response for novel analysis
+ */
+function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
+  const defaultResult: ParsedAnalysis = {
+    characters: [],
+    locations: [],
+    plotEvents: []
+  };
+
+  try {
+    // Try to extract JSON from the response
+    let jsonStr = response;
+
+    // If response contains markdown code blocks, extract the JSON
+    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1];
+    }
+
+    // Parse the JSON
+    const parsed = JSON.parse(jsonStr);
+
+    return {
+      characters: (parsed.characters || []).map((c: any) => ({
+        name: String(c.name || '').trim(),
+        description: String(c.description || '').trim(),
+        role_in_story: String(c.role_in_story || '').trim(),
+        traits: String(c.traits || '').trim(),
+        backstory: String(c.backstory || '').trim()
+      })).filter((c: ParsedCharacter) => c.name.length > 0),
+      locations: (parsed.locations || []).map((l: any) => ({
+        name: String(l.name || '').trim(),
+        description: String(l.description || '').trim(),
+        significance: String(l.significance || '').trim()
+      })).filter((l: ParsedLocation) => l.name.length > 0),
+      plotEvents: (parsed.plotEvents || parsed.plot_events || []).map((e: any) => ({
+        title: String(e.title || '').trim(),
+        description: String(e.description || '').trim(),
+        event_type: String(e.event_type || e.eventType || 'plot_event').trim()
+      })).filter((e: ParsedPlotEvent) => e.title.length > 0)
+    };
+  } catch (error) {
+    console.error('[NovelAnalysis] Failed to parse AI response:', error);
+    console.error('[NovelAnalysis] Response was:', response.substring(0, 500));
+    return defaultResult;
+  }
+}
+
+/**
+ * Normalize a name for comparison (lowercase, remove accents, etc.)
+ */
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric
+    .trim();
+}
+
+/**
+ * Calculate similarity between two strings (0-1)
+ */
+function stringSimilarity(a: string, b: string): number {
+  const normA = normalizeName(a);
+  const normB = normalizeName(b);
+
+  if (normA === normB) return 1;
+  if (normA.includes(normB) || normB.includes(normA)) return 0.8;
+
+  // Simple character overlap similarity
+  const charsA = new Set(normA.split(''));
+  const charsB = new Set(normB.split(''));
+  const intersection = new Set([...charsA].filter(x => charsB.has(x)));
+  const union = new Set([...charsA, ...charsB]);
+
+  return intersection.size / union.size;
+}
+
+/**
+ * Deduplicate characters by merging similar ones
+ */
+function deduplicateCharacters(characters: ParsedCharacter[]): ParsedCharacter[] {
+  const merged: ParsedCharacter[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < characters.length; i++) {
+    if (used.has(i)) continue;
+
+    const current = { ...characters[i] };
+
+    // Find similar characters
+    for (let j = i + 1; j < characters.length; j++) {
+      if (used.has(j)) continue;
+
+      const similarity = stringSimilarity(current.name, characters[j].name);
+      if (similarity > 0.7) {
+        // Merge character j into current
+        if (characters[j].description && !current.description.includes(characters[j].description)) {
+          current.description = current.description
+            ? `${current.description} ${characters[j].description}`
+            : characters[j].description;
+        }
+        if (characters[j].role_in_story && !current.role_in_story) {
+          current.role_in_story = characters[j].role_in_story;
+        }
+        if (characters[j].traits && !current.traits.includes(characters[j].traits)) {
+          current.traits = current.traits
+            ? `${current.traits}, ${characters[j].traits}`
+            : characters[j].traits;
+        }
+        if (characters[j].backstory && !current.backstory.includes(characters[j].backstory)) {
+          current.backstory = current.backstory
+            ? `${current.backstory} ${characters[j].backstory}`
+            : characters[j].backstory;
+        }
+        used.add(j);
+      }
+    }
+
+    merged.push(current);
+    used.add(i);
+  }
+
+  return merged;
+}
+
+/**
+ * Deduplicate locations by merging similar ones
+ */
+function deduplicateLocations(locations: ParsedLocation[]): ParsedLocation[] {
+  const merged: ParsedLocation[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < locations.length; i++) {
+    if (used.has(i)) continue;
+
+    const current = { ...locations[i] };
+
+    // Find similar locations
+    for (let j = i + 1; j < locations.length; j++) {
+      if (used.has(j)) continue;
+
+      const similarity = stringSimilarity(current.name, locations[j].name);
+      if (similarity > 0.7) {
+        // Merge location j into current
+        if (locations[j].description && !current.description.includes(locations[j].description)) {
+          current.description = current.description
+            ? `${current.description} ${locations[j].description}`
+            : locations[j].description;
+        }
+        if (locations[j].significance && !current.significance) {
+          current.significance = locations[j].significance;
+        }
+        used.add(j);
+      }
+    }
+
+    merged.push(current);
+    used.add(i);
+  }
+
+  return merged;
+}
+
+/**
+ * Deduplicate plot events by merging similar ones
+ */
+function deduplicatePlotEvents(events: ParsedPlotEvent[]): ParsedPlotEvent[] {
+  const merged: ParsedPlotEvent[] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < events.length; i++) {
+    if (used.has(i)) continue;
+
+    const current = { ...events[i] };
+
+    // Find similar events
+    for (let j = i + 1; j < events.length; j++) {
+      if (used.has(j)) continue;
+
+      const similarity = stringSimilarity(current.title, events[j].title);
+      if (similarity > 0.8) {
+        // Merge event j into current - prefer longer descriptions
+        if (events[j].description.length > current.description.length) {
+          current.description = events[j].description;
+        }
+        if (events[j].event_type && events[j].event_type !== 'plot_event') {
+          current.event_type = events[j].event_type;
+        }
+        used.add(j);
+      }
+    }
+
+    merged.push(current);
+    used.add(i);
+  }
+
+  return merged;
+}
+
+/**
+ * Main function to analyze a novel using AI
+ */
+async function analyzeNovelWithAI(
+  novelContent: string,
+  userId: string,
+  language: 'it' | 'en'
+): Promise<ParsedAnalysis> {
+  // Get AI provider for user
+  const provider = getProviderForUser(userId);
+
+  if (!provider) {
+    throw new Error('No AI provider available. Please configure an AI provider in your settings.');
+  }
+
+  console.log(`[NovelAnalysis] Using ${provider.getProviderType()} provider for analysis in ${language}`);
+
+  // Split into chunks if necessary
+  const chunks = chunkTextForAnalysis(novelContent);
+  console.log(`[NovelAnalysis] Split into ${chunks.length} chunk(s)`);
+
+  // Analyze each chunk
+  const allAnalyses: ParsedAnalysis[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`[NovelAnalysis] Analyzing chunk ${i + 1}/${chunks.length}`);
+
+    try {
+      const prompts = buildNovelAnalysisPrompt(chunks[i], language);
+
+      const messages: ChatMessage[] = [
+        { role: 'system', content: prompts.systemPrompt },
+        { role: 'user', content: prompts.userPrompt }
+      ];
+
+      const response = await provider.chat(messages, {
+        temperature: 0.3, // Lower temperature for more consistent extraction
+        maxTokens: 4000
+      });
+
+      const parsed = parseNovelAnalysisResponse(response.content);
+      console.log(`[NovelAnalysis] Chunk ${i + 1} extracted: ${parsed.characters.length} characters, ${parsed.locations.length} locations, ${parsed.plotEvents.length} events`);
+
+      allAnalyses.push(parsed);
+    } catch (chunkError) {
+      console.error(`[NovelAnalysis] Error analyzing chunk ${i + 1}:`, chunkError);
+      // Continue with other chunks
+    }
+  }
+
+  if (allAnalyses.length === 0) {
+    throw new Error('Failed to analyze any text chunks. Please check your AI provider configuration.');
+  }
+
+  // Consolidate results from all chunks
+  const allCharacters = allAnalyses.flatMap(a => a.characters);
+  const allLocations = allAnalyses.flatMap(a => a.locations);
+  const allEvents = allAnalyses.flatMap(a => a.plotEvents);
+
+  console.log(`[NovelAnalysis] Before deduplication: ${allCharacters.length} characters, ${allLocations.length} locations, ${allEvents.length} events`);
+
+  // Deduplicate and merge
+  const dedupedCharacters = deduplicateCharacters(allCharacters);
+  const dedupedLocations = deduplicateLocations(allLocations);
+  const dedupedEvents = deduplicatePlotEvents(allEvents);
+
+  console.log(`[NovelAnalysis] After deduplication: ${dedupedCharacters.length} characters, ${dedupedLocations.length} locations, ${dedupedEvents.length} events`);
+
+  return {
+    characters: dedupedCharacters,
+    locations: dedupedLocations,
+    plotEvents: dedupedEvents
+  };
+}
+
 // Helper function to extract entities using simple pattern matching
 // In production, this would use AI for more accurate extraction
 // Supports both English and Italian text patterns
@@ -995,13 +1453,15 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     const userId = req.user?.id;
     const projectId = req.params.id;
     const file = req.file;
+    // Get language parameter from request body (form field), default to Italian
+    const language = (req.body.language === 'en' ? 'en' : 'it') as 'it' | 'en';
 
     if (!file) {
       res.status(400).json({ message: 'No file uploaded' });
       return;
     }
 
-    console.log('[Projects] Analyzing novel file:', file.originalname, 'size:', file.size, 'type:', file.mimetype);
+    console.log('[Projects] Analyzing novel file:', file.originalname, 'size:', file.size, 'type:', file.mimetype, 'language:', language);
 
     // Verify project belongs to user and is a Romanziere project
     const project = db.prepare('SELECT id, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; area: string } | undefined;
@@ -1025,10 +1485,26 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
 
     console.log('[Projects] Extracted text length:', novelContent.length, 'characters');
 
-    // Extract entities using pattern matching
-    const { characters, locations, plotEvents } = extractEntities(novelContent);
+    // Use AI-based analysis (Feature #249)
+    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string }>;
+    let locations: Array<{ name: string; description: string; significance: string }>;
+    let plotEvents: Array<{ title: string; description: string; event_type: string }>;
 
-    console.log('[Projects] Extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+    try {
+      const aiResult = await analyzeNovelWithAI(novelContent, userId || '', language);
+      characters = aiResult.characters;
+      locations = aiResult.locations;
+      plotEvents = aiResult.plotEvents;
+      console.log('[Projects] AI analysis extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+    } catch (aiError) {
+      console.error('[Projects] AI analysis failed, falling back to regex:', aiError);
+      // Fall back to regex-based extraction if AI fails
+      const regexResult = extractEntities(novelContent);
+      characters = regexResult.characters;
+      locations = regexResult.locations;
+      plotEvents = regexResult.plotEvents;
+      console.log('[Projects] Regex fallback extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+    }
 
     // Clear existing extracted entities for this project
     db.prepare('DELETE FROM characters WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);

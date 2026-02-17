@@ -701,7 +701,9 @@ export default function ProjectDetail() {
     try {
       setAnalyzingNovel(true);
       setError('');
-      const response = await apiService.analyzeNovel(id!, novelFile);
+      // Pass current language for AI-based analysis (Feature #249)
+      const currentLanguage = i18n.language === 'en' ? 'en' : 'it';
+      const response = await apiService.analyzeNovel(id!, novelFile, currentLanguage);
 
       const totalExtracted = response.extracted.characters + response.extracted.locations + response.extracted.plotEvents;
 
