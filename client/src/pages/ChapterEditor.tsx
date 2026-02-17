@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, AlertTriangle, Wand2, User, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
@@ -764,8 +764,21 @@ export default function ChapterEditor() {
     historyRef.current = newHistory;
     historyIndexRef.current = newHistory.length - 1;
 
-    // Auto-save the restored content
-    setTimeout(() => handleSave(), 100);
+    // Update the last saved refs to prevent auto-save from triggering
+    // The backend restore endpoint already updates the chapter content and creates a version
+    lastSavedContentRef.current = restoredContent;
+    lastSavedTitleRef.current = title;
+    setHasUnsavedChanges(false);
+    setLastSaved(new Date());
+
+    // Update local chapter state
+    if (chapter) {
+      setChapter({
+        ...chapter,
+        content: restoredContent,
+        updated_at: new Date().toISOString()
+      });
+    }
   };
 
   const handleCompare = (version1: ChapterVersion, version2: ChapterVersion) => {
@@ -1035,8 +1048,8 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setShowFindReplace(!showFindReplace)}
                 className={`p-2 rounded-lg border transition-colors ${showFindReplace ? 'bg-blue-50 border-blue-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                aria-label="Find & Replace (Ctrl+F)"
-                title="Find & Replace (Ctrl+F)"
+                aria-label={t('chapterEditor.findReplace') + ' (Ctrl+F)'}
+                title={t('chapterEditor.findReplace') + ' (Ctrl+F)'}
               >
                 <Search className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
@@ -1044,8 +1057,8 @@ export default function ChapterEditor() {
                 onClick={handleUndo}
                 disabled={!canUndo}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Undo (Ctrl+Z)"
-                title="Undo (Ctrl+Z)"
+                aria-label={t('chapterEditor.undo') + ' (Ctrl+Z)'}
+                title={t('chapterEditor.undo') + ' (Ctrl+Z)'}
               >
                 <Undo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
@@ -1053,8 +1066,8 @@ export default function ChapterEditor() {
                 onClick={handleRedo}
                 disabled={!canRedo}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                aria-label="Redo (Ctrl+Shift+Z)"
-                title="Redo (Ctrl+Shift+Z)"
+                aria-label={t('chapterEditor.redo') + ' (Ctrl+Shift+Z)'}
+                title={t('chapterEditor.redo') + ' (Ctrl+Shift+Z)'}
               >
                 <Redo className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
@@ -1224,19 +1237,19 @@ export default function ChapterEditor() {
                     value={findText}
                     onChange={(e) => setFindText(e.target.value)}
                     className="w-full px-3 py-2 pl-9 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="Find..."
+                    placeholder={t('chapterEditor.findPlaceholder')}
                     aria-label="Find in chapter"
                   />
                   <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                  <span>{matchCount > 0 ? `${currentMatchIndex + 1}/${matchCount}` : 'No results'}</span>
+                  <span>{matchCount > 0 ? `${currentMatchIndex + 1}/${matchCount}` : t('chapterEditor.noResults')}</span>
                   <button
                     onClick={handleFindPrevious}
                     disabled={matchCount === 0}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
-                    aria-label="Find Previous"
-                    title="Find Previous"
+                    aria-label={t('chapterEditor.findPrevious')}
+                    title={t('chapterEditor.findPrevious')}
                   >
                     <ChevronUp className="w-4 h-4" />
                   </button>
@@ -1244,8 +1257,8 @@ export default function ChapterEditor() {
                     onClick={handleFindNext}
                     disabled={matchCount === 0}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded disabled:opacity-30"
-                    aria-label="Find Next"
-                    title="Find Next"
+                    aria-label={t('chapterEditor.findNext')}
+                    title={t('chapterEditor.findNext')}
                   >
                     <ChevronDown className="w-4 h-4" />
                   </button>
@@ -1257,7 +1270,7 @@ export default function ChapterEditor() {
                     onChange={(e) => setCaseSensitive(e.target.checked)}
                     className="rounded"
                   />
-                  Case
+                  {t('chapterEditor.caseSensitive')}
                 </label>
                 <button
                   onClick={() => {
@@ -1266,8 +1279,8 @@ export default function ChapterEditor() {
                     setReplaceText('');
                   }}
                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                  aria-label="Close"
-                  title="Close"
+                  aria-label={t('chapterEditor.close')}
+                  title={t('chapterEditor.close')}
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
@@ -1279,7 +1292,7 @@ export default function ChapterEditor() {
                     value={replaceText}
                     onChange={(e) => setReplaceText(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="Replace with..."
+                    placeholder={t('chapterEditor.replacePlaceholder')}
                     aria-label="Replace with"
                   />
                 </div>
@@ -1288,14 +1301,14 @@ export default function ChapterEditor() {
                   disabled={matchCount === 0}
                   className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  Replace
+                  {t('chapterEditor.replaceButton')}
                 </button>
                 <button
                   onClick={handleReplaceAll}
                   disabled={matchCount === 0}
                   className="px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  Replace All
+                  {t('chapterEditor.replaceAll')}
                 </button>
               </div>
             </div>
@@ -1307,7 +1320,7 @@ export default function ChapterEditor() {
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  Analisi Leggibilità
+                  {t('chapterEditor.readabilityAnalysis')}
                 </h4>
                 <button
                   onClick={() => {
@@ -1315,7 +1328,7 @@ export default function ChapterEditor() {
                     setReadabilityScore(null);
                   }}
                   className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
-                  aria-label="Close readability panel"
+                  aria-label={t('chapterEditor.close')}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1436,9 +1449,9 @@ export default function ChapterEditor() {
 
       {/* Editor / Preview */}
       <div className="flex-1 overflow-y-auto relative flex">
-        <div className="flex-1">
+        <div className={`flex-1 ${isFullScreen ? 'max-w-7xl mx-auto' : ''}`}>
         {isPreview ? (
-          <div className="p-6 bg-white dark:bg-dark-bg">
+          <div className={`bg-white dark:bg-dark-bg ${isFullScreen ? 'p-6' : 'p-6'}`}>
             <div
               className="prose dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={renderPreview()}
@@ -1449,7 +1462,7 @@ export default function ChapterEditor() {
             ref={textareaRef}
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
-            className="w-full h-full min-h-[500px] p-6 border-0 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:outline-none resize-none font-serif leading-relaxed"
+            className={`w-full h-full min-h-[500px] border-0 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:outline-none resize-none font-serif leading-relaxed ${isFullScreen ? 'p-6' : 'p-6'}`}
             placeholder="Start writing your chapter here..."
             spellCheck
             aria-label="Chapter content"
@@ -1490,7 +1503,7 @@ export default function ChapterEditor() {
                 {revising ? (
                   <>
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    Revising...
+                    {t('chapterEditor.revising')}
                   </>
                 ) : (
                   <>
@@ -1510,12 +1523,12 @@ export default function ChapterEditor() {
                   {enhancingDialogue ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      Enhancing...
+                      {t('chapterEditor.enhancing')}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3 h-3" />
-                      Enhance Dialogue
+                      {t('chapterEditor.enhanceDialogue')}
                     </>
                   )}
                 </button>
