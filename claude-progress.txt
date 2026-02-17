@@ -1,5 +1,40 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #241 Implementation
+
+### Completed Features: 241/241 (100%)
+
+### Feature #241: Fix sidebar toggle button visibility in dark mode
+
+**Objective:** Il bottone di toggle del menu laterale (freccia per espandere/comprimere) non era visibile in dark mode perché le icone ChevronLeft/ChevronRight non avevano un colore esplicito. Di default erano nere, quindi su sfondo scuro non si vedevano.
+
+**Implementation:**
+
+#### 1. Added Color Classes (client/src/components/Sidebar.tsx, line 65)
+- Changed from: `<ChevronRight size={20} />` and `<ChevronLeft size={20} />`
+- Changed to: `<ChevronRight size={20} className="text-gray-600 dark:text-gray-300" />` and `<ChevronLeft size={20} className="text-gray-600 dark:text-gray-300" />`
+- This matches the styling pattern used for other icons in the sidebar (line 93)
+
+**Verification (Browser Automation Testing):**
+1. ✅ Registered new user "sidebar-test@example.com"
+2. ✅ Logged into dashboard
+3. ✅ Verified toggle button visible in light mode
+4. ✅ Switched to dark mode
+5. ✅ Verified toggle button visible in dark mode with light-colored icon
+6. ✅ Clicked toggle to collapse sidebar - ChevronRight icon visible in dark mode
+7. ✅ Clicked toggle to expand sidebar - ChevronLeft icon visible in dark mode
+8. ✅ Hover state works correctly (background changes to gray-700)
+
+**Screenshots Captured:**
+- `.playwright-cli/page-2026-02-17T11-32-40-403Z.png` - Dashboard in light mode
+- `.playwright-cli/page-2026-02-17T11-33-25-592Z.png` - Dashboard in dark mode (expanded sidebar)
+- `.playwright-cli/page-2026-02-17T11-34-11-153Z.png` - Collapsed sidebar in dark mode
+- `.playwright-cli/page-2026-02-17T11-34-55-306Z.png` - Expanded sidebar in dark mode after toggle
+
+### Commit: 16c68b4
+
+---
+
 ## Session: 2026-02-17 - Feature #240 Implementation
 
 ### Completed Features: 240/240 (100%)
