@@ -1,5 +1,40 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #242 Implementation
+
+### Completed Features: 242/242 (100%)
+
+### Feature #242: Fix full-screen editor layout - content hidden behind sidebar area
+
+**Objective:** Quando l'editor dei capitoli è in modalità "Schermo Intero", il contenuto (titolo, bottone back, toolbar di formattazione H1, B, I) partiva da left: 0 e non era visibile/utilizzabile perché finiva nell'area normalmente occupata dalla sidebar. La soluzione richiesta era aggiungere `pl-20` (padding-left: 80px) al contenitore principale quando `isFullScreen` è true.
+
+**Implementation:**
+
+#### 1. Added Left Padding (client/src/pages/ChapterEditor.tsx, line 989)
+- Changed from: `className={\`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50' : ''}\`}`
+- Changed to: `className={\`h-full flex flex-col bg-white dark:bg-dark-bg ${isFullScreen ? 'fixed inset-0 z-50 pl-20' : ''}\`}`
+- The pl-20 class adds 5rem (80px) of left padding when in fullscreen mode
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test user "fullscreen-test@example.com"
+2. ✅ Created test project "Fullscreen Test Novel" in Romanziere area
+3. ✅ Created test chapter "Test Chapter 1"
+4. ✅ Entered fullscreen mode via "Schermo Intero" button
+5. ✅ Verified "Torna al Progetto" (Back to Project) button visible
+6. ✅ Verified chapter title visible and editable
+7. ✅ Verified formatting toolbar (Heading, Bold, Italic buttons) visible
+8. ✅ Verified dark mode works correctly with all elements visible
+9. ✅ Zero console errors during testing
+
+**Screenshots Captured:**
+- `.playwright-cli/page-2026-02-17T12-13-49-748Z.png` - Normal mode editor
+- `.playwright-cli/page-2026-02-17T12-16-44-227Z.png` - Fullscreen mode
+- `.playwright-cli/page-2026-02-17T12-26-17-184Z.png` - Fullscreen mode in dark mode
+
+### Commit: 7dd3262
+
+---
+
 ## Session: 2026-02-17 - Feature #241 Implementation
 
 ### Completed Features: 241/241 (100%)
