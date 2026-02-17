@@ -655,6 +655,7 @@
     "versionHistory": "Version History",
     "fullScreen": "Full Screen",
     "exitFullScreen": "Exit Full Screen",
+    "pressEscToExit": "Press ESC to exit full screen mode",
     "findReplace": "Find & Replace",
     "find": "Find",
     "findPlaceholder": "Find...",

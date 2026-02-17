@@ -655,6 +655,7 @@
     "versionHistory": "Cronologia Versioni",
     "fullScreen": "Schermo Intero",
     "exitFullScreen": "Esci da Schermo Intero",
+    "pressEscToExit": "Premi ESC per uscire dalla modalità schermo intero",
     "findReplace": "Trova e Sostituisci",
     "find": "Trova",
     "findPlaceholder": "Trova...",

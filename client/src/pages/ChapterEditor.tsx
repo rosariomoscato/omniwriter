@@ -1037,14 +1037,26 @@ export default function ChapterEditor() {
                   </span>
                 </div>
               )}
-              <button
-                onClick={() => setIsFullScreen(!isFullScreen)}
-                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                aria-label={isFullScreen ? t('chapterEditor.exitFullScreen') + ' (Esc)' : t('chapterEditor.fullScreen')}
-                title={isFullScreen ? t('chapterEditor.exitFullScreen') + ' (Esc)' : t('chapterEditor.fullScreen')}
-              >
-                {isFullScreen ? <Minimize className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
-              </button>
+              {isFullScreen ? (
+                <button
+                  onClick={() => setIsFullScreen(false)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg"
+                  aria-label={t('chapterEditor.exitFullScreen') + ' (Esc)'}
+                  title={t('chapterEditor.exitFullScreen') + ' (Esc)'}
+                >
+                  <Minimize className="w-4 h-4" />
+                  {t('chapterEditor.exitFullScreen')}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsFullScreen(true)}
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  aria-label={t('chapterEditor.fullScreen')}
+                  title={t('chapterEditor.fullScreen')}
+                >
+                  <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+              )}
               <button
                 onClick={() => setShowFindReplace(!showFindReplace)}
                 className={`p-2 rounded-lg border transition-colors ${showFindReplace ? 'bg-blue-50 border-blue-500' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -1226,6 +1238,14 @@ export default function ChapterEditor() {
             placeholder="Chapter title..."
             aria-label="Chapter title"
           />
+
+          {/* Full-screen mode hint */}
+          {isFullScreen && (
+            <div className="mt-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg inline-flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <kbd className="px-2 py-0.5 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700 text-xs font-mono">Esc</kbd>
+              {t('chapterEditor.pressEscToExit', 'Premi ESC per uscire dalla modalità schermo intero')}
+            </div>
+          )}
 
           {/* Find & Replace Bar */}
           {showFindReplace && !isPreview && (
