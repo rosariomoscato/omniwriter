@@ -1,5 +1,48 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #244 Implementation
+
+### Completed Features: 244/244 (100%)
+
+### Feature #244: Fix ESC key not working to exit full-screen mode
+
+**Objective:** Il tasto ESC per uscire dalla modalità schermo intero non funziona correttamente. L'utente preme ESC ma invece di uscire dalla modalità full-screen, attiva altri elementi (come la freccia del menu sidebar). Il problema è che l'event listener per ESC era associato solo alla textarea. Se il focus è altrove (su un bottone, sul titolo, ecc.), l'evento non viene catturato.
+
+**Implementation:**
+
+#### 1. Global ESC Handler (client/src/pages/ChapterEditor.tsx, lines 758-775)
+- Added new `useEffect` hook that attaches `keydown` listener to `window` when `isFullScreen` is true
+- Uses capture phase (`true` as third parameter) to intercept ESC before other handlers
+- Calls both `e.preventDefault()` and `e.stopPropagation()` to prevent sidebar handler interference
+- Listener is properly removed on cleanup and when `isFullScreen` becomes false
+
+#### 2. Updated Existing Handler (client/src/pages/ChapterEditor.tsx, lines 743-748)
+- Added `e.stopPropagation()` to the existing textarea ESC handler
+- Comment clarifies that global handler also exists
+
+**Technical Details:**
+- Before: ESC listener was only on `textarea.addEventListener('keydown', handleKeyDown)`
+- After: Added `window.addEventListener('keydown', handleGlobalKeyDown, true)` when `isFullScreen` is true
+- The `true` parameter enables capture phase, ensuring our handler runs before the sidebar's handler
+
+**Feature Test Steps Verified:**
+1. ✅ Created test project and chapter for testing
+2. ✅ Entered full-screen mode
+3. ✅ Moved focus to title textbox (not textarea)
+4. ✅ Pressed ESC - successfully exited full-screen mode
+5. ✅ Entered full-screen mode again
+6. ✅ Pressed ESC without changing focus - successfully exited full-screen mode
+7. ✅ Pressed ESC in normal mode - no unwanted effects
+8. ✅ Zero JavaScript console errors during testing
+
+**Screenshots Captured:**
+- Full-screen mode with "Esci da Schermo Intero" button visible
+- Normal mode with "Schermo Intero" button after ESC exit
+
+### Commit: 9650bc6
+
+---
+
 ## Session: 2026-02-17 - Feature #243 Implementation
 
 ### Completed Features: 243/243 (100%)
