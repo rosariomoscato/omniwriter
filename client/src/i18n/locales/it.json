@@ -381,6 +381,7 @@
       "webSearch": "Ricerca Web",
       "upload": "Carica Fonti",
       "linkSources": "Collega Fonti",
+      "uploadSource": "Carica Fonte",
       "linkModalTitle": "Collega Fonti Esistenti",
       "linkModalDesc": "Seleziona le fonti standalone da collegare a questo progetto",
       "noStandaloneSources": "Nessuna fonte standalone disponibile",
@@ -1167,7 +1168,19 @@
     "delete": "Elimina",
     "deleting": "Eliminazione...",
     "deleteSuccess": "Saga eliminata con successo",
-    "deleteSaga": "Elimina saga"
+    "deleteSaga": "Elimina saga",
+    "assignToSaga": "Assegna a Saga",
+    "assignInfo": "Seleziona una saga a cui assegnare questo progetto. Solo le saghe della stessa area ({{area}}) sono mostrate.",
+    "noSagasForArea": "Nessuna saga disponibile",
+    "noSagasForAreaDesc": "Crea prima una saga nell'area {{area}} per assegnarvi progetti.",
+    "removeFromSaga": "Rimuovi dalla Saga",
+    "removeFromSagaDesc": "Questo progetto non farà parte di nessuna saga",
+    "assigning": "Assegnazione...",
+    "assign": "Assegna",
+    "removing": "Rimozione...",
+    "assignSuccess": "Progetto assegnato alla saga con successo",
+    "removeSuccess": "Progetto rimosso dalla saga con successo",
+    "sagaBadge": "Saga"
   },
   "areas": {
     "romanziere": "Romanziere",

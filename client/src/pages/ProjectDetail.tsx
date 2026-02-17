@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink, Loader2, Layers, Share2 } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Lightbulb, Unlink, Loader2, Layers, Share2, FolderOpen } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -12,6 +12,7 @@ import TableOfContents from '../components/TableOfContents';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CreateSequelModal from '../components/CreateSequelModal';
+import AssignToSagaModal from '../components/AssignToSagaModal';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 
@@ -71,6 +72,9 @@ export default function ProjectDetail() {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   // Feature #255: Create Sequel
   const [showSequelModal, setShowSequelModal] = useState(false);
+  // Feature #254: Assign to Saga
+  const [showAssignSagaModal, setShowAssignSagaModal] = useState(false);
+  const [projectSagaId, setProjectSagaId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -164,6 +168,13 @@ export default function ProjectDetail() {
       loadPlotEvents();
     }
   }, [id]);
+
+  // Sync projectSagaId when project loads
+  useEffect(() => {
+    if (project) {
+      setProjectSagaId(project.saga_id);
+    }
+  }, [project]);
 
   useEffect(() => {
     if (showLinkSources) {
@@ -1348,8 +1359,14 @@ export default function ProjectDetail() {
 
       {project && (
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 break-words" title={project.title}>
-            {project.title}
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 break-words flex items-center gap-3 flex-wrap" title={project.title}>
+            <span>{project.title}</span>
+            {projectSagaId && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 rounded-full">
+                <Layers className="w-3 h-3" />
+                {t('sagas.sagaBadge', 'Saga')}
+              </span>
+            )}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 break-words">
             {project.description || t('projectPage.noDescription')}
@@ -1478,6 +1495,14 @@ export default function ProjectDetail() {
                   {t('projectPage.sequel.button', 'Create Sequel')}
                 </button>
               )}
+              {/* Feature #254: Assign to Saga */}
+              <button
+                onClick={() => setShowAssignSagaModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <FolderOpen className="w-4 h-4" />
+                {projectSagaId ? t('sagas.sagaBadge', 'Saga') : t('sagas.assignToSaga', 'Assign to Saga')}
+              </button>
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -1510,6 +1535,26 @@ export default function ProjectDetail() {
           }}
           onError={(error) => {
             toast.error(error);
+          }}
+        />
+      )}
+
+      {/* Feature #254: Assign to Saga Modal */}
+      {project && (
+        <AssignToSagaModal
+          isOpen={showAssignSagaModal}
+          onClose={() => setShowAssignSagaModal(false)}
+          projectId={project.id}
+          projectArea={project.area}
+          currentSagaId={projectSagaId}
+          onAssigned={(sagaId) => {
+            setProjectSagaId(sagaId);
+            loadProject();
+            if (sagaId) {
+              toast.success(t('sagas.assignSuccess', 'Project assigned to saga successfully'));
+            } else {
+              toast.success(t('sagas.removeSuccess', 'Project removed from saga successfully'));
+            }
           }}
         />
       )}
@@ -2447,6 +2492,13 @@ export default function ProjectDetail() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddSource(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              {t('projectPage.sources.uploadSource', 'Upload Source')}
+            </button>
             <button
               onClick={() => {
                 setShowLinkSources(true);

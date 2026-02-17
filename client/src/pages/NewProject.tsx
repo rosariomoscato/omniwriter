@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, BookOpen, FileText, Zap, AlertCircle } from 'lucide-react';
 import { apiService, type CreateProjectData } from '../services/api';
@@ -42,8 +42,13 @@ const AREAS: AreaOption[] = [
 
 function NewProject() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToastNotification();
   const { t } = useTranslation();
+
+  // Get sagaId from URL params (when creating project from saga page)
+  const sagaId = searchParams.get('sagaId');
+
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -157,6 +162,8 @@ function NewProject() {
         target_audience: formData.area === 'romanziere' ? formData.targetAudience || undefined : undefined,
         pov: formData.area === 'romanziere' ? formData.pov || undefined : undefined,
         word_count_target: formData.area === 'romanziere' ? formData.wordCountTarget : formData.area === 'redattore' ? formData.redattoreWordCount : undefined,
+        // Include saga_id if creating project from saga page
+        saga_id: sagaId || undefined,
         // Area-specific settings in settings_json
         settings_json: formData.area === 'redattore' ? JSON.stringify({
           articleType: formData.articleType,

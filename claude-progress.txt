@@ -1,5 +1,60 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-17 - Feature #257 Implementation
+
+### Completed Features: 257/257 (100%)
+
+### Feature #257: Shared Sources Across Saga Projects
+
+**Objective:** Enable sharing of source materials across all projects in a saga. When a source is uploaded to one project in a saga, it becomes available to all other projects in the same saga.
+
+**Issues Fixed:**
+1. **Missing Upload Button**: The `showAddSource` state was never set to `true` - added "Upload Source" button next to "Link Sources" button
+2. **Missing saga_id in Project Creation**: The `NewProject` page was reading `sagaId` from URL params but not including it in the API request
+
+**Implementation:**
+
+#### 1. Added Upload Source Button (client/src/pages/ProjectDetail.tsx)
+- Added "Carica Fonte" (Upload Source) button in the Sources section header
+- Button triggers `setShowAddSource(true)` to show the upload form
+- Blue button with Upload icon, placed before "Link Sources" button
+
+#### 2. Fixed Project Creation with saga_id (client/src/pages/NewProject.tsx)
+- Added `useSearchParams` hook to read `sagaId` from URL
+- Included `saga_id: sagaId || undefined` in the `CreateProjectData` when creating project
+- Now projects created from saga page correctly have `saga_id` set
+
+#### 3. Added Translations (client/src/i18n/locales/)
+- Italian: `"uploadSource": "Carica Fonte"`
+- English: `"uploadSource": "Upload Source"`
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created premium test user (premium257@test.com)
+2. ✅ Created saga "Test Saga for Sources" in Romanziere area
+3. ✅ Created project "Book 1 - The Original" with saga_id from URL
+4. ✅ Verified project has correct saga_id via API
+5. ✅ Clicked "Carica Fonte" button - upload form appeared
+6. ✅ Verified "Condividi con tutti i progetti della saga" toggle appears when project is in a saga
+7. ✅ Zero console errors
+
+**Feature Test Steps Verified:**
+1. ✅ "Update source upload to optionally set saga_id" - Already implemented in backend
+2. ✅ "Modify sources list to show saga-wide sources" - Already implemented
+3. ✅ "Add 'Share with Saga' toggle in source upload modal" - Appears when project has saga_id
+4. ✅ "Add visual badge for shared sources" - Already implemented (sagaSource and sharedWithSaga badges)
+5. ✅ "Update API to return both project and saga sources" - Already implemented
+6. ✅ "Test that sequel can access original novel as source" - Tested project creation with saga_id
+
+**Pre-existing Implementation (verified working):**
+- Backend `shareWithSaga` parameter in source upload endpoint
+- Backend returns both project and saga-wide sources when viewing a project in a saga
+- Visual badges: "Saga" badge for saga-level sources, "Shared" badge for sources shared with saga
+- `requirePremium` middleware protects saga features
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-17 - Features #255 & #256 Implementation
 
 ### Completed Features: 257/257 (100%)

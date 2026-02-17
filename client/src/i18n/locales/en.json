@@ -381,6 +381,7 @@
       "webSearch": "Web Search",
       "upload": "Upload Sources",
       "linkSources": "Link Sources",
+      "uploadSource": "Upload Source",
       "linkModalTitle": "Link Existing Sources",
       "linkModalDesc": "Select standalone sources to link to this project",
       "noStandaloneSources": "No standalone sources available",
@@ -1167,7 +1168,19 @@
     "delete": "Delete",
     "deleting": "Deleting...",
     "deleteSuccess": "Saga deleted successfully",
-    "deleteSaga": "Delete saga"
+    "deleteSaga": "Delete saga",
+    "assignToSaga": "Assign to Saga",
+    "assignInfo": "Select a saga to assign this project to. Only sagas in the same area ({{area}}) are shown.",
+    "noSagasForArea": "No sagas available",
+    "noSagasForAreaDesc": "Create a saga in the {{area}} area first to assign projects to it.",
+    "removeFromSaga": "Remove from Saga",
+    "removeFromSagaDesc": "This project will not be part of any saga",
+    "assigning": "Assigning...",
+    "assign": "Assign",
+    "removing": "Removing...",
+    "assignSuccess": "Project assigned to saga successfully",
+    "removeSuccess": "Project removed from saga successfully",
+    "sagaBadge": "Saga"
   },
   "areas": {
     "romanziere": "Novelist",
