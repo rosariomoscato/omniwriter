@@ -717,10 +717,11 @@ router.delete('/sources/:id/project', authenticateToken, (req: any, res: any) =>
       return res.status(400).json({ message: 'Source is not linked to any project' });
     }
 
-    // Unlink source from project (set project_id to NULL)
-    db.prepare('UPDATE sources SET project_id = NULL WHERE id = ?').run(sourceId);
+    // Unlink source from project (set project_id and saga_id to NULL)
+    // Clearing saga_id ensures the source won't appear as "saga source" in other projects
+    db.prepare('UPDATE sources SET project_id = NULL, saga_id = NULL WHERE id = ?').run(sourceId);
 
-    console.log(`[Sources] Source ${sourceId} unlinked from project`);
+    console.log(`[Sources] Source ${sourceId} unlinked from project (project_id and saga_id cleared)`);
 
     res.json({ message: 'Source unlinked successfully', sourceId });
   } catch (error) {
