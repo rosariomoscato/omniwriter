@@ -532,6 +532,132 @@ class ApiService {
     });
   }
 
+  // Feature #266: Create Sequel with full chapter content via SSE streaming
+  createSequelStream(
+    id: string,
+    options?: {
+      title?: string;
+      generateProposal?: boolean;
+      language?: 'it' | 'en';
+      numChapters?: number;
+    },
+    callbacks?: {
+      onPhase?: (data: { phase: string; message: string; chapterIndex?: number; totalChapters?: number; chapterTitle?: string }) => void;
+      onOutlineComplete?: (data: { message: string; totalChapters: number }) => void;
+      onChapterComplete?: (data: { chapterIndex: number; chapterTitle: string; wordCount: number; totalWordsGenerated: number }) => void;
+      onChapterWarning?: (data: { chapterIndex: number; chapterTitle: string; message: string }) => void;
+      onWarning?: (data: { message: string }) => void;
+      onDone?: (data: {
+        message: string;
+        project: Project;
+        sagaId: string;
+        charactersCopied: number;
+        locationsCopied: number;
+        sourcesCopied: number;
+        proposalGenerated: boolean;
+        chaptersGenerated: number;
+        chaptersWithContent: number;
+        chaptersFailed: number;
+        totalWordsGenerated: number;
+      }) => void;
+      onError?: (error: string) => void;
+    }
+  ): { abort: () => void; promise: Promise<void> } {
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/projects/${id}/sequel-stream`;
+
+    const controller = new AbortController();
+
+    const promise = (async () => {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify(options || {}),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ message: 'Network error' }));
+          throw new Error(error.message || `HTTP ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE events
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          let eventType = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7);
+            } else if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+
+                switch (eventType) {
+                  case 'phase':
+                    callbacks?.onPhase?.(data);
+                    break;
+                  case 'outline_complete':
+                    callbacks?.onOutlineComplete?.(data);
+                    break;
+                  case 'chapter_complete':
+                    callbacks?.onChapterComplete?.(data);
+                    break;
+                  case 'chapter_warning':
+                    callbacks?.onChapterWarning?.(data);
+                    break;
+                  case 'warning':
+                    callbacks?.onWarning?.(data);
+                    break;
+                  case 'done':
+                    callbacks?.onDone?.(data);
+                    break;
+                  case 'error':
+                    callbacks?.onError?.(data.message);
+                    break;
+                }
+
+                eventType = ''; // Reset for next event
+              } catch (parseErr) {
+                console.warn('[SequelStream] Failed to parse SSE data:', line);
+              }
+            }
+          }
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('[SequelStream] Creation cancelled by user');
+        } else {
+          callbacks?.onError?.(error.message || 'Unknown error');
+        }
+      }
+    })();
+
+    return {
+      abort: () => controller.abort(),
+      promise,
+    };
+  }
+
   // Feature #260: Generate Sequel Outline
   async generateSequelOutline(id: string, options?: {
     language?: 'it' | 'en';

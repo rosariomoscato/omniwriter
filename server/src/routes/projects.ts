@@ -7,6 +7,11 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { Language } from '../locales';
 import { getProviderForUser } from '../services/ai-service';
 import { ChatMessage } from '../services/ai';
+import {
+  sanitizePromptContent,
+  sanitizeSensitiveWords,
+  isModerationError
+} from '../services/contentModeration';
 // import * as mammoth from 'mammoth'; // Temporarily disabled - package not installed
 
 const router = Router();
@@ -1000,6 +1005,657 @@ Continue the story from where it ended.`;
   } catch (error) {
     console.error('[Projects] Sequel creation error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// POST /api/projects/:id/sequel-stream - Create Sequel with Full Chapter Content (Feature #266)
+// Creates a new project as a sequel and generates full content for each chapter via SSE streaming
+// ============================================================================
+
+interface SequelStreamRequestBody {
+  title?: string;
+  generateProposal?: boolean;
+  language?: 'it' | 'en';
+  numChapters?: number;
+}
+
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const {
+      title: customTitle,
+      generateProposal = true,
+      language = 'it',
+      numChapters = 10
+    } = req.body as SequelStreamRequestBody;
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // Helper function to send SSE events
+    const sendEvent = (event: string, data: any) => {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Fetch the original project
+    const originalProject = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!originalProject) {
+      sendEvent('error', { message: 'Project not found' });
+      return res.end();
+    }
+
+    // Only romanziere projects can have sequels
+    if (originalProject.area !== 'romanziere') {
+      sendEvent('error', { message: 'Sequels can only be created for romanziere (novel) projects' });
+      return res.end();
+    }
+
+    const isItalian = language === 'it';
+    const newProjectId = uuidv4();
+
+    // Generate sequel title
+    const sequelTitle = customTitle || `${originalProject.title} - Part 2`;
+
+    sendEvent('phase', {
+      phase: 'setup',
+      message: isItalian ? 'Preparazione progetto seguito...' : 'Setting up sequel project...'
+    });
+
+    console.log('[Projects-Stream] Creating sequel project:', projectId, '->', newProjectId);
+
+    // Get or create saga
+    let sagaId = originalProject.saga_id;
+
+    if (!sagaId) {
+      sagaId = uuidv4();
+      const sagaTitle = originalProject.title.includes(' - ')
+        ? originalProject.title.split(' - ')[0] + ' Series'
+        : originalProject.title + ' Series';
+
+      db.prepare(
+        `INSERT INTO sagas (id, user_id, title, description, area, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(sagaId, userId, sagaTitle, `Series containing "${originalProject.title}" and its sequels`, 'romanziere');
+
+      db.prepare('UPDATE projects SET saga_id = ? WHERE id = ?').run(sagaId, projectId);
+      console.log('[Projects-Stream] Created new saga:', sagaId);
+    }
+
+    // Create the sequel project
+    db.prepare(
+      `INSERT INTO projects (
+        id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov,
+        word_count_target, status, settings_json, word_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, 0, datetime('now'), datetime('now'))`
+    ).run(
+      newProjectId,
+      userId,
+      sagaId,
+      sequelTitle,
+      `Sequel to "${originalProject.title}"`,
+      originalProject.area,
+      originalProject.genre || '',
+      originalProject.tone || '',
+      originalProject.target_audience || '',
+      originalProject.pov || '',
+      originalProject.word_count_target || 0,
+      originalProject.settings_json || '{}'
+    );
+
+    sendEvent('phase', {
+      phase: 'copying',
+      message: isItalian ? 'Copia personaggi e luoghi...' : 'Copying characters and locations...'
+    });
+
+    // Copy characters
+    const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    for (const character of characters) {
+      const newCharacterId = uuidv4();
+      db.prepare(
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+      ).run(
+        newCharacterId,
+        newProjectId,
+        sagaId,
+        character.name,
+        character.description || '',
+        character.traits || '',
+        character.backstory || '',
+        character.role_in_story || '',
+        character.relationships_json || '[]'
+      );
+    }
+    console.log('[Projects-Stream] Copied', characters.length, 'characters to sequel');
+
+    // Copy locations
+    const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
+    for (const location of locations) {
+      const newLocationId = uuidv4();
+      db.prepare(
+        `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+      ).run(
+        newLocationId,
+        newProjectId,
+        sagaId,
+        location.name,
+        location.description || '',
+        location.significance || ''
+      );
+    }
+    console.log('[Projects-Stream] Copied', locations.length, 'locations to sequel');
+
+    // Copy synopsis as source
+    if (originalProject.synopsis) {
+      const synopsisSourceId = uuidv4();
+      db.prepare(
+        `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+         VALUES (?, ?, ?, ?, '', 'reference', 'text', ?, ?, 'upload', '', '["synopsis", "reference"]', 1.0, datetime('now'))`
+      ).run(
+        synopsisSourceId,
+        newProjectId,
+        sagaId,
+        userId,
+        originalProject.synopsis.length,
+        `Synopsis of "${originalProject.title}":\n\n${originalProject.synopsis}`
+      );
+    }
+
+    // Copy sources
+    const sources = db.prepare('SELECT * FROM sources WHERE project_id = ?').all(projectId) as any[];
+    for (const source of sources) {
+      const newSourceId = uuidv4();
+      const validSourceType = ['upload', 'web_search'].includes(source.source_type) ? source.source_type : 'upload';
+      db.prepare(
+        `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).run(
+        newSourceId,
+        newProjectId,
+        sagaId,
+        userId,
+        source.file_name,
+        source.file_path || '',
+        source.file_type,
+        source.file_size || 0,
+        source.content_text || '',
+        validSourceType,
+        source.url || '',
+        source.tags_json || '[]',
+        source.relevance_score || 0.0
+      );
+    }
+    console.log('[Projects-Stream] Copied', sources.length, 'sources to sequel');
+
+    // Generate AI sequel proposal if requested
+    let sequelProposal = null;
+    if (generateProposal) {
+      sendEvent('phase', {
+        phase: 'proposal',
+        message: isItalian ? 'Generazione proposta AI...' : 'Generating AI proposal...'
+      });
+
+      try {
+        sequelProposal = await generateSequelProposal(
+          originalProject,
+          characters,
+          locations,
+          db.prepare('SELECT * FROM plot_events WHERE project_id = ?').all(projectId) as any[],
+          db.prepare('SELECT * FROM chapters WHERE project_id = ? ORDER BY order_index').all(projectId) as any[],
+          userId,
+          language
+        );
+
+        if (sequelProposal) {
+          const proposalSourceId = uuidv4();
+          const proposalContent = formatSequelProposal(sequelProposal, language);
+          db.prepare(
+            `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+             VALUES (?, ?, ?, ?, 'AI Sequel Proposal', '', 'text', ?, ?, 'upload', '', '["ai-generated", "sequel-proposal"]', 1.0, datetime('now'))`
+          ).run(
+            proposalSourceId,
+            newProjectId,
+            sagaId,
+            userId,
+            proposalContent.length,
+            proposalContent
+          );
+          console.log('[Projects-Stream] Saved AI sequel proposal');
+        }
+      } catch (proposalErr) {
+        console.warn('[Projects-Stream] Failed to generate sequel proposal (non-fatal):', proposalErr);
+      }
+    }
+
+    // Generate chapter outline with AI
+    sendEvent('phase', {
+      phase: 'outline',
+      message: isItalian ? 'Generazione outline capitoli...' : 'Generating chapter outline...'
+    });
+
+    // Gather context for chapter generation
+    const previousCharacters = db.prepare(`
+      SELECT name, description, traits, backstory, role_in_story
+      FROM characters WHERE project_id = ?
+    `).all(projectId) as any[];
+
+    const previousLocations = db.prepare(`
+      SELECT name, description, significance
+      FROM locations WHERE project_id = ?
+    `).all(projectId) as any[];
+
+    const previousPlotEvents = db.prepare(`
+      SELECT title, description, event_type
+      FROM plot_events WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(projectId) as any[];
+
+    const previousChapters = db.prepare(`
+      SELECT title, content FROM chapters WHERE project_id = ? ORDER BY order_index
+    `).all(projectId) as any[];
+
+    const characterSummaries = previousCharacters.slice(0, 15).map(c =>
+      `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''}`
+    ).join('\n');
+
+    const locationSummaries = previousLocations.slice(0, 10).map(l =>
+      `- ${l.name}: ${l.description || 'No description'} ${l.significance ? `- ${l.significance}` : ''}`
+    ).join('\n');
+
+    const plotSummary = previousPlotEvents.slice(0, 10).map(e =>
+      `- ${e.title}: ${e.description || 'No description'}`
+    ).join('\n');
+
+    const chapterSummary = previousChapters.slice(0, 10).map((ch, idx) =>
+      `Chapter ${idx + 1}: ${ch.title}`
+    ).join('\n');
+
+    const systemPrompt = isItalian
+      ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale.
+Il tuo compito è creare un outline per il seguito di un romanzo esistente.
+Devi mantenere la coerenza con i personaggi e la trama precedente, continuando la storia in modo naturale e coinvolgente.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.
+Ogni capitolo deve avere un titolo contestuale (non generico) e un riassunto che colleghi al romanzo precedente.`
+      : `You are an expert writer and editorial consultant specializing in serialized fiction.
+Your task is to create an outline for the sequel to an existing novel.
+You must maintain consistency with characters and previous plot, continuing the story naturally and engagingly.
+Respond ONLY with valid JSON, without additional text.
+Each chapter must have a contextual title (not generic) and a summary that links to the previous novel.`;
+
+    const userPrompt = isItalian
+      ? `Crea un outline per il sequel del seguente romanzo.
+
+ROMANZO PRECEDENTE: "${originalProject.title}"
+${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
+
+PERSONAGGI DAL ROMANZO PRECEDENTE:
+${characterSummaries || 'Nessun personaggio registrato'}
+
+LUOGHI DAL ROMANZO PRECEDENTE:
+${locationSummaries || 'Nessun luogo registrato'}
+
+EVENTI DI TRAMA PRINCIPALI:
+${plotSummary || 'Nessun evento registrato'}
+
+RIASSUNTO CAPITOLI PRECEDENTI:
+${chapterSummary || 'Nessun capitolo disponibile'}
+
+TITOLO DEL SEQUEL: "${sequelTitle}"
+
+Genera un outline con ${numChapters} capitoli nel seguente formato JSON:
+{
+  "chapters": [
+    {
+      "title": "Titolo del capitolo (contestuale, non generico)",
+      "summary": "Riassunto di cosa accade, includendo riferimenti a personaggi e eventi del romanzo precedente",
+      "returning_characters": ["Nome personaggio che ritorna"],
+      "new_elements": ["Nuovi elementi introdotti in questo capitolo"],
+      "connection_to_previous": "Come questo capitolo si collega al finale del romanzo precedente"
+    }
+  ],
+  "themes_to_explore": ["Temi da esplorare nel sequel"],
+  "character_arcs_to_continue": ["Archi narrativi da continuare"]
+}
+
+Sii creativo e specifico. I titoli devono essere evocativi e contestuali.
+Continua la storia dal punto in cui è terminata.`
+      : `Create an outline for the sequel to the following novel.
+
+PREVIOUS NOVEL: "${originalProject.title}"
+${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+
+CHARACTERS FROM PREVIOUS NOVEL:
+${characterSummaries || 'No characters registered'}
+
+LOCATIONS FROM PREVIOUS NOVEL:
+${locationSummaries || 'No locations registered'}
+
+MAIN PLOT EVENTS:
+${plotSummary || 'No plot events registered'}
+
+PREVIOUS CHAPTERS SUMMARY:
+${chapterSummary || 'No chapters available'}
+
+SEQUEL TITLE: "${sequelTitle}"
+
+Generate an outline with ${numChapters} chapters in the following JSON format:
+{
+  "chapters": [
+    {
+      "title": "Chapter title (contextual, not generic)",
+      "summary": "Summary of what happens, including references to characters and events from the previous novel",
+      "returning_characters": ["Name of returning character"],
+      "new_elements": ["New elements introduced in this chapter"],
+      "connection_to_previous": "How this chapter connects to the previous novel's ending"
+    }
+  ],
+  "themes_to_explore": ["Themes to explore in the sequel"],
+  "character_arcs_to_continue": ["Character arcs to continue"]
+}
+
+Be creative and specific. Titles should be evocative and contextual.
+Continue the story from where it ended.`;
+
+    // Get AI provider for outline
+    const provider = await getProviderForUser(userId);
+    let generatedOutline: any = null;
+
+    if (provider) {
+      try {
+        console.log('[Projects-Stream] Calling AI for sequel chapter outline...');
+        const response = await provider.chat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.8,
+          max_tokens: 4000
+        });
+
+        let jsonStr = response.content || '';
+        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+        }
+
+        generatedOutline = JSON.parse(jsonStr);
+        console.log('[Projects-Stream] AI generated sequel chapter outline successfully');
+      } catch (aiErr) {
+        console.error('[Projects-Stream] AI outline generation failed:', aiErr);
+      }
+    }
+
+    // Create chapter records
+    const chaptersToGenerate: { id: string; title: string; summary: string; orderIndex: number }[] = [];
+
+    if (generatedOutline?.chapters && Array.isArray(generatedOutline.chapters)) {
+      for (let i = 0; i < generatedOutline.chapters.length; i++) {
+        const chapter = generatedOutline.chapters[i];
+        const chapterId = uuidv4();
+
+        db.prepare(
+          `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+        ).run(chapterId, newProjectId, chapter.title || `Chapter ${i + 1}`, i);
+
+        chaptersToGenerate.push({
+          id: chapterId,
+          title: chapter.title || `Chapter ${i + 1}`,
+          summary: chapter.summary || '',
+          orderIndex: i
+        });
+      }
+    } else {
+      // Fallback template chapters
+      const fallbackTitles = isItalian
+        ? ['Il Risveglio', 'Ombre del Passato', 'La Scoperta', 'Nuove Alleanze', 'Il Conflitto', 'La Rivelazione', 'Il Sacrificio', 'La Battaglia', 'La Rinascita', 'Il Nuovo Inizio']
+        : ['The Awakening', 'Shadows of the Past', 'The Discovery', 'New Alliances', 'The Conflict', 'The Revelation', 'The Sacrifice', 'The Battle', 'The Rebirth', 'A New Beginning'];
+
+      const numChaptersToCreate = Math.min(numChapters, fallbackTitles.length);
+
+      for (let i = 0; i < numChaptersToCreate; i++) {
+        const chapterId = uuidv4();
+        const title = fallbackTitles[i];
+
+        db.prepare(
+          `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+        ).run(chapterId, newProjectId, title, i);
+
+        chaptersToGenerate.push({
+          id: chapterId,
+          title,
+          summary: '',
+          orderIndex: i
+        });
+      }
+    }
+
+    sendEvent('outline_complete', {
+      message: isItalian ? `Outline completato con ${chaptersToGenerate.length} capitoli` : `Outline completed with ${chaptersToGenerate.length} chapters`,
+      totalChapters: chaptersToGenerate.length
+    });
+
+    // Now generate full content for each chapter
+    let totalWordsGenerated = 0;
+    let chaptersWithContent = 0;
+    let chaptersFailed = 0;
+
+    if (!provider) {
+      sendEvent('warning', {
+        message: isItalian
+          ? 'Nessun provider AI configurato. I capitoli sono stati creati con solo titolo.'
+          : 'No AI provider configured. Chapters were created with titles only.'
+      });
+    } else {
+      for (const chapter of chaptersToGenerate) {
+        sendEvent('phase', {
+          phase: 'generating',
+          message: isItalian
+            ? `Generazione capitolo ${chapter.orderIndex + 1}/${chaptersToGenerate.length}: "${chapter.title}"`
+            : `Generating chapter ${chapter.orderIndex + 1}/${chaptersToGenerate.length}: "${chapter.title}"`,
+          chapterIndex: chapter.orderIndex + 1,
+          totalChapters: chaptersToGenerate.length,
+          chapterTitle: chapter.title
+        });
+
+        try {
+          // Build context for this chapter
+          const previousChapterContent = chapter.orderIndex > 0
+            ? db.prepare('SELECT title, content FROM chapters WHERE project_id = ? AND order_index = ?')
+                .get(newProjectId, chapter.orderIndex - 1) as { title: string; content: string } | undefined
+            : null;
+
+          const nextChapter = chapter.orderIndex < chaptersToGenerate.length - 1
+            ? chaptersToGenerate[chapter.orderIndex + 1]
+            : null;
+
+          // Build chapter generation prompt
+          const chapterSystemPrompt = isItalian
+            ? `Sei uno scrittore professionista che aiuta a creare capitoli di romanzi.
+
+PROGETTO: "${sanitizeSensitiveWords(sequelTitle)}"
+GENERE: ${originalProject.genre || 'Narrativa'}
+TONO: ${originalProject.tone || 'Neutro'}
+PUBBLICO: ${originalProject.target_audience || 'Adulti'}
+
+CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.orderIndex + 1})
+RIASSUNTO PREVISTO: ${chapter.summary || 'Non specificato'}`
+            : `You are a professional writer helping create novel chapters.
+
+PROJECT: "${sanitizeSensitiveWords(sequelTitle)}"
+GENRE: ${originalProject.genre || 'Fiction'}
+TONE: ${originalProject.tone || 'Neutral'}
+AUDIENCE: ${originalProject.target_audience || 'Adults'}
+
+CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.orderIndex + 1})
+PLANNED SUMMARY: ${chapter.summary || 'Not specified'}`;
+
+          // Add character context
+          const sequelCharacters = db.prepare('SELECT name, description, traits FROM characters WHERE project_id = ?').all(newProjectId) as any[];
+          if (sequelCharacters.length > 0) {
+            const charList = sequelCharacters.map(c =>
+              `- ${c.name}: ${c.description || 'No description'} ${c.traits ? `(${c.traits})` : ''}`
+            ).join('\n');
+            chapterSystemPrompt += isItalian
+              ? `\n\nPERSONAGGI DISPONIBILI:\n${charList}`
+              : `\n\nAVAILABLE CHARACTERS:\n${charList}`;
+          }
+
+          // Add location context
+          const sequelLocations = db.prepare('SELECT name, description FROM locations WHERE project_id = ?').all(newProjectId) as any[];
+          if (sequelLocations.length > 0) {
+            const locList = sequelLocations.map(l =>
+              `- ${l.name}: ${l.description || 'No description'}`
+            ).join('\n');
+            chapterSystemPrompt += isItalian
+              ? `\n\nLUOGHI:\n${locList}`
+              : `\n\nLOCATIONS:\n${locList}`;
+          }
+
+          const chapterUserPrompt = isItalian
+            ? `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+
+${previousChapterContent ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'Questo è il primo capitolo del seguito.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
+
+${chapter.summary ? `RIASSUNTO DA SEGUIRE: ${chapter.summary}` : ''}
+
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano che continui la storia dal romanzo precedente.`
+            : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+
+${previousChapterContent ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'This is the first chapter of the sequel.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
+
+${chapter.summary ? `SUMMARY TO FOLLOW: ${chapter.summary}` : ''}
+
+Write an engaging chapter of approximately 2000-3000 words in English that continues the story from the previous novel.`;
+
+          // Generate chapter content
+          let chapterContent = '';
+          try {
+            for await (const event of provider.stream([
+              { role: 'system', content: chapterSystemPrompt },
+              { role: 'user', content: chapterUserPrompt }
+            ], { maxTokens: 4000 })) {
+              if (event.type === 'delta' && event.content) {
+                chapterContent += event.content;
+              } else if (event.type === 'error') {
+                throw new Error(event.error || 'Generation failed');
+              }
+            }
+          } catch (streamErr: any) {
+            // Check for moderation error and try simplified prompt
+            if (isModerationError(streamErr)) {
+              console.log('[Projects-Stream] Moderation error, using simplified prompt for chapter', chapter.orderIndex + 1);
+              const simplifiedPrompt = isItalian
+                ? `Scrivi un capitolo di circa 2000 parole per il romanzo "${sanitizeSensitiveWords(sequelTitle)}".
+Il capitolo si intitola: "${sanitizeSensitiveWords(chapter.title)}"
+Ordine: Capitolo ${chapter.orderIndex + 1} di ${chaptersToGenerate.length}.`
+                : `Write a chapter of approximately 2000 words for the novel "${sanitizeSensitiveWords(sequelTitle)}".
+Chapter title: "${sanitizeSensitiveWords(chapter.title)}"
+Order: Chapter ${chapter.orderIndex + 1} of ${chaptersToGenerate.length}.`;
+
+              for await (const event of provider.stream([
+                { role: 'user', content: simplifiedPrompt }
+              ], { maxTokens: 4000 })) {
+                if (event.type === 'delta' && event.content) {
+                  chapterContent += event.content;
+                } else if (event.type === 'error') {
+                  throw new Error(event.error || 'Simplified generation failed');
+                }
+              }
+            } else {
+              throw streamErr;
+            }
+          }
+
+          if (chapterContent) {
+            const wordCount = chapterContent.split(/\s+/).filter(w => w.length > 0).length;
+            const now = new Date().toISOString();
+
+            db.prepare(`
+              UPDATE chapters
+              SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+              WHERE id = ?
+            `).run(chapterContent, wordCount, now, chapter.id);
+
+            totalWordsGenerated += wordCount;
+            chaptersWithContent++;
+
+            sendEvent('chapter_complete', {
+              chapterIndex: chapter.orderIndex + 1,
+              chapterTitle: chapter.title,
+              wordCount,
+              totalWordsGenerated
+            });
+
+            console.log(`[Projects-Stream] Generated chapter ${chapter.orderIndex + 1}: "${chapter.title}" (${wordCount} words)`);
+          } else {
+            chaptersFailed++;
+            sendEvent('chapter_warning', {
+              chapterIndex: chapter.orderIndex + 1,
+              chapterTitle: chapter.title,
+              message: isItalian ? 'Contenuto vuoto generato' : 'Empty content generated'
+            });
+          }
+        } catch (chapterErr: any) {
+          chaptersFailed++;
+          console.error(`[Projects-Stream] Failed to generate chapter ${chapter.orderIndex + 1}:`, chapterErr.message);
+          sendEvent('chapter_warning', {
+            chapterIndex: chapter.orderIndex + 1,
+            chapterTitle: chapter.title,
+            message: chapterErr.message || 'Generation failed'
+          });
+          // Continue with next chapter
+        }
+      }
+    }
+
+    // Update project word count
+    db.prepare('UPDATE projects SET word_count = ? WHERE id = ?').run(totalWordsGenerated, newProjectId);
+
+    // Fetch and return the final project
+    const sequelProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
+    console.log('[Projects-Stream] Sequel project created with full content:', newProjectId);
+
+    sendEvent('done', {
+      message: isItalian ? 'Seguito creato con successo!' : 'Sequel created successfully!',
+      project: sequelProject,
+      sagaId,
+      charactersCopied: characters.length,
+      locationsCopied: locations.length,
+      sourcesCopied: sources.length,
+      proposalGenerated: !!sequelProposal,
+      chaptersGenerated: chaptersToGenerate.length,
+      chaptersWithContent,
+      chaptersFailed,
+      totalWordsGenerated
+    });
+
+    return res.end();
+  } catch (error) {
+    console.error('[Projects-Stream] Sequel creation error:', error instanceof Error ? error.message : 'Unknown error');
+    // Try to send error via SSE if headers already sent
+    try {
+      res.write(`event: error\ndata: ${JSON.stringify({ message: 'Internal server error' })}\n\n`);
+    } catch {
+      // Headers not sent yet, send as JSON
+      res.status(500).json({ message: 'Internal server error' });
+    }
+    return res.end();
   }
 });
 

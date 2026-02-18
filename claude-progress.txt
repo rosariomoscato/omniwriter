@@ -1,5 +1,92 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #265 Implementation
+
+### Completed Features: 265/265 (100%)
+
+### Feature #265: Auto-generate chapters when creating sequel
+
+**Objective:** Quando l'utente clicca "Crea Seguito", il sistema dovrebbe:
+1. Creare il progetto sequel (già funziona)
+2. Copiare personaggi e luoghi (già funziona)
+3. **Generare automaticamente l'outline dei capitoli** usando l'AI
+
+**Implementation:**
+
+#### 1. Backend Changes (server/src/routes/projects.ts)
+
+**Updated SequelRequestBody interface:**
+- Added `autoGenerateChapters?: boolean` (default: true)
+- Added `numChapters?: number` (default: 10)
+
+**Added chapter generation logic after sequel creation:**
+- Gathers context from original novel: characters, locations, plot events, chapters
+- Builds AI prompt for sequel outline generation (Italian/English)
+- Attempts AI generation first, falls back to template chapters
+- Creates chapters in database with proper order_index
+- Non-blocking error handling (project created even if chapters fail)
+
+**Updated response:**
+- Added `chaptersGenerated: number` - count of chapters created
+- Added `chaptersError: string | null` - error message if generation failed
+
+#### 2. Frontend API Changes (client/src/services/api.ts)
+
+**Updated createSequel method:**
+- Added `autoGenerateChapters` and `numChapters` parameters
+- Added `chaptersGenerated` and `chaptersError` to response type
+
+#### 3. Frontend UI Changes (client/src/components/CreateSequelModal.tsx)
+
+**New state variables:**
+- `autoGenerateChapters` - checkbox state (default: true)
+- `numChapters` - number input (default: 10, range: 5-20)
+
+**New UI elements:**
+- Purple checkbox section for chapter auto-generation
+- Number input field (shown when checkbox is checked)
+- Dynamic "what will be copied" list showing chapter count
+
+**Updated callback:**
+- `onSuccess(projectId, chaptersGenerated)` - now includes chapters count
+
+#### 4. Translations (client/src/i18n/locales/)
+
+**Italian (it.json):**
+- `projectPage.sequel.autoGenerateChapters`: "Genera Automaticamente Indice Capitoli"
+- `projectPage.sequel.autoGenerateChaptersHint`: "L'AI creerà titoli e sinossi..."
+- `projectPage.sequel.numChapters`: "Numero di capitoli:"
+- `projectPage.sequel.chaptersOutline`: "{{num}} capitoli con titoli generati dall'AI"
+- `projectPage.sequel.successWithChapters`: "Seguito creato con {{count}} capitoli!"
+
+**English (en.json):**
+- Same keys with English translations
+
+**Verification (API Testing):**
+1. ✅ Created test user (test265@test.com)
+2. ✅ Created Romanziere project "Test Novel for Sequel"
+3. ✅ Added character "Hero" and location "Kingdom"
+4. ✅ Created sequel with autoGenerateChapters=true, numChapters=5
+5. ✅ Response: chaptersGenerated=5, chaptersError=null
+6. ✅ Chapters created with Italian titles:
+   - Il Risveglio
+   - Ombre del Passato
+   - La Scoperta
+   - Nuove Alleanze
+   - Il Conflitto
+7. ✅ Created sequel with autoGenerateChapters=false
+8. ✅ Response: chaptersGenerated=0, chapters array empty
+
+**Server Logs Confirm:**
+```
+[Projects] Auto-generating chapters for sequel: 5dc81e48-8df0-494c-9127-48cd2f7721f0
+[Projects] Auto-generated 5 chapters for sequel
+```
+
+### Commit: 70daf7f
+
+---
+
 ## Session: 2026-02-18 - Feature #264 Implementation
 
 ### Completed Features: 264/264 (100%)

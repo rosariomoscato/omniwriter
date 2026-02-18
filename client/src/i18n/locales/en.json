@@ -345,6 +345,9 @@
       "generateProposalHint": "AI will analyze your novel and suggest plot directions, character arcs, and chapter outlines for the sequel.",
       "autoGenerateChapters": "Auto-generate Chapter Outline",
       "autoGenerateChaptersHint": "AI will create chapter titles and synopses for the sequel based on the previous novel's story.",
+      "fullContentGeneration": "Generate Full Chapter Content",
+      "fullContentGenerationHint": "AI will create complete chapter content (2000-3000 words each) for the sequel. This may take several minutes.",
+      "fullChapters": "{{num}} chapters with full AI-generated content",
       "numChapters": "Number of chapters:",
       "chaptersOutline": "{{num}} chapters with AI-generated titles",
       "whatCopied": "What will be copied:",
@@ -356,7 +359,15 @@
       "creating": "Creating...",
       "create": "Create Sequel",
       "success": "Sequel created successfully!",
-      "successWithChapters": "Sequel created with {{count}} chapters!"
+      "successWithChapters": "Sequel created with {{count}} chapters!",
+      "progress": {
+        "setup": "Setup",
+        "outline": "Outline",
+        "content": "Content",
+        "chapters": "{{completed}}/{{total}} chapters",
+        "words": "{{count}} words",
+        "failed": "{{count}} chapters had issues"
+      }
     },
     "sequelOutline": {
       "button": "Generate Sequel Outline",

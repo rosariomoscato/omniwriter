@@ -345,6 +345,9 @@
       "generateProposalHint": "L'AI analizzerà il tuo romanzo e suggerirà direzioni di trama, archi dei personaggi e schemi dei capitoli per il seguito.",
       "autoGenerateChapters": "Genera Automaticamente Indice Capitoli",
       "autoGenerateChaptersHint": "L'AI creerà titoli e sinossi dei capitoli per il seguito basandosi sulla storia del romanzo precedente.",
+      "fullContentGeneration": "Genera Contenuto Completo Capitoli",
+      "fullContentGenerationHint": "L'AI creerà contenuto completo per ogni capitolo (2000-3000 parole ciascuno) per il seguito. Questo potrebbe richiedere diversi minuti.",
+      "fullChapters": "{{num}} capitoli con contenuto completo generato dall'AI",
       "numChapters": "Numero di capitoli:",
       "chaptersOutline": "{{num}} capitoli con titoli generati dall'AI",
       "whatCopied": "Cosa verrà copiato:",
@@ -356,7 +359,15 @@
       "creating": "Creazione in corso...",
       "create": "Crea Seguito",
       "success": "Seguito creato con successo!",
-      "successWithChapters": "Seguito creato con {{count}} capitoli!"
+      "successWithChapters": "Seguito creato con {{count}} capitoli!",
+      "progress": {
+        "setup": "Preparazione",
+        "outline": "Indice",
+        "content": "Contenuto",
+        "chapters": "{{completed}}/{{total}} capitoli",
+        "words": "{{count}} parole",
+        "failed": "{{count}} capitoli hanno avuto problemi"
+      }
     },
     "sequelOutline": {
       "button": "Genera Indice Seguito",
