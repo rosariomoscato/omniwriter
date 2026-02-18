@@ -1,5 +1,69 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #259 Implementation
+
+### Completed Features: 259/259 (100%)
+
+### Feature #259: Fix: Auto-set saga_id when linking sources to saga projects
+
+**Objective:** Quando si collega una fonte standalone a un progetto che fa parte di una saga, il backend deve impostare automaticamente anche saga_id sulla fonte. In questo modo le fonti saranno condivise tra tutti i progetti della stessa saga.
+
+**Implementation:**
+
+#### 1. Modified PUT /api/sources/:id/project (server/src/routes/sources.ts)
+- Updated the project query to also retrieve `saga_id`
+- After verifying the project exists, check if it has a `saga_id`
+- If project has a saga_id, set it on the source when linking
+
+**Code Changes:**
+```typescript
+// Verify project belongs to user and get saga_id
+const project: any = db
+  .prepare('SELECT id, saga_id FROM projects WHERE id = ? AND user_id = ?')
+  .get(projectId, userId);
+
+// If project is part of a saga, also set saga_id on the source
+const sagaId = project.saga_id || null;
+
+// Update source with project_id and saga_id (if project is in a saga)
+db.prepare('UPDATE sources SET project_id = ?, saga_id = ? WHERE id = ?').run(projectId, sagaId, sourceId);
+```
+
+#### 2. Fixed GET /api/projects/:id/sources Query
+- Previous query: `WHERE project_id = ? OR (saga_id = ? AND project_id IS NULL)`
+- This only showed saga sources that had no project_id (standalone saga sources)
+- Updated query: `WHERE project_id = ? OR saga_id = ?`
+- Now shows all sources in the saga, including those linked to other projects
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created test user and upgraded to premium
+2. ✅ Created saga "Test Feature 259 Saga" in Romanziere area
+3. ✅ Created Project 1 and Project 2 in the saga
+4. ✅ Uploaded standalone source "test_source_259.txt" via Sources page
+5. ✅ Linked source to Project 1 via "Collega Fonti" modal
+6. ✅ Verified via API: source has both `project_id` (Project 1) and `saga_id` set
+7. ✅ Verified in UI: Project 1 shows source with "Condivisa" (Shared) badge
+8. ✅ Verified in UI: Project 2 shows source with "Saga" badge
+9. ✅ API returns source for both projects
+
+**Test Data Created:**
+- User: test259@test.com (premium)
+- Saga: Test Feature 259 Saga (5ea3b5d7-d331-4a59-a57c-5964f624d5c2)
+- Project 1: 7ce474b0-86c3-4090-bccd-2e761cf3b4c2
+- Project 2: 7a0dcc85-f73a-4f16-a79f-86e2bca60bc0
+- Source: test_source_259.txt (259e8f06-cb40-4dc7-bd76-51114e3c78f7)
+
+**Feature Test Steps Verified:**
+1. ✅ Modificato PUT /api/sources/:id/project - quando collega una fonte, verificare se il progetto ha saga_id
+2. ✅ Se il progetto ha saga_id, impostare anche sources.saga_id
+3. ✅ Verificare che GET /projects/:id/sources restituisca fonti del progetto e fonti della saga
+4. ✅ Testato: collegare fonte a progetto con saga → verificare che saga_id sia impostato
+5. ✅ Verificato che la fonte sia visibile anche negli altri progetti della stessa saga
+
+### Commit: f3374c0
+
+---
+
 ## Session: 2026-02-18 - Feature #258 Implementation
 
 ### Completed Features: 258/258 (100%)
