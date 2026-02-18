@@ -167,7 +167,7 @@ export default function RelationshipMap({ characters, projectTitle, onClose, onA
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('relationships.title')}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {characters.length} {t('relationships.charactersCount').replace('{{count}}', String(characters.length))} • {edges.length} {t('relationships.relationshipsCount').replace('{{count}}', String(edges.length))}
+              {t('relationships.charactersCount', { count: characters.length })} • {t('relationships.relationshipsCount', { count: edges.length })}
             </p>
           </div>
           <button
@@ -232,16 +232,28 @@ export default function RelationshipMap({ characters, projectTitle, onClose, onA
                       strokeDasharray={isSelected ? '0' : '5,5'}
                       onClick={(e) => handleEdgeClick(edge, e)}
                     />
-                    {/* Edge label */}
-                    <text
-                      x={(fromNode.x + toNode.x) / 2}
-                      y={(fromNode.y + toNode.y) / 2}
-                      className="fill-gray-600 dark:fill-gray-400 text-xs pointer-events-none select-none"
-                      textAnchor="middle"
-                      dy="-5"
-                    >
-                      {edge.type}
-                    </text>
+                    {/* Edge label with background */}
+                    <g>
+                      {/* Semi-transparent background rect */}
+                      <rect
+                        x={(fromNode.x + toNode.x) / 2 - 40}
+                        y={(fromNode.y + toNode.y) / 2 - 16}
+                        width="80"
+                        height="16"
+                        rx="4"
+                        className="fill-white/80 dark:fill-gray-800/80"
+                      />
+                      {/* Label text - truncated if too long */}
+                      <text
+                        x={(fromNode.x + toNode.x) / 2}
+                        y={(fromNode.y + toNode.y) / 2 - 5}
+                        className="fill-gray-600 dark:fill-gray-400 text-xs pointer-events-none select-none"
+                        textAnchor="middle"
+                        fontSize="11"
+                      >
+                        {edge.type.length > 12 ? edge.type.substring(0, 10) + '...' : edge.type}
+                      </text>
+                    </g>
                   </g>
                 );
               })}
