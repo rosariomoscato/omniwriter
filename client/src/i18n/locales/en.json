@@ -343,6 +343,10 @@
       "titleHint": "Leave empty to use default: {{defaultTitle}}",
       "generateProposal": "Generate AI Sequel Proposal",
       "generateProposalHint": "AI will analyze your novel and suggest plot directions, character arcs, and chapter outlines for the sequel.",
+      "autoGenerateChapters": "Auto-generate Chapter Outline",
+      "autoGenerateChaptersHint": "AI will create chapter titles and synopses for the sequel based on the previous novel's story.",
+      "numChapters": "Number of chapters:",
+      "chaptersOutline": "{{num}} chapters with AI-generated titles",
       "whatCopied": "What will be copied:",
       "characters": "All characters (marked as returning)",
       "locations": "All locations",
@@ -351,7 +355,8 @@
       "saga": "Saga/series linkage",
       "creating": "Creating...",
       "create": "Create Sequel",
-      "success": "Sequel created successfully!"
+      "success": "Sequel created successfully!",
+      "successWithChapters": "Sequel created with {{count}} chapters!"
     },
     "sequelOutline": {
       "button": "Generate Sequel Outline",
@@ -699,6 +704,7 @@
     "addDialogTitle": "Add Relationship",
     "fromCharacter": "From Character",
     "toCharacter": "To Character",
+    "typeLabel": "Relationship Type",
     "relationshipType": "Relationship Type",
     "selectCharacter": "Select character...",
     "selectType": "Select type...",

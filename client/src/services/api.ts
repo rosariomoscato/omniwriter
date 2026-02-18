@@ -380,6 +380,11 @@ class ApiService {
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
+    // Handle 204 No Content responses (empty body)
+    if (response.status === 204) {
+      return {} as T;
+    }
+
     return response.json();
   }
 
@@ -500,6 +505,8 @@ class ApiService {
     title?: string;
     generateProposal?: boolean;
     language?: 'it' | 'en';
+    autoGenerateChapters?: boolean;
+    numChapters?: number;
   }): Promise<{
     project: Project;
     sagaId: string;
@@ -507,6 +514,8 @@ class ApiService {
     locationsCopied: number;
     sourcesCopied: number;
     proposalGenerated: boolean;
+    chaptersGenerated: number;
+    chaptersError: string | null;
   }> {
     return this.request<{
       project: Project;
@@ -515,6 +524,8 @@ class ApiService {
       locationsCopied: number;
       sourcesCopied: number;
       proposalGenerated: boolean;
+      chaptersGenerated: number;
+      chaptersError: string | null;
     }>(`/projects/${id}/sequel`, {
       method: 'POST',
       body: JSON.stringify(options || {}),

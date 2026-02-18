@@ -1,7 +1,7 @@
 // Feature #255: Create Sequel Modal
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, BookOpen, Sparkles } from 'lucide-react';
+import { Loader2, BookOpen, Sparkles, FileText } from 'lucide-react';
 import { apiService } from '../services/api';
 
 interface CreateSequelModalProps {
@@ -13,7 +13,7 @@ interface CreateSequelModalProps {
     area: string;
   };
   language: 'it' | 'en';
-  onSuccess: (projectId: string) => void;
+  onSuccess: (projectId: string, chaptersGenerated?: number) => void;
   onError: (error: string) => void;
 }
 
@@ -28,6 +28,8 @@ export default function CreateSequelModal({
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [generateProposal, setGenerateProposal] = useState(true);
+  const [autoGenerateChapters, setAutoGenerateChapters] = useState(true);
+  const [numChapters, setNumChapters] = useState(10);
   const [creating, setCreating] = useState(false);
 
   if (!isOpen) return null;
@@ -44,10 +46,12 @@ export default function CreateSequelModal({
       const response = await apiService.createSequel(project.id, {
         title: title.trim() || undefined,
         generateProposal,
-        language
+        language,
+        autoGenerateChapters,
+        numChapters
       });
 
-      onSuccess(response.project.id);
+      onSuccess(response.project.id, response.chaptersGenerated);
       onClose();
     } catch (err: any) {
       onError(err.message || 'Failed to create sequel');
@@ -115,6 +119,44 @@ export default function CreateSequelModal({
             </div>
           </div>
 
+          {/* Feature #265: Auto-generate chapters option */}
+          <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <input
+              type="checkbox"
+              id="autoGenerateChapters"
+              checked={autoGenerateChapters}
+              onChange={(e) => setAutoGenerateChapters(e.target.checked)}
+              className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+            />
+            <div className="flex-1">
+              <label htmlFor="autoGenerateChapters" className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                <FileText className="w-4 h-4 text-purple-500" />
+                {t('projectPage.sequel.autoGenerateChapters', 'Auto-generate Chapter Outline')}
+              </label>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                {t(
+                  'projectPage.sequel.autoGenerateChaptersHint',
+                  'AI will create chapter titles and synopses for the sequel based on the previous novel\'s story.'
+                )}
+              </p>
+              {autoGenerateChapters && (
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="text-xs text-gray-600 dark:text-gray-400">
+                    {t('projectPage.sequel.numChapters', 'Number of chapters:')}
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={20}
+                    value={numChapters}
+                    onChange={(e) => setNumChapters(Math.max(5, Math.min(20, parseInt(e.target.value) || 10)))}
+                    className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
             <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
               {t('projectPage.sequel.whatCopied', 'What will be copied:')}
@@ -125,6 +167,9 @@ export default function CreateSequelModal({
               <li>• {t('projectPage.sequel.synopsis', 'Original synopsis (as reference)')}</li>
               <li>• {t('projectPage.sequel.sources', 'All source materials')}</li>
               <li>• {t('projectPage.sequel.saga', 'Saga/series linkage')}</li>
+              {autoGenerateChapters && (
+                <li className="text-purple-600 dark:text-purple-400">• {t('projectPage.sequel.chaptersOutline', '{{num}} chapters with AI-generated titles', { num: numChapters })}</li>
+              )}
             </ul>
           </div>
 

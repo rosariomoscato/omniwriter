@@ -343,6 +343,10 @@
       "titleHint": "Lascia vuoto per usare il default: {{defaultTitle}}",
       "generateProposal": "Genera Proposta AI per il Seguito",
       "generateProposalHint": "L'AI analizzerà il tuo romanzo e suggerirà direzioni di trama, archi dei personaggi e schemi dei capitoli per il seguito.",
+      "autoGenerateChapters": "Genera Automaticamente Indice Capitoli",
+      "autoGenerateChaptersHint": "L'AI creerà titoli e sinossi dei capitoli per il seguito basandosi sulla storia del romanzo precedente.",
+      "numChapters": "Numero di capitoli:",
+      "chaptersOutline": "{{num}} capitoli con titoli generati dall'AI",
       "whatCopied": "Cosa verrà copiato:",
       "characters": "Tutti i personaggi (marcati come ritornanti)",
       "locations": "Tutti i luoghi",
@@ -351,7 +355,8 @@
       "saga": "Collegamento alla saga/serie",
       "creating": "Creazione in corso...",
       "create": "Crea Seguito",
-      "success": "Seguito creato con successo!"
+      "success": "Seguito creato con successo!",
+      "successWithChapters": "Seguito creato con {{count}} capitoli!"
     },
     "sequelOutline": {
       "button": "Genera Indice Seguito",
@@ -699,6 +704,7 @@
     "addDialogTitle": "Aggiungi Relazione",
     "fromCharacter": "Da Personaggio",
     "toCharacter": "A Personaggio",
+    "typeLabel": "Tipo Relazione",
     "relationshipType": "Tipo Relazione",
     "selectCharacter": "Seleziona personaggio...",
     "selectType": "Seleziona tipo...",

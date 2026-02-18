@@ -147,7 +147,7 @@ const translations = {
   timelineGap: {
     it: (chapter1: string, chapter2: string) =>
       `Possibile salto temporale non spiegato tra "${chapter1}" e "${chapter2}"`,
-    en: (chapterTitle: string, chapter2: string) =>
+    en: (chapter1: string, chapter2: string) =>
       `Possible unexplained time gap between "${chapter1}" and "${chapter2}"`
   },
   timelineGapSuggestion: {
@@ -170,11 +170,11 @@ const translations = {
 export function t(key: keyof typeof translations, lang: Language = 'it', ...args: (string | number)[]): string {
   const translation = translations[key];
   if (typeof translation === 'string') {
-    return lang === 'it' ? (translations[`${key}It`] as string) : (translations[`${key}En`] as string);
+    return translation;
   }
-  // It's a function
-  const fn = translation[lang] || translation['en'];
-  return fn(...args as string[]);
+  // It's a function-based translation object
+  const fn = (translation as any)[lang] || (translation as any)['en'];
+  return fn(...args);
 }
 
 // Export types

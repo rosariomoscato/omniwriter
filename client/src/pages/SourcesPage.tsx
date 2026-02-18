@@ -3,6 +3,7 @@ import { apiService, Source } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import {
   FileText,
   Upload,
@@ -34,9 +35,13 @@ export default function SourcesPage() {
   const [showTagManagement, setShowTagManagement] = useState(false);
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
 
-  // Preview states
-  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
-  const [showSourcePreview, setShowSourcePreview] = useState(false);
+  // Delete confirmation states
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<Source | null>(null);
+
+  // Tag deletion confirmation states
+  const [showDeleteTagDialog, setShowDeleteTagDialog] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -86,35 +91,6 @@ export default function SourcesPage() {
     };
   }, []);
 
-  const loadSources = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await apiService.getAllSources();
-
-      const sourcesWithTags = response.sources.map(source => ({
-        ...source,
-        tags: source.tags || [],
-      }));
-
-      setSources(sourcesWithTags);
-
-      // Extract all unique tags
-      const tagSet = new Set<string>();
-      sourcesWithTags.forEach(source => {
-        if (source.tags && Array.isArray(source.tags)) {
-          source.tags.forEach(tag => tagSet.add(tag));
-        }
-      });
-      setAllTags(Array.from(tagSet).sort());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sources');
-      toast.error(err instanceof Error ? err.message : 'Failed to load sources');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -143,16 +119,24 @@ export default function SourcesPage() {
     }
   };
 
-  const handleDeleteSource = async (sourceId: string) => {
-    if (!confirm(t('sources.confirmDelete'))) {
-      return;
-    }
+  const handleDeleteSource = (sourceId: string) => {
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
+
+    setSourceToDelete(source);
+    setShowDeleteConfirmDialog(true);
+  };
+
+  const confirmDeleteSource = async () => {
+    if (!sourceToDelete) return;
 
     try {
       setError(null);
-      await apiService.deleteSource(sourceId);
-      setSources(sources.filter(s => s.id !== sourceId));
+      await apiService.deleteSource(sourceToDelete.id);
+      setSources(sources.filter(s => s.id !== sourceToDelete.id));
       toast.success(t('sources.deleteSuccess'));
+      setShowDeleteConfirmDialog(false);
+      setSourceToDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete source');
       toast.error(err instanceof Error ? err.message : 'Failed to delete source');
@@ -209,36 +193,40 @@ export default function SourcesPage() {
     }
   };
 
-  const handleDeleteTagGlobally = async (tag: string) => {
-    const confirmMessage = t('sources.confirmDeleteTag', { tag });
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+  const handleDeleteTagGlobally = (tag: string) => {
+    setTagToDelete(tag);
+    setShowDeleteTagDialog(true);
+  };
+
+  const confirmDeleteTagGlobally = async () => {
+    if (!tagToDelete) return;
 
     try {
-      setDeletingTag(tag);
+      setDeletingTag(tagToDelete);
       setError(null);
-      const response = await apiService.deleteTag(tag);
+      const response = await apiService.deleteTag(tagToDelete);
 
       // Update sources state to reflect the removed tag
       setSources(sources.map(source => {
-        if (source.tags && source.tags.includes(tag)) {
+        if (source.tags && source.tags.includes(tagToDelete)) {
           return {
             ...source,
-            tags: source.tags.filter(t => t !== tag)
+            tags: source.tags.filter(t => t !== tagToDelete)
           };
         }
         return source;
       }));
 
       // Update allTags state
-      setAllTags(allTags.filter(t => t !== tag));
+      setAllTags(allTags.filter(t => t !== tagToDelete));
 
       // Show success message with count
       toast.success(t('sources.deleteTagSuccess', {
-        tag,
+        tag: tagToDelete,
         count: response.updatedCount
       }));
+      setShowDeleteTagDialog(false);
+      setTagToDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete tag');
       toast.error(err instanceof Error ? err.message : 'Failed to delete tag');
@@ -591,6 +579,36 @@ export default function SourcesPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Source Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteConfirmDialog}
+        title={t('sources.deleteSourceTitle', 'Delete Source')}
+        message={t('sources.confirmDelete', 'Are you sure you want to delete this source? This action cannot be undone.')}
+        itemName={sourceToDelete?.file_name}
+        onConfirm={confirmDeleteSource}
+        onCancel={() => {
+          setShowDeleteConfirmDialog(false);
+          setSourceToDelete(null);
+        }}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
+
+      {/* Delete Tag Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteTagDialog}
+        title={t('sources.deleteTagTitle', 'Delete Tag')}
+        message={t('sources.confirmDeleteTag', { tag: tagToDelete || '', defaultValue: 'Are you sure you want to delete the tag "{{tag}}"? It will be removed from all sources.' })}
+        itemName={tagToDelete}
+        onConfirm={confirmDeleteTagGlobally}
+        onCancel={() => {
+          setShowDeleteTagDialog(false);
+          setTagToDelete(null);
+        }}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
     </div>
   );
 }

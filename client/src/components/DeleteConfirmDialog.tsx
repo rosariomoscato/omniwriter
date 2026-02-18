@@ -7,7 +7,7 @@ interface DeleteConfirmDialogProps {
   isOpen: boolean;
   title: string;
   message: string;
-  itemName?: string;
+  itemName?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
   confirmText?: string;

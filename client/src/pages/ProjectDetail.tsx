@@ -1646,8 +1646,12 @@ export default function ProjectDetail() {
           onClose={() => setShowSequelModal(false)}
           project={{ id: project.id, title: project.title, area: project.area }}
           language={i18n.language === 'en' ? 'en' : 'it'}
-          onSuccess={(newProjectId) => {
-            toast.success(t('projectPage.sequel.success', 'Sequel created successfully!'));
+          onSuccess={(newProjectId, chaptersGenerated) => {
+            if (chaptersGenerated && chaptersGenerated > 0) {
+              toast.success(t('projectPage.sequel.successWithChapters', 'Sequel created with {{count}} chapters!', { count: chaptersGenerated }));
+            } else {
+              toast.success(t('projectPage.sequel.success', 'Sequel created successfully!'));
+            }
             navigate(`/projects/${newProjectId}`);
           }}
           onError={(error) => {
@@ -3743,6 +3747,7 @@ export default function ProjectDetail() {
       {showRelationshipMap && (
         <RelationshipMap
           characters={characters}
+          projectTitle={project?.title}
           onClose={() => setShowRelationshipMap(false)}
           onAddRelationship={handleAddRelationship}
         />

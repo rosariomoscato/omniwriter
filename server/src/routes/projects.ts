@@ -541,6 +541,8 @@ interface SequelRequestBody {
   title?: string;
   generateProposal?: boolean;
   language?: 'it' | 'en';
+  autoGenerateChapters?: boolean;
+  numChapters?: number;
 }
 
 // @ts-expect-error - AuthRequest type compatibility with router
@@ -549,7 +551,13 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
     const db = getDatabase();
     const userId = req.user?.id;
     const projectId = req.params.id;
-    const { title: customTitle, generateProposal = true, language = 'it' } = req.body as SequelRequestBody;
+    const {
+      title: customTitle,
+      generateProposal = true,
+      language = 'it',
+      autoGenerateChapters = true,
+      numChapters = 10
+    } = req.body as SequelRequestBody;
 
     // Fetch the original project
     const originalProject = db.prepare(
@@ -661,7 +669,7 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
       const synopsisSourceId = uuidv4();
       db.prepare(
         `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
-         VALUES (?, ?, ?, ?, '', 'reference', 'text', ?, ?, 'synopsis_reference', '', '["synopsis", "reference"]', 1.0, datetime('now'))`
+         VALUES (?, ?, ?, ?, '', 'reference', 'text', ?, ?, 'upload', '', '["synopsis", "reference"]', 1.0, datetime('now'))`
       ).run(
         synopsisSourceId,
         newProjectId,
@@ -677,6 +685,10 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
     const sources = db.prepare('SELECT * FROM sources WHERE project_id = ?').all(projectId) as any[];
     for (const source of sources) {
       const newSourceId = uuidv4();
+      // Validate source_type - database only accepts 'upload' or 'web_search'
+      const validSourceType = ['upload', 'web_search'].includes(source.source_type)
+        ? source.source_type
+        : 'upload';
       db.prepare(
         `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
@@ -690,7 +702,7 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
         source.file_type,
         source.file_size || 0,
         source.content_text || '',
-        source.source_type || 'reference',
+        validSourceType,
         source.url || '',
         source.tags_json || '[]',
         source.relevance_score || 0.0
@@ -718,7 +730,7 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
           const proposalContent = formatSequelProposal(sequelProposal, language);
           db.prepare(
             `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
-             VALUES (?, ?, ?, ?, 'AI Sequel Proposal', '', 'text', ?, ?, 'ai_proposal', '', '["ai-generated", "sequel-proposal"]', 1.0, datetime('now'))`
+             VALUES (?, ?, ?, ?, 'AI Sequel Proposal', '', 'text', ?, ?, 'upload', '', '["ai-generated", "sequel-proposal"]', 1.0, datetime('now'))`
           ).run(
             proposalSourceId,
             newProjectId,
@@ -735,6 +747,241 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
       }
     }
 
+    // Auto-generate chapters if requested (Feature #265)
+    let chaptersGenerated = 0;
+    let chaptersError: string | null = null;
+
+    if (autoGenerateChapters) {
+      try {
+        console.log('[Projects] Auto-generating chapters for sequel:', newProjectId);
+
+        // Gather context from the original novel for chapter generation
+        const previousCharacters = db.prepare(`
+          SELECT name, description, traits, backstory, role_in_story
+          FROM characters WHERE project_id = ?
+        `).all(projectId) as Array<{
+          name: string;
+          description: string;
+          traits: string;
+          backstory: string;
+          role_in_story: string;
+        }>;
+
+        const previousLocations = db.prepare(`
+          SELECT name, description, significance
+          FROM locations WHERE project_id = ?
+        `).all(projectId) as Array<{
+          name: string;
+          description: string;
+          significance: string;
+        }>;
+
+        const previousPlotEvents = db.prepare(`
+          SELECT title, description, event_type
+          FROM plot_events WHERE project_id = ?
+          ORDER BY created_at ASC
+        `).all(projectId) as Array<{
+          title: string;
+          description: string;
+          event_type: string;
+        }>;
+
+        const previousChapters = db.prepare(`
+          SELECT title FROM chapters WHERE project_id = ? ORDER BY order_index
+        `).all(projectId) as Array<{
+          title: string;
+        }>;
+
+        // Build AI prompt for sequel generation
+        const isItalian = language === 'it';
+
+        const characterSummaries = previousCharacters.slice(0, 15).map(c =>
+          `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''}`
+        ).join('\n');
+
+        const locationSummaries = previousLocations.slice(0, 10).map(l =>
+          `- ${l.name}: ${l.description || 'No description'} ${l.significance ? `- ${l.significance}` : ''}`
+        ).join('\n');
+
+        const plotSummary = previousPlotEvents.slice(0, 10).map(e =>
+          `- ${e.title}: ${e.description || 'No description'}`
+        ).join('\n');
+
+        const chapterSummary = previousChapters.slice(0, 10).map((ch, idx) =>
+          `Chapter ${idx + 1}: ${ch.title}`
+        ).join('\n');
+
+        const systemPrompt = isItalian
+          ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale.
+Il tuo compito è creare un outline per il seguito di un romanzo esistente.
+Devi mantenere la coerenza con i personaggi e la trama precedente, continuando la storia in modo naturale e coinvolgente.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.
+Ogni capitolo deve avere un titolo contestuale (non generico) e un riassunto che colleghi al romanzo precedente.`
+          : `You are an expert writer and editorial consultant specializing in serialized fiction.
+Your task is to create an outline for the sequel to an existing novel.
+You must maintain consistency with characters and previous plot, continuing the story naturally and engagingly.
+Respond ONLY with valid JSON, without additional text.
+Each chapter must have a contextual title (not generic) and a summary that links to the previous novel.`;
+
+        const userPrompt = isItalian
+          ? `Crea un outline per il sequel del seguente romanzo.
+
+ROMANZO PRECEDENTE: "${originalProject.title}"
+${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
+
+PERSONAGGI DAL ROMANZO PRECEDENTE:
+${characterSummaries || 'Nessun personaggio registrato'}
+
+LUOGHI DAL ROMANZO PRECEDENTE:
+${locationSummaries || 'Nessun luogo registrato'}
+
+EVENTI DI TRAMA PRINCIPALI:
+${plotSummary || 'Nessun evento registrato'}
+
+RIASSUNTO CAPITOLI PRECEDENTI:
+${chapterSummary || 'Nessun capitolo disponibile'}
+
+TITOLO DEL SEQUEL: "${sequelTitle}"
+
+Genera un outline con ${numChapters} capitoli nel seguente formato JSON:
+{
+  "chapters": [
+    {
+      "title": "Titolo del capitolo (contestuale, non generico)",
+      "summary": "Riassunto di cosa accade, includendo riferimenti a personaggi e eventi del romanzo precedente",
+      "returning_characters": ["Nome personaggio che ritorna"],
+      "new_elements": ["Nuovi elementi introdotti in questo capitolo"],
+      "connection_to_previous": "Come questo capitolo si collega al finale del romanzo precedente"
+    }
+  ],
+  "themes_to_explore": ["Temi da esplorare nel sequel"],
+  "character_arcs_to_continue": ["Archi narrativi da continuare"]
+}
+
+Sii creativo e specifico. I titoli devono essere evocativi e contestuali.
+Continua la storia dal punto in cui è terminata.`
+          : `Create an outline for the sequel to the following novel.
+
+PREVIOUS NOVEL: "${originalProject.title}"
+${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+
+CHARACTERS FROM PREVIOUS NOVEL:
+${characterSummaries || 'No characters registered'}
+
+LOCATIONS FROM PREVIOUS NOVEL:
+${locationSummaries || 'No locations registered'}
+
+MAIN PLOT EVENTS:
+${plotSummary || 'No plot events registered'}
+
+PREVIOUS CHAPTERS SUMMARY:
+${chapterSummary || 'No chapters available'}
+
+SEQUEL TITLE: "${sequelTitle}"
+
+Generate an outline with ${numChapters} chapters in the following JSON format:
+{
+  "chapters": [
+    {
+      "title": "Chapter title (contextual, not generic)",
+      "summary": "Summary of what happens, including references to characters and events from the previous novel",
+      "returning_characters": ["Name of returning character"],
+      "new_elements": ["New elements introduced in this chapter"],
+      "connection_to_previous": "How this chapter connects to the previous novel's ending"
+    }
+  ],
+  "themes_to_explore": ["Themes to explore in the sequel"],
+  "character_arcs_to_continue": ["Character arcs to continue"]
+}
+
+Be creative and specific. Titles should be evocative and contextual.
+Continue the story from where it ended.`;
+
+        // Get AI provider
+        const provider = await getProviderForUser(userId);
+        let generatedOutline: any = null;
+
+        if (provider) {
+          try {
+            console.log('[Projects] Calling AI for sequel chapter outline generation...');
+            const response = await provider.chat({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: 0.8,
+              max_tokens: 4000
+            });
+
+            // Parse JSON from response
+            let jsonStr = response.content || '';
+            const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+              jsonStr = jsonMatch[1].trim();
+            }
+
+            generatedOutline = JSON.parse(jsonStr);
+            console.log('[Projects] AI generated sequel chapter outline successfully');
+          } catch (aiErr) {
+            console.error('[Projects] AI sequel chapter outline generation failed:', aiErr);
+            // Fall back to template generation
+          }
+        }
+
+        // Create chapters based on generated outline or fallback template
+        if (generatedOutline?.chapters && Array.isArray(generatedOutline.chapters)) {
+          // Create chapters from AI-generated outline
+          for (let i = 0; i < generatedOutline.chapters.length; i++) {
+            const chapter = generatedOutline.chapters[i];
+            const chapterId = uuidv4();
+
+            try {
+              db.prepare(
+                `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+              ).run(
+                chapterId,
+                newProjectId,
+                chapter.title || `Chapter ${i + 1}`,
+                i
+              );
+              chaptersGenerated++;
+            } catch (insertErr) {
+              console.warn('[Projects] Failed to insert chapter:', chapter.title, insertErr);
+            }
+          }
+        } else {
+          // Fallback: Create template-based chapters
+          const fallbackTitles = isItalian
+            ? ['Il Risveglio', 'Ombre del Passato', 'La Scoperta', 'Nuove Alleanze', 'Il Conflitto', 'La Rivelazione', 'Il Sacrificio', 'La Battaglia', 'La Rinascita', 'Il Nuovo Inizio']
+            : ['The Awakening', 'Shadows of the Past', 'The Discovery', 'New Alliances', 'The Conflict', 'The Revelation', 'The Sacrifice', 'The Battle', 'The Rebirth', 'A New Beginning'];
+
+          const numChaptersToCreate = Math.min(numChapters, fallbackTitles.length);
+
+          for (let i = 0; i < numChaptersToCreate; i++) {
+            const chapterId = uuidv4();
+            const title = fallbackTitles[i];
+
+            try {
+              db.prepare(
+                `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+              ).run(chapterId, newProjectId, title, i);
+              chaptersGenerated++;
+            } catch (insertErr) {
+              console.warn('[Projects] Failed to insert fallback chapter:', title, insertErr);
+            }
+          }
+        }
+
+        console.log('[Projects] Auto-generated', chaptersGenerated, 'chapters for sequel');
+      } catch (chaptersErr) {
+        console.warn('[Projects] Failed to auto-generate chapters (non-fatal):', chaptersErr);
+        chaptersError = chaptersErr instanceof Error ? chaptersErr.message : 'Unknown error';
+        // Continue without chapters - project was created successfully
+      }
+    }
+
     // Fetch and return the sequel project
     const sequelProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
     console.log('[Projects] Sequel project created successfully:', newProjectId);
@@ -746,7 +993,9 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
       charactersCopied: characters.length,
       locationsCopied: locations.length,
       sourcesCopied: sources.length,
-      proposalGenerated: !!sequelProposal
+      proposalGenerated: !!sequelProposal,
+      chaptersGenerated,
+      chaptersError
     });
   } catch (error) {
     console.error('[Projects] Sequel creation error:', error instanceof Error ? error.message : 'Unknown error');
@@ -1428,7 +1677,14 @@ Rispondi con un JSON con la seguente struttura:
       "description": "Descrizione fisica e comportamentale basata sul testo",
       "role_in_story": "Ruolo nella storia (es: protagonista, antagonista, comprimario)",
       "traits": "Tratti caratteriali emersi dal testo",
-      "backstory": "Eventi passati menzionati nel testo"
+      "backstory": "Eventi passati menzionati nel testo",
+      "relationships": [
+        {
+          "relatedTo": "Nome del personaggio correlato",
+          "type": "Tipo di relazione (es: family, friend, enemy, romantic, mentor, ally)",
+          "description": "Breve descrizione della relazione basata sul testo"
+        }
+      ]
     }
   ],
   "locations": [
@@ -1451,6 +1707,8 @@ IMPORTANTE:
 - Estrai SOLO entità che appaiono chiaramente nel testo fornito
 - Non inventare informazioni non presenti nel testo
 - I nomi dei personaggi devono essere coerenti (usa lo stesso nome per lo stesso personaggio)
+- Per ogni personaggio, estrai le relazioni con altri personaggi menzionate nel testo
+- I tipi di relazione devono essere: family, friend, enemy, romantic, mentor, ally
 - Se non trovi entità di un tipo, restituisci un array vuoto per quel tipo`
     };
   }
@@ -1476,7 +1734,14 @@ Respond with JSON in the following structure:
       "description": "Physical and behavioral description based on the text",
       "role_in_story": "Role in the story (e.g., protagonist, antagonist, supporting)",
       "traits": "Character traits that emerge from the text",
-      "backstory": "Past events mentioned in the text"
+      "backstory": "Past events mentioned in the text",
+      "relationships": [
+        {
+          "relatedTo": "Name of the related character",
+          "type": "Relationship type (e.g., family, friend, enemy, romantic, mentor, ally)",
+          "description": "Brief description of the relationship based on the text"
+        }
+      ]
     }
   ],
   "locations": [
@@ -1499,6 +1764,8 @@ IMPORTANT:
 - Extract ONLY entities that clearly appear in the provided text
 - Do not invent information not present in the text
 - Character names should be consistent (use the same name for the same character)
+- For each character, extract relationships with other characters mentioned in the text
+- Relationship types should be: family, friend, enemy, romantic, mentor, ally
 - If you find no entities of a type, return an empty array for that type`
   };
 }
@@ -1506,12 +1773,19 @@ IMPORTANT:
 /**
  * Parsed entity types from AI response
  */
+interface ParsedRelationship {
+  relatedTo: string;
+  type: string;
+  description: string;
+}
+
 interface ParsedCharacter {
   name: string;
   description: string;
   role_in_story: string;
   traits: string;
   backstory: string;
+  relationships: ParsedRelationship[];
 }
 
 interface ParsedLocation {
@@ -1567,7 +1841,12 @@ function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
         description: String(c.description || '').trim(),
         role_in_story: String(c.role_in_story || '').trim(),
         traits: String(c.traits || '').trim(),
-        backstory: String(c.backstory || '').trim()
+        backstory: String(c.backstory || '').trim(),
+        relationships: (c.relationships || []).map((r: any) => ({
+          relatedTo: String(r.relatedTo || r.related_to || r.name || '').trim(),
+          type: String(r.type || r.relationshipType || 'ally').trim().toLowerCase(),
+          description: String(r.description || '').trim()
+        })).filter((r: ParsedRelationship) => r.relatedTo.length > 0)
       })).filter((c: ParsedCharacter) => c.name.length > 0),
       locations: (parsed.locations || []).map((l: any) => ({
         name: String(l.name || '').trim(),
@@ -1628,7 +1907,7 @@ function deduplicateCharacters(characters: ParsedCharacter[]): ParsedCharacter[]
   for (let i = 0; i < characters.length; i++) {
     if (used.has(i)) continue;
 
-    const current = { ...characters[i] };
+    const current = { ...characters[i], relationships: [...(characters[i].relationships || [])] };
 
     // Find similar characters
     for (let j = i + 1; j < characters.length; j++) {
@@ -1654,6 +1933,17 @@ function deduplicateCharacters(characters: ParsedCharacter[]): ParsedCharacter[]
           current.backstory = current.backstory
             ? `${current.backstory} ${characters[j].backstory}`
             : characters[j].backstory;
+        }
+        // Merge relationships from duplicate character
+        if (characters[j].relationships && characters[j].relationships.length > 0) {
+          for (const rel of characters[j].relationships) {
+            const existing = current.relationships.find(
+              r => normalizeName(r.relatedTo) === normalizeName(rel.relatedTo) && r.type === rel.type
+            );
+            if (!existing) {
+              current.relationships.push(rel);
+            }
+          }
         }
         used.add(j);
       }
@@ -1995,7 +2285,7 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     console.log('[Projects] Extracted text length:', novelContent.length, 'characters');
 
     // Use AI-based analysis (Feature #249)
-    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string }>;
+    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[] }>;
     let locations: Array<{ name: string; description: string; significance: string }>;
     let plotEvents: Array<{ title: string; description: string; event_type: string }>;
     let synopsis = '';
@@ -2023,8 +2313,13 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     db.prepare('DELETE FROM locations WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);
     db.prepare('DELETE FROM plot_events WHERE project_id = ? AND extracted_from_upload = 1').run(projectId);
 
-    // Insert extracted characters
+    // Insert extracted characters (two-pass: first insert, then resolve relationships)
     let charactersCreated = 0;
+    // Map character name -> generated UUID for relationship resolution
+    const charNameToId: Map<string, string> = new Map();
+    const charInsertData: Array<{ id: string; character: typeof characters[0] }> = [];
+
+    // Pass 1: Insert characters with empty relationships
     for (const character of characters) {
       try {
         const characterId = uuidv4();
@@ -2040,10 +2335,57 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
           character.backstory,
           character.role_in_story
         );
+        charNameToId.set(normalizeName(character.name), characterId);
+        charInsertData.push({ id: characterId, character });
         charactersCreated++;
       } catch (err) {
         // Skip duplicates
         console.warn('[Projects] Failed to insert character:', character.name, err);
+      }
+    }
+
+    // Pass 2: Resolve and save relationships using character IDs
+    for (const { id: fromCharId, character } of charInsertData) {
+      if (!character.relationships || character.relationships.length === 0) continue;
+
+      const resolvedRelationships = [];
+      for (const rel of character.relationships) {
+        // Find the target character ID by normalized name matching
+        let targetId: string | undefined;
+        const normalizedRelName = normalizeName(rel.relatedTo);
+
+        // Try exact match first
+        targetId = charNameToId.get(normalizedRelName);
+
+        // Try partial match if exact didn't work
+        if (!targetId) {
+          for (const [name, cId] of charNameToId.entries()) {
+            if (name.includes(normalizedRelName) || normalizedRelName.includes(name)) {
+              targetId = cId;
+              break;
+            }
+          }
+        }
+
+        if (targetId && targetId !== fromCharId) {
+          resolvedRelationships.push({
+            characterId: fromCharId,
+            relatedCharacterId: targetId,
+            relationshipType: rel.type || 'ally'
+          });
+        }
+      }
+
+      if (resolvedRelationships.length > 0) {
+        try {
+          db.prepare('UPDATE characters SET relationships_json = ? WHERE id = ?').run(
+            JSON.stringify(resolvedRelationships),
+            fromCharId
+          );
+          console.log(`[Projects] Saved ${resolvedRelationships.length} relationships for character "${character.name}"`);
+        } catch (err) {
+          console.warn('[Projects] Failed to update relationships for:', character.name, err);
+        }
       }
     }
 
