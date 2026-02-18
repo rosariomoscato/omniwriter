@@ -1,5 +1,119 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #267 Implementation
+
+### Completed Features: 267/267 (100%)
+
+### Feature #267: Improve "Crea Seguito" flow with chapter preview and confirmation
+
+**Objective:** Riprogettare il flusso "Crea Seguito" per essere più interattivo e guidato:
+1. Generare outline capitoli con AI (fase 1)
+2. Mostrare preview con possibilità di modificare (fase 2)
+3. Creare progetto solo dopo conferma (fase 3)
+4. Rimuovere il tasto "Genera Indice Seguito" (superfluo)
+
+**Implementation:**
+
+#### 1. Backend Endpoints (server/src/routes/projects.ts)
+
+**POST /api/projects/:id/sequel/outline** (lines 4682-4903):
+- Generates AI chapter outline WITHOUT creating the project
+- Accepts: title (optional), language, numChapters
+- Returns: outline with chapters (title, summary, returning_characters, connection_to_previous)
+- Context gathered: characters, locations, plot events, previous chapters
+- Falls back to default outline if AI unavailable
+
+**POST /api/projects/:id/sequel/confirm** (lines 4906-5116):
+- Creates sequel project AFTER user confirmation
+- Accepts: title, outline (with edited chapters), language
+- Copies: characters, locations, synopsis, sources
+- Creates chapters from confirmed outline (title + summary stored in content)
+- Creates/assigns saga automatically
+
+#### 2. Frontend API Methods (client/src/services/api.ts)
+
+**generateSequelOutline(projectId, title?, language?, numChapters?):**
+- Calls POST /api/projects/:id/sequel/outline
+- Returns outline for preview
+
+**confirmSequel(projectId, title, outline, language?):**
+- Calls POST /api/projects/:id/sequel/confirm
+- Creates project with confirmed outline
+
+#### 3. New Component (client/src/components/CreateSequelWithOutlineModal.tsx)
+
+**Phase 1 - Initial Configuration:**
+- Sequel title input (with default suggestion)
+- Number of chapters selector (5-20)
+- "Generate Chapter Outline" button
+
+**Phase 2 - Outline Preview:**
+- Shows sequel title and chapter count
+- Displays themes to explore
+- Expandable chapter cards showing:
+  - Chapter title (editable)
+  - Detailed summary (editable)
+  - Returning characters
+  - Connection to previous novel
+- Edit button for each chapter (title + summary)
+- Regenerate button to get new outline
+- "Accept & Create Sequel" confirmation button
+
+**Phase 3 - Confirmation:**
+- Creates sequel project with confirmed outline
+- Navigates to new project on success
+
+#### 4. UI Changes (client/src/pages/ProjectDetail.tsx)
+
+- Removed CreateSequelModal import
+- Added CreateSequelWithOutlineModal import
+- Removed "Genera Indice Seguito" button (Feature #260)
+- Removed generatingSequelOutline state and handleGenerateSequelOutline function
+- Removed Lightbulb icon import (no longer needed)
+- Updated modal component usage
+
+#### 5. Translations (client/src/i18n/locales/)
+
+**Added sequelPreview section in it.json:**
+- title, description, sequelTitle, numChapters
+- generateOutline, generating, outlineError, createError
+- chaptersPlanned, themes, chapterOutline, editHint
+- returningCharacters, connection, summary
+- regenerate, confirmAndCreate, creating, success
+- chaptersWithSynopsis
+
+**Added sequelPreview section in en.json:**
+- Same keys with English translations
+
+**Feature Test Steps:**
+1. ✅ Created POST /api/projects/:id/sequel/outline endpoint (returns outline only)
+2. ✅ Created POST /api/projects/:id/sequel/confirm endpoint (creates project after confirmation)
+3. ✅ Created CreateSequelWithOutlineModal.tsx component with chapter preview
+4. ✅ Added editing capabilities (title + summary for each chapter)
+5. ✅ Added regenerate button
+6. ✅ Removed 'Genera Indice Seguito' button from ProjectDetail.tsx
+7. ✅ Updated i18n translations (it.json, en.json)
+8. ⚠️ Browser automation testing blocked by sandbox restrictions
+
+**Note:** Browser automation testing was not possible due to sandbox restrictions preventing:
+- Server restart on ports 3000/5000 (EPERM errors)
+- Playwright-cli session creation
+
+Manual testing recommended:
+1. Navigate to a Romanziere project
+2. Click "Crea Seguito" button
+3. Verify modal shows with title input and chapter count selector
+4. Click "Genera Indice Capitoli"
+5. Verify chapter outline appears with expandable cards
+6. Test editing individual chapter titles/summaries
+7. Test "Rigenera" button
+8. Click "Accetta & Crea Seguito"
+9. Verify sequel project created with chapters
+
+### Commit: 4a2b3c2
+
+---
+
 ## Session: 2026-02-18 - Feature #265 Implementation
 
 ### Completed Features: 265/265 (100%)
