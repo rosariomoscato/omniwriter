@@ -366,6 +366,20 @@ function runMigrations(db: Database.Database): void {
       console.log('[Database] Adding synopsis column to projects...');
       db.exec('ALTER TABLE projects ADD COLUMN synopsis TEXT DEFAULT \'\'');
     }
+
+    // Add status_at_end and status_notes columns to characters table for tracking character final state
+    const charactersInfo = db.prepare('PRAGMA table_info(characters)').all() as { name: string }[];
+    const characterColumnNames = charactersInfo.map(col => col.name);
+
+    if (!characterColumnNames.includes('status_at_end')) {
+      console.log('[Database] Adding status_at_end column to characters...');
+      db.exec('ALTER TABLE characters ADD COLUMN status_at_end TEXT DEFAULT \'unknown\' CHECK(status_at_end IN (\'alive\', \'dead\', \'injured\', \'missing\', \'unknown\'))');
+    }
+
+    if (!characterColumnNames.includes('status_notes')) {
+      console.log('[Database] Adding status_notes column to characters...');
+      db.exec('ALTER TABLE characters ADD COLUMN status_notes TEXT DEFAULT \'\'');
+    }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);
     throw error;

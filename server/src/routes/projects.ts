@@ -23,20 +23,22 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (_req, file, cb) => {
-    // Accept DOCX, DOC, TXT, and PDF files
+    // Accept DOCX, DOC, RTF, TXT, and PDF files
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'text/plain', // .txt
       'application/msword', // .doc (legacy)
       'application/pdf', // .pdf
+      'application/rtf', // .rtf
+      'text/rtf', // .rtf (alternative MIME type)
     ];
-    const allowedExtensions = ['.docx', '.txt', '.doc', '.pdf'];
+    const allowedExtensions = ['.docx', '.txt', '.doc', '.pdf', '.rtf'];
     const fileExtension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
 
     if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error('Only DOCX, DOC, TXT, and PDF files are allowed'));
+      cb(new Error('Only DOCX, DOC, RTF, TXT, and PDF files are allowed'));
     }
   },
 });
@@ -102,8 +104,8 @@ router.post('/analyze-novel', authenticateToken, upload.single('file'), async (r
     // Create the project
     db.prepare(
       `INSERT INTO projects (id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov, status, word_count_target, word_count, settings_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'Progetto creato dall\'analisi del romanzo caricato', 'romanziere', NULL, NULL, NULL, NULL, 'draft', NULL, 0, '{}', datetime('now'), datetime('now'))`
-    ).run(projectId, userId, finalSagaId, title.trim());
+       VALUES (?, ?, ?, ?, ?, 'romanziere', NULL, NULL, NULL, NULL, 'draft', NULL, 0, '{}', datetime('now'), datetime('now'))`
+    ).run(projectId, userId, finalSagaId, title.trim(), 'Progetto creato dall\'analisi del romanzo caricato');
 
     console.log('[AnalyzeNovel] Created project:', projectId, 'with saga:', finalSagaId);
 
@@ -1354,13 +1356,21 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
       message: isItalian ? 'Copia personaggi e luoghi...' : 'Copying characters and locations...'
     });
 
-    // Copy characters
+    // Copy characters (exclude dead characters)
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    let charactersCopied = 0;
+    let charactersSkipped = 0;
     for (const character of characters) {
+      // Skip characters with status_at_end = 'dead'
+      if (character.status_at_end === 'dead') {
+        charactersSkipped++;
+        console.log(`[Projects-Stream] Skipping dead character: ${character.name} (${character.status_at_end})`);
+        continue;
+      }
       const newCharacterId = uuidv4();
       db.prepare(
-        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
       ).run(
         newCharacterId,
         newProjectId,
@@ -1370,10 +1380,13 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
         character.traits || '',
         character.backstory || '',
         character.role_in_story || '',
-        character.relationships_json || '[]'
+        character.relationships_json || '[]',
+        'unknown',  // Reset status to unknown for sequel
+        character.status_notes || ''  // Keep notes for reference
       );
+      charactersCopied++;
     }
-    console.log('[Projects-Stream] Copied', characters.length, 'characters to sequel');
+    console.log(`[Projects-Stream] Copied ${charactersCopied} characters to sequel (skipped ${charactersSkipped} dead characters)`);
 
     // Copy locations
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
@@ -2458,11 +2471,17 @@ router.delete('/:id/tags/:tagName', authenticateToken, (req: AuthRequest, res: R
 // Helper function to extract text from uploaded file
 async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<string> {
   const fileExtension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+  const mimeType = file.mimetype;
 
-  if (file.mimetype === 'text/plain' || fileExtension === '.txt') {
+  console.log('[TextExtraction] Extracting text from file:', file.originalname, 'type:', mimeType, 'ext:', fileExtension);
+
+  // Plain text file
+  if (mimeType === 'text/plain' || fileExtension === '.txt') {
     return file.buffer.toString('utf-8');
-  } else if (file.mimetype === 'application/pdf' || fileExtension === '.pdf') {
-    // Extract text from PDF using pdf2json
+  }
+
+  // PDF file
+  if (mimeType === 'application/pdf' || fileExtension === '.pdf') {
     const PDFParser = (await import('pdf2json')).default;
     return new Promise((resolve, reject) => {
       const pdfParser = new (PDFParser as any)(null, 1);
@@ -2471,25 +2490,72 @@ async function extractTextFromUploadedFile(file: Express.Multer.File): Promise<s
         reject(new Error('Failed to parse PDF file'));
       });
       pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
-        // Extract text from all pages
-        const text = pdfData.Pages.map((page: any) =>
-          page.Texts.map((text: any) =>
-            decodeURIComponent(text.R[0].T)
-          ).join(' ')
-        ).join('\n');
-        resolve(text);
+        try {
+          // Extract text from all pages with safe decoding
+          const pages = pdfData?.Pages || [];
+          const text = pages.map((page: any) => {
+            const texts = page?.Texts || [];
+            return texts.map((textItem: any) => {
+              try {
+                // Safely access nested properties
+                const rawText = textItem?.R?.[0]?.T;
+                if (!rawText) return '';
+                try {
+                  return decodeURIComponent(rawText);
+                } catch {
+                  // If decodeURIComponent fails, return raw text
+                  return rawText;
+                }
+              } catch {
+                return '';
+              }
+            }).join(' ');
+          }).join('\n');
+          console.log('[TextExtraction] Extracted', text.length, 'characters from PDF');
+          resolve(text);
+        } catch (parseError) {
+          console.error('[TextExtraction] PDF text extraction error:', parseError);
+          reject(new Error('Failed to extract text from PDF'));
+        }
       });
       pdfParser.parseBuffer(file.buffer);
     });
-  } else {
-    // For DOCX, extract text (basic implementation)
-    const text = file.buffer.toString('utf-8');
-    return text
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&[^;]+;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
+
+  // DOCX file - use mammoth to extract text
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      mimeType === 'application/msword' ||
+      fileExtension === '.docx' ||
+      fileExtension === '.doc') {
+    try {
+      const mammoth = await import('mammoth');
+      const result = await mammoth.extractRawText({ buffer: file.buffer });
+      console.log('[TextExtraction] Extracted', result.value.length, 'characters from DOCX');
+      return result.value;
+    } catch (docxError) {
+      console.error('[TextExtraction] DOCX extraction error:', docxError);
+      throw new Error('Failed to extract text from DOCX file. Please ensure the file is a valid Word document.');
+    }
+  }
+
+  // RTF file - regex-based extraction
+  if (mimeType === 'application/rtf' || fileExtension === '.rtf') {
+    let content = file.buffer.toString('utf-8');
+    // Remove RTF control words and extract plain text
+    content = content.replace(/\{\\rtf1[^}]*\}/g, '');
+    content = content.replace(/\{\\fonttbl[^}]*\}/g, '');
+    content = content.replace(/\{\\colortbl[^}]*\}/g, '');
+    content = content.replace(/\{\\stylesheet[^}]*\}/g, '');
+    content = content.replace(/\\[a-z]+\d*/g, '');
+    content = content.replace(/[{}]/g, '');
+    content = content.replace(/\\'/g, "'");
+    content = content.replace(/\s+/g, ' ').trim();
+    return content;
+  }
+
+  // Fallback - try to decode as UTF-8 text
+  console.warn('[TextExtraction] Unknown file type, attempting UTF-8 decode');
+  return file.buffer.toString('utf-8');
 }
 
 // ============================================================================
@@ -2570,6 +2636,8 @@ Rispondi con un JSON con la seguente struttura:
       "role_in_story": "Ruolo nella storia (es: protagonista, antagonista, comprimario)",
       "traits": "Tratti caratteriali emersi dal testo",
       "backstory": "Eventi passati menzionati nel testo",
+      "status_at_end": "Stato finale del personaggio alla fine del romanzo (alive, dead, injured, missing, unknown)",
+      "status_notes": "Dettagli specifici sullo stato finale del personaggio (es: 'morto in battaglia', 'sopravvissuto ma ferito', 'sparito nel finale')",
       "relationships": [
         {
           "relatedTo": "Nome del personaggio correlato",
@@ -2601,6 +2669,8 @@ IMPORTANTE:
 - I nomi dei personaggi devono essere coerenti (usa lo stesso nome per lo stesso personaggio)
 - Per ogni personaggio, estrai le relazioni con altri personaggi menzionate nel testo
 - I tipi di relazione devono essere: family, friend, enemy, romantic, mentor, ally
+- Per ogni personaggio, deduci lo stato finale alla fine del romanzo basandosi sul testo (alive, dead, injured, missing, unknown)
+- Se non è chiaro lo stato finale, usa 'unknown'
 - Se non trovi entità di un tipo, restituisci un array vuoto per quel tipo`
     };
   }
@@ -2627,6 +2697,8 @@ Respond with JSON in the following structure:
       "role_in_story": "Role in the story (e.g., protagonist, antagonist, supporting)",
       "traits": "Character traits that emerge from the text",
       "backstory": "Past events mentioned in the text",
+      "status_at_end": "Character's final state at the end of the novel (alive, dead, injured, missing, unknown)",
+      "status_notes": "Specific details about the character's final state (e.g., 'died in battle', 'survived but wounded', 'disappeared in the finale')",
       "relationships": [
         {
           "relatedTo": "Name of the related character",
@@ -2658,6 +2730,8 @@ IMPORTANT:
 - Character names should be consistent (use the same name for the same character)
 - For each character, extract relationships with other characters mentioned in the text
 - Relationship types should be: family, friend, enemy, romantic, mentor, ally
+- For each character, deduce their final state at the end of the novel based on the text (alive, dead, injured, missing, unknown)
+- If the final state is unclear, use 'unknown'
 - If you find no entities of a type, return an empty array for that type`
   };
 }
@@ -2678,6 +2752,8 @@ interface ParsedCharacter {
   traits: string;
   backstory: string;
   relationships: ParsedRelationship[];
+  status_at_end?: string;  // 'alive', 'dead', 'injured', 'missing', 'unknown'
+  status_notes?: string;    // Additional notes about final state
 }
 
 interface ParsedLocation {
@@ -2734,6 +2810,8 @@ function parseNovelAnalysisResponse(response: string): ParsedAnalysis {
         role_in_story: String(c.role_in_story || '').trim(),
         traits: String(c.traits || '').trim(),
         backstory: String(c.backstory || '').trim(),
+        status_at_end: String(c.status_at_end || 'unknown').trim().toLowerCase(),
+        status_notes: String(c.status_notes || '').trim(),
         relationships: (c.relationships || []).map((r: any) => ({
           relatedTo: String(r.relatedTo || r.related_to || r.name || '').trim(),
           type: String(r.type || r.relationshipType || 'ally').trim().toLowerCase(),
@@ -2837,6 +2915,21 @@ function deduplicateCharacters(characters: ParsedCharacter[]): ParsedCharacter[]
             }
           }
         }
+        // Merge status_at_end with priority: dead > injured > missing > alive > unknown
+        const statusPriority = ['unknown', 'alive', 'missing', 'injured', 'dead'];
+        const currentStatusPriority = statusPriority.indexOf(current.status_at_end || 'unknown');
+        const newStatusPriority = statusPriority.indexOf(characters[j].status_at_end || 'unknown');
+        if (newStatusPriority > currentStatusPriority) {
+          current.status_at_end = characters[j].status_at_end;
+          current.status_notes = characters[j].status_notes || '';
+        } else if (newStatusPriority === currentStatusPriority && characters[j].status_notes) {
+          // Same priority but has notes - append if different
+          if (characters[j].status_notes && !current.status_notes?.includes(characters[j].status_notes)) {
+            current.status_notes = current.status_notes
+              ? `${current.status_notes} ${characters[j].status_notes}`
+              : characters[j].status_notes;
+          }
+        }
         used.add(j);
       }
     }
@@ -2923,6 +3016,76 @@ function deduplicatePlotEvents(events: ParsedPlotEvent[]): ParsedPlotEvent[] {
 }
 
 /**
+ * Phase 2: Consolidate multiple chunk synopses into a single comprehensive synopsis.
+ * Takes all mini-synopses from individual chunks and sends them to AI to produce
+ * a coherent, complete synopsis of 800-1500 words covering the entire novel.
+ */
+async function consolidateSynopsis(
+  synopses: string[],
+  language: 'it' | 'en',
+  provider: any
+): Promise<string> {
+  const isItalian = language === 'it';
+
+  // If only one synopsis, still consolidate to expand it
+  const numberedSynopses = synopses
+    .map((s, i) => `--- ${isItalian ? 'Sezione' : 'Section'} ${i + 1}/${synopses.length} ---\n${s}`)
+    .join('\n\n');
+
+  const systemPrompt = isItalian
+    ? `Sei un esperto analista letterario. Il tuo compito è comporre una sinossi unica, completa e coerente di un romanzo partendo dalle sinossi parziali di diverse sezioni del testo. La sinossi finale deve essere di 800-1500 parole, scritta in modo fluido e narrativo, coprendo tutta la trama dall'inizio alla fine.`
+    : `You are an expert literary analyst. Your task is to compose a single, complete, and coherent synopsis of a novel based on partial synopses from different sections of the text. The final synopsis must be 800-1500 words, written in a fluid and narrative style, covering the entire plot from beginning to end.`;
+
+  const userPrompt = isItalian
+    ? `Di seguito trovi le sinossi parziali estratte da diverse sezioni di un romanzo, in ordine sequenziale. Componi una sinossi unica, completa e coerente che:
+
+1. Copra TUTTA la trama dall'inizio alla fine del romanzo
+2. Includa i personaggi chiave e le loro evoluzioni
+3. Descriva i temi centrali dell'opera
+4. Sia scritta in modo fluido e narrativo (non come elenco puntato)
+5. Sia lunga 800-1500 parole
+6. Mantenga l'ordine cronologico degli eventi
+
+SINOSSI PARZIALI:
+
+${numberedSynopses}
+
+Scrivi SOLO la sinossi consolidata, senza titoli, intestazioni o commenti aggiuntivi.`
+    : `Below you will find partial synopses extracted from different sections of a novel, in sequential order. Compose a single, complete, and coherent synopsis that:
+
+1. Covers the ENTIRE plot from beginning to end of the novel
+2. Includes the key characters and their development
+3. Describes the central themes of the work
+4. Is written in a fluid, narrative style (not as bullet points)
+5. Is 800-1500 words long
+6. Maintains the chronological order of events
+
+PARTIAL SYNOPSES:
+
+${numberedSynopses}
+
+Write ONLY the consolidated synopsis, without titles, headers, or additional comments.`;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ];
+
+  console.log(`[NovelAnalysis] Consolidating ${synopses.length} mini-synopses into comprehensive synopsis (${language})`);
+
+  const response = await provider.chat(messages, {
+    temperature: 0.4,
+    maxTokens: 7000 // Allow 6000-8000 range for full 800-1500 word synopsis
+  });
+
+  const consolidated = response.content.trim();
+  const wordCount = consolidated.split(/\s+/).length;
+  console.log(`[NovelAnalysis] Consolidated synopsis: ${consolidated.length} chars, ~${wordCount} words`);
+
+  return consolidated;
+}
+
+/**
  * Main function to analyze a novel using AI
  */
 async function analyzeNovelWithAI(
@@ -2983,7 +3146,7 @@ async function analyzeNovelWithAI(
   const allCharacters = allAnalyses.flatMap(a => a.characters);
   const allLocations = allAnalyses.flatMap(a => a.locations);
   const allEvents = allAnalyses.flatMap(a => a.plotEvents);
-  // Collect all synopsis parts (take the longest one as it's likely the most complete)
+  // Collect all synopsis parts from individual chunks
   const allSynopses = allAnalyses.map(a => a.synopsis).filter(s => s.length > 0);
 
   // Debug: log synopsis status from all chunks
@@ -2992,13 +3155,34 @@ async function analyzeNovelWithAI(
     console.log(`[NovelAnalysis] Chunk ${idx + 1} synopsis length: ${a.synopsis.length}`);
   });
 
-  const bestSynopsis = allSynopses.reduce((longest, current) =>
-    current.length > longest.length ? current : longest
-  , '');
+  // Phase 2: Consolidate all mini-synopses into a comprehensive synopsis (800-1500 words)
+  let bestSynopsis = '';
+  if (allSynopses.length > 0) {
+    // Fallback: longest single synopsis (used if consolidation fails)
+    const longestSynopsis = allSynopses.reduce((longest, current) =>
+      current.length > longest.length ? current : longest
+    , '');
+
+    if (allSynopses.length >= 2) {
+      // Multiple chunks: use AI to consolidate into a comprehensive synopsis
+      try {
+        console.log(`[NovelAnalysis] Phase 2: Consolidating ${allSynopses.length} mini-synopses via AI...`);
+        bestSynopsis = await consolidateSynopsis(allSynopses, language, provider);
+        console.log(`[NovelAnalysis] Phase 2 SUCCESS: Consolidated synopsis ${bestSynopsis.length} chars (~${bestSynopsis.split(/\s+/).length} words)`);
+      } catch (consolidationError) {
+        console.warn(`[NovelAnalysis] Phase 2 FALLBACK: Consolidation failed, using longest single synopsis.`, consolidationError);
+        bestSynopsis = longestSynopsis;
+      }
+    } else {
+      // Single chunk: use the only available synopsis directly
+      console.log(`[NovelAnalysis] Single chunk - using synopsis directly (${longestSynopsis.length} chars)`);
+      bestSynopsis = longestSynopsis;
+    }
+  }
 
   console.log(`[NovelAnalysis] Before deduplication: ${allCharacters.length} characters, ${allLocations.length} locations, ${allEvents.length} events`);
   if (bestSynopsis) {
-    console.log(`[NovelAnalysis] Synopsis extracted: ${bestSynopsis.length} characters`);
+    console.log(`[NovelAnalysis] Final synopsis: ${bestSynopsis.length} chars (~${bestSynopsis.split(/\s+/).length} words)`);
   } else {
     console.warn(`[NovelAnalysis] WARNING: No synopsis extracted from any chunk!`);
   }
@@ -3216,8 +3400,8 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
       try {
         const characterId = uuidv4();
         db.prepare(
-          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
+          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, '[]', ?, ?, 1, datetime('now'), datetime('now'))`
         ).run(
           characterId,
           projectId,
@@ -3225,7 +3409,9 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
           character.description,
           character.traits,
           character.backstory,
-          character.role_in_story
+          character.role_in_story,
+          character.status_at_end || 'unknown',
+          character.status_notes || ''
         );
         charNameToId.set(normalizeName(character.name), characterId);
         charInsertData.push({ id: characterId, character });

@@ -219,6 +219,8 @@ export interface Character {
   backstory: string;
   role_in_story: string;
   relationships_json: string;
+  status_at_end?: string;  // 'alive', 'dead', 'injured', 'missing', 'unknown'
+  status_notes?: string;
   extracted_from_upload: number;
   created_at: string;
   updated_at: string;
@@ -231,6 +233,8 @@ export interface CreateCharacterData {
   backstory?: string;
   role_in_story?: string;
   relationships_json?: string;
+  status_at_end?: string;
+  status_notes?: string;
 }
 
 export interface Location {
@@ -1361,15 +1365,24 @@ class ApiService {
       onProgress('Uploading file...');
     }
 
-    return this.request<{
-      message: string;
-      projectId: string;
-      extracted: { characters: number; locations: number; plotEvents: number; synopsis: boolean };
-    }>('/analyze-novel', {
-      method: 'POST',
-      body: formData,
-      headers: {}, // Let browser set Content-Type for FormData
-    });
+    // Use a longer timeout for AI analysis (5 minutes)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+    try {
+      return await this.request<{
+        message: string;
+        projectId: string;
+        extracted: { characters: number; locations: number; plotEvents: number; synopsis: boolean };
+      }>('/projects/analyze-novel', {
+        method: 'POST',
+        body: formData,
+        headers: {}, // Let browser set Content-Type for FormData
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   async getSynopsis(projectId: string): Promise<{ synopsis: string }> {

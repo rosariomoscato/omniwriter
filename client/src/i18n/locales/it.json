@@ -471,7 +471,14 @@
       "backstoryPlaceholder": "Background e storia...",
       "rolePlaceholder": "Ruolo nella storia (es. protagonista, mentore, antagonista)...",
       "confirmDelete": "Sei sicuro di voler eliminare questo personaggio?",
-      "deleteTitle": "Elimina Personaggio"
+      "deleteTitle": "Elimina Personaggio",
+      "status": {
+        "alive": "Vivo",
+        "dead": "Morto",
+        "injured": "Ferito",
+        "missing": "Disperso",
+        "unknown": "Sconosciuto"
+      }
     },
     "analyzeNovelForm": {
       "title": "Analizza Fonte per Personaggi, Luoghi ed Eventi di Trama",
@@ -704,7 +711,11 @@
     "sourceDeleted": "Fonte eliminata con successo",
     "fileReadError": "Impossibile leggere il file. Riprova.",
     "maxFileSize": "Dimensione massima file: 10 MB",
-    "deleteSource": "Elimina fonte"
+    "deleteSource": "Elimina fonte",
+    "deleteModelTitle": "Elimina Profilo di Stile",
+    "confirmDeleteModel": "Sei sicuro di voler eliminare questo profilo di stile? Tutte le fonti e i dati di analisi associati verranno rimossi definitivamente.",
+    "deleteSourceTitle": "Elimina Fonte",
+    "confirmDeleteSourceMsg": "Sei sicuro di voler eliminare questa fonte? Questa azione non può essere annullata."
   },
   "breadcrumbs": {
     "dashboard": "Dashboard",

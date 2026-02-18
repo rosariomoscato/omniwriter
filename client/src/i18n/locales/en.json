@@ -471,7 +471,14 @@
       "backstoryPlaceholder": "Background and history...",
       "rolePlaceholder": "Role in story (e.g., protagonist, mentor, villain)...",
       "confirmDelete": "Are you sure you want to delete this character?",
-      "deleteTitle": "Delete Character"
+      "deleteTitle": "Delete Character",
+      "status": {
+        "alive": "Alive",
+        "dead": "Dead",
+        "injured": "Injured",
+        "missing": "Missing",
+        "unknown": "Unknown"
+      }
     },
     "analyzeNovelForm": {
       "title": "Analyze Source for Characters, Locations & Plot Events",
@@ -704,7 +711,11 @@
     "sourceDeleted": "Source deleted successfully",
     "fileReadError": "Failed to read file. Please try again.",
     "maxFileSize": "Maximum file size: 10 MB",
-    "deleteSource": "Delete source"
+    "deleteSource": "Delete source",
+    "deleteModelTitle": "Delete Style Profile",
+    "confirmDeleteModel": "Are you sure you want to delete this style profile? All associated sources and analysis data will be permanently removed.",
+    "deleteSourceTitle": "Delete Source",
+    "confirmDeleteSourceMsg": "Are you sure you want to delete this source? This action cannot be undone."
   },
   "breadcrumbs": {
     "dashboard": "Dashboard",
