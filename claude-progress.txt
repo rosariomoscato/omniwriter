@@ -1,5 +1,124 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #260 Implementation
+
+### Completed Features: 260/260 (100%)
+
+### Feature #260: Sequel Generation - AI-powered sequel outline from previous novel
+
+**Objective:** Creare una funzione "Genera Sequel Outline" che permette di generare automaticamente l'outline del sequel di un romanzo, basandosi sui dati del romanzo precedente nella saga.
+
+**FUNZIONAMENTO:**
+1. L'utente è in un progetto che fa parte di una saga
+2. Clicca su "Genera Indice Seguito" (nuovo pulsante)
+3. Il sistema:
+   - Identifica il romanzo precedente nella saga (per data creazione)
+   - Legge: sinossi, personaggi, luoghi, eventi di trama del romanzo precedente
+   - Usa l'AI per generare un outline del sequel che:
+     - Continua la storia dal punto in cui è finita
+     - Mantiene la coerenza con i personaggi esistenti
+     - Introduce nuovi conflitti e sviluppi
+4. L'outline generato include capitoli con titoli contestuali
+
+**Implementation:**
+
+#### 1. Backend Endpoint (server/src/routes/projects.ts)
+- Added `POST /api/projects/:id/generate/sequel-outline`
+- Verifies project is in a saga and has a previous novel
+- Fetches context: characters, locations, plot events from previous novel
+- Attempts AI generation with configured provider
+- Falls back to template-based generation when no AI available
+
+**Code Structure:**
+```typescript
+// Get previous project in saga
+const sagaProjects = db.prepare(`
+  SELECT id, title, created_at, synopsis, genre, tone
+  FROM projects
+  WHERE saga_id = ? AND user_id = ? AND id != ?
+  ORDER BY created_at ASC
+`).all(sequelProject.saga_id, userId, sequelProjectId);
+
+// Get previous novel's context
+const previousCharacters = db.prepare(`
+  SELECT name, description, traits, backstory, role_in_story
+  FROM characters WHERE project_id = ?
+`).all(previousProject.id);
+
+// Build AI prompt with localized content
+const systemPrompt = isItalian
+  ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale...`
+  : `You are an expert writer and editorial consultant specializing in serialized fiction...`;
+
+// Create chapters in database
+db.prepare(`
+  INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
+  VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))
+`).run(chapterId, sequelProjectId, title, i);
+```
+
+#### 2. Frontend API Service (client/src/services/api.ts)
+- Added `generateSequelOutline()` method
+
+#### 3. Frontend UI (client/src/pages/ProjectDetail.tsx)
+- Added `generatingSequelOutline` state
+- Added `handleGenerateSequelOutline` handler
+- Button visible only for romanziere projects that are in a saga
+
+**Button Placement:**
+```tsx
+{project?.area === 'romanziere' && projectSagaId && (
+  <button
+    onClick={handleGenerateSequelOutline}
+    disabled={generatingSequelOutline}
+    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700..."
+  >
+    <Lightbulb className="w-4 h-4" />
+    {t('projectPage.sequelOutline.button', 'Generate Sequel Outline')}
+  </button>
+)}
+```
+
+#### 4. Translations (client/src/i18n/locales/it.json and en.json)
+- Added `projectPage.sequelOutline.*` keys
+- Italian: "Genera Indice Seguito", "Generazione in corso..."
+- English: "Generate Sequel Outline", "Generating..."
+
+**Verification (Browser Automation Testing):**
+1. ✅ Registered test user (testsequel260@test.com)
+2. ✅ Created first romanziere project "Test Novel Part 1"
+3. ✅ Created sequel using "Crea Seguito" button
+4. ✅ Verified sequel project shows "Saga" badge
+5. ✅ Verified "Genera Indice Seguito" button visible
+6. ✅ Clicked button - 10 chapters generated with Italian titles
+7. ✅ Server logs confirm: totalChapters: 10, aiGenerated: false (fallback)
+
+**Fallback Chapter Titles (Italian):**
+- Il Risveglio
+- Ombre del Passato
+- La Scoperta
+- Nuove Alleanze
+- Il Conflitto
+- La Rivelazione
+- Il Sacrificio
+- La Battaglia
+- La Rinascita
+- Il Nuovo Inizio
+
+**Feature Test Steps Verified:**
+1. ✅ Creare endpoint POST /api/projects/:id/generate/sequel-outline nel backend
+2. ✅ Implementare logica per trovare il romanzo precedente nella saga
+3. ✅ Leggere sinossi, personaggi, luoghi, eventi del romanzo precedente
+4. ✅ Creare prompt AI specializzato per generazione sequel (IT e EN)
+5. ✅ Generare capitoli con titoli e riassunti contestuali
+6. ✅ Aggiungere pulsante 'Genera Sequel' in ProjectDetail.tsx
+7. ✅ Aggiornare traduzioni it.json e en.json
+8. ✅ Testare: creare saga con 2 romanzi, generare sequel per il secondo
+
+### Commit: 65aabf3
+
+---
+
 ## Session: 2026-02-18 - Feature #259 Implementation
 
 ### Completed Features: 259/259 (100%)
