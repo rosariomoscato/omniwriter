@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Character } from '../services/api';
 
@@ -12,6 +12,7 @@ interface Relationship {
 
 interface RelationshipMapProps {
   characters: Character[];
+  projectTitle?: string;
   onClose: () => void;
   onAddRelationship?: (fromCharacterId: string, toCharacterId: string, relationshipType: string) => void;
 }
@@ -29,7 +30,15 @@ interface Edge {
   type: string;
 }
 
-export default function RelationshipMap({ characters, onClose, onAddRelationship }: RelationshipMapProps) {
+// Canvas dimensions - responsive based on character count
+function getCanvasDimensions(charCount: number): { width: number; height: number } {
+  if (charCount <= 4) return { width: 600, height: 500 };
+  if (charCount <= 8) return { width: 700, height: 600 };
+  if (charCount <= 12) return { width: 800, height: 700 };
+  return { width: 900, height: 800 };
+}
+
+export default function RelationshipMap({ characters, projectTitle, onClose, onAddRelationship }: RelationshipMapProps) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -42,18 +51,28 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
     relationshipType: ''
   });
 
+  // Calculate canvas dimensions based on character count
+  const canvasDims = getCanvasDimensions(characters.length);
+
   // Parse relationships from characters
   useEffect(() => {
     const parsedNodes: Node[] = [];
     const parsedEdges: Edge[] = [];
 
+    // Dynamic center and radius based on canvas size and character count
+    const centerX = canvasDims.width / 2;
+    const centerY = canvasDims.height / 2;
+    // Leave padding of 60px for node size (32px radius + name label) on each side
+    const maxRadius = Math.min(centerX, centerY) - 80;
+    // Scale radius based on number of characters, min 80, max limited by canvas
+    const radius = Math.min(maxRadius, Math.max(80, 60 + characters.length * 25));
+
     // Create nodes from characters
     characters.forEach((char, index) => {
-      // Arrange in a circle
-      const angle = (index / characters.length) * 2 * Math.PI;
-      const radius = Math.min(400, 100 + characters.length * 30);
-      const x = 350 + radius * Math.cos(angle);
-      const y = 300 + radius * Math.sin(angle);
+      // Arrange in a circle, starting from the top (-PI/2 offset)
+      const angle = (index / characters.length) * 2 * Math.PI - Math.PI / 2;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
 
       parsedNodes.push({
         id: char.id,
@@ -85,7 +104,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
 
     setNodes(parsedNodes);
     setEdges(parsedEdges);
-  }, [characters]);
+  }, [characters, canvasDims.width, canvasDims.height]);
 
   const handleAddRelationship = () => {
     if (onAddRelationship && newRelationship.fromCharacterId && newRelationship.toCharacterId && newRelationship.relationshipType) {
@@ -110,7 +129,21 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
     setSelectedEdge(edge);
   };
 
-  // Get relationship color based on type
+  // Get relationship stroke color for SVG lines
+  const getEdgeStrokeColor = (type: string): string => {
+    const colors: { [key: string]: string } = {
+      'family': '#3b82f6',
+      'friend': '#22c55e',
+      'enemy': '#ef4444',
+      'romantic': '#ec4899',
+      'mentor': '#a855f7',
+      'ally': '#06b6d4',
+      'default': '#9ca3af'
+    };
+    return colors[type.toLowerCase()] || colors['default'];
+  };
+
+  // Get relationship color based on type (for legend)
   const getRelationshipColor = (type: string): string => {
     const colors: { [key: string]: string } = {
       'family': 'bg-blue-500',
@@ -151,8 +184,27 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
           <div
             ref={canvasRef}
             className="relative bg-white dark:bg-gray-800 rounded-xl shadow-inner"
-            style={{ width: '700px', height: '600px', margin: '0 auto' }}
+            style={{ width: `${canvasDims.width}px`, height: `${canvasDims.height}px`, margin: '0 auto' }}
           >
+            {/* Center visual indicator */}
+            <div
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none select-none"
+              style={{
+                left: canvasDims.width / 2,
+                top: canvasDims.height / 2,
+                zIndex: 0
+              }}
+            >
+              <div className={`rounded-full bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 border-2 border-dashed border-purple-300 dark:border-purple-600 flex items-center justify-center ${characters.length <= 4 ? 'w-20 h-20' : characters.length <= 8 ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                <Users className={`text-purple-400 dark:text-purple-500 ${characters.length <= 4 ? 'w-8 h-8' : 'w-6 h-6'}`} />
+              </div>
+              {projectTitle && (
+                <p className="mt-2 text-xs text-purple-400 dark:text-purple-500 font-medium max-w-[120px] text-center truncate">
+                  {projectTitle}
+                </p>
+              )}
+            </div>
+
             {/* SVG Layer for edges */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
@@ -164,6 +216,9 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
 
                 if (!fromNode || !toNode) return null;
 
+                const strokeColor = getEdgeStrokeColor(edge.type);
+                const isSelected = selectedEdge === edge;
+
                 return (
                   <g key={`${edge.from}-${edge.to}-${index}`}>
                     <line
@@ -171,9 +226,10 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
                       y1={fromNode.y}
                       x2={toNode.x}
                       y2={toNode.y}
-                      className={`pointer-events-auto cursor-pointer ${selectedEdge === edge ? 'stroke-purple-600' : 'stroke-gray-400'}`}
-                      strokeWidth={selectedEdge === edge ? '3' : '2'}
-                      strokeDasharray={selectedEdge === edge ? '0' : '5,5'}
+                      stroke={isSelected ? '#9333ea' : strokeColor}
+                      className="pointer-events-auto cursor-pointer"
+                      strokeWidth={isSelected ? '3' : '2'}
+                      strokeDasharray={isSelected ? '0' : '5,5'}
                       onClick={(e) => handleEdgeClick(edge, e)}
                     />
                     {/* Edge label */}
@@ -284,7 +340,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  To Character
+                  {t('relationships.toCharacter')}
                 </label>
                 <select
                   value={newRelationship.toCharacterId}
@@ -292,7 +348,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 >
-                  <option value="">Select character...</option>
+                  <option value="">{t('relationships.selectCharacter')}</option>
                   {availableCharacters.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -301,7 +357,7 @@ export default function RelationshipMap({ characters, onClose, onAddRelationship
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Relationship Type
+                  {t('relationships.typeLabel')}
                 </label>
                 <select
                   value={newRelationship.relationshipType}
