@@ -691,6 +691,80 @@ class ApiService {
     });
   }
 
+  // Feature #267: Generate sequel outline for preview (without creating project)
+  async generateSequelOutline(
+    projectId: string,
+    title?: string,
+    language?: 'it' | 'en',
+    numChapters?: number
+  ): Promise<{
+    success: boolean;
+    outline: {
+      sequelTitle: string;
+      chapters: Array<{
+        title: string;
+        summary: string;
+        returning_characters?: string[];
+        new_elements?: string[];
+        connection_to_previous?: string;
+      }>;
+      themes?: string[];
+      characterArcs?: string[];
+    };
+    context: {
+      originalTitle: string;
+      charactersCount: number;
+      locationsCount: number;
+      hasAI: boolean;
+    };
+    message?: string;
+  }> {
+    return this.request(`/projects/${projectId}/sequel/outline`, {
+      method: 'POST',
+      body: JSON.stringify({
+        title,
+        language,
+        numChapters
+      }),
+    });
+  }
+
+  // Feature #267: Confirm sequel creation with approved outline
+  async confirmSequel(
+    projectId: string,
+    title: string,
+    outline: {
+      chapters: Array<{
+        title: string;
+        summary: string;
+        returning_characters?: string[];
+        new_elements?: string[];
+        connection_to_previous?: string;
+      }>;
+      themes?: string[];
+      characterArcs?: string[];
+    },
+    language?: 'it' | 'en',
+    generateContent?: boolean
+  ): Promise<{
+    message: string;
+    project: { id: string; title: string };
+    chaptersCreated: number;
+    charactersCopied: number;
+    locationsCopied: number;
+    sourcesCopied: number;
+  }> {
+    return this.request(`/projects/${projectId}/sequel/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({
+        title,
+        outline,
+        language,
+        generateContent
+      }),
+    });
+  }
+
   // Citation methods
   async getProjectCitations(projectId: string): Promise<{ citations: any[]; count: number }> {
     return this.request<{ citations: any[]; count: number }>(`/projects/${projectId}/citations`);

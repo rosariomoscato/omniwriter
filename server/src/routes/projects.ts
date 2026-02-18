@@ -4678,4 +4678,452 @@ function analyzeTimelineContinuity(
   return issues;
 }
 
+// ============================================================================
+// POST /api/projects/:id/sequel/outline - Generate Sequel Outline (Feature #267)
+// Returns the chapter outline WITHOUT creating the project yet (for preview)
+// ============================================================================
+
+interface SequelOutlineRequestBody {
+  title?: string;
+  language?: 'it' | 'en';
+  numChapters?: number;
+}
+
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/sequel/outline', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const {
+      title: customTitle,
+      language = 'it',
+      numChapters = 10
+    } = req.body as SequelOutlineRequestBody;
+
+    console.log('[Projects] Generating sequel outline for preview:', projectId);
+
+    // Fetch the original project
+    const originalProject = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!originalProject) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Only romanziere projects can have sequels
+    if (originalProject.area !== 'romanziere') {
+      res.status(400).json({ message: 'Sequels can only be created for romanziere (novel) projects' });
+      return;
+    }
+
+    const isItalian = language === 'it';
+    const sequelTitle = customTitle || `${originalProject.title} - Part 2`;
+
+    // Get context data
+    const characters = db.prepare('SELECT name, description, traits, role_in_story FROM characters WHERE project_id = ?').all(projectId) as any[];
+    const locations = db.prepare('SELECT name, description, significance FROM locations WHERE project_id = ?').all(projectId) as any[];
+    const plotEvents = db.prepare('SELECT title, description, event_type FROM plot_events WHERE project_id = ? ORDER BY order_index').all(projectId) as any[];
+    const previousChapters = db.prepare('SELECT title, content FROM chapters WHERE project_id = ? ORDER BY order_index').all(projectId) as any[];
+
+    // Build context summaries
+    const characterSummaries = characters.slice(0, 15).map(c =>
+      `- ${c.name}: ${c.description || ''} (${c.role_in_story || 'role unknown'})`
+    ).join('\n');
+
+    const locationSummaries = locations.slice(0, 10).map(l =>
+      `- ${l.name}: ${l.description || ''}`
+    ).join('\n');
+
+    const plotSummary = plotEvents.slice(0, 15).map(e =>
+      `- ${e.title}: ${e.description || ''}`
+    ).join('\n');
+
+    const chapterSummary = previousChapters.slice(0, 10).map((ch, idx) =>
+      `Chapter ${idx + 1}: ${ch.title}`
+    ).join('\n');
+
+    const systemPrompt = isItalian
+      ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale.
+Il tuo compito è creare un outline per il seguito di un romanzo esistente.
+Devi mantenere la coerenza con i personaggi e la trama precedente, continuando la storia in modo naturale e coinvolgente.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.
+Ogni capitolo deve avere un titolo contestuale (non generico), una sinossi dettagliata che spiega cosa accadrà, e collegamenti con il romanzo precedente.`
+      : `You are an expert writer and editorial consultant specializing in serialized fiction.
+Your task is to create an outline for the sequel to an existing novel.
+You must maintain consistency with characters and previous plot, continuing the story naturally and engagingly.
+Respond ONLY with valid JSON, without additional text.
+Each chapter must have a contextual title (not generic), a detailed synopsis explaining what will happen, and connections to the previous novel.`;
+
+    const userPrompt = isItalian
+      ? `Crea un outline per il sequel del seguente romanzo.
+
+ROMANZO PRECEDENTE: "${originalProject.title}"
+${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
+
+PERSONAGGI DAL ROMANZO PRECEDENTE:
+${characterSummaries || 'Nessun personaggio registrato'}
+
+LUOGHI DAL ROMANZO PRECEDENTE:
+${locationSummaries || 'Nessun luogo registrato'}
+
+EVENTI DI TRAMA PRINCIPALI:
+${plotSummary || 'Nessun evento registrato'}
+
+RIASSUNTO CAPITOLI PRECEDENTI:
+${chapterSummary || 'Nessun capitolo disponibile'}
+
+TITOLO DEL SEQUEL: "${sequelTitle}"
+
+Genera un outline con ${numChapters} capitoli nel seguente formato JSON:
+{
+  "chapters": [
+    {
+      "title": "Titolo del capitolo (contestuale, non generico)",
+      "summary": "Sinossi dettagliata di cosa accadrà in questo capitolo (100-150 parole)",
+      "returning_characters": ["Nome personaggio che ritorna"],
+      "new_elements": ["Nuovi elementi introdotti in questo capitolo"],
+      "connection_to_previous": "Come questo capitolo si collega al finale del romanzo precedente"
+    }
+  ],
+  "themes_to_explore": ["Temi da esplorare nel sequel"],
+  "character_arcs_to_continue": ["Archi narrativi da continuare"]
+}
+
+Sii creativo e specifico. I titoli devono essere evocativi e contestuali.
+Le sinossi devono essere dettagliate e spiegare cosa accadrà, non essere vaghe.
+Continua la storia dal punto in cui è terminata.`
+      : `Create an outline for the sequel to the following novel.
+
+PREVIOUS NOVEL: "${originalProject.title}"
+${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+
+CHARACTERS FROM PREVIOUS NOVEL:
+${characterSummaries || 'No characters registered'}
+
+LOCATIONS FROM PREVIOUS NOVEL:
+${locationSummaries || 'No locations registered'}
+
+MAIN PLOT EVENTS:
+${plotSummary || 'No plot events registered'}
+
+PREVIOUS CHAPTERS SUMMARY:
+${chapterSummary || 'No chapters available'}
+
+SEQUEL TITLE: "${sequelTitle}"
+
+Generate an outline with ${numChapters} chapters in the following JSON format:
+{
+  "chapters": [
+    {
+      "title": "Chapter title (contextual, not generic)",
+      "summary": "Detailed synopsis of what will happen in this chapter (100-150 words)",
+      "returning_characters": ["Name of returning character"],
+      "new_elements": ["New elements introduced in this chapter"],
+      "connection_to_previous": "How this chapter connects to the previous novel's ending"
+    }
+  ],
+  "themes_to_explore": ["Themes to explore in the sequel"],
+  "character_arcs_to_continue": ["Character arcs to continue"]
+}
+
+Be creative and specific. Titles should be evocative and contextual.
+Summaries must be detailed and explain what will happen, not be vague.
+Continue the story from where it ended.`;
+
+    // Get AI provider for outline
+    const provider = await getProviderForUser(userId);
+    let generatedOutline: any = null;
+
+    if (provider) {
+      try {
+        console.log('[Projects] Calling AI for sequel chapter outline (preview)...');
+        const response = await provider.chat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          maxTokens: 4000
+        });
+
+        const responseText = response.content || '';
+        // Extract JSON from response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          generatedOutline = JSON.parse(jsonMatch[0]);
+          console.log('[Projects] AI generated sequel chapter outline successfully');
+        }
+      } catch (aiErr) {
+        console.error('[Projects] AI sequel chapter outline generation failed:', aiErr);
+        // Fall back to default outline
+      }
+    }
+
+    // If no AI or AI failed, generate default outline
+    if (!generatedOutline || !generatedOutline.chapters) {
+      console.log('[Projects] Using default outline generation');
+      generatedOutline = {
+        chapters: Array.from({ length: numChapters }, (_, i) => ({
+          title: isItalian ? `Capitolo ${i + 1}` : `Chapter ${i + 1}`,
+          summary: isItalian
+            ? `Continuazione della storia dal romanzo precedente.`
+            : `Continuation of the story from the previous novel.`,
+          returning_characters: characters.slice(0, 3).map(c => c.name),
+          new_elements: [],
+          connection_to_previous: ''
+        })),
+        themes_to_explore: [],
+        character_arcs_to_continue: []
+      };
+    }
+
+    // Return the outline for preview
+    res.json({
+      success: true,
+      outline: {
+        sequelTitle,
+        chapters: generatedOutline.chapters || [],
+        themes: generatedOutline.themes_to_explore || [],
+        characterArcs: generatedOutline.character_arcs_to_continue || []
+      },
+      context: {
+        originalTitle: originalProject.title,
+        charactersCount: characters.length,
+        locationsCount: locations.length,
+        hasAI: !!provider
+      }
+    });
+
+  } catch (error) {
+    console.error('[Projects] Generate sequel outline error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to generate sequel outline' });
+  }
+});
+
+// ============================================================================
+// POST /api/projects/:id/sequel/confirm - Create Sequel After Confirmation (Feature #267)
+// Creates the sequel project with the confirmed outline
+// ============================================================================
+
+interface SequelConfirmRequestBody {
+  title?: string;
+  outline: {
+    chapters: Array<{
+      title: string;
+      summary: string;
+      returning_characters?: string[];
+      new_elements?: string[];
+      connection_to_previous?: string;
+    }>;
+    themes?: string[];
+    characterArcs?: string[];
+  };
+  language?: 'it' | 'en';
+  generateContent?: boolean;
+}
+
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const {
+      title: customTitle,
+      outline,
+      language = 'it',
+      generateContent = false
+    } = req.body as SequelConfirmRequestBody;
+
+    if (!outline || !outline.chapters || outline.chapters.length === 0) {
+      res.status(400).json({ message: 'Outline with chapters is required' });
+      return;
+    }
+
+    console.log('[Projects] Creating sequel after confirmation:', projectId);
+
+    // Fetch the original project
+    const originalProject = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!originalProject) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Only romanziere projects can have sequels
+    if (originalProject.area !== 'romanziere') {
+      res.status(400).json({ message: 'Sequels can only be created for romanziere (novel) projects' });
+      return;
+    }
+
+    const sequelTitle = customTitle || `${originalProject.title} - Part 2`;
+    const newProjectId = uuidv4();
+
+    // Get or create saga
+    let sagaId = originalProject.saga_id;
+
+    if (!sagaId) {
+      sagaId = uuidv4();
+      const sagaTitle = originalProject.title.includes(' - ')
+        ? originalProject.title.split(' - ')[0] + ' Series'
+        : originalProject.title + ' Series';
+
+      db.prepare(
+        `INSERT INTO sagas (id, user_id, title, description, area, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(sagaId, userId, sagaTitle, `Series containing "${originalProject.title}" and its sequels`, 'romanziere');
+
+      db.prepare('UPDATE projects SET saga_id = ? WHERE id = ?').run(sagaId, projectId);
+      console.log('[Projects-Confirm] Created new saga:', sagaId);
+    }
+
+    // Create the sequel project
+    db.prepare(
+      `INSERT INTO projects (
+        id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov,
+        word_count_target, status, settings_json, word_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, 0, datetime('now'), datetime('now'))`
+    ).run(
+      newProjectId,
+      userId,
+      sagaId,
+      sequelTitle,
+      `Sequel to "${originalProject.title}"`,
+      originalProject.area,
+      originalProject.genre || '',
+      originalProject.tone || '',
+      originalProject.target_audience || '',
+      originalProject.pov || '',
+      originalProject.word_count_target || 0,
+      originalProject.settings_json || '{}'
+    );
+
+    console.log('[Projects-Confirm] Created sequel project:', newProjectId);
+
+    // Copy characters
+    const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    for (const character of characters) {
+      const newCharacterId = uuidv4();
+      db.prepare(
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+      ).run(
+        newCharacterId,
+        newProjectId,
+        sagaId,
+        character.name,
+        character.description || '',
+        character.traits || '',
+        character.backstory || '',
+        character.role_in_story || '',
+        character.relationships_json || '[]'
+      );
+    }
+    console.log('[Projects-Confirm] Copied', characters.length, 'characters to sequel');
+
+    // Copy locations
+    const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
+    for (const location of locations) {
+      const newLocationId = uuidv4();
+      db.prepare(
+        `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+      ).run(
+        newLocationId,
+        newProjectId,
+        sagaId,
+        location.name,
+        location.description || '',
+        location.significance || ''
+      );
+    }
+    console.log('[Projects-Confirm] Copied', locations.length, 'locations to sequel');
+
+    // Copy synopsis as source
+    if (originalProject.synopsis) {
+      const synopsisSourceId = uuidv4();
+      db.prepare(
+        `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+         VALUES (?, ?, ?, ?, '', 'reference', 'text', ?, ?, 'upload', '', '["synopsis", "reference"]', 1.0, datetime('now'))`
+      ).run(
+        synopsisSourceId,
+        newProjectId,
+        sagaId,
+        userId,
+        originalProject.synopsis.length,
+        `Synopsis of "${originalProject.title}":\n\n${originalProject.synopsis}`
+      );
+    }
+
+    // Copy sources
+    const sources = db.prepare('SELECT * FROM sources WHERE project_id = ?').all(projectId) as any[];
+    for (const source of sources) {
+      const newSourceId = uuidv4();
+      const validSourceType = ['upload', 'web_search'].includes(source.source_type) ? source.source_type : 'upload';
+      db.prepare(
+        `INSERT INTO sources (id, project_id, saga_id, user_id, file_name, file_path, file_type, file_size, content_text, source_type, url, tags_json, relevance_score, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).run(
+        newSourceId,
+        newProjectId,
+        sagaId,
+        userId,
+        source.file_name,
+        source.file_path || '',
+        source.file_type,
+        source.file_size || 0,
+        source.content_text || '',
+        validSourceType,
+        source.url || '',
+        source.tags_json || '[]',
+        source.relevance_score || 0.0
+      );
+    }
+    console.log('[Projects-Confirm] Copied', sources.length, 'sources to sequel');
+
+    // Create chapters from the confirmed outline
+    const isItalian = language === 'it';
+    for (let i = 0; i < outline.chapters.length; i++) {
+      const chapterData = outline.chapters[i];
+      const chapterId = uuidv4();
+
+      // Store the summary in content field (will be used as basis for generation)
+      const chapterContent = generateContent ? '' : (chapterData.summary || '');
+
+      db.prepare(
+        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'draft', ?, datetime('now'), datetime('now'))`
+      ).run(
+        chapterId,
+        newProjectId,
+        chapterData.title,
+        chapterContent,
+        i,
+        chapterContent.length
+      );
+    }
+    console.log('[Projects-Confirm] Created', outline.chapters.length, 'chapters from outline');
+
+    // Fetch and return the sequel project
+    const sequelProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(newProjectId);
+
+    res.status(201).json({
+      message: isItalian ? 'Seguito creato con successo' : 'Sequel created successfully',
+      project: sequelProject,
+      chaptersCreated: outline.chapters.length,
+      charactersCopied: characters.length,
+      locationsCopied: locations.length,
+      sourcesCopied: sources.length
+    });
+
+  } catch (error) {
+    console.error('[Projects] Sequel confirm error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;

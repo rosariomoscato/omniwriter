@@ -369,6 +369,28 @@
         "failed": "{{count}} capitoli hanno avuto problemi"
       }
     },
+    "sequelPreview": {
+      "title": "Crea Seguito",
+      "description": "Crea un seguito per \"{{title}}\" con indice capitoli generato dall'AI. Rivedi e modifica prima di confermare.",
+      "sequelTitle": "Titolo del Seguito",
+      "numChapters": "Numero di capitoli:",
+      "generateOutline": "Genera Indice Capitoli",
+      "generating": "Generazione indice in corso...",
+      "outlineError": "Impossibile generare l'indice",
+      "createError": "Impossibile creare il seguito",
+      "chaptersPlanned": "capitoli pianificati",
+      "themes": "Temi da esplorare",
+      "chapterOutline": "Indice Capitoli",
+      "editHint": "Clicca su un capitolo per espanderlo e modificarlo",
+      "returningCharacters": "Personaggi che ritornano",
+      "connection": "Collegamento al romanzo precedente",
+      "summary": "Sinossi",
+      "regenerate": "Rigenera",
+      "confirmAndCreate": "Accetta & Crea Seguito",
+      "creating": "Creazione seguito in corso...",
+      "success": "Seguito creato con successo!",
+      "chaptersWithSynopsis": "{{num}} capitoli con titoli e sinossi"
+    },
     "sequelOutline": {
       "button": "Genera Indice Seguito",
       "generating": "Generazione in corso...",

@@ -369,6 +369,28 @@
         "failed": "{{count}} chapters had issues"
       }
     },
+    "sequelPreview": {
+      "title": "Create Sequel",
+      "description": "Create a sequel to \"{{title}}\" with AI-generated chapter outline. Review and edit before confirming.",
+      "sequelTitle": "Sequel Title",
+      "numChapters": "Number of chapters:",
+      "generateOutline": "Generate Chapter Outline",
+      "generating": "Generating outline...",
+      "outlineError": "Failed to generate outline",
+      "createError": "Failed to create sequel",
+      "chaptersPlanned": "chapters planned",
+      "themes": "Themes to explore",
+      "chapterOutline": "Chapter Outline",
+      "editHint": "Click on a chapter to expand and edit",
+      "returningCharacters": "Returning characters",
+      "connection": "Connection to previous novel",
+      "summary": "Summary",
+      "regenerate": "Regenerate",
+      "confirmAndCreate": "Accept & Create Sequel",
+      "creating": "Creating sequel...",
+      "success": "Sequel created successfully!",
+      "chaptersWithSynopsis": "{{num}} chapters with titles and summaries"
+    },
     "sequelOutline": {
       "button": "Generate Sequel Outline",
       "generating": "Generating...",
