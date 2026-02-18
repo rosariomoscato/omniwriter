@@ -41,6 +41,242 @@ const upload = multer({
   },
 });
 
+// POST /api/analyze-novel - Standalone novel analysis that creates a new project (Feature #268)
+// This endpoint allows analyzing a novel file from the Dashboard without an existing project
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/analyze-novel', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const file = req.file;
+    const title = req.body.title as string;
+    const language = (req.body.language === 'en' ? 'en' : 'it') as 'it' | 'en';
+    const sagaId = req.body.sagaId as string | undefined;
+    const createNewSaga = req.body.createNewSaga as string | undefined;
+
+    if (!file) {
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
+    }
+
+    if (!title || !title.trim()) {
+      res.status(400).json({ message: 'Project title is required' });
+      return;
+    }
+
+    console.log('[AnalyzeNovel] Standalone analysis requested:', file.originalname, 'title:', title, 'language:', language);
+
+    // Extract text from uploaded file
+    const novelContent = await extractTextFromUploadedFile(file);
+
+    if (novelContent.length < 100) {
+      res.status(400).json({ message: 'File content is too short for analysis. Please upload a file with more content.' });
+      return;
+    }
+
+    console.log('[AnalyzeNovel] Extracted text length:', novelContent.length, 'characters');
+
+    // Create a new Romanziere project first
+    const projectId = uuidv4();
+    let finalSagaId: string | null = null;
+
+    // Handle saga creation/assignment
+    if (createNewSaga && createNewSaga.trim()) {
+      // Create a new saga
+      const newSagaId = uuidv4();
+      db.prepare(
+        `INSERT INTO sagas (id, user_id, title, description, area, created_at, updated_at)
+         VALUES (?, ?, ?, NULL, 'romanziere', datetime('now'), datetime('now'))`
+      ).run(newSagaId, userId, createNewSaga.trim());
+      finalSagaId = newSagaId;
+      console.log('[AnalyzeNovel] Created new saga:', createNewSaga, 'ID:', newSagaId);
+    } else if (sagaId && sagaId.trim()) {
+      // Verify saga belongs to user and is romanziere area
+      const saga = db.prepare('SELECT id, area FROM sagas WHERE id = ? AND user_id = ?').get(sagaId, userId) as { id: string; area: string } | undefined;
+      if (saga && saga.area === 'romanziere') {
+        finalSagaId = saga.id;
+        console.log('[AnalyzeNovel] Using existing saga:', sagaId);
+      }
+    }
+
+    // Create the project
+    db.prepare(
+      `INSERT INTO projects (id, user_id, saga_id, title, description, area, genre, tone, target_audience, pov, status, word_count_target, word_count, settings_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'Progetto creato dall\'analisi del romanzo caricato', 'romanziere', NULL, NULL, NULL, NULL, 'draft', NULL, 0, '{}', datetime('now'), datetime('now'))`
+    ).run(projectId, userId, finalSagaId, title.trim());
+
+    console.log('[AnalyzeNovel] Created project:', projectId, 'with saga:', finalSagaId);
+
+    // Use AI-based analysis to extract characters, locations, plot events, and synopsis
+    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[] }>;
+    let locations: Array<{ name: string; description: string; significance: string }>;
+    let plotEvents: Array<{ title: string; description: string; event_type: string }>;
+    let synopsis = '';
+
+    try {
+      const aiResult = await analyzeNovelWithAI(novelContent, userId || '', language);
+      characters = aiResult.characters;
+      locations = aiResult.locations;
+      plotEvents = aiResult.plotEvents;
+      synopsis = aiResult.synopsis;
+      console.log('[AnalyzeNovel] AI analysis extracted', characters.length, 'characters,', locations.length, 'locations,', plotEvents.length, 'plot events');
+    } catch (aiError) {
+      console.error('[AnalyzeNovel] AI analysis failed, falling back to regex:', aiError);
+      const regexResult = extractEntities(novelContent);
+      characters = regexResult.characters;
+      locations = regexResult.locations;
+      plotEvents = regexResult.plotEvents;
+      synopsis = '';
+    }
+
+    // Insert extracted characters
+    let charactersCreated = 0;
+    const charNameToId: Map<string, string> = new Map();
+    const charInsertData: Array<{ id: string; character: typeof characters[0] }> = [];
+
+    for (const character of characters) {
+      try {
+        const characterId = uuidv4();
+        db.prepare(
+          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
+        ).run(
+          characterId,
+          projectId,
+          finalSagaId,
+          character.name,
+          character.description,
+          character.traits,
+          character.backstory,
+          character.role_in_story
+        );
+        charNameToId.set(normalizeName(character.name), characterId);
+        charInsertData.push({ id: characterId, character });
+        charactersCreated++;
+      } catch (err) {
+        console.warn('[AnalyzeNovel] Failed to insert character:', character.name, err);
+      }
+    }
+
+    // Resolve and save relationships
+    for (const { id: fromCharId, character } of charInsertData) {
+      if (!character.relationships || character.relationships.length === 0) continue;
+
+      const resolvedRelationships = [];
+      for (const rel of character.relationships) {
+        let targetId: string | undefined;
+        const normalizedRelName = normalizeName(rel.relatedTo);
+
+        targetId = charNameToId.get(normalizedRelName);
+        if (!targetId) {
+          for (const [name, cId] of charNameToId.entries()) {
+            if (name.includes(normalizedRelName) || normalizedRelName.includes(name)) {
+              targetId = cId;
+              break;
+            }
+          }
+        }
+
+        if (targetId && targetId !== fromCharId) {
+          resolvedRelationships.push({
+            characterId: fromCharId,
+            relatedCharacterId: targetId,
+            relationshipType: rel.type || 'ally'
+          });
+        }
+      }
+
+      if (resolvedRelationships.length > 0) {
+        try {
+          db.prepare('UPDATE characters SET relationships_json = ? WHERE id = ?').run(
+            JSON.stringify(resolvedRelationships),
+            fromCharId
+          );
+        } catch (err) {
+          console.warn('[AnalyzeNovel] Failed to update relationships:', err);
+        }
+      }
+    }
+
+    // Insert extracted locations
+    let locationsCreated = 0;
+    for (const location of locations) {
+      try {
+        const locationId = uuidv4();
+        db.prepare(
+          `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`
+        ).run(
+          locationId,
+          projectId,
+          finalSagaId,
+          location.name,
+          location.description,
+          location.significance
+        );
+        locationsCreated++;
+      } catch (err) {
+        console.warn('[AnalyzeNovel] Failed to insert location:', location.name, err);
+      }
+    }
+
+    // Insert extracted plot events
+    let plotEventsCreated = 0;
+    for (const event of plotEvents) {
+      try {
+        const eventId = uuidv4();
+        db.prepare(
+          `INSERT INTO plot_events (id, project_id, saga_id, title, description, chapter_id, order_index, event_type, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, 1, datetime('now'), datetime('now'))`
+        ).run(
+          eventId,
+          projectId,
+          finalSagaId,
+          event.title,
+          event.description,
+          plotEventsCreated,
+          event.event_type
+        );
+        plotEventsCreated++;
+      } catch (err) {
+        console.warn('[AnalyzeNovel] Failed to insert plot event:', event.title, err);
+      }
+    }
+
+    // Save synopsis to project
+    if (synopsis) {
+      try {
+        db.prepare('UPDATE projects SET synopsis = ?, updated_at = datetime(\'now\') WHERE id = ? AND user_id = ?').run(synopsis, projectId, userId);
+        console.log('[AnalyzeNovel] Synopsis saved to project');
+      } catch (synopsisErr) {
+        console.warn('[AnalyzeNovel] Failed to save synopsis:', synopsisErr);
+      }
+    }
+
+    console.log('[AnalyzeNovel] Analysis completed:', {
+      projectId,
+      characters: charactersCreated,
+      locations: locationsCreated,
+      plotEvents: plotEventsCreated,
+      synopsis: synopsis ? 'generated' : 'none'
+    });
+
+    res.json({
+      message: 'Novel analyzed and project created successfully',
+      projectId,
+      extracted: {
+        characters: charactersCreated,
+        locations: locationsCreated,
+        plotEvents: plotEventsCreated,
+        synopsis: synopsis ? true : false
+      }
+    });
+  } catch (error) {
+    console.error('[AnalyzeNovel] Error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to analyze novel' });
+  }
+});
+
 // GET /api/projects - List user's projects with pagination
 // @ts-expect-error - AuthRequest type compatibility with router
 router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {

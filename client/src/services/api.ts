@@ -1329,6 +1329,49 @@ class ApiService {
     });
   }
 
+  // Standalone novel analysis - creates new project from uploaded novel (Feature #268)
+  async analyzeNovelStandalone(data: {
+    file: File;
+    title: string;
+    language: 'it' | 'en';
+    sagaId?: string;
+    createNewSaga?: string;
+  }, onProgress?: (progress: string) => void): Promise<{
+    message: string;
+    projectId: string;
+    extracted: {
+      characters: number;
+      locations: number;
+      plotEvents: number;
+      synopsis: boolean;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('title', data.title);
+    formData.append('language', data.language);
+    if (data.sagaId) {
+      formData.append('sagaId', data.sagaId);
+    }
+    if (data.createNewSaga) {
+      formData.append('createNewSaga', data.createNewSaga);
+    }
+
+    if (onProgress) {
+      onProgress('Uploading file...');
+    }
+
+    return this.request<{
+      message: string;
+      projectId: string;
+      extracted: { characters: number; locations: number; plotEvents: number; synopsis: boolean };
+    }>('/analyze-novel', {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let browser set Content-Type for FormData
+    });
+  }
+
   async getSynopsis(projectId: string): Promise<{ synopsis: string }> {
     return this.request<{ synopsis: string }>(`/projects/${projectId}/synopsis`);
   }

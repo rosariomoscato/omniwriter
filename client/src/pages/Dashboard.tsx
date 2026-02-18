@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2, Edit3 } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2, Edit3, Sparkles } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -10,6 +10,7 @@ import DashboardLayoutSettings, { DashboardLayout } from '../components/Dashboar
 import { ProjectCardSkeleton } from '../components/Skeleton';
 import DashboardStats from '../components/DashboardStats';
 import DashboardAreas from '../components/DashboardAreas';
+import AnalyzeNovelModal from '../components/AnalyzeNovelModal';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
 type FilterStatus = 'all' | 'draft' | 'in_progress' | 'completed' | 'archived';
@@ -126,6 +127,9 @@ export default function Dashboard() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Analyze Novel modal state (Feature #268)
+  const [showAnalyzeNovelModal, setShowAnalyzeNovelModal] = useState(false);
+
   // Tag editing state
   const [newTagInput, setNewTagInput] = useState('');
   const [tagInputProjectId, setTagInputProjectId] = useState<string | null>(null);
@@ -218,6 +222,18 @@ export default function Dashboard() {
     window.addEventListener('open-import-modal', handleOpenImportModal);
     return () => {
       window.removeEventListener('open-import-modal', handleOpenImportModal);
+    };
+  }, []);
+
+  // Listen for analyze novel modal open event (Feature #268)
+  useEffect(() => {
+    const handleOpenAnalyzeNovelModal = () => {
+      setShowAnalyzeNovelModal(true);
+    };
+
+    window.addEventListener('open-analyze-novel-modal', handleOpenAnalyzeNovelModal);
+    return () => {
+      window.removeEventListener('open-analyze-novel-modal', handleOpenAnalyzeNovelModal);
     };
   }, []);
 
@@ -622,7 +638,7 @@ export default function Dashboard() {
       )}
 
       {/* Quick Create Button */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-6 flex-wrap">
         <Link
           to={isAreaPage && activeArea ? `/projects/new?area=${activeArea}` : '/projects/new'}
           className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors font-medium ${
@@ -641,6 +657,16 @@ export default function Dashboard() {
         </button>
         {!isAreaPage && (
           <button
+            onClick={() => setShowAnalyzeNovelModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+            title={t('nav.analyzeNovel')}
+          >
+            <Sparkles size={20} />
+            {t('nav.analyzeNovel')}
+          </button>
+        )}
+        {!isAreaPage && (
+          <button
             onClick={() => setShowLayoutSettings(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium"
             title={t('dashboard.layout.customizeDashboard')}
@@ -650,6 +676,12 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* Analyze Novel Modal */}
+      <AnalyzeNovelModal
+        isOpen={showAnalyzeNovelModal}
+        onClose={() => setShowAnalyzeNovelModal(false)}
+      />
 
       {/* Statistics Section - Show only on main dashboard, not on area pages */}
       {!isAreaPage && !loading && (

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3, FolderOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3, FolderOpen, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Project {
@@ -34,6 +34,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
     { id: 'human-model', label: t('nav.humanModel'), icon: User, path: '/human-model' },
     { id: 'sources', label: t('nav.sources'), icon: FileText, path: '/sources' },
     { id: 'sagas', label: t('nav.sagas'), icon: FolderOpen, path: '/sagas' },
+    { id: 'analyze-novel', label: t('nav.analyzeNovel'), icon: Sparkles, path: '#analyze-novel', isAction: true },
     { id: 'settings', label: t('nav.settings'), icon: Settings, path: '/settings' },
   ];
 
@@ -81,19 +82,28 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             {mainNav.map((item) => (
               <li key={item.id}>
                 <button
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    if (item.isAction && item.id === 'analyze-novel') {
+                      // Dispatch custom event to open analyze novel modal
+                      window.dispatchEvent(new CustomEvent('open-analyze-novel-modal'));
+                    } else if (!item.isAction) {
+                      navigate(item.path);
+                    }
+                  }}
                   className={`
                     w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-gray-100 dark:hover:bg-gray-700
+                    ${item.id === 'analyze-novel'
+                      ? 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
                     transition-colors duration-200
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
                   aria-label={isCollapsed ? item.label : undefined}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <item.icon size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
+                  <item.icon size={20} className={`${item.id === 'analyze-novel' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-300'} flex-shrink-0`} />
                   {!isCollapsed && (
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    <span className={`text-sm font-medium ${item.id === 'analyze-novel' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-200'}`}>
                       {item.label}
                     </span>
                   )}

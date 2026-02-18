@@ -12,6 +12,7 @@
     "humanModel": "Modello Umano",
     "sources": "Fonti",
     "sagas": "Saghe",
+    "analyzeNovel": "Analizza Romanzo",
     "settings": "Impostazioni",
     "profile": "Profilo",
     "admin": "Amministrazione",
@@ -461,7 +462,7 @@
       "noCharacters": "Nessun personaggio ancora",
       "createForProject": "Crea personaggi per il tuo progetto",
       "add": "Aggiungi Personaggio",
-      "analyzeNovel": "Analizza Romanzo",
+      "analyzeNovel": "Analizza Fonte",
       "editTitle": "Modifica Personaggio",
       "addTitle": "Aggiungi Nuovo Personaggio",
       "namePlaceholder": "Nome personaggio...",
@@ -473,8 +474,8 @@
       "deleteTitle": "Elimina Personaggio"
     },
     "analyzeNovelForm": {
-      "title": "Analizza Romanzo per Personaggi, Luoghi ed Eventi di Trama",
-      "description": "Carica un file romanzo (TXT, DOCX o PDF) e il sistema estrarrà automaticamente personaggi, luoghi ed eventi di trama.",
+      "title": "Analizza Fonte per Personaggi, Luoghi ed Eventi di Trama",
+      "description": "Carica un file (TXT, DOCX o PDF) e il sistema estrarrà automaticamente personaggi, luoghi ed eventi di trama dalla fonte.",
       "uploadText": "Clicca per caricare o trascina",
       "analyzing": "Analisi in corso...",
       "formatHint": "TXT, DOCX, PDF (Max 10MB)",
@@ -483,6 +484,35 @@
       "successMessage": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama estratti",
       "successMessageWithSynopsis": "Romanzo analizzato: {{characters}} personaggi, {{locations}} luoghi, {{plotEvents}} eventi di trama e sinossi estratti",
       "noResultsMessage": "Analisi completata, ma non sono stati trovati personaggi, luoghi o eventi. Il testo potrebbe essere troppo breve o utilizzare un formato non riconosciuto. Prova con un testo più lungo o in formato standard.",
+      "errorMessage": "Impossibile analizzare il romanzo. Riprova."
+    },
+    "analyzeNovelModal": {
+      "title": "Analizza Romanzo",
+      "description": "Carica un file del tuo romanzo scritto in precedenza. L'AI estrarrà personaggi, luoghi, eventi di trama e sinossi, creando automaticamente un nuovo progetto popolato con i dati estratti.",
+      "selectFile": "Seleziona File",
+      "uploadText": "Clicca per caricare o trascina",
+      "formatHint": "TXT, DOCX, PDF, RTF (Max 10MB)",
+      "projectTitle": "Titolo del Progetto",
+      "projectTitlePlaceholder": "Il mio romanzo...",
+      "language": "Lingua del romanzo",
+      "sagaSelection": "Assegna a Saga (opzionale)",
+      "createNewSaga": "Crea nuova saga",
+      "newSagaTitlePlaceholder": "Nome della nuova saga...",
+      "noSaga": "Nessuna saga (progetto standalone)",
+      "loadingSagas": "Caricamento saghe...",
+      "noSagasAvailable": "Nessuna saga Romanziere disponibile",
+      "errorSelectFile": "Seleziona un file da caricare",
+      "errorFileType": "Formato file non supportato. Usa TXT, DOCX, PDF o RTF.",
+      "errorTitleRequired": "Il titolo del progetto è obbligatorio",
+      "errorSagaTitleRequired": "Il titolo della saga è obbligatorio",
+      "progress": {
+        "uploading": "Caricamento file...",
+        "analyzing": "Analisi del romanzo in corso...",
+        "creating": "Creazione progetto..."
+      },
+      "analyzing": "Analisi in corso...",
+      "analyzeButton": "Analizza e Crea Progetto",
+      "successMessage": "Progetto creato con {{characters}} personaggi, {{locations}} luoghi e {{plotEvents}} eventi di trama",
       "errorMessage": "Impossibile analizzare il romanzo. Riprova."
     },
     "synopsis": {

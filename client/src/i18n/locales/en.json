@@ -12,6 +12,7 @@
     "humanModel": "Human Model",
     "sources": "Sources",
     "sagas": "Sagas",
+    "analyzeNovel": "Analyze Novel",
     "settings": "Settings",
     "profile": "Profile",
     "admin": "Admin",
@@ -461,7 +462,7 @@
       "noCharacters": "No characters yet",
       "createForProject": "Create characters for your project",
       "add": "Add Character",
-      "analyzeNovel": "Analyze Novel",
+      "analyzeNovel": "Analyze Source",
       "editTitle": "Edit Character",
       "addTitle": "Add New Character",
       "namePlaceholder": "Character name...",
@@ -473,8 +474,8 @@
       "deleteTitle": "Delete Character"
     },
     "analyzeNovelForm": {
-      "title": "Analyze Novel for Characters, Locations & Plot Events",
-      "description": "Upload a novel file (TXT, DOCX, or PDF) and the system will extract characters, locations, and plot events automatically.",
+      "title": "Analyze Source for Characters, Locations & Plot Events",
+      "description": "Upload a file (TXT, DOCX, or PDF) and the system will extract characters, locations, and plot events from the source.",
       "uploadText": "Click to upload or drag and drop",
       "analyzing": "Analyzing...",
       "formatHint": "TXT, DOCX, PDF (Max 10MB)",
@@ -483,6 +484,35 @@
       "successMessage": "Novel analyzed: {{characters}} characters, {{locations}} locations, {{plotEvents}} plot events extracted",
       "successMessageWithSynopsis": "Novel analyzed: {{characters}} characters, {{locations}} locations, {{plotEvents}} plot events and synopsis extracted",
       "noResultsMessage": "Analysis complete, but no characters, locations, or events were found. The text may be too short or use an unrecognized format. Try with longer text or a standard format.",
+      "errorMessage": "Failed to analyze novel. Please try again."
+    },
+    "analyzeNovelModal": {
+      "title": "Analyze Novel",
+      "description": "Upload a previously written novel file. The AI will extract characters, locations, plot events, and synopsis, automatically creating a new project populated with the extracted data.",
+      "selectFile": "Select File",
+      "uploadText": "Click to upload or drag and drop",
+      "formatHint": "TXT, DOCX, PDF, RTF (Max 10MB)",
+      "projectTitle": "Project Title",
+      "projectTitlePlaceholder": "My novel...",
+      "language": "Novel Language",
+      "sagaSelection": "Assign to Saga (optional)",
+      "createNewSaga": "Create new saga",
+      "newSagaTitlePlaceholder": "New saga name...",
+      "noSaga": "No saga (standalone project)",
+      "loadingSagas": "Loading sagas...",
+      "noSagasAvailable": "No Novelist sagas available",
+      "errorSelectFile": "Please select a file to upload",
+      "errorFileType": "Unsupported file format. Use TXT, DOCX, PDF, or RTF.",
+      "errorTitleRequired": "Project title is required",
+      "errorSagaTitleRequired": "Saga title is required",
+      "progress": {
+        "uploading": "Uploading file...",
+        "analyzing": "Analyzing novel...",
+        "creating": "Creating project..."
+      },
+      "analyzing": "Analyzing...",
+      "analyzeButton": "Analyze & Create Project",
+      "successMessage": "Project created with {{characters}} characters, {{locations}} locations, and {{plotEvents}} plot events",
       "errorMessage": "Failed to analyze novel. Please try again."
     },
     "synopsis": {
