@@ -316,6 +316,56 @@ export default function ProjectDetail() {
     }
   };
 
+  // Load linkable sources: standalone + sources from the same saga (if project is in a saga)
+  const loadLinkableSources = async () => {
+    try {
+      setLoadingStandaloneSources(true);
+      const response = await apiService.getAllSources();
+
+      // Get IDs of sources already linked to this project
+      const linkedSourceIds = new Set(sources.map(s => s.id));
+
+      // Filter standalone sources (project_id is null) - not already linked
+      const standalone = response.sources
+        .filter(s => !s.project_id && !linkedSourceIds.has(s.id))
+        .map(source => ({
+          ...source,
+          tags: source.tags || [],
+          _sourceType: 'standalone' as const,
+        }));
+
+      // If project is in a saga, also get sources from other projects in the same saga
+      let sagaSources: (Source & { _sourceType: 'saga' })[] = [];
+      if (project?.saga_id) {
+        try {
+          const sagaResponse = await apiService.getSagaSources(project.saga_id);
+          sagaSources = sagaResponse.sources
+            .filter(s => s.project_id !== project.id && !linkedSourceIds.has(s.id))
+            .map(source => ({
+              ...source,
+              tags: source.tags || [],
+              _sourceType: 'saga' as const,
+            }));
+        } catch (err) {
+          console.error('Failed to load saga sources:', err);
+        }
+      }
+
+      // Combine and deduplicate
+      const allLinkable = [...standalone, ...sagaSources];
+      const uniqueSources = allLinkable.filter((source, index, self) =>
+        index === self.findIndex(s => s.id === source.id)
+      );
+
+      setStandaloneSources(uniqueSources);
+    } catch (err: any) {
+      console.error('Failed to load linkable sources:', err);
+      toast.error(err.message || 'Failed to load linkable sources');
+    } finally {
+      setLoadingStandaloneSources(false);
+    }
+  };
+
   const loadCharacters = async () => {
     try {
       const response = await apiService.getProjectCharacters(id!);
@@ -2493,16 +2543,10 @@ export default function ProjectDetail() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowAddSource(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              {t('projectPage.sources.uploadSource', 'Upload Source')}
-            </button>
-            <button
               onClick={() => {
                 setShowLinkSources(true);
                 setSelectedSourcesToLink(new Set());
+                loadLinkableSources();
               }}
               className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
@@ -2512,68 +2556,13 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Upload Source Form */}
-        {showAddSource && (
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex flex-col gap-4">
-              {/* Share with Saga Toggle - only show if project is in a saga */}
-              {project?.saga_id && (
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareWithSaga}
-                    onChange={(e) => setShareWithSaga(e.target.checked)}
-                    className="w-4 h-4 text-amber-600 bg-gray-100 border-gray-300 rounded focus:ring-amber-500 dark:focus:ring-amber-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  <Share2 className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {t('projectPage.sources.shareWithSaga', 'Share with all projects in this saga')}
-                  </span>
-                </label>
-              )}
-              <div className="flex items-center gap-4">
-                <label className="flex-1">
-                  <div className="flex items-center justify-center w-full h-32 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-blue-500 focus:outline-none">
-                    <div className="flex flex-col items-center">
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        PDF, DOCX, DOC, RTF, TXT (Max 25MB)
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.docx,.doc,.rtf,.txt"
-                      onChange={handleFileUpload}
-                      disabled={uploading}
-                    />
-                  </div>
-                </label>
-                <button
-                  onClick={() => {
-                    setShowAddSource(false);
-                    setError('');
-                    setShareWithSaga(false);
-                  }}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Sources List */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {sources.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-600" />
               <p className="text-lg font-medium mb-1">{t('projectPage.sources.noSources')}</p>
-              <p className="text-sm">{t('projectPage.sources.uploadReference')}</p>
+              <p className="text-sm">{t('projectPage.sources.linkSourcesHint', 'Use "Link Sources" to add existing sources to this project')}</p>
             </div>
           ) : (
             sources
@@ -3239,7 +3228,9 @@ export default function ProjectDetail() {
             {/* Description */}
             <div className="px-4 pt-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('projectPage.sources.linkModalDesc')}
+                {project?.saga_id
+                  ? t('projectPage.sources.linkModalDescWithSaga', 'Select sources to link to this project. You can link standalone sources or sources from other projects in the saga.')
+                  : t('projectPage.sources.linkModalDesc')}
               </p>
               {selectedSourcesToLink.size > 0 && (
                 <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mt-1">
@@ -3248,7 +3239,7 @@ export default function ProjectDetail() {
               )}
             </div>
 
-            {/* Content - Standalone Sources List */}
+            {/* Content - Linkable Sources List */}
             <div className="flex-1 overflow-auto p-4">
               {loadingStandaloneSources ? (
                 <div className="flex items-center justify-center py-12">
@@ -3258,16 +3249,24 @@ export default function ProjectDetail() {
                 <div className="text-center py-12">
                   <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    {t('projectPage.sources.noStandaloneSources')}
+                    {t('projectPage.sources.noSourcesAvailable')}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {t('projectPage.sources.uploadReference')}
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    {t('projectPage.sources.noSourcesAvailableDesc')}
                   </p>
+                  <button
+                    onClick={() => navigate('/sources')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                    {t('projectPage.sources.goToSources')}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {standaloneSources.map((source) => {
                     const isSelected = selectedSourcesToLink.has(source.id);
+                    const isSagaSource = (source as any)._sourceType === 'saga';
                     return (
                       <div
                         key={source.id}
@@ -3296,8 +3295,14 @@ export default function ProjectDetail() {
                           </div>
                           <FileText className="w-5 h-5 text-gray-400" />
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-gray-900 dark:text-gray-100 font-medium truncate">
+                            <h4 className="text-gray-900 dark:text-gray-100 font-medium truncate flex items-center gap-2">
                               {source.file_name}
+                              {isSagaSource && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 rounded-full">
+                                  <Layers className="w-3 h-3" />
+                                  {t('projectPage.sources.sagaSource')}
+                                </span>
+                              )}
                             </h4>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
