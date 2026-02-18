@@ -1,5 +1,80 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #268 Implementation
+
+### Completed Features: 268/268 (100%)
+
+### Feature #268: "Analizza Romanzo" come funzione principale - Crea progetto da romanzo esistente
+
+**Objective:** Spostare la funzione "Analizza Romanzo" dalla pagina progetto alla Dashboard/Sidebar per permettere di caricare un romanzo scritto in precedenza, analizzarlo con AI, e creare automaticamente un nuovo progetto popolato con i dati estratti (personaggi, luoghi, eventi, sinossi, relazioni).
+
+**Implementation:**
+
+#### 1. Backend Endpoint (server/src/routes/projects.ts)
+
+**POST /api/analyze-novel** (lines 44-283):
+- Standalone endpoint that creates a new project from an uploaded novel file
+- Accepts: file (TXT, DOCX, PDF, RTF), title, language, sagaId (optional), createNewSaga (optional)
+- Creates a new Romanziere project
+- Handles saga creation/assignment
+- Uses AI to extract: characters, locations, plot events, synopsis
+- Saves relationships between characters
+- Returns: projectId and extraction counts
+
+#### 2. Frontend Component (client/src/components/AnalyzeNovelModal.tsx)
+
+**Modal Features:**
+- File upload with drag & drop support
+- Project title input (auto-suggested from filename)
+- Language selection (Italian/English)
+- Saga selection or new saga creation
+- Progress indicator during analysis
+- Redirects to new project after successful analysis
+
+#### 3. Sidebar Integration (client/src/components/Sidebar.tsx)
+
+- Added "Analizza Romanzo" entry after "Saghe" and before "Impostazioni"
+- Purple styling for prominence
+- Dispatches custom event to open modal
+
+#### 4. Dashboard Integration (client/src/pages/Dashboard.tsx)
+
+- Added purple "Analizza Romanzo" button in quick actions
+- Listens for custom event from Sidebar to open modal
+- Imports and renders AnalyzeNovelModal
+
+#### 5. API Service (client/src/services/api.ts)
+
+**New method: analyzeNovelStandalone**
+- Sends file and metadata to /api/analyze-novel endpoint
+- Returns projectId and extraction results
+
+#### 6. i18n Translations (client/src/i18n/locales/)
+
+**Italian (it.json):**
+- Added nav.analyzeNovel
+- Added analyzeNovelModal section with all modal labels
+- Renamed characters.analyzeNovel to "Analizza Fonte"
+- Updated analyzeNovelForm title/description
+
+**English (en.json):**
+- Same structure with English translations
+- "Analyze Source" for the project-level button
+
+**Verification Steps Completed:**
+1. ✅ Backend endpoint compiles and server starts
+2. ✅ "Analizza Romanzo" appears in Sidebar with purple styling
+3. ✅ "Analizza Romanzo" button appears in Dashboard with purple styling
+4. ✅ Clicking Sidebar button opens the modal
+5. ✅ Clicking Dashboard button opens the modal
+6. ✅ Modal shows: file upload, title input, language selector, saga options
+7. ✅ ProjectDetail button renamed to "Analizza Fonte"
+8. ✅ All i18n translations added (it/en)
+
+**Commit:** 7218cd6
+
+---
+
 ## Session: 2026-02-18 - Feature #1 Verification
 
 ### Completed Features: 267/267 (100%)
