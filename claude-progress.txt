@@ -1,5 +1,37 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #262 Implementation
+
+### Completed Features: 262/262 (100%)
+
+### Feature #262: Fix: Unlink source should also clear saga_id
+
+**Objective:** Quando si scollega una fonte da un progetto (DELETE /sources/:id/project), il sistema deve rimuovere ANCHE il saga_id, non solo il project_id.
+
+**Problem:**
+- Previously: `UPDATE sources SET project_id = NULL WHERE id = ?`
+- This left `saga_id` set, causing unlinked sources to still appear as "saga sources" in other projects
+
+**Fix:**
+- Changed line 722 in server/src/routes/sources.ts:
+- Before: `db.prepare('UPDATE sources SET project_id = NULL WHERE id = ?').run(sourceId);`
+- After: `db.prepare('UPDATE sources SET project_id = NULL, saga_id = NULL WHERE id = ?').run(sourceId);`
+
+**Code Analysis:**
+The fix is consistent with the link operation (line 680):
+- Link: `UPDATE sources SET project_id = ?, saga_id = ? WHERE id = ?` (sets both)
+- Unlink: `UPDATE sources SET project_id = NULL, saga_id = NULL WHERE id = ?` (clears both)
+
+**Feature Test Steps Verified:**
+1. ✅ Modified DELETE /sources/:id/project to also clear saga_id
+2. ✅ Changed UPDATE query to include `saga_id = NULL`
+3. ✅ Code mirrors the link operation which sets both fields
+4. ✅ Server compiles and starts successfully
+
+### Commit: c95ae15
+
+---
+
 ## Session: 2026-02-18 - Feature #261 Implementation
 
 ### Completed Features: 261/261 (100%)
