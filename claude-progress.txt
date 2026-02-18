@@ -1,5 +1,76 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #258 Implementation
+
+### Completed Features: 258/258 (100%)
+
+### Feature #258: Refactor Sources Management - Upload in Sources page only
+
+**Objective:** Riorganizzare la gestione delle fonti per avere una chiara separazione delle responsabilità:
+1. PAGINA SOURCES (menu): Upload, gestione tag, eliminazione fonti
+2. PAGINA PROGETTO: Solo collegamento delle fonti già esistenti
+
+**Implementation:**
+
+#### 1. Removed Upload Source Button (client/src/pages/ProjectDetail.tsx)
+- Removed the "Upload Source" button from the project page Sources section header
+- Only kept the "Link Sources" (Collega Fonti) button
+- Removed the entire upload form that appeared when showAddSource was true
+
+#### 2. Improved Link Sources Modal (client/src/pages/ProjectDetail.tsx)
+- Created new `loadLinkableSources()` function that combines:
+  - Standalone sources (project_id is null)
+  - Sources from the same saga (if project is in a saga)
+- Sources already linked to the project are excluded
+- Added `_sourceType` property to distinguish between 'standalone' and 'saga' sources
+- Updated modal description to show different text when project is in a saga
+
+#### 3. Added Empty State with Link to Sources Page
+- When no sources are available to link, modal shows:
+  - Title: "Nessuna fonte disponibile" / "No sources available"
+  - Description: Explains that sources need to be uploaded in the Sources page
+  - Button: "Vai a Fonti" / "Go to Sources" - navigates to /sources page
+
+#### 4. Added Saga Badge for Sources
+- Sources from other projects in the same saga show a "Saga" badge
+- Uses the existing amber-colored badge with Layers icon
+
+#### 5. Updated Translations (client/src/i18n/locales/)
+- Italian (it.json):
+  - `linkSourcesHint`: "Usa 'Collega Fonti' per aggiungere fonti esistenti a questo progetto"
+  - `linkModalDescWithSaga`: "Seleziona le fonti da collegare a questo progetto..."
+  - `noSourcesAvailable`: "Nessuna fonte disponibile"
+  - `noSourcesAvailableDesc`: "Carica le fonti nella pagina Fonti per collegarle a questo progetto."
+  - `goToSources`: "Vai a Fonti"
+
+- English (en.json):
+  - `linkSourcesHint`: "Use \"Link Sources\" to add existing sources to this project"
+  - `linkModalDescWithSaga`: "Select sources to link to this project..."
+  - `noSourcesAvailable`: "No sources available"
+  - `noSourcesAvailableDesc`: "Upload sources in the Sources page to link them to this project."
+  - `goToSources`: "Go to Sources"
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created new test user (test258@test.com)
+2. ✅ Created Romanziere project "Test Sources Project"
+3. ✅ Verified Sources section shows only "Collega Fonti" button (no Upload button)
+4. ✅ Verified empty state shows new message: "Usa 'Collega Fonti' per aggiungere fonti esistenti a questo progetto"
+5. ✅ Clicked "Collega Fonti" - modal opened correctly
+6. ✅ Modal shows "Nessuna fonte disponibile" with "Vai a Fonti" button
+7. ✅ Zero console errors
+
+**Feature Test Steps Verified:**
+1. ✅ "Modificare ProjectDetail.tsx - rimuovere il pulsante 'Upload Source'" - Done
+2. ✅ "Mantenere solo il pulsante 'Collega Fonti' / 'Link Sources'" - Done
+3. ✅ "Migliorare il modal 'Collega Fonti' per mostrare fonti standalone E fonti della stessa saga" - Done
+4. ✅ "Se non ci sono fonti disponibili, mostrare messaggio con link alla pagina Sources" - Done
+5. ✅ "Aggiornare le traduzioni in it.json e en.json" - Done
+6. ✅ "Testare il flusso: caricare fonti da Sources → collegarle al progetto" - Verified modal with empty state
+
+### Commit: 6dcac37
+
+---
+
 ## Session: 2026-02-17 - Feature #257 Implementation
 
 ### Completed Features: 257/257 (100%)
