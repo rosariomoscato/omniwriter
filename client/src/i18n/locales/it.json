@@ -353,6 +353,14 @@
       "create": "Crea Seguito",
       "success": "Seguito creato con successo!"
     },
+    "sequelOutline": {
+      "button": "Genera Indice Seguito",
+      "generating": "Generazione in corso...",
+      "noSaga": "Questo progetto deve far parte di una saga per generare un indice seguito",
+      "existingChapters": "Esistono già dei capitoli. Elimina prima i capitoli esistenti.",
+      "success": "Indice seguito generato: {{count}} capitoli creati basati su \"{{previousNovel}}\"",
+      "error": "Impossibile generare l'indice seguito"
+    },
     "outlineConfirm": {
       "title": "Genera Indice",
       "message": "Questo progetto ha già dei capitoli. Generare un indice aggiungerà nuovi capitoli a quelli esistenti. Continuare?"

@@ -144,6 +144,8 @@ export default function ProjectDetail() {
   const [novelFile, setNovelFile] = useState<File | null>(null);
   const [generatingOutline, setGeneratingOutline] = useState(false);
   const [outlineGenerated, setOutlineGenerated] = useState(false);
+  // Feature #260: Generate Sequel Outline
+  const [generatingSequelOutline, setGeneratingSequelOutline] = useState(false);
   const [detectingPlotHoles, setDetectingPlotHoles] = useState(false);
   const [plotHolesResults, setPlotHolesResults] = useState<any>(null);
   const [showPlotHolesResults, setShowPlotHolesResults] = useState(false);
@@ -871,6 +873,51 @@ export default function ProjectDetail() {
     }
   };
 
+  // Feature #260: Generate Sequel Outline
+  const handleGenerateSequelOutline = async () => {
+    if (!project) return;
+
+    // Check if project is in a saga
+    if (!projectSagaId) {
+      toast.error(t('projectPage.sequelOutline.noSaga', 'This project must be part of a saga to generate a sequel outline'));
+      return;
+    }
+
+    // Check if any chapters already exist - show confirmation dialog
+    if (chapters.length > 0) {
+      // For now, just show error - could add confirmation dialog later
+      toast.error(t('projectPage.sequelOutline.existingChapters', 'Chapters already exist. Delete existing chapters first.'));
+      return;
+    }
+
+    try {
+      setGeneratingSequelOutline(true);
+      setError('');
+      toast.info(t('projectPage.sequelOutline.generating', 'Generating sequel outline based on previous novel...'));
+
+      const response = await apiService.generateSequelOutline(id!, {
+        language: i18n.language === 'en' ? 'en' : 'it',
+        numChapters: 10
+      });
+
+      toast.success(t('projectPage.sequelOutline.success', {
+        count: response.created,
+        previousNovel: response.outline.previous_novel,
+        defaultValue: `Sequel outline generated: ${response.created} chapters created based on "${response.outline.previous_novel}"`
+      }));
+
+      // Reload chapters to show the newly created outline chapters
+      await loadChapters();
+
+      setOutlineGenerated(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate sequel outline');
+      toast.error(err.message || 'Failed to generate sequel outline');
+    } finally {
+      setGeneratingSequelOutline(false);
+    }
+  };
+
   const handleDetectPlotHoles = async () => {
     if (!project) return;
 
@@ -1543,6 +1590,26 @@ export default function ProjectDetail() {
                 >
                   <Layers className="w-4 h-4" />
                   {t('projectPage.sequel.button', 'Create Sequel')}
+                </button>
+              )}
+              {/* Feature #260: Generate Sequel Outline - Only for romanziere projects in a saga */}
+              {project?.area === 'romanziere' && projectSagaId && (
+                <button
+                  onClick={handleGenerateSequelOutline}
+                  disabled={generatingSequelOutline}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {generatingSequelOutline ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      {t('projectPage.sequelOutline.generating', 'Generating...')}
+                    </>
+                  ) : (
+                    <>
+                      <Lightbulb className="w-4 h-4" />
+                      {t('projectPage.sequelOutline.button', 'Generate Sequel Outline')}
+                    </>
+                  )}
                 </button>
               )}
               {/* Feature #254: Assign to Saga */}

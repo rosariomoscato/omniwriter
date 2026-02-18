@@ -521,6 +521,39 @@ class ApiService {
     });
   }
 
+  // Feature #260: Generate Sequel Outline
+  async generateSequelOutline(id: string, options?: {
+    language?: 'it' | 'en';
+    numChapters?: number;
+  }): Promise<{
+    message: string;
+    outline: {
+      previous_novel: string;
+      total_chapters: number;
+      chapters: Array<{ id: string; title: string; summary: string }>;
+      themes: string[];
+      character_arcs: string[];
+    };
+    created: number;
+    aiGenerated: boolean;
+  }> {
+    return this.request<{
+      message: string;
+      outline: {
+        previous_novel: string;
+        total_chapters: number;
+        chapters: Array<{ id: string; title: string; summary: string }>;
+        themes: string[];
+        character_arcs: string[];
+      };
+      created: number;
+      aiGenerated: boolean;
+    }>(`/projects/${id}/generate/sequel-outline`, {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  }
+
   // Citation methods
   async getProjectCitations(projectId: string): Promise<{ citations: any[]; count: number }> {
     return this.request<{ citations: any[]; count: number }>(`/projects/${projectId}/citations`);

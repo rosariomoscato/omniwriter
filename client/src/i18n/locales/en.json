@@ -353,6 +353,14 @@
       "create": "Create Sequel",
       "success": "Sequel created successfully!"
     },
+    "sequelOutline": {
+      "button": "Generate Sequel Outline",
+      "generating": "Generating...",
+      "noSaga": "This project must be part of a saga to generate a sequel outline",
+      "existingChapters": "Chapters already exist. Delete existing chapters first.",
+      "success": "Sequel outline generated: {{count}} chapters created based on \"{{previousNovel}}\"",
+      "error": "Failed to generate sequel outline"
+    },
     "outlineConfirm": {
       "title": "Generate Outline",
       "message": "This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?"
