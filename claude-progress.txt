@@ -1,5 +1,47 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-18 - Feature #261 Implementation
+
+### Completed Features: 261/261 (100%)
+
+### Feature #261: Fix: Missing slash in unlink source route
+
+**Objective:** Correggere un typo nella rotta DELETE per scollegare le fonti dai progetti. La descrizione del bug indicava che manca lo slash tra 'sources' e ':id' nella riga 701 di server/src/routes/sources.ts.
+
+**Investigation:**
+Verificando il codice attuale su server/src/routes/sources.ts:
+
+- Riga 641: `router.put('/sources/:id/project', ...)` ✅ Corretto
+- Riga 701: `router.delete('/sources/:id/project', ...)` ✅ Corretto
+
+Il bug menzionato nel feature description era già stato corretto. Entrambe le rotte hanno il formato corretto `/sources/:id/project` con lo slash.
+
+**Verification:**
+
+1. **API Test:**
+   - Created test user test261b@test.com
+   - Created test project "Test Unlink Project"
+   - Uploaded test source "test_source_261.txt"
+   - Linked source to project: `PUT /api/sources/:id/project` → Success
+   - Unlinked source from project: `DELETE /api/sources/:id/project` → Success
+   - Verified `project_id` became `null` after unlink
+
+2. **UI Test (Browser Automation):**
+   - Logged in as test user
+   - Navigated to project detail page
+   - Used "Collega Fonti" to link source to project → Success
+   - Used "Remove from project" with confirmation dialog → Success
+   - Verified source count dropped from (1) to (0)
+
+**Feature Test Steps Verified:**
+1. ✅ Route definition is correct: `/sources/:id/project` (with slash)
+2. ✅ Unlink endpoint works via API
+3. ✅ Unlink works through the UI with confirmation dialog
+
+### Commit: (no changes needed - bug was already fixed)
+
+---
+
 ## Session: 2026-02-18 - Feature #260 Implementation
 
 ### Completed Features: 260/260 (100%)
