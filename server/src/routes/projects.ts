@@ -4581,12 +4581,21 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
       suggestion: string;
     }> = [];
 
+    // Feature #278: Add detailed logging for debugging
+    console.log('[Plot Holes] Starting analysis for project:', projectId);
+    console.log('[Plot Holes] User ID:', userId);
+    console.log('[Plot Holes] Chapters found:', chapters.length);
+    console.log('[Plot Holes] Registered characters:', characters.length);
+    console.log('[Plot Holes] Language:', language);
+
     try {
-      const { getProviderForUser } = require('../services/ai-service');
+      // Use the already imported getProviderForUser from the top of the file
+      console.log('[Plot Holes] Calling getProviderForUser...');
       const provider = getProviderForUser(userId);
+      console.log('[Plot Holes] Provider result:', provider ? provider.getProviderType() : 'null');
 
       if (provider) {
-        console.log('[Projects] Using AI-powered plot hole detection');
+        console.log('[Projects] Using AI-powered plot hole detection with provider:', provider.getProviderType());
 
         const isItalian = language === 'it';
 
@@ -4682,18 +4691,31 @@ Identify all narrative issues, even minor ones. It's important to find areas for
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.3,
-          max_tokens: 3000
+          maxTokens: 3000
         });
 
         // Parse AI response
         let jsonStr = response.content || '';
+        console.log('[Plot Holes] Raw AI response length:', jsonStr.length);
+        console.log('[Plot Holes] Raw AI response preview:', jsonStr.substring(0, 500));
+
         // Extract JSON from markdown code blocks if present
         const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) {
           jsonStr = jsonMatch[1].trim();
+          console.log('[Plot Holes] Extracted JSON from code block');
         }
 
-        const aiResult = JSON.parse(jsonStr);
+        // Feature #278: Add detailed JSON parsing error handling
+        let aiResult;
+        try {
+          aiResult = JSON.parse(jsonStr);
+        } catch (parseError) {
+          console.error('[Plot Holes] JSON parse error:', parseError instanceof Error ? parseError.message : String(parseError));
+          console.error('[Plot Holes] Attempting to parse string (first 1000 chars):', jsonStr.substring(0, 1000));
+          throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+        }
+
         if (aiResult.plot_holes && Array.isArray(aiResult.plot_holes)) {
           plotHoles = aiResult.plot_holes.map((hole: any) => ({
             type: hole.type || 'logical',
@@ -4702,6 +4724,8 @@ Identify all narrative issues, even minor ones. It's important to find areas for
             chapter_references: Array.isArray(hole.chapter_references) ? hole.chapter_references : [],
             suggestion: hole.suggestion || ''
           }));
+        } else {
+          console.warn('[Plot Holes] AI response missing plot_holes array, got:', Object.keys(aiResult));
         }
 
         console.log('[Projects] AI plot hole detection completed:', {
@@ -4711,11 +4735,16 @@ Identify all narrative issues, even minor ones. It's important to find areas for
 
       } else {
         // Fallback to algorithmic analysis if no AI provider
-        console.log('[Projects] No AI provider, falling back to algorithmic analysis');
+        console.log('[Plot Holes] No AI provider available, falling back to algorithmic analysis');
+        console.log('[Plot Holes] Algorithmic analysis input - chapters:', chapters.length, 'characters:', characters.length, 'locations:', locations.length);
         plotHoles = await runAlgorithmicAnalysis(chapters, characters, locations, plotEvents, language);
+        console.log('[Plot Holes] Algorithmic analysis found', plotHoles.length, 'issues');
       }
     } catch (aiError) {
-      console.warn('[Projects] AI analysis failed, falling back to algorithmic:', aiError);
+      console.warn('[Projects] AI analysis failed, falling back to algorithmic:', aiError instanceof Error ? aiError.message : String(aiError));
+      if (aiError instanceof Error && aiError.stack) {
+        console.warn('[Projects] Stack trace:', aiError.stack);
+      }
       // Fallback to algorithmic analysis on AI error
       plotHoles = await runAlgorithmicAnalysis(chapters, characters, locations, plotEvents, language);
     }
@@ -4731,10 +4760,20 @@ Identify all narrative issues, even minor ones. It's important to find areas for
       }
     });
 
+    // Feature #278: Include analysis method in response for debugging
+    const usedAI = plotHoles.length > 0 || characters.length > 0;
+
     res.json({
       message: 'Plot hole detection completed',
       plot_holes: plotHoles,
-      total_issues: plotHoles.length
+      total_issues: plotHoles.length,
+      analysis_info: {
+        method: usedAI ? 'ai_powered' : 'algorithmic_fallback',
+        chapters_analyzed: chapters.length,
+        registered_characters: characters.length,
+        registered_locations: locations.length,
+        ai_provider_available: !!getProviderForUser(userId)
+      }
     });
   } catch (error) {
     console.error('[Projects] Plot hole detection error:', error instanceof Error ? error.message : 'Unknown error');
