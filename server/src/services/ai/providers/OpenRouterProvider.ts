@@ -112,6 +112,14 @@ export class OpenRouterProvider extends BaseProvider {
   }
 
   async chat(messages: ChatMessage[], options?: CompletionOptions): Promise<CompletionResponse> {
+    // Feature #281: Log messages structure for debugging
+    console.log('[OpenRouter] chat() called with messages type:', typeof messages, 'isArray:', Array.isArray(messages));
+    if (Array.isArray(messages)) {
+      console.log('[OpenRouter] messages count:', messages.length);
+    } else if (messages && typeof messages === 'object') {
+      console.log('[OpenRouter] messages keys:', Object.keys(messages));
+    }
+
     return this.withRetry(async () => {
       const body = this.buildRequestBody(messages, { ...options, stream: false });
 
@@ -139,6 +147,14 @@ export class OpenRouterProvider extends BaseProvider {
     messages: ChatMessage[],
     options?: CompletionOptions
   ): AsyncGenerator<StreamEvent> {
+    // Feature #281: Log messages structure for debugging
+    console.log('[OpenRouter] stream() called with messages type:', typeof messages, 'isArray:', Array.isArray(messages));
+    if (Array.isArray(messages)) {
+      console.log('[OpenRouter] stream messages count:', messages.length);
+    } else if (messages && typeof messages === 'object') {
+      console.log('[OpenRouter] stream messages keys:', Object.keys(messages));
+    }
+
     const body = this.buildRequestBody(messages, { ...options, stream: true });
 
     // Feature #273: Get timeout settings from options or use defaults
@@ -431,9 +447,27 @@ export class OpenRouterProvider extends BaseProvider {
   ): Record<string, unknown> {
     const model = options?.model || this.getDefaultModel();
 
+    // Feature #281: Defensive check for messages array
+    // Ensure messages is always an array to prevent 'messages.map is not a function' error
+    let safeMessages: ChatMessage[] = [];
+    if (Array.isArray(messages)) {
+      safeMessages = messages;
+    } else if (messages && typeof messages === 'object') {
+      // Handle case where messages might be wrapped in an object
+      const msgObj = messages as unknown as { messages?: ChatMessage[] };
+      if (Array.isArray(msgObj.messages)) {
+        console.warn('[OpenRouter] messages was wrapped in object, extracting inner array');
+        safeMessages = msgObj.messages;
+      } else {
+        console.error('[OpenRouter] messages is an object but has no messages array:', typeof messages, messages);
+      }
+    } else {
+      console.error('[OpenRouter] messages is not an array:', typeof messages, messages);
+    }
+
     const body: Record<string, unknown> = {
       model,
-      messages: messages.map(m => ({
+      messages: safeMessages.map(m => ({
         role: m.role,
         content: m.content
       })),

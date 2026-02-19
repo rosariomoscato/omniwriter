@@ -173,6 +173,13 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async chat(messages: ChatMessage[], options?: CompletionOptions): Promise<CompletionResponse> {
+    // Feature #281: Defensive check for messages array
+    console.log('[OpenAI] chat() called with messages type:', typeof messages, 'isArray:', Array.isArray(messages));
+    if (!Array.isArray(messages)) {
+      console.error('[OpenAI] messages is not an array:', typeof messages, messages);
+      throw new AIError('invalid_request_error', 'messages must be an array', this.providerType);
+    }
+
     return this.withRetry(async () => {
       const body = this.buildRequestBody(messages, { ...options, stream: false });
 
@@ -200,6 +207,14 @@ export class OpenAIProvider extends BaseProvider {
     messages: ChatMessage[],
     options?: CompletionOptions
   ): AsyncGenerator<StreamEvent> {
+    // Feature #281: Defensive check for messages array
+    console.log('[OpenAI] stream() called with messages type:', typeof messages, 'isArray:', Array.isArray(messages));
+    if (!Array.isArray(messages)) {
+      console.error('[OpenAI] stream messages is not an array:', typeof messages, messages);
+      yield { type: 'error', error: 'messages must be an array' };
+      return;
+    }
+
     const body = this.buildRequestBody(messages, { ...options, stream: true });
 
     // Feature #273: Get timeout settings from options or use defaults
