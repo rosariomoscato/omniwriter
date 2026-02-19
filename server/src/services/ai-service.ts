@@ -52,6 +52,13 @@ function decryptApiKey(encrypted: string): string {
 /**
  * Get user's selected AI provider from database
  * Returns null if user has no selected provider or if provider is not configured
+ *
+ * Smart Fallback Logic:
+ * 1. If selected_provider_id is set, use it directly
+ * 2. If selected_provider_id is null but selected_model_id contains a model prefix (e.g., 'openai/gpt-4'),
+ *    try to find a matching active provider by extracting provider type from the model prefix
+ * 3. If that fails, check if user has exactly one active provider and use it automatically
+ * 4. If user has multiple active providers and no selection, return null (ambiguous)
  */
 export function getUserProviderFromDB(userId: string): BaseProvider | null {
   try {
@@ -66,35 +73,95 @@ export function getUserProviderFromDB(userId: string): BaseProvider | null {
       WHERE up.user_id = ?
     `).get(userId) as { selected_provider_id: string | null; selected_model_id: string | null } | undefined;
 
-    if (!prefs?.selected_provider_id) {
-      console.log('[AI-Service] No selected provider in user preferences');
-      return null;
-    }
-
-    // Get provider details
-    const provider = db.prepare(`
+    // Get all active providers for this user
+    const activeProviders = db.prepare(`
       SELECT id, provider_type, api_key_encrypted, api_base_url
       FROM llm_providers
-      WHERE id = ? AND user_id = ? AND is_active = 1
-    `).get(prefs.selected_provider_id, userId) as DBProviderConfig | undefined;
+      WHERE user_id = ? AND is_active = 1
+    `).all(userId) as DBProviderConfig[];
 
-    if (!provider) {
+    // Case 1: selected_provider_id is explicitly set
+    if (prefs?.selected_provider_id) {
+      const provider = activeProviders.find(p => p.id === prefs.selected_provider_id);
+
+      if (provider) {
+        const apiKey = decryptApiKey(provider.api_key_encrypted);
+        const config: ProviderConfig = {
+          apiKey,
+          baseUrl: provider.api_base_url || undefined,
+          defaultModel: prefs.selected_model_id || undefined
+        };
+
+        console.log(`[AI-Service] Creating ${provider.provider_type} provider from user configuration`);
+        return createProvider(provider.provider_type, config);
+      }
+
       console.log('[AI-Service] Selected provider not found or inactive');
+      // Fall through to fallback logic
+    }
+
+    // Case 2: Smart fallback - try to infer provider from selected_model_id prefix
+    const modelId = prefs?.selected_model_id;
+    if (modelId && modelId.includes('/')) {
+      const prefix = modelId.split('/')[0].toLowerCase();
+
+      // Map common prefixes to provider types
+      const prefixToProvider: Record<string, ProviderType> = {
+        'openai': 'openai',
+        'anthropic': 'anthropic',
+        'claude': 'anthropic',
+        'google': 'google_gemini',
+        'gemini': 'google_gemini',
+        'openrouter': 'open_router',
+        'open_router': 'open_router',
+        'requesty': 'requesty'
+      };
+
+      const inferredProviderType = prefixToProvider[prefix];
+      if (inferredProviderType) {
+        const matchingProvider = activeProviders.find(p => p.provider_type === inferredProviderType);
+
+        if (matchingProvider) {
+          console.log(`[AI-Service] [FALLBACK] Inferred provider type '${inferredProviderType}' from model '${modelId}'`);
+          console.warn('[AI-Service] [FALLBACK] Using inferred provider. Consider explicitly selecting a provider in settings.');
+
+          const apiKey = decryptApiKey(matchingProvider.api_key_encrypted);
+          const config: ProviderConfig = {
+            apiKey,
+            baseUrl: matchingProvider.api_base_url || undefined,
+            defaultModel: modelId
+          };
+
+          return createProvider(matchingProvider.provider_type, config);
+        }
+      }
+    }
+
+    // Case 3: If user has exactly one active provider, use it automatically
+    if (activeProviders.length === 1) {
+      const provider = activeProviders[0];
+      console.log(`[AI-Service] [FALLBACK] User has single active provider '${provider.provider_type}', using it automatically`);
+      console.warn('[AI-Service] [FALLBACK] Consider explicitly selecting a provider in settings.');
+
+      const apiKey = decryptApiKey(provider.api_key_encrypted);
+      const config: ProviderConfig = {
+        apiKey,
+        baseUrl: provider.api_base_url || undefined,
+        defaultModel: modelId || undefined
+      };
+
+      return createProvider(provider.provider_type, config);
+    }
+
+    // Case 4: Multiple providers but no selection - ambiguous
+    if (activeProviders.length > 1) {
+      console.log(`[AI-Service] User has ${activeProviders.length} active providers but no selection. Please select a provider in settings.`);
       return null;
     }
 
-    // Decrypt API key
-    const apiKey = decryptApiKey(provider.api_key_encrypted);
-
-    // Create provider instance
-    const config: ProviderConfig = {
-      apiKey,
-      baseUrl: provider.api_base_url || undefined,
-      defaultModel: prefs.selected_model_id || undefined
-    };
-
-    console.log(`[AI-Service] Creating ${provider.provider_type} provider from user configuration`);
-    return createProvider(provider.provider_type, config);
+    // No providers configured
+    console.log('[AI-Service] No active providers found for user');
+    return null;
   } catch (error) {
     console.error('[AI-Service] Error getting user provider from DB:', error);
     return null;
