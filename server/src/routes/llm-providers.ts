@@ -656,7 +656,7 @@ router.put('/llm-providers/preferences/llm', authenticateToken, (req: AuthReques
       ).run(prefId, userId, selected_provider_id || null, selected_model_id || '');
     }
 
-    console.log('[LLMProviders] Updated LLM preferences for user:', userId);
+    console.log('[LLMProviders] Updated LLM preferences for user:', userId, { selected_provider_id, selected_model_id });
     res.json({ message: 'LLM preferences updated successfully', selected_provider_id, selected_model_id });
   } catch (error) {
     console.error('[LLMProviders] Preferences update error:', error instanceof Error ? error.message : 'Unknown error');

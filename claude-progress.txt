@@ -1,5 +1,77 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-19 - Feature #279 Verification
+
+### Completed Features: 279/279 (100%)
+
+### Feature #279: Fix AI provider selection not saving selected_provider_id
+
+**Status:** ✅ VERIFIED - ALREADY WORKING CORRECTLY
+
+**Objective:** When a user selects an AI model in the settings/preferences UI, verify that the system saves both `selected_provider_id` and `selected_model_id` correctly.
+
+**Analysis:**
+
+Upon thorough code review and API testing, the implementation is correct:
+
+#### 1. Frontend Implementation (client/src/pages/SettingsPage.tsx)
+
+**handleSaveModel function (lines 171-193):**
+- Sends both `selected_provider_id` and `selected_model_id` to the backend
+- Line 177: `selected_provider_id: selectedProviderId || null`
+- Line 178: `selected_model_id: selectedModel`
+
+**handleSetActiveProvider function (lines 495-513):**
+- Sets provider as active and saves preferences
+- Sends both `selected_provider_id` and empty `selected_model_id`
+
+#### 2. Backend Implementation (server/src/routes/llm-providers.ts)
+
+**PUT /api/llm-providers/preferences/llm (lines 624-665):**
+- Receives `selected_provider_id` and `selected_model_id` from request body
+- Validates provider exists if specified
+- Saves both fields to `user_preferences` table
+- Line 649: `UPDATE user_preferences SET selected_provider_id = ?, selected_model_id = ?`
+- Line 656: INSERT also includes both fields
+
+**GET /api/llm-providers/preferences/llm (lines 667-686):**
+- Returns both `selected_provider_id` and `selected_model_id`
+- Line 679: `selected_provider_id: prefs?.selected_provider_id || null`
+- Line 680: `selected_model_id: prefs?.selected_model_id || ''`
+
+#### 3. AI Service (server/src/services/ai-service.ts)
+
+**getUserProviderFromDB function (lines 56-102):**
+- Reads `selected_provider_id` and `selected_model_id` from user_preferences
+- If `selected_provider_id` exists, fetches provider details from llm_providers
+- Requires `is_active = 1` on the provider
+- Creates provider instance with the selected model
+
+#### 4. API Testing Verification
+
+```bash
+# Update preferences
+curl -X PUT "http://127.0.0.1:3001/api/llm-providers/preferences/llm" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"selected_provider_id":"85876274-c1d6-47b6-816d-123cc756ba98","selected_model_id":"gpt-4"}'
+
+# Response: {"message":"LLM preferences updated successfully","selected_provider_id":"85876274-c1d6-47b6-816d-123cc756ba98","selected_model_id":"gpt-4"}
+
+# Get preferences
+curl "http://127.0.0.1:3001/api/llm-providers/preferences/llm" -H "Authorization: Bearer <token>"
+
+# Response: {"selected_provider_id":"85876274-c1d6-47b6-816d-123cc756ba98","selected_model_id":"gpt-4"}
+```
+
+**Conclusion:** Both `selected_provider_id` and `selected_model_id` are correctly saved and retrieved. The feature was likely based on incorrect observation or was fixed in a previous commit.
+
+**Minor Improvement Made:**
+- Added detailed logging to preferences update: now logs the actual values being saved
+
+### Commit: docs: verify Feature #279 - AI provider selection saves both fields correctly
+
+---
+
 ## Session: 2026-02-19 - Feature #278 Implementation
 
 ### Completed Features: 278/278 (100%)
