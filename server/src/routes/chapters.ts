@@ -902,7 +902,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.`
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+
+IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
         : `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
@@ -910,7 +912,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.`;
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.
+
+IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
       userPrompt = chapter.summary
         ? `Based on the following synopsis, write the complete chapter "${sanitizeSensitiveWords(chapter.title)}" expanding all the narrative events described.
@@ -923,7 +927,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.`
+Write an engaging chapter of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.
+
+IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
         : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
@@ -931,7 +937,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately 2000-3000 words in English.`;
+Write an engaging chapter of approximately 2000-3000 words in English.
+
+IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
 
     // Send phase update
@@ -1076,7 +1084,7 @@ Write an engaging chapter of approximately 2000-3000 words in English.`;
         chapter.project_id,
         id,
         humanModel ? `${humanModel.name} (${provider.getProviderType()})` : provider.getProviderType(),
-        'streaming_generation',
+        'writing',  // Valid phase values: 'structure', 'writing', 'revision'
         0,  // Will be updated with actual tokens if available
         wordCount,
         0,
@@ -1779,7 +1787,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.`
+Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+
+IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
         : `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
@@ -1787,7 +1797,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano che mantenga la coerenza con la storia.`;
+Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano che mantenga la coerenza con la storia.
+
+IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
       userPrompt = chapter.summary
         ? `Based on the following synopsis, regenerate the complete chapter "${sanitizeSensitiveWords(chapter.title)}" expanding all the narrative events described.
@@ -1800,7 +1812,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.`
+Generate fresh, engaging chapter content of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.
+
+IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
         : `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
@@ -1808,7 +1822,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately 2000-3000 words in English that maintains story coherence.`;
+Generate fresh, engaging chapter content of approximately 2000-3000 words in English that maintains story coherence.
+
+IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
 
     // Send phase update
@@ -1969,7 +1985,7 @@ Generate fresh, engaging chapter content of approximately 2000-3000 words in Eng
         chapter.project_id,
         id,
         humanModel ? `${humanModel.name} (${provider.getProviderType()})` : provider.getProviderType(),
-        'streaming_regeneration',
+        'revision',  // Valid phase values: 'structure', 'writing', 'revision'
         0,
         wordCount,
         0,

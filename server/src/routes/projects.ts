@@ -4532,7 +4532,7 @@ Continue the story from where it ended.`;
   }
 });
 
-// POST /api/projects/:id/detect-plot-holes - Detect plot holes and inconsistencies (Feature #182)
+// POST /api/projects/:id/detect-plot-holes - Detect plot holes and inconsistencies (Feature #182, #277)
 // @ts-expect-error - AuthRequest type compatibility with router
 router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -4568,12 +4568,12 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
     console.log('[Projects] Analyzing', chapters.length, 'chapters for plot holes');
 
     // Get characters, locations, and plot events for context
-    const characters = db.prepare('SELECT name, description FROM characters WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string }>;
+    const characters = db.prepare('SELECT name, description, status_at_end FROM characters WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string; status_at_end: string | null }>;
     const locations = db.prepare('SELECT name, description FROM locations WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string }>;
     const plotEvents = db.prepare('SELECT title, description, chapter_id FROM plot_events WHERE project_id = ?').all(projectId) as Array<{ title: string; description: string; chapter_id: string | null }>;
 
-    // Analyze content for potential plot holes
-    const plotHoles: Array<{
+    // Feature #277: Try AI-powered analysis first
+    let plotHoles: Array<{
       type: string;
       severity: 'low' | 'medium' | 'high';
       description: string;
@@ -4581,38 +4581,153 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
       suggestion: string;
     }> = [];
 
-    // Combine all chapter content for analysis
-    const fullText = chapters.map(ch => ch.content).join('\n\n');
+    try {
+      const { getProviderForUser } = require('../services/ai-service');
+      const provider = getProviderForUser(userId);
 
-    // 1. Check for character inconsistencies
-    const characterNames = characters.map(c => c.name.toLowerCase());
-    const characterInconsistencies = analyzeCharacterConsistency(chapters, characterNames, language);
-    plotHoles.push(...characterInconsistencies);
+      if (provider) {
+        console.log('[Projects] Using AI-powered plot hole detection');
 
-    // 2. Check for timeline inconsistencies
-    const timelineIssues = analyzeTimelineConsistency(chapters, plotEvents, language);
-    plotHoles.push(...timelineIssues);
+        const isItalian = language === 'it';
 
-    // 3. Check for unexplained plot developments
-    const unexplainedEvents = analyzeUnexplainedDevelopments(chapters, plotEvents, language);
-    plotHoles.push(...unexplainedEvents);
+        // Build chapter summaries for the AI (truncate content to avoid token limits)
+        const chapterSummaries = chapters.map((ch, idx) => {
+          const contentPreview = ch.content.substring(0, 1500);
+          return `CAPITOLO ${idx + 1}: "${ch.title}"\n${contentPreview}...`;
+        }).join('\n\n---\n\n');
 
-    // 4. Check for logical inconsistencies
-    const logicalInconsistencies = analyzeLogicalInconsistencies(chapters, fullText, language);
-    plotHoles.push(...logicalInconsistencies);
+        // Build character list
+        const characterList = characters.map(c =>
+          `- ${c.name}: ${c.description || 'Nessuna descrizione'}${c.status_at_end ? ` [${c.status_at_end}]` : ''}`
+        ).join('\n');
 
-    // 5. Check for resolution gaps
-    const resolutionGaps = analyzeResolutionGaps(chapters, language);
-    plotHoles.push(...resolutionGaps);
+        // Build system prompt
+        const systemPrompt = isItalian
+          ? `Sei un esperto editor e analista narrativo. Il tuo compito è analizzare un romanzo per identificare buchi di trama, incongruenze e problemi narrativi.
+
+Analizza SEMPRE il testo e identifica ALMENO 2-3 problemi potenziali, anche se minori. È molto raro che un romanzo sia perfetto.
+
+Cerca questi tipi di problemi:
+1. PERSONAGGI: Personaggi che scompaiono senza spiegazione, cambiamenti di personalità ingiustificati, nomi inconsistenti, personaggi che agiscono fuori carattere
+2. TIMELINE: Contraddizioni temporali, eventi che si verificano nell'ordine sbagliato, riferimenti a eventi futuri
+3. LOGICA: Eventi non giustificati, coincidenze eccessive, soluzioni troppo facili, motivazioni mancanti
+4. TRAMA: Archi narrativi incompleti, sottotrame dimenticate, conflitti non risolti
+5. COERENZA: Contraddizioni tra capitoli, dettagli che cambiano (es. colore occhi, età)
+
+Rispondi SOLO con JSON valido nel formato:
+{
+  "plot_holes": [
+    {
+      "type": "character|timeline|logical|plot|consistency",
+      "severity": "low|medium|high",
+      "description": "Descrizione chiara del problema",
+      "chapter_references": ["Titolo capitolo coinvolto"],
+      "suggestion": "Suggerimento pratico per risolvere"
+    }
+  ]
+}`
+          : `You are an expert editor and narrative analyst. Your task is to analyze a novel to identify plot holes, inconsistencies, and narrative issues.
+
+ALWAYS analyze the text and identify AT LEAST 2-3 potential issues, even if minor. It's very rare for a novel to be perfect.
+
+Look for these types of issues:
+1. CHARACTER: Characters disappearing without explanation, unjustified personality changes, inconsistent names, characters acting out of character
+2. TIMELINE: Temporal contradictions, events occurring in wrong order, references to future events
+3. LOGIC: Unjustified events, excessive coincidences, too-easy solutions, missing motivations
+4. PLOT: Incomplete narrative arcs, forgotten subplots, unresolved conflicts
+5. CONSISTENCY: Contradictions between chapters, changing details (e.g., eye color, age)
+
+Respond ONLY with valid JSON in the format:
+{
+  "plot_holes": [
+    {
+      "type": "character|timeline|logical|plot|consistency",
+      "severity": "low|medium|high",
+      "description": "Clear description of the problem",
+      "chapter_references": ["Chapter title involved"],
+      "suggestion": "Practical suggestion to fix"
+    }
+  ]
+}`;
+
+        const userPrompt = isItalian
+          ? `Analizza questo romanzo intitolato "${project.title}" per buchi di trama e incongristenze.
+
+PERSONAGGI REGISTRATI:
+${characterList || 'Nessun personaggio registrato'}
+
+LUOGHI:
+${locations.map(l => `- ${l.name}`).join('\n') || 'Nessun luogo registrato'}
+
+CONTENUTO DEI CAPITOLI:
+${chapterSummaries}
+
+Identifica tutti i problemi narrativi, anche minori. È importante trovare aree di miglioramento.`
+          : `Analyze this novel titled "${project.title}" for plot holes and inconsistencies.
+
+REGISTERED CHARACTERS:
+${characterList || 'No characters registered'}
+
+LOCATIONS:
+${locations.map(l => `- ${l.name}`).join('\n') || 'No locations registered'}
+
+CHAPTER CONTENT:
+${chapterSummaries}
+
+Identify all narrative issues, even minor ones. It's important to find areas for improvement.`;
+
+        const response = await provider.chat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 3000
+        });
+
+        // Parse AI response
+        let jsonStr = response.content || '';
+        // Extract JSON from markdown code blocks if present
+        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+        }
+
+        const aiResult = JSON.parse(jsonStr);
+        if (aiResult.plot_holes && Array.isArray(aiResult.plot_holes)) {
+          plotHoles = aiResult.plot_holes.map((hole: any) => ({
+            type: hole.type || 'logical',
+            severity: hole.severity || 'medium',
+            description: hole.description || '',
+            chapter_references: Array.isArray(hole.chapter_references) ? hole.chapter_references : [],
+            suggestion: hole.suggestion || ''
+          }));
+        }
+
+        console.log('[Projects] AI plot hole detection completed:', {
+          total_issues: plotHoles.length,
+          method: 'AI-powered'
+        });
+
+      } else {
+        // Fallback to algorithmic analysis if no AI provider
+        console.log('[Projects] No AI provider, falling back to algorithmic analysis');
+        plotHoles = await runAlgorithmicAnalysis(chapters, characters, locations, plotEvents, language);
+      }
+    } catch (aiError) {
+      console.warn('[Projects] AI analysis failed, falling back to algorithmic:', aiError);
+      // Fallback to algorithmic analysis on AI error
+      plotHoles = await runAlgorithmicAnalysis(chapters, characters, locations, plotEvents, language);
+    }
 
     console.log('[Projects] Plot hole detection completed:', {
       total_issues: plotHoles.length,
       breakdown: {
         character: plotHoles.filter(h => h.type === 'character').length,
         timeline: plotHoles.filter(h => h.type === 'timeline').length,
-        unexplained: plotHoles.filter(h => h.type === 'unexplained').length,
         logical: plotHoles.filter(h => h.type === 'logical').length,
-        resolution: plotHoles.filter(h => h.type === 'resolution').length,
+        plot: plotHoles.filter(h => h.type === 'plot').length,
+        consistency: plotHoles.filter(h => h.type === 'consistency').length,
       }
     });
 
@@ -4626,6 +4741,54 @@ router.post('/:id/detect-plot-holes', authenticateToken, async (req: AuthRequest
     res.status(500).json({ message: 'Failed to detect plot holes' });
   }
 });
+
+// Feature #277: Helper function for algorithmic analysis fallback
+async function runAlgorithmicAnalysis(
+  chapters: Array<{ id: string; title: string; content: string; order_index: number }>,
+  characters: Array<{ name: string; description: string; status_at_end: string | null }>,
+  locations: Array<{ name: string; description: string }>,
+  plotEvents: Array<{ title: string; description: string; chapter_id: string | null }>,
+  lang: Language
+): Promise<Array<{
+  type: string;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  chapter_references: string[];
+  suggestion: string;
+}>> {
+  const plotHoles: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    chapter_references: string[];
+    suggestion: string;
+  }> = [];
+
+  const fullText = chapters.map(ch => ch.content).join('\n\n');
+
+  // 1. Check for character inconsistencies
+  const characterNames = characters.map(c => c.name.toLowerCase());
+  const characterInconsistencies = analyzeCharacterConsistency(chapters, characterNames, lang);
+  plotHoles.push(...characterInconsistencies);
+
+  // 2. Check for timeline inconsistencies
+  const timelineIssues = analyzeTimelineConsistency(chapters, plotEvents, lang);
+  plotHoles.push(...timelineIssues);
+
+  // 3. Check for unexplained plot developments
+  const unexplainedEvents = analyzeUnexplainedDevelopments(chapters, plotEvents, lang);
+  plotHoles.push(...unexplainedEvents);
+
+  // 4. Check for logical inconsistencies
+  const logicalInconsistencies = analyzeLogicalInconsistencies(chapters, fullText, lang);
+  plotHoles.push(...logicalInconsistencies);
+
+  // 5. Check for resolution gaps
+  const resolutionGaps = analyzeResolutionGaps(chapters, lang);
+  plotHoles.push(...resolutionGaps);
+
+  return plotHoles;
+}
 
 // Helper function to analyze character consistency
 function analyzeCharacterConsistency(
