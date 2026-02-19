@@ -12,19 +12,53 @@ try {
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
   console.log('Tables found:', tables.map(t => t.name));
 
-  // Test 2: Check if key tables exist
-  const requiredTables = ['users', 'sessions', 'projects', 'chapters', 'characters', 'locations', 'plot_events', 'sources', 'human_models'];
-  console.log('\n[Test] Verifying required tables:');
+  // Test 2: Check if key tables exist (from Feature #2)
+  const requiredTables = [
+    'users', 'sessions', 'projects', 'sagas', 'chapters', 'chapter_versions',
+    'characters', 'locations', 'plot_events', 'human_models', 'human_model_sources',
+    'sources', 'generation_logs', 'project_tags', 'export_history', 'user_preferences',
+    'password_reset_tokens', 'citations', 'llm_providers', 'chapter_comments'
+  ];
+  console.log('\n[Test] Verifying required tables (Feature #2):');
+  let allTablesExist = true;
   requiredTables.forEach(table => {
     const exists = tables.some(t => t.name === table);
     console.log(`  ${table}: ${exists ? '✓' : '✗'}`);
+    if (!exists) allTablesExist = false;
   });
 
-  // Test 3: Check users table structure
-  console.log('\n[Test] Users table structure:');
+  if (!allTablesExist) {
+    throw new Error('Some required tables are missing!');
+  }
+
+  // Test 3: Check users table structure (Feature #2 requirement)
+  console.log('\n[Test] Users table key columns:');
   const usersInfo = db.prepare("PRAGMA table_info(users)").all();
-  usersInfo.forEach(col => {
-    console.log(`  - ${col.name} (${col.type})`);
+  const userColumnNames = usersInfo.map(col => col.name);
+  const requiredUserColumns = ['id', 'email', 'password_hash', 'name', 'role', 'google_id'];
+  requiredUserColumns.forEach(col => {
+    const exists = userColumnNames.includes(col);
+    console.log(`  - ${col}: ${exists ? '✓' : '✗'}`);
+  });
+
+  // Test 3b: Check projects table structure (Feature #2 requirement)
+  console.log('\n[Test] Projects table key columns:');
+  const projectsInfo = db.prepare("PRAGMA table_info(projects)").all();
+  const projectColumnNames = projectsInfo.map(col => col.name);
+  const requiredProjectColumns = ['id', 'user_id', 'saga_id', 'title', 'area', 'status', 'human_model_id'];
+  requiredProjectColumns.forEach(col => {
+    const exists = projectColumnNames.includes(col);
+    console.log(`  - ${col}: ${exists ? '✓' : '✗'}`);
+  });
+
+  // Test 3c: Check chapters table structure (Feature #2 requirement)
+  console.log('\n[Test] Chapters table key columns:');
+  const chaptersInfo = db.prepare("PRAGMA table_info(chapters)").all();
+  const chapterColumnNames = chaptersInfo.map(col => col.name);
+  const requiredChapterColumns = ['id', 'project_id', 'title', 'content', 'order_index', 'status'];
+  requiredChapterColumns.forEach(col => {
+    const exists = chapterColumnNames.includes(col);
+    console.log(`  - ${col}: ${exists ? '✓' : '✗'}`);
   });
 
   // Test 4: Check if foreign keys are enabled

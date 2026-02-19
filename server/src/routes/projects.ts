@@ -1181,14 +1181,13 @@ Continue the story from where it ended.`;
         if (provider) {
           try {
             console.log('[Projects] Calling AI for sequel chapter outline generation...');
-            const response = await provider.chat({
-              messages: [
+            const response = await provider.chat(
+              [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
               ],
-              temperature: 0.8,
-              max_tokens: 4000
-            });
+              { temperature: 0.8, maxTokens: 4000 }
+            );
 
             // Parse JSON from response
             let jsonStr = response.content || '';
@@ -1679,14 +1678,13 @@ Continue the story from where it ended.`;
     if (provider) {
       try {
         console.log('[Projects-Stream] Calling AI for sequel chapter outline...');
-        const response = await provider.chat({
-          messages: [
+        const response = await provider.chat(
+          [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.8,
-          max_tokens: 4000
-        });
+          { temperature: 0.8, maxTokens: 4000 }
+        );
 
         let jsonStr = response.content || '';
         const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -2161,14 +2159,13 @@ Generate a sequel proposal with the following JSON structure:
 Be creative and specific based on the original novel's content.`;
 
   try {
-    const response = await provider.chat({
-      messages: [
+    const response = await provider.chat(
+      [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.8,
-      max_tokens: 3000
-    });
+      { temperature: 0.8, maxTokens: 3000 }
+    );
 
     // Parse JSON from response
     let jsonStr = response.content || '';
@@ -4424,14 +4421,13 @@ Continue the story from where it ended.`;
     if (provider) {
       try {
         console.log('[Projects] Calling AI for sequel outline generation...');
-        const response = await provider.chat({
-          messages: [
+        const response = await provider.chat(
+          [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.8,
-          max_tokens: 4000
-        });
+          { temperature: 0.8, maxTokens: 4000 }
+        );
 
         // Parse JSON from response
         let jsonStr = response.content || '';
@@ -4685,14 +4681,13 @@ ${chapterSummaries}
 
 Identify all narrative issues, even minor ones. It's important to find areas for improvement.`;
 
-        const response = await provider.chat({
-          messages: [
+        const response = await provider.chat(
+          [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.3,
-          maxTokens: 3000
-        });
+          { temperature: 0.3, maxTokens: 3000 }
+        );
 
         // Parse AI response
         let jsonStr = response.content || '';
