@@ -633,23 +633,50 @@ export default function ProjectDetail() {
 
     try {
       toast.info(`Regenerating chapter "${chapterTitle}"...`);
-      const response = await apiService.regenerateChapter(
+
+      // Feature #271: Use streaming regeneration for real AI generation
+      let streamingContent = '';
+      const { abort, promise } = apiService.regenerateChapterStream(
         chapterId,
-        project?.human_model_id || undefined,
-        undefined // prompt_context
+        {
+          human_model_id: project?.human_model_id || undefined,
+          prompt_context: undefined
+        },
+        {
+          onPhase: (phase, message) => {
+            console.log(`[Regenerate] Phase: ${phase} - ${message}`);
+          },
+          onDelta: (content) => {
+            streamingContent += content;
+            // Could update a live preview here if desired
+          },
+          onDone: (data) => {
+            // Update the chapter in the list with the new content
+            setChapters(chapters.map(ch =>
+              ch.id === chapterId
+                ? { ...ch, content: streamingContent, word_count: data.word_count, status: 'generated' }
+                : ch
+            ));
+
+            const successMessage = data.warning
+              ? `${data.message} (${data.warning})`
+              : data.message;
+            toast.success(successMessage || `Chapter "${chapterTitle}" regenerated successfully`);
+
+            // Log which chapters were unchanged for verification
+            if (data.other_chapters_unchanged && data.other_chapters_unchanged.length > 0) {
+              console.log('[Regenerate] Other chapters unchanged:', data.other_chapters_unchanged);
+            }
+          },
+          onError: (error) => {
+            toast.error(error || 'Failed to regenerate chapter');
+          }
+        }
       );
 
-      // Update only this chapter in the list
-      setChapters(chapters.map(ch =>
-        ch.id === chapterId ? response.chapter : ch
-      ));
+      // Wait for the streaming to complete
+      await promise;
 
-      toast.success(response.message || `Chapter "${chapterTitle}" regenerated successfully`);
-
-      // Log which chapters were unchanged for verification
-      if (response.other_chapters_unchanged && response.other_chapters_unchanged.length > 0) {
-        console.log('[Regenerate] Other chapters unchanged:', response.other_chapters_unchanged);
-      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to regenerate chapter');
     } finally {

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
@@ -17,6 +18,12 @@ export default function HumanModelPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [highlightUpload, setHighlightUpload] = useState(false);
+
+  // Delete confirmation dialog states
+  const [showDeleteModelDialog, setShowDeleteModelDialog] = useState(false);
+  const [modelToDelete, setModelToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showDeleteSourceDialog, setShowDeleteSourceDialog] = useState(false);
+  const [sourceToDelete, setSourceToDelete] = useState<{ id: string; fileName: string } | null>(null);
 
   // Comparison feature states
   const [showComparison, setShowComparison] = useState(false);
@@ -190,15 +197,20 @@ export default function HumanModelPage() {
     }
   };
 
-  const handleDeleteModel = async (modelId: string) => {
-    if (!confirm('Are you sure you want to delete this style profile?')) {
-      return;
-    }
+  const handleDeleteModel = (modelId: string) => {
+    const model = models.find(m => m.id === modelId);
+    setModelToDelete({ id: modelId, name: model?.name || '' });
+    setShowDeleteModelDialog(true);
+  };
+
+  const confirmDeleteModel = async () => {
+    if (!modelToDelete) return;
+    setShowDeleteModelDialog(false);
     try {
       setError(null);
-      await apiService.deleteHumanModel(modelId);
-      setModels(models.filter(m => m.id !== modelId));
-      if (selectedModel?.id === modelId) {
+      await apiService.deleteHumanModel(modelToDelete.id);
+      setModels(models.filter(m => m.id !== modelToDelete.id));
+      if (selectedModel?.id === modelToDelete.id) {
         setSelectedModel(null);
         setSources([]);
       }
@@ -206,6 +218,8 @@ export default function HumanModelPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete model');
       toast.error(err instanceof Error ? err.message : 'Failed to delete model');
+    } finally {
+      setModelToDelete(null);
     }
   };
 
@@ -341,18 +355,20 @@ export default function HumanModelPage() {
     }
   };
 
-  const handleDeleteSource = async (sourceId: string, sourceFileName: string) => {
+  const handleDeleteSource = (sourceId: string, sourceFileName: string) => {
     if (!selectedModel) return;
+    setSourceToDelete({ id: sourceId, fileName: sourceFileName });
+    setShowDeleteSourceDialog(true);
+  };
 
-    if (!confirm(t('humanModel.confirmDeleteSource', `Are you sure you want to delete "${sourceFileName}"? This action cannot be undone.`))) {
-      return;
-    }
-
+  const confirmDeleteSource = async () => {
+    if (!selectedModel || !sourceToDelete) return;
+    setShowDeleteSourceDialog(false);
     try {
       setError(null);
-      const response = await apiService.deleteHumanModelSource(selectedModel.id, sourceId);
+      const response = await apiService.deleteHumanModelSource(selectedModel.id, sourceToDelete.id);
       // Remove source from list
-      setSources(sources.filter(s => s.id !== sourceId));
+      setSources(sources.filter(s => s.id !== sourceToDelete.id));
       // Update model word count
       setSelectedModel({
         ...selectedModel,
@@ -362,6 +378,8 @@ export default function HumanModelPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete source');
       toast.error(err instanceof Error ? err.message : 'Failed to delete source');
+    } finally {
+      setSourceToDelete(null);
     }
   };
 
@@ -1235,6 +1253,35 @@ export default function HumanModelPage() {
           </div>
         </div>
       )}
+      {/* Delete Model Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteModelDialog}
+        title={t('humanModel.deleteModelTitle', 'Delete Style Profile')}
+        message={t('humanModel.confirmDeleteModel', 'Are you sure you want to delete this style profile? All associated sources and analysis data will be permanently removed.')}
+        itemName={modelToDelete?.name}
+        onConfirm={confirmDeleteModel}
+        onCancel={() => {
+          setShowDeleteModelDialog(false);
+          setModelToDelete(null);
+        }}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
+
+      {/* Delete Source Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteSourceDialog}
+        title={t('humanModel.deleteSourceTitle', 'Delete Source')}
+        message={t('humanModel.confirmDeleteSourceMsg', 'Are you sure you want to delete this source? This action cannot be undone.')}
+        itemName={sourceToDelete?.fileName}
+        onConfirm={confirmDeleteSource}
+        onCancel={() => {
+          setShowDeleteSourceDialog(false);
+          setSourceToDelete(null);
+        }}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('common.cancel', 'Cancel')}
+      />
     </div>
   );
 }

@@ -662,45 +662,43 @@ class ApiService {
     };
   }
 
-  // Feature #260: Generate Sequel Outline
-  async generateSequelOutline(id: string, options?: {
-    language?: 'it' | 'en';
-    numChapters?: number;
-  }): Promise<{
-    message: string;
-    outline: {
-      previous_novel: string;
-      total_chapters: number;
-      chapters: Array<{ id: string; title: string; summary: string }>;
+  // Generate 3 sequel plot proposals (Phase 1)
+  async generateSequelProposals(
+    projectId: string,
+    title?: string,
+    language?: 'it' | 'en'
+  ): Promise<{
+    success: boolean;
+    sequelTitle: string;
+    proposals: Array<{
+      id: number;
+      title: string;
+      synopsis: string;
       themes: string[];
-      character_arcs: string[];
+      key_characters: string[];
+      tone: string;
+    }>;
+    context: {
+      originalTitle: string;
+      aliveCharactersCount: number;
+      deadCharactersCount: number;
+      locationsCount: number;
+      plotEventsCount: number;
     };
-    created: number;
-    aiGenerated: boolean;
   }> {
-    return this.request<{
-      message: string;
-      outline: {
-        previous_novel: string;
-        total_chapters: number;
-        chapters: Array<{ id: string; title: string; summary: string }>;
-        themes: string[];
-        character_arcs: string[];
-      };
-      created: number;
-      aiGenerated: boolean;
-    }>(`/projects/${id}/generate/sequel-outline`, {
+    return this.request(`/projects/${projectId}/sequel/proposals`, {
       method: 'POST',
-      body: JSON.stringify(options || {}),
+      body: JSON.stringify({ title, language }),
     });
   }
 
-  // Feature #267: Generate sequel outline for preview (without creating project)
+  // Generate sequel chapter outline (Phase 2) - uses chosen plot from Phase 1
   async generateSequelOutline(
     projectId: string,
     title?: string,
     language?: 'it' | 'en',
-    numChapters?: number
+    numChapters?: number,
+    chosenPlot?: string
   ): Promise<{
     success: boolean;
     outline: {
@@ -717,9 +715,10 @@ class ApiService {
     };
     context: {
       originalTitle: string;
-      charactersCount: number;
+      aliveCharactersCount: number;
+      deadCharactersCount: number;
       locationsCount: number;
-      hasAI: boolean;
+      plotEventsCount: number;
     };
     message?: string;
   }> {
@@ -728,7 +727,8 @@ class ApiService {
       body: JSON.stringify({
         title,
         language,
-        numChapters
+        numChapters,
+        chosenPlot
       }),
     });
   }
@@ -1196,6 +1196,114 @@ class ApiService {
         if (error.name === 'AbortError') {
           // User cancelled - this is expected
           console.log('[Generate] Generation cancelled by user');
+        } else {
+          callbacks?.onError?.(error.message || 'Unknown error');
+        }
+      }
+    })();
+
+    return {
+      abort: () => controller.abort(),
+      promise,
+    };
+  }
+
+  // Regenerate chapter with SSE streaming (Feature #271)
+  regenerateChapterStream(
+    chapterId: string,
+    options?: {
+      human_model_id?: string;
+      prompt_context?: string;
+    },
+    callbacks?: {
+      onPhase?: (phase: string, message: string) => void;
+      onDelta?: (content: string) => void;
+      onDone?: (data: {
+        message: string;
+        word_count: number;
+        chapter_id?: string;
+        regenerated_chapter_id?: string;
+        other_chapters_unchanged?: Array<{ id: string; title: string; order_index: number }>;
+        warning?: string;
+        note?: string;
+      }) => void;
+      onError?: (error: string) => void;
+    }
+  ): { abort: () => void; promise: Promise<void> } {
+    const token = localStorage.getItem('token');
+    const url = `${this.baseUrl}/chapters/${chapterId}/regenerate-stream`;
+
+    const controller = new AbortController();
+
+    const promise = (async () => {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify({
+            human_model_id: options?.human_model_id || null,
+            prompt_context: options?.prompt_context || '',
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ message: 'Network error' }));
+          throw new Error(error.message || `HTTP ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE events
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          let eventType = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7);
+            } else if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.substring(6));
+
+              switch (eventType) {
+                case 'phase':
+                  callbacks?.onPhase?.(data.phase, data.message);
+                  break;
+                case 'delta':
+                  callbacks?.onDelta?.(data.content);
+                  break;
+                case 'done':
+                  callbacks?.onDone?.(data);
+                  break;
+                case 'error':
+                  callbacks?.onError?.(data.message);
+                  break;
+              }
+
+              eventType = ''; // Reset for next event
+            }
+          }
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          // User cancelled - this is expected
+          console.log('[Regenerate] Regeneration cancelled by user');
         } else {
           callbacks?.onError?.(error.message || 'Unknown error');
         }

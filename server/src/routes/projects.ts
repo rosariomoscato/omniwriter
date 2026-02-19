@@ -110,7 +110,7 @@ router.post('/analyze-novel', authenticateToken, upload.single('file'), async (r
     console.log('[AnalyzeNovel] Created project:', projectId, 'with saga:', finalSagaId);
 
     // Use AI-based analysis to extract characters, locations, plot events, and synopsis
-    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[] }>;
+    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[]; status_at_end?: string; status_notes?: string }>;
     let locations: Array<{ name: string; description: string; significance: string }>;
     let plotEvents: Array<{ title: string; description: string; event_type: string }>;
     let synopsis = '';
@@ -140,8 +140,8 @@ router.post('/analyze-novel', authenticateToken, upload.single('file'), async (r
       try {
         const characterId = uuidv4();
         db.prepare(
-          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, datetime('now'), datetime('now'))`
+          `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, 1, datetime('now'), datetime('now'))`
         ).run(
           characterId,
           projectId,
@@ -150,7 +150,9 @@ router.post('/analyze-novel', authenticateToken, upload.single('file'), async (r
           character.description,
           character.traits,
           character.backstory,
-          character.role_in_story
+          character.role_in_story,
+          character.status_at_end || 'unknown',
+          character.status_notes || ''
         );
         charNameToId.set(normalizeName(character.name), characterId);
         charInsertData.push({ id: characterId, character });
@@ -229,7 +231,7 @@ router.post('/analyze-novel', authenticateToken, upload.single('file'), async (r
         const eventId = uuidv4();
         db.prepare(
           `INSERT INTO plot_events (id, project_id, saga_id, title, description, chapter_id, order_index, event_type, extracted_from_upload, created_at, updated_at)
-           VALUES (?, ?, ?, ?, NULL, ?, ?, 1, datetime('now'), datetime('now'))`
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 1, datetime('now'), datetime('now'))`
         ).run(
           eventId,
           projectId,
@@ -868,13 +870,21 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
     );
 
     // Copy characters and mark them as returning (extracted_from_upload = 0)
+    // Skip dead characters - they should not appear in the sequel
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    let charsCopied = 0;
+    let charsSkipped = 0;
     for (const character of characters) {
+      if (character.status_at_end === 'dead') {
+        charsSkipped++;
+        console.log(`[Projects] Skipping dead character: ${character.name}`);
+        continue;
+      }
       const newCharacterId = uuidv4();
       // Mark as returning character by setting extracted_from_upload = 0
       db.prepare(
-        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
       ).run(
         newCharacterId,
         newProjectId,
@@ -884,10 +894,13 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
         character.traits || '',
         character.backstory || '',
         character.role_in_story || '',
-        character.relationships_json || '[]'
+        character.relationships_json || '[]',
+        'unknown',  // Reset status for sequel
+        character.status_notes || ''  // Keep notes for reference
       );
+      charsCopied++;
     }
-    console.log('[Projects] Copied', characters.length, 'characters to sequel');
+    console.log(`[Projects] Copied ${charsCopied} characters to sequel (skipped ${charsSkipped} dead characters)`);
 
     // Copy locations with reference to saga
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
@@ -1000,7 +1013,7 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
 
         // Gather context from the original novel for chapter generation
         const previousCharacters = db.prepare(`
-          SELECT name, description, traits, backstory, role_in_story
+          SELECT name, description, traits, backstory, role_in_story, status_at_end, status_notes
           FROM characters WHERE project_id = ?
         `).all(projectId) as Array<{
           name: string;
@@ -1008,6 +1021,8 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
           traits: string;
           backstory: string;
           role_in_story: string;
+          status_at_end: string;
+          status_notes: string;
         }>;
 
         const previousLocations = db.prepare(`
@@ -1038,8 +1053,24 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
         // Build AI prompt for sequel generation
         const isItalian = language === 'it';
 
-        const characterSummaries = previousCharacters.slice(0, 15).map(c =>
-          `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''}`
+        // Separate alive from dead characters
+        const aliveCharsOld = previousCharacters.filter(c => c.status_at_end !== 'dead');
+        const deadCharsOld = previousCharacters.filter(c => c.status_at_end === 'dead');
+
+        const statusLabelOld = (c: any) => {
+          if (!c.status_at_end || c.status_at_end === 'unknown') return '';
+          const labels: Record<string, string> = isItalian
+            ? { alive: 'Vivo', injured: 'Ferito', missing: 'Disperso' }
+            : { alive: 'Alive', injured: 'Injured', missing: 'Missing' };
+          return labels[c.status_at_end] ? ` [${labels[c.status_at_end]}${c.status_notes ? ': ' + c.status_notes : ''}]` : '';
+        };
+
+        const characterSummaries = aliveCharsOld.slice(0, 15).map(c =>
+          `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''}${statusLabelOld(c)}`
+        ).join('\n');
+
+        const deadCharacterSummaries = deadCharsOld.map(c =>
+          `- ${c.name}: ${c.status_notes || (isItalian ? 'Morto nel romanzo precedente' : 'Died in previous novel')}`
         ).join('\n');
 
         const locationSummaries = previousLocations.slice(0, 10).map(l =>
@@ -1072,8 +1103,9 @@ Each chapter must have a contextual title (not generic) and a summary that links
 ROMANZO PRECEDENTE: "${originalProject.title}"
 ${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
 
-PERSONAGGI DAL ROMANZO PRECEDENTE:
+PERSONAGGI DISPONIBILI PER IL SEQUEL (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
+${deadCharacterSummaries ? `\nPERSONAGGI MORTI NEL ROMANZO PRECEDENTE (NON devono apparire come vivi nel sequel):\n${deadCharacterSummaries}` : ''}
 
 LUOGHI DAL ROMANZO PRECEDENTE:
 ${locationSummaries || 'Nessun luogo registrato'}
@@ -1108,8 +1140,9 @@ Continua la storia dal punto in cui è terminata.`
 PREVIOUS NOVEL: "${originalProject.title}"
 ${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
 
-CHARACTERS FROM PREVIOUS NOVEL:
+CHARACTERS AVAILABLE FOR THE SEQUEL (alive/active):
 ${characterSummaries || 'No characters registered'}
+${deadCharacterSummaries ? `\nCHARACTERS WHO DIED IN THE PREVIOUS NOVEL (must NOT appear alive in the sequel):\n${deadCharacterSummaries}` : ''}
 
 LOCATIONS FROM PREVIOUS NOVEL:
 ${locationSummaries || 'No locations registered'}
@@ -1496,7 +1529,7 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
 
     // Gather context for chapter generation
     const previousCharacters = db.prepare(`
-      SELECT name, description, traits, backstory, role_in_story
+      SELECT name, description, traits, backstory, role_in_story, status_at_end, status_notes
       FROM characters WHERE project_id = ?
     `).all(projectId) as any[];
 
@@ -1515,8 +1548,26 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
       SELECT title, content FROM chapters WHERE project_id = ? ORDER BY order_index
     `).all(projectId) as any[];
 
-    const characterSummaries = previousCharacters.slice(0, 15).map(c =>
-      `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''}`
+    // Build character summaries with status information
+    // Separate alive/active characters from dead/inactive ones
+    const aliveCharacters = previousCharacters.filter(c => c.status_at_end !== 'dead');
+    const deadCharacters = previousCharacters.filter(c => c.status_at_end === 'dead');
+
+    const statusLabel = (c: any) => {
+      if (!c.status_at_end || c.status_at_end === 'unknown') return '';
+      const labels: Record<string, string> = isItalian
+        ? { alive: '🟢 Vivo', dead: '🔴 Morto', injured: '🟡 Ferito', missing: '⚪ Disperso' }
+        : { alive: '🟢 Alive', dead: '🔴 Dead', injured: '🟡 Injured', missing: '⚪ Missing' };
+      const label = labels[c.status_at_end] || '';
+      return label + (c.status_notes ? ` - ${c.status_notes}` : '');
+    };
+
+    const characterSummaries = aliveCharacters.slice(0, 15).map(c =>
+      `- ${c.name}: ${c.description || 'No description'} ${c.role_in_story ? `(${c.role_in_story})` : ''} ${statusLabel(c) ? `[${statusLabel(c)}]` : ''}`
+    ).join('\n');
+
+    const deadCharacterSummaries = deadCharacters.map(c =>
+      `- ${c.name}: ${c.status_notes || (isItalian ? 'Morto nel romanzo precedente' : 'Died in previous novel')}`
     ).join('\n');
 
     const locationSummaries = previousLocations.slice(0, 10).map(l =>
@@ -1549,8 +1600,9 @@ Each chapter must have a contextual title (not generic) and a summary that links
 ROMANZO PRECEDENTE: "${originalProject.title}"
 ${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
 
-PERSONAGGI DAL ROMANZO PRECEDENTE:
+PERSONAGGI DISPONIBILI PER IL SEQUEL (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
+${deadCharacterSummaries ? `\nPERSONAGGI MORTI NEL ROMANZO PRECEDENTE (NON devono apparire come vivi nel sequel):\n${deadCharacterSummaries}` : ''}
 
 LUOGHI DAL ROMANZO PRECEDENTE:
 ${locationSummaries || 'Nessun luogo registrato'}
@@ -1585,8 +1637,9 @@ Continua la storia dal punto in cui è terminata.`
 PREVIOUS NOVEL: "${originalProject.title}"
 ${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
 
-CHARACTERS FROM PREVIOUS NOVEL:
+CHARACTERS AVAILABLE FOR THE SEQUEL (alive/active):
 ${characterSummaries || 'No characters registered'}
+${deadCharacterSummaries ? `\nCHARACTERS WHO DIED IN THE PREVIOUS NOVEL (must NOT appear alive in the sequel):\n${deadCharacterSummaries}` : ''}
 
 LOCATIONS FROM PREVIOUS NOVEL:
 ${locationSummaries || 'No locations registered'}
@@ -1931,8 +1984,25 @@ async function generateSequelProposal(
 
   // Build context for AI
   const synopsis = originalProject.synopsis || '';
-  const characterSummaries = characters.slice(0, 10).map(c =>
-    `- ${c.name}: ${c.description || ''} (${c.role_in_story || 'role unknown'})`
+
+  // Separate alive from dead characters
+  const aliveChars = characters.filter(c => c.status_at_end !== 'dead');
+  const deadChars = characters.filter(c => c.status_at_end === 'dead');
+
+  const statusInfo = (c: any) => {
+    if (!c.status_at_end || c.status_at_end === 'unknown') return '';
+    const labels: Record<string, string> = isItalian
+      ? { alive: 'Vivo', injured: 'Ferito', missing: 'Disperso' }
+      : { alive: 'Alive', injured: 'Injured', missing: 'Missing' };
+    return labels[c.status_at_end] ? ` [${labels[c.status_at_end]}${c.status_notes ? ': ' + c.status_notes : ''}]` : '';
+  };
+
+  const characterSummaries = aliveChars.slice(0, 10).map(c =>
+    `- ${c.name}: ${c.description || ''} (${c.role_in_story || 'role unknown'})${statusInfo(c)}`
+  ).join('\n');
+
+  const deadCharSummaries = deadChars.map(c =>
+    `- ${c.name}: ${c.status_notes || (isItalian ? 'Morto nel romanzo precedente' : 'Died in previous novel')}`
   ).join('\n');
 
   const locationSummaries = locations.slice(0, 10).map(l =>
@@ -1964,8 +2034,9 @@ TITOLO ORIGINALE: ${originalProject.title}
 SINOPSI:
 ${synopsis || 'Non disponibile'}
 
-PERSONAGGI PRINCIPALI:
+PERSONAGGI DISPONIBILI (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
+${deadCharSummaries ? `\nPERSONAGGI MORTI (NON possono apparire vivi nel sequel):\n${deadCharSummaries}` : ''}
 
 LUOGHI:
 ${locationSummaries || 'Nessun luogo registrato'}
@@ -2006,8 +2077,9 @@ ORIGINAL TITLE: ${originalProject.title}
 SYNOPSIS:
 ${synopsis || 'Not available'}
 
-MAIN CHARACTERS:
+CHARACTERS AVAILABLE (alive/active):
 ${characterSummaries || 'No characters registered'}
+${deadCharSummaries ? `\nCHARACTERS WHO DIED (must NOT appear alive in the sequel):\n${deadCharSummaries}` : ''}
 
 LOCATIONS:
 ${locationSummaries || 'No locations registered'}
@@ -3086,6 +3158,110 @@ Write ONLY the consolidated synopsis, without titles, headers, or additional com
 }
 
 /**
+ * Phase 3: Consolidate character final status using the full synopsis.
+ * Individual chunks cannot determine a character's final fate because they only see
+ * a portion of the story. This function sends the complete synopsis + character list
+ * to the AI to determine the definitive final status of each character.
+ */
+async function consolidateCharacterStatus(
+  characters: ParsedCharacter[],
+  synopsis: string,
+  language: 'it' | 'en',
+  provider: any
+): Promise<Array<{ name: string; status_at_end: string; status_notes: string }>> {
+  const characterNames = characters.map(c => c.name).join(', ');
+
+  const isItalian = language === 'it';
+
+  const systemPrompt = isItalian
+    ? `Sei un esperto analista letterario. Il tuo compito è determinare lo stato finale di ogni personaggio alla fine della storia.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.`
+    : `You are an expert literary analyst. Your task is to determine the final status of each character at the end of the story.
+Respond ONLY with valid JSON, no additional text.`;
+
+  const userPrompt = isItalian
+    ? `Basandoti sulla seguente sinossi completa di un romanzo, determina lo stato finale di ciascun personaggio.
+
+SINOSSI COMPLETA:
+"""
+${synopsis}
+"""
+
+PERSONAGGI DA VALUTARE: ${characterNames}
+
+Per ciascun personaggio, determina:
+- "status_at_end": uno tra "alive" (vivo alla fine), "dead" (morto durante la storia), "injured" (ferito/menomato alla fine), "missing" (scomparso/disperso), "unknown" (non è chiaro dal testo)
+- "status_notes": una breve nota in italiano che spiega lo stato (es: "Muore nella battaglia finale", "Sopravvive ma perde un braccio", "Scompare nel capitolo 8 e non viene più menzionato")
+
+IMPORTANTE:
+- Analizza ATTENTAMENTE la sinossi per capire cosa succede a ogni personaggio
+- Se un personaggio muore, ferito gravemente o scompare, è fondamentale indicarlo
+- Se dalla sinossi non emerge chiaramente cosa succede al personaggio, usa "alive" se sembra partecipare attivamente alla fine, oppure "unknown" se non viene più menzionato
+- Preferisci "alive" a "unknown" quando il personaggio è attivo nelle scene finali
+
+Rispondi con JSON:
+{
+  "characters": [
+    { "name": "Nome", "status_at_end": "alive|dead|injured|missing|unknown", "status_notes": "Nota sullo stato" }
+  ]
+}`
+    : `Based on the following complete synopsis of a novel, determine the final status of each character.
+
+COMPLETE SYNOPSIS:
+"""
+${synopsis}
+"""
+
+CHARACTERS TO EVALUATE: ${characterNames}
+
+For each character, determine:
+- "status_at_end": one of "alive" (alive at the end), "dead" (dies during the story), "injured" (injured/maimed at the end), "missing" (disappeared/missing), "unknown" (unclear from the text)
+- "status_notes": a brief note explaining the status (e.g., "Dies in the final battle", "Survives but loses an arm", "Disappears in chapter 8 and is never mentioned again")
+
+IMPORTANT:
+- Carefully analyze the synopsis to understand what happens to each character
+- If a character dies, is seriously injured, or disappears, it is crucial to indicate this
+- If the synopsis does not clearly show what happens to the character, use "alive" if they seem active at the end, or "unknown" if they are not mentioned again
+- Prefer "alive" over "unknown" when the character is active in the final scenes
+
+Respond with JSON:
+{
+  "characters": [
+    { "name": "Name", "status_at_end": "alive|dead|injured|missing|unknown", "status_notes": "Status note" }
+  ]
+}`;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ];
+
+  const response = await provider.chat(messages, {
+    temperature: 0.2,
+    maxTokens: 4000
+  });
+
+  // Parse response
+  let jsonStr = response.content;
+  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1];
+  }
+
+  const parsed = JSON.parse(jsonStr);
+  const results = (parsed.characters || []).map((c: any) => ({
+    name: String(c.name || '').trim(),
+    status_at_end: ['alive', 'dead', 'injured', 'missing', 'unknown'].includes(String(c.status_at_end || '').trim().toLowerCase())
+      ? String(c.status_at_end).trim().toLowerCase()
+      : 'unknown',
+    status_notes: String(c.status_notes || '').trim()
+  }));
+
+  console.log(`[NovelAnalysis] Character status consolidation returned ${results.length} results`);
+  return results;
+}
+
+/**
  * Main function to analyze a novel using AI
  */
 async function analyzeNovelWithAI(
@@ -3193,6 +3369,31 @@ async function analyzeNovelWithAI(
   const dedupedEvents = deduplicatePlotEvents(allEvents);
 
   console.log(`[NovelAnalysis] After deduplication: ${dedupedCharacters.length} characters, ${dedupedLocations.length} locations, ${dedupedEvents.length} events`);
+
+  // Phase 3: Consolidate character final status using the full synopsis
+  // Each chunk only sees a portion of the story, so individual chunks cannot determine
+  // if a character dies/is injured at the end. We use the consolidated synopsis + character list
+  // to ask AI for the definitive final status of each character.
+  if (bestSynopsis && dedupedCharacters.length > 0) {
+    try {
+      console.log(`[NovelAnalysis] Phase 3: Consolidating character final status via AI...`);
+      const updatedCharacters = await consolidateCharacterStatus(dedupedCharacters, bestSynopsis, language, provider);
+      // Update dedupedCharacters with the consolidated status
+      for (const updated of updatedCharacters) {
+        const match = dedupedCharacters.find(c => normalizeName(c.name) === normalizeName(updated.name));
+        if (match) {
+          match.status_at_end = updated.status_at_end;
+          match.status_notes = updated.status_notes;
+        }
+      }
+      const nonUnknown = dedupedCharacters.filter(c => c.status_at_end && c.status_at_end !== 'unknown').length;
+      console.log(`[NovelAnalysis] Phase 3 SUCCESS: ${nonUnknown}/${dedupedCharacters.length} characters have definitive status`);
+    } catch (statusError) {
+      console.warn(`[NovelAnalysis] Phase 3 FALLBACK: Character status consolidation failed, keeping chunk-level status.`, statusError);
+    }
+  }
+
+  console.log(`[NovelAnalysis] Final results: ${dedupedCharacters.length} characters, ${dedupedLocations.length} locations, ${dedupedEvents.length} events`);
 
   return {
     synopsis: bestSynopsis,
@@ -3361,7 +3562,7 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
     console.log('[Projects] Extracted text length:', novelContent.length, 'characters');
 
     // Use AI-based analysis (Feature #249)
-    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[] }>;
+    let characters: Array<{ name: string; description: string; traits: string; backstory: string; role_in_story: string; relationships?: ParsedRelationship[]; status_at_end?: string; status_notes?: string }>;
     let locations: Array<{ name: string; description: string; significance: string }>;
     let plotEvents: Array<{ title: string; description: string; event_type: string }>;
     let synopsis = '';
@@ -4097,8 +4298,9 @@ Each chapter must have a contextual title (not generic) and a summary that links
 ROMANZO PRECEDENTE: "${previousProject.title}"
 ${previousProject.synopsis ? `SINOPSI:\n${previousProject.synopsis}\n` : ''}
 
-PERSONAGGI DAL ROMANZO PRECEDENTE:
+PERSONAGGI DISPONIBILI PER IL SEQUEL (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
+${deadCharacterSummaries ? `\nPERSONAGGI MORTI NEL ROMANZO PRECEDENTE (NON devono apparire come vivi nel sequel):\n${deadCharacterSummaries}` : ''}
 
 LUOGHI DAL ROMANZO PRECEDENTE:
 ${locationSummaries || 'Nessun luogo registrato'}
@@ -4134,8 +4336,9 @@ Continua la storia dal punto in cui è terminata.`
 PREVIOUS NOVEL: "${previousProject.title}"
 ${previousProject.synopsis ? `SYNOPSIS:\n${previousProject.synopsis}\n` : ''}
 
-CHARACTERS FROM PREVIOUS NOVEL:
+CHARACTERS AVAILABLE FOR THE SEQUEL (alive/active):
 ${characterSummaries || 'No characters registered'}
+${deadCharacterSummaries ? `\nCHARACTERS WHO DIED IN THE PREVIOUS NOVEL (must NOT appear alive in the sequel):\n${deadCharacterSummaries}` : ''}
 
 LOCATIONS FROM PREVIOUS NOVEL:
 ${locationSummaries || 'No locations registered'}
@@ -5105,10 +5308,231 @@ function analyzeTimelineContinuity(
 // Returns the chapter outline WITHOUT creating the project yet (for preview)
 // ============================================================================
 
+// ============================================================================
+// POST /api/projects/:id/sequel/proposals - Generate 3 Plot Proposals
+// Phase 1: Generates 3 distinct plot directions for the sequel
+// ============================================================================
+
+interface SequelProposalsRequestBody {
+  title?: string;
+  language?: 'it' | 'en';
+}
+
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/sequel/proposals', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const { title: customTitle, language = 'it' } = req.body as SequelProposalsRequestBody;
+
+    console.log('[Sequel-Proposals] Generating 3 plot proposals for:', projectId);
+
+    const originalProject = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as any;
+
+    if (!originalProject) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (originalProject.area !== 'romanziere') {
+      res.status(400).json({ message: 'Sequels can only be created for romanziere (novel) projects' });
+      return;
+    }
+
+    const isItalian = language === 'it';
+    const sequelTitle = customTitle || `${originalProject.title} - Part 2`;
+
+    // Get context data WITH status information
+    const characters = db.prepare('SELECT name, description, traits, role_in_story, status_at_end, status_notes FROM characters WHERE project_id = ?').all(projectId) as any[];
+    const locations = db.prepare('SELECT name, description, significance FROM locations WHERE project_id = ?').all(projectId) as any[];
+    const plotEvents = db.prepare('SELECT title, description, event_type FROM plot_events WHERE project_id = ? ORDER BY order_index').all(projectId) as any[];
+
+    // Separate alive/dead characters
+    const aliveChars = characters.filter((c: any) => c.status_at_end !== 'dead');
+    const deadChars = characters.filter((c: any) => c.status_at_end === 'dead');
+
+    const statusInfo = (c: any) => {
+      if (!c.status_at_end || c.status_at_end === 'unknown') return '';
+      const labels: Record<string, string> = isItalian
+        ? { alive: 'Vivo', injured: 'Ferito', missing: 'Disperso' }
+        : { alive: 'Alive', injured: 'Injured', missing: 'Missing' };
+      return labels[c.status_at_end] ? ` [${labels[c.status_at_end]}${c.status_notes ? ': ' + c.status_notes : ''}]` : '';
+    };
+
+    const charSummaries = aliveChars.slice(0, 15).map((c: any) =>
+      `- ${c.name}: ${c.description || ''} (${c.role_in_story || ''})${statusInfo(c)}`
+    ).join('\n');
+
+    const deadCharSummaries = deadChars.map((c: any) =>
+      `- ${c.name}: ${c.status_notes || (isItalian ? 'Morto nel romanzo precedente' : 'Died in previous novel')}`
+    ).join('\n');
+
+    const locSummaries = locations.slice(0, 10).map((l: any) =>
+      `- ${l.name}: ${l.description || ''}`
+    ).join('\n');
+
+    const eventSummaries = plotEvents.slice(0, 15).map((e: any) =>
+      `- ${e.title}: ${e.description || ''}`
+    ).join('\n');
+
+    const systemPrompt = isItalian
+      ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale.
+Il tuo compito è proporre 3 direzioni creative e distinte per il seguito di un romanzo.
+Ogni proposta deve essere originale, coerente con la storia precedente, e sufficientemente dettagliata da capire dove andrebbe la trama.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.`
+      : `You are an expert writer and editorial consultant specializing in serialized fiction.
+Your task is to propose 3 creative and distinct directions for the sequel to a novel.
+Each proposal must be original, consistent with the previous story, and detailed enough to understand where the plot would go.
+Respond ONLY with valid JSON, without additional text.`;
+
+    const userPrompt = isItalian
+      ? `Proponi 3 direzioni di trama DIVERSE e CREATIVE per il sequel del seguente romanzo.
+
+ROMANZO PRECEDENTE: "${originalProject.title}"
+${originalProject.synopsis ? `\nSINOPSI COMPLETA:\n${originalProject.synopsis}\n` : ''}
+
+PERSONAGGI DISPONIBILI (vivi/attivi):
+${charSummaries || 'Nessun personaggio registrato'}
+${deadCharSummaries ? `\nPERSONAGGI MORTI (NON possono apparire vivi nel sequel):\n${deadCharSummaries}` : ''}
+
+LUOGHI:
+${locSummaries || 'Nessun luogo registrato'}
+
+EVENTI DI TRAMA PRINCIPALI:
+${eventSummaries || 'Nessun evento registrato'}
+
+TITOLO DEL SEQUEL: "${sequelTitle}"
+
+Genera 3 proposte di trama DISTINTE nel seguente formato JSON:
+{
+  "proposals": [
+    {
+      "title": "Titolo evocativo della direzione di trama",
+      "synopsis": "Sinossi dettagliata della trama proposta (200-400 parole). Descrivi l'arco narrativo principale, i conflitti centrali, come si evolve la storia dal punto in cui è terminata, quali personaggi hanno un ruolo chiave e come si conclude idealmente.",
+      "themes": ["Tema 1", "Tema 2", "Tema 3"],
+      "key_characters": ["Personaggio chiave 1", "Personaggio chiave 2"],
+      "tone": "Tono narrativo (es: cupo, avventuroso, riflessivo, action)"
+    }
+  ]
+}
+
+REGOLE IMPORTANTI:
+- Le 3 proposte devono essere MOLTO diverse tra loro (genere, tono, conflitto centrale)
+- I personaggi morti NON devono apparire come vivi
+- I personaggi feriti devono avere il loro stato considerato nella trama
+- Ogni sinossi deve essere dettagliata e coprire l'intero arco della storia proposta
+- Continua la storia dal punto in cui è terminato il romanzo precedente
+- Sii creativo e sorprendente`
+      : `Propose 3 DIFFERENT and CREATIVE plot directions for the sequel to the following novel.
+
+PREVIOUS NOVEL: "${originalProject.title}"
+${originalProject.synopsis ? `\nCOMPLETE SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+
+AVAILABLE CHARACTERS (alive/active):
+${charSummaries || 'No characters registered'}
+${deadCharSummaries ? `\nDEAD CHARACTERS (must NOT appear alive in the sequel):\n${deadCharSummaries}` : ''}
+
+LOCATIONS:
+${locSummaries || 'No locations registered'}
+
+MAIN PLOT EVENTS:
+${eventSummaries || 'No plot events registered'}
+
+SEQUEL TITLE: "${sequelTitle}"
+
+Generate 3 DISTINCT plot proposals in the following JSON format:
+{
+  "proposals": [
+    {
+      "title": "Evocative title for the plot direction",
+      "synopsis": "Detailed synopsis of the proposed plot (200-400 words). Describe the main narrative arc, central conflicts, how the story evolves from where it ended, which characters play key roles, and how it ideally concludes.",
+      "themes": ["Theme 1", "Theme 2", "Theme 3"],
+      "key_characters": ["Key character 1", "Key character 2"],
+      "tone": "Narrative tone (e.g., dark, adventurous, reflective, action)"
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- The 3 proposals must be VERY different from each other (genre, tone, central conflict)
+- Dead characters must NOT appear alive
+- Injured characters should have their state considered in the plot
+- Each synopsis must be detailed and cover the entire proposed story arc
+- Continue the story from where the previous novel ended
+- Be creative and surprising`;
+
+    // Call AI
+    const provider = await getProviderForUser(userId);
+
+    if (!provider) {
+      res.status(400).json({ message: isItalian ? 'Nessun provider AI configurato. Configura un provider nelle impostazioni.' : 'No AI provider configured. Please configure one in settings.' });
+      return;
+    }
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    const response = await provider.chat(messages, {
+      temperature: 0.8,  // Higher temperature for creative diversity
+      maxTokens: 6000
+    });
+
+    const responseText = response.content || '';
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('AI response did not contain valid JSON');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const proposals = parsed.proposals || [];
+
+    if (proposals.length === 0) {
+      throw new Error('AI did not generate any proposals');
+    }
+
+    console.log(`[Sequel-Proposals] Generated ${proposals.length} plot proposals successfully`);
+
+    res.json({
+      success: true,
+      sequelTitle,
+      proposals: proposals.map((p: any, idx: number) => ({
+        id: idx,
+        title: String(p.title || '').trim(),
+        synopsis: String(p.synopsis || '').trim(),
+        themes: (p.themes || []).map((t: any) => String(t).trim()),
+        key_characters: (p.key_characters || []).map((c: any) => String(c).trim()),
+        tone: String(p.tone || '').trim()
+      })),
+      context: {
+        originalTitle: originalProject.title,
+        aliveCharactersCount: aliveChars.length,
+        deadCharactersCount: deadChars.length,
+        locationsCount: locations.length,
+        plotEventsCount: plotEvents.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Sequel-Proposals] Error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Failed to generate sequel proposals' });
+  }
+});
+
+// ============================================================================
+// POST /api/projects/:id/sequel/outline - Generate Chapter Outline (Feature #267)
+// Phase 2: Takes the chosen plot proposal and generates a detailed chapter outline
+// ============================================================================
+
 interface SequelOutlineRequestBody {
   title?: string;
   language?: 'it' | 'en';
   numChapters?: number;
+  chosenPlot?: string;  // The chosen plot synopsis from Phase 1
 }
 
 // @ts-expect-error - AuthRequest type compatibility with router
@@ -5120,12 +5544,12 @@ router.post('/:id/sequel/outline', authenticateToken, async (req: AuthRequest, r
     const {
       title: customTitle,
       language = 'it',
-      numChapters = 10
+      numChapters = 10,
+      chosenPlot
     } = req.body as SequelOutlineRequestBody;
 
-    console.log('[Projects] Generating sequel outline for preview:', projectId);
+    console.log('[Sequel-Outline] Generating chapter outline for:', projectId, 'chapters:', numChapters);
 
-    // Fetch the original project
     const originalProject = db.prepare(
       'SELECT * FROM projects WHERE id = ? AND user_id = ?'
     ).get(projectId, userId) as any;
@@ -5135,7 +5559,6 @@ router.post('/:id/sequel/outline', authenticateToken, async (req: AuthRequest, r
       return;
     }
 
-    // Only romanziere projects can have sequels
     if (originalProject.area !== 'romanziere') {
       res.status(400).json({ message: 'Sequels can only be created for romanziere (novel) projects' });
       return;
@@ -5144,164 +5567,169 @@ router.post('/:id/sequel/outline', authenticateToken, async (req: AuthRequest, r
     const isItalian = language === 'it';
     const sequelTitle = customTitle || `${originalProject.title} - Part 2`;
 
-    // Get context data
-    const characters = db.prepare('SELECT name, description, traits, role_in_story FROM characters WHERE project_id = ?').all(projectId) as any[];
+    // Get context data WITH status information
+    const characters = db.prepare('SELECT name, description, traits, role_in_story, status_at_end, status_notes FROM characters WHERE project_id = ?').all(projectId) as any[];
     const locations = db.prepare('SELECT name, description, significance FROM locations WHERE project_id = ?').all(projectId) as any[];
     const plotEvents = db.prepare('SELECT title, description, event_type FROM plot_events WHERE project_id = ? ORDER BY order_index').all(projectId) as any[];
-    const previousChapters = db.prepare('SELECT title, content FROM chapters WHERE project_id = ? ORDER BY order_index').all(projectId) as any[];
 
-    // Build context summaries
-    const characterSummaries = characters.slice(0, 15).map(c =>
-      `- ${c.name}: ${c.description || ''} (${c.role_in_story || 'role unknown'})`
+    // Separate alive/dead characters
+    const aliveChars = characters.filter((c: any) => c.status_at_end !== 'dead');
+    const deadChars = characters.filter((c: any) => c.status_at_end === 'dead');
+
+    const statusInfo = (c: any) => {
+      if (!c.status_at_end || c.status_at_end === 'unknown') return '';
+      const labels: Record<string, string> = isItalian
+        ? { alive: 'Vivo', injured: 'Ferito', missing: 'Disperso' }
+        : { alive: 'Alive', injured: 'Injured', missing: 'Missing' };
+      return labels[c.status_at_end] ? ` [${labels[c.status_at_end]}${c.status_notes ? ': ' + c.status_notes : ''}]` : '';
+    };
+
+    const characterSummaries = aliveChars.slice(0, 15).map((c: any) =>
+      `- ${c.name}: ${c.description || ''} (${c.role_in_story || ''})${statusInfo(c)}`
     ).join('\n');
 
-    const locationSummaries = locations.slice(0, 10).map(l =>
+    const deadCharacterSummaries = deadChars.map((c: any) =>
+      `- ${c.name}: ${c.status_notes || (isItalian ? 'Morto nel romanzo precedente' : 'Died in previous novel')}`
+    ).join('\n');
+
+    const locationSummaries = locations.slice(0, 10).map((l: any) =>
       `- ${l.name}: ${l.description || ''}`
     ).join('\n');
 
-    const plotSummary = plotEvents.slice(0, 15).map(e =>
+    const plotSummary = plotEvents.slice(0, 15).map((e: any) =>
       `- ${e.title}: ${e.description || ''}`
     ).join('\n');
 
-    const chapterSummary = previousChapters.slice(0, 10).map((ch, idx) =>
-      `Chapter ${idx + 1}: ${ch.title}`
-    ).join('\n');
+    // The chosen plot from Phase 1 is the key context for generating chapters
+    const chosenPlotSection = chosenPlot
+      ? (isItalian
+        ? `\nTRAMA SCELTA PER IL SEQUEL (DEVI seguire questa direzione):\n${chosenPlot}\n`
+        : `\nCHOSEN PLOT FOR THE SEQUEL (you MUST follow this direction):\n${chosenPlot}\n`)
+      : '';
 
     const systemPrompt = isItalian
       ? `Sei un esperto scrittore e consulente editoriale specializzato in narrativa seriale.
-Il tuo compito è creare un outline per il seguito di un romanzo esistente.
-Devi mantenere la coerenza con i personaggi e la trama precedente, continuando la storia in modo naturale e coinvolgente.
-Rispondi SOLO con JSON valido, senza testo aggiuntivo.
-Ogni capitolo deve avere un titolo contestuale (non generico), una sinossi dettagliata che spiega cosa accadrà, e collegamenti con il romanzo precedente.`
+Il tuo compito è creare un outline dettagliato capitolo per capitolo per il seguito di un romanzo, seguendo la trama scelta dall'utente.
+Devi mantenere la coerenza con i personaggi e la trama precedente.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.`
       : `You are an expert writer and editorial consultant specializing in serialized fiction.
-Your task is to create an outline for the sequel to an existing novel.
-You must maintain consistency with characters and previous plot, continuing the story naturally and engagingly.
-Respond ONLY with valid JSON, without additional text.
-Each chapter must have a contextual title (not generic), a detailed synopsis explaining what will happen, and connections to the previous novel.`;
+Your task is to create a detailed chapter-by-chapter outline for the sequel to a novel, following the user's chosen plot direction.
+You must maintain consistency with characters and the previous plot.
+Respond ONLY with valid JSON, without additional text.`;
 
     const userPrompt = isItalian
-      ? `Crea un outline per il sequel del seguente romanzo.
+      ? `Crea un outline dettagliato per il sequel del seguente romanzo.
 
 ROMANZO PRECEDENTE: "${originalProject.title}"
-${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
-
-PERSONAGGI DAL ROMANZO PRECEDENTE:
+${originalProject.synopsis ? `SINOPSI DEL ROMANZO PRECEDENTE:\n${originalProject.synopsis}\n` : ''}
+${chosenPlotSection}
+PERSONAGGI DISPONIBILI (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
+${deadCharacterSummaries ? `\nPERSONAGGI MORTI (NON devono apparire come vivi):\n${deadCharacterSummaries}` : ''}
 
-LUOGHI DAL ROMANZO PRECEDENTE:
+LUOGHI:
 ${locationSummaries || 'Nessun luogo registrato'}
 
-EVENTI DI TRAMA PRINCIPALI:
+EVENTI DI TRAMA PRINCIPALI DEL ROMANZO PRECEDENTE:
 ${plotSummary || 'Nessun evento registrato'}
-
-RIASSUNTO CAPITOLI PRECEDENTI:
-${chapterSummary || 'Nessun capitolo disponibile'}
 
 TITOLO DEL SEQUEL: "${sequelTitle}"
 
-Genera un outline con ${numChapters} capitoli nel seguente formato JSON:
+Genera un outline con ESATTAMENTE ${numChapters} capitoli nel seguente formato JSON:
 {
   "chapters": [
     {
-      "title": "Titolo del capitolo (contestuale, non generico)",
-      "summary": "Sinossi dettagliata di cosa accadrà in questo capitolo (100-150 parole)",
-      "returning_characters": ["Nome personaggio che ritorna"],
-      "new_elements": ["Nuovi elementi introdotti in questo capitolo"],
-      "connection_to_previous": "Come questo capitolo si collega al finale del romanzo precedente"
+      "title": "Titolo evocativo del capitolo (non generico come 'Capitolo 1')",
+      "summary": "Sinossi dettagliata di cosa accadrà (150-250 parole): eventi principali, conflitti, rivelazioni, sviluppi dei personaggi",
+      "returning_characters": ["Nome di ogni personaggio che appare in questo capitolo"],
+      "new_elements": ["Nuovi personaggi, luoghi o elementi introdotti"],
+      "connection_to_previous": "Collegamento con il romanzo precedente"
     }
   ],
-  "themes_to_explore": ["Temi da esplorare nel sequel"],
-  "character_arcs_to_continue": ["Archi narrativi da continuare"]
+  "themes_to_explore": ["Temi esplorati nel sequel"],
+  "character_arcs_to_continue": ["Archi narrativi dei personaggi"]
 }
 
-Sii creativo e specifico. I titoli devono essere evocativi e contestuali.
-Le sinossi devono essere dettagliate e spiegare cosa accadrà, non essere vaghe.
-Continua la storia dal punto in cui è terminata.`
-      : `Create an outline for the sequel to the following novel.
+REGOLE:
+- Segui FEDELMENTE la trama scelta
+- I titoli devono essere evocativi e specifici
+- Le sinossi devono essere DETTAGLIATE (150-250 parole), non vaghe
+- Ogni capitolo deve avere personaggi DIVERSI e appropriati alla scena
+- I personaggi morti NON devono apparire come vivi
+- Distribuisci l'arco narrativo in modo equilibrato tra i ${numChapters} capitoli`
+      : `Create a detailed outline for the sequel to the following novel.
 
 PREVIOUS NOVEL: "${originalProject.title}"
-${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
-
-CHARACTERS FROM PREVIOUS NOVEL:
+${originalProject.synopsis ? `PREVIOUS NOVEL SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+${chosenPlotSection}
+AVAILABLE CHARACTERS (alive/active):
 ${characterSummaries || 'No characters registered'}
+${deadCharacterSummaries ? `\nDEAD CHARACTERS (must NOT appear alive):\n${deadCharacterSummaries}` : ''}
 
-LOCATIONS FROM PREVIOUS NOVEL:
+LOCATIONS:
 ${locationSummaries || 'No locations registered'}
 
-MAIN PLOT EVENTS:
+MAIN PLOT EVENTS FROM PREVIOUS NOVEL:
 ${plotSummary || 'No plot events registered'}
-
-PREVIOUS CHAPTERS SUMMARY:
-${chapterSummary || 'No chapters available'}
 
 SEQUEL TITLE: "${sequelTitle}"
 
-Generate an outline with ${numChapters} chapters in the following JSON format:
+Generate an outline with EXACTLY ${numChapters} chapters in the following JSON format:
 {
   "chapters": [
     {
-      "title": "Chapter title (contextual, not generic)",
-      "summary": "Detailed synopsis of what will happen in this chapter (100-150 words)",
-      "returning_characters": ["Name of returning character"],
-      "new_elements": ["New elements introduced in this chapter"],
-      "connection_to_previous": "How this chapter connects to the previous novel's ending"
+      "title": "Evocative chapter title (not generic like 'Chapter 1')",
+      "summary": "Detailed synopsis of what will happen (150-250 words): main events, conflicts, revelations, character developments",
+      "returning_characters": ["Name of each character appearing in this chapter"],
+      "new_elements": ["New characters, locations or elements introduced"],
+      "connection_to_previous": "Connection to the previous novel"
     }
   ],
-  "themes_to_explore": ["Themes to explore in the sequel"],
-  "character_arcs_to_continue": ["Character arcs to continue"]
+  "themes_to_explore": ["Themes explored in the sequel"],
+  "character_arcs_to_continue": ["Character narrative arcs"]
 }
 
-Be creative and specific. Titles should be evocative and contextual.
-Summaries must be detailed and explain what will happen, not be vague.
-Continue the story from where it ended.`;
+RULES:
+- FAITHFULLY follow the chosen plot direction
+- Titles must be evocative and specific
+- Summaries must be DETAILED (150-250 words), not vague
+- Each chapter must have DIFFERENT and appropriate characters
+- Dead characters must NOT appear alive
+- Distribute the narrative arc evenly across the ${numChapters} chapters`;
 
-    // Get AI provider for outline
+    // Get AI provider
     const provider = await getProviderForUser(userId);
-    let generatedOutline: any = null;
 
-    if (provider) {
-      try {
-        console.log('[Projects] Calling AI for sequel chapter outline (preview)...');
-        const response = await provider.chat({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          maxTokens: 4000
-        });
-
-        const responseText = response.content || '';
-        // Extract JSON from response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          generatedOutline = JSON.parse(jsonMatch[0]);
-          console.log('[Projects] AI generated sequel chapter outline successfully');
-        }
-      } catch (aiErr) {
-        console.error('[Projects] AI sequel chapter outline generation failed:', aiErr);
-        // Fall back to default outline
-      }
+    if (!provider) {
+      res.status(400).json({ message: isItalian ? 'Nessun provider AI configurato.' : 'No AI provider configured.' });
+      return;
     }
 
-    // If no AI or AI failed, generate default outline
-    if (!generatedOutline || !generatedOutline.chapters) {
-      console.log('[Projects] Using default outline generation');
-      generatedOutline = {
-        chapters: Array.from({ length: numChapters }, (_, i) => ({
-          title: isItalian ? `Capitolo ${i + 1}` : `Chapter ${i + 1}`,
-          summary: isItalian
-            ? `Continuazione della storia dal romanzo precedente.`
-            : `Continuation of the story from the previous novel.`,
-          returning_characters: characters.slice(0, 3).map(c => c.name),
-          new_elements: [],
-          connection_to_previous: ''
-        })),
-        themes_to_explore: [],
-        character_arcs_to_continue: []
-      };
+    console.log('[Sequel-Outline] Calling AI for chapter outline...');
+    const aiMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    const response = await provider.chat(aiMessages, {
+      temperature: 0.5,
+      maxTokens: 8000
+    });
+
+    const responseText = response.content || '';
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('AI response did not contain valid JSON');
     }
 
-    // Return the outline for preview
+    const generatedOutline = JSON.parse(jsonMatch[0]);
+
+    if (!generatedOutline.chapters || generatedOutline.chapters.length === 0) {
+      throw new Error('AI did not generate any chapters');
+    }
+
+    console.log(`[Sequel-Outline] Generated ${generatedOutline.chapters.length} chapters successfully`);
+
     res.json({
       success: true,
       outline: {
@@ -5312,15 +5740,16 @@ Continue the story from where it ended.`;
       },
       context: {
         originalTitle: originalProject.title,
-        charactersCount: characters.length,
+        aliveCharactersCount: aliveChars.length,
+        deadCharactersCount: deadChars.length,
         locationsCount: locations.length,
-        hasAI: !!provider
+        plotEventsCount: plotEvents.length
       }
     });
 
   } catch (error) {
-    console.error('[Projects] Generate sequel outline error:', error instanceof Error ? error.message : 'Unknown error');
-    res.status(500).json({ message: 'Failed to generate sequel outline' });
+    console.error('[Sequel-Outline] Error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Failed to generate sequel outline' });
   }
 });
 
@@ -5426,13 +5855,20 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
 
     console.log('[Projects-Confirm] Created sequel project:', newProjectId);
 
-    // Copy characters
+    // Copy characters (exclude dead characters)
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
+    let charsCopiedConfirm = 0;
+    let charsSkippedConfirm = 0;
     for (const character of characters) {
+      if (character.status_at_end === 'dead') {
+        charsSkippedConfirm++;
+        console.log(`[Projects-Confirm] Skipping dead character: ${character.name}`);
+        continue;
+      }
       const newCharacterId = uuidv4();
       db.prepare(
-        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, extracted_from_upload, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+        `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
       ).run(
         newCharacterId,
         newProjectId,
@@ -5442,10 +5878,13 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
         character.traits || '',
         character.backstory || '',
         character.role_in_story || '',
-        character.relationships_json || '[]'
+        character.relationships_json || '[]',
+        'unknown',  // Reset status for sequel
+        character.status_notes || ''  // Keep notes for reference
       );
+      charsCopiedConfirm++;
     }
-    console.log('[Projects-Confirm] Copied', characters.length, 'characters to sequel');
+    console.log(`[Projects-Confirm] Copied ${charsCopiedConfirm} characters (skipped ${charsSkippedConfirm} dead)`);
 
     // Copy locations
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];

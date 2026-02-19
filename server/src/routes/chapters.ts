@@ -1472,6 +1472,505 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
   }
 });
 
+// POST /api/chapters/:id/regenerate-stream - Regenerate a single chapter with SSE streaming (Feature #271)
+router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { human_model_id, prompt_context } = req.body;
+    const userId = req.user.id;
+    const db = getDatabase();
+
+    // Verify chapter exists and belongs to user's project
+    const chapter = db.prepare(`
+      SELECT c.id, c.title, c.content, c.project_id, c.order_index, c.status,
+             p.area, p.settings_json, p.title as project_title, p.genre, p.tone, p.target_audience,
+             u.preferred_language
+      FROM chapters c
+      JOIN projects p ON c.project_id = p.id
+      JOIN users u ON p.user_id = u.id
+      WHERE c.id = ? AND p.user_id = ?
+    `).get(id, userId) as {
+      id: string;
+      title: string;
+      content: string;
+      project_id: string;
+      order_index: number;
+      status: string;
+      area: string;
+      settings_json: string;
+      project_title: string;
+      genre: string | null;
+      tone: string | null;
+      target_audience: string | null;
+      preferred_language: string;
+    } | undefined;
+
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // If human_model_id is provided, verify it exists and belongs to user
+    let humanModel = null;
+    if (human_model_id) {
+      humanModel = db.prepare(
+        'SELECT * FROM human_models WHERE id = ? AND user_id = ?'
+      ).get(human_model_id, userId) as {
+        id: string;
+        name: string;
+        analysis_result_json: string;
+        style_strength: number;
+      } | undefined;
+
+      if (!humanModel) {
+        return res.status(404).json({ message: 'Human Model not found' });
+      }
+
+      if (humanModel.analysis_result_json) {
+        try {
+          humanModel.analysis_result_json = JSON.parse(humanModel.analysis_result_json);
+        } catch {
+          humanModel.analysis_result_json = {};
+        }
+      }
+    }
+
+    // Fetch project sources for generation
+    const projectSources = db.prepare(`
+      SELECT id, file_name, content_text, file_type, source_type, url
+      FROM sources
+      WHERE project_id = ? AND content_text IS NOT NULL AND content_text != ''
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[];
+
+    // Fetch characters for context
+    const characters = db.prepare(`
+      SELECT name, description, traits
+      FROM characters
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { name: string; description: string; traits: string }[];
+
+    // Fetch locations for context
+    const locations = db.prepare(`
+      SELECT name, description
+      FROM locations
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { name: string; description: string }[];
+
+    // Fetch plot events for context
+    const plotEvents = db.prepare(`
+      SELECT title, description
+      FROM plot_events
+      WHERE project_id = ?
+      ORDER BY created_at ASC
+    `).all(chapter.project_id) as { title: string; description: string }[];
+
+    // Get previous and next chapters for continuity
+    const previousChapter = db.prepare(`
+      SELECT title, content
+      FROM chapters
+      WHERE project_id = ? AND order_index = ?
+      LIMIT 1
+    `).get(chapter.project_id, chapter.order_index - 1) as { title: string; content: string } | undefined;
+
+    const nextChapter = db.prepare(`
+      SELECT title
+      FROM chapters
+      WHERE project_id = ? AND order_index = ?
+      LIMIT 1
+    `).get(chapter.project_id, chapter.order_index + 1) as { title: string } | undefined;
+
+    // Get all other chapters to report they're unchanged
+    const otherChapters = db.prepare(`
+      SELECT id, title, order_index
+      FROM chapters
+      WHERE project_id = ? AND id != ?
+      ORDER BY order_index ASC
+    `).all(chapter.project_id, id) as { id: string; title: string; order_index: number }[];
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+    // Helper function to send SSE events
+    const sendEvent = (event: string, data: any) => {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Send initial status
+    sendEvent('phase', { phase: 'structure', message: 'Analyzing chapter context...' });
+
+    // Build the system prompt based on project settings and Human Model
+    const language = chapter.preferred_language === 'it' ? 'it' : 'en';
+    const isItalian = language === 'it';
+
+    // Feature #233: Sanitize content to avoid moderation triggers
+    const sanitizedContent = sanitizePromptContent({
+      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits })),
+      locations: locations.map(l => ({ name: l.name, description: l.description })),
+      plotEvents: plotEvents.map(e => ({ title: e.title, description: e.description })),
+      sources: projectSources.map(s => ({ file_name: s.file_name, content_text: s.content_text })),
+      previousChapter: previousChapter ? { title: previousChapter.title, content: previousChapter.content } : undefined,
+      chapterTitle: chapter.title,
+      projectTitle: chapter.project_title,
+      projectContext: prompt_context
+    });
+
+    // Log any warnings from sanitization
+    if (sanitizedContent.warnings.length > 0) {
+      console.log('[Regenerate Stream] Content sanitization warnings:', sanitizedContent.warnings);
+    }
+
+    // Build sanitized system prompt
+    let systemPrompt = '';
+    if (isItalian) {
+      systemPrompt = `Sei uno scrittore professionista che aiuta a rigenerare capitoli di romanzi.
+
+PROGETTO: "${sanitizeSensitiveWords(chapter.project_title)}"
+GENERE: ${chapter.genre || 'Narrativa'}
+TONO: ${chapter.tone || 'Neutro'}
+PUBBLICO: ${chapter.target_audience || 'Adulti'}
+
+CAPITOLO DA RIGENERARE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})
+
+NOTA: Questo è un capitolo esistente che deve essere rigenerato con nuovo contenuto.`;
+    } else {
+      systemPrompt = `You are a professional writer helping regenerate novel chapters.
+
+PROJECT: "${sanitizeSensitiveWords(chapter.project_title)}"
+GENRE: ${chapter.genre || 'Fiction'}
+TONE: ${chapter.tone || 'Neutral'}
+AUDIENCE: ${chapter.target_audience || 'Adults'}
+
+CHAPTER TO REGENERATE: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})
+
+NOTE: This is an existing chapter that needs to be regenerated with fresh content.`;
+    }
+
+    // Add Human Model style if provided
+    if (humanModel && humanModel.analysis_result_json) {
+      const analysis = humanModel.analysis_result_json as any;
+      if (isItalian) {
+        systemPrompt += `
+
+PROFILO STILISTICO PERSONALE (${humanModel.name}):
+- Tono: ${analysis.tone || 'Non specificato'}
+- Struttura frasi: ${analysis.sentence_structure || 'Non specificata'}
+- Vocabolario: ${analysis.vocabulary || 'Non specificato'}
+- Pattern di scrittura: ${(analysis.patterns || []).join(', ') || 'Non specificati'}
+
+IMPORTANTE: Scrivi con lo stile personale dell'autore come definito sopra.`;
+      } else {
+        systemPrompt += `
+
+PERSONAL STYLE PROFILE (${humanModel.name}):
+- Tone: ${analysis.tone || 'Not specified'}
+- Sentence structure: ${analysis.sentence_structure || 'Not specified'}
+- Vocabulary: ${analysis.vocabulary || 'Not specified'}
+- Writing patterns: ${(analysis.patterns || []).join(', ') || 'Not specified'}
+
+IMPORTANT: Write in the author's personal style as defined above.`;
+      }
+    }
+
+    // Add sanitized character context
+    if (sanitizedContent.characters) {
+      if (isItalian) {
+        systemPrompt += `\n\nPERSONAGGI:\n${sanitizedContent.characters}`;
+      } else {
+        systemPrompt += `\n\nCHARACTERS:\n${sanitizedContent.characters}`;
+      }
+    }
+
+    // Add sanitized location context
+    if (sanitizedContent.locations) {
+      if (isItalian) {
+        systemPrompt += `\n\nLUOGHI:\n${sanitizedContent.locations}`;
+      } else {
+        systemPrompt += `\n\nLOCATIONS:\n${sanitizedContent.locations}`;
+      }
+    }
+
+    // Add sanitized plot events context
+    if (sanitizedContent.plotEvents) {
+      if (isItalian) {
+        systemPrompt += `\n\nEVENTI DI TRAMA:\n${sanitizedContent.plotEvents}`;
+      } else {
+        systemPrompt += `\n\nPLOT EVENTS:\n${sanitizedContent.plotEvents}`;
+      }
+    }
+
+    // Add sanitized source context
+    if (sanitizedContent.sources) {
+      if (isItalian) {
+        systemPrompt += `\n\nFONTI DI RIFERIMENTO:\n${sanitizedContent.sources}`;
+      } else {
+        systemPrompt += `\n\nREFERENCE SOURCES:\n${sanitizedContent.sources}`;
+      }
+    }
+
+    // Build user prompt for regeneration
+    let userPrompt = '';
+    if (isItalian) {
+      userPrompt = `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+
+${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
+
+${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano che mantenga la coerenza con la storia.`;
+    } else {
+      userPrompt = `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+
+${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
+
+${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Generate fresh, engaging chapter content of approximately 2000-3000 words in English that maintains story coherence.`;
+    }
+
+    // Send phase update
+    sendEvent('phase', { phase: 'writing', message: 'Regenerating chapter content...' });
+
+    // Try to use AI provider with streaming
+    try {
+      const { getProviderForUser } = require('../services/ai-service');
+      const provider = getProviderForUser(userId);
+
+      if (!provider) {
+        // No AI provider available - use fallback generation
+        console.log('[Regenerate Stream] No AI provider, using fallback');
+
+        // Simulate streaming with fallback content
+        const fallbackContent = generateTemplateContent(
+          chapter.title,
+          chapter.area,
+          prompt_context,
+          humanModel,
+          projectSources
+        );
+
+        // Stream the fallback content word by word
+        const words = fallbackContent.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          sendEvent('delta', { content: words[i] + ' ' });
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        sendEvent('phase', { phase: 'revision', message: 'Reviewing regenerated content...' });
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Update chapter in database
+        const now = new Date().toISOString();
+        const wordCount = fallbackContent.split(/\s+/).filter(w => w.length > 0).length;
+
+        db.prepare(`
+          UPDATE chapters
+          SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+          WHERE id = ?
+        `).run(fallbackContent, wordCount, now, id);
+
+        sendEvent('done', {
+          message: 'Chapter regenerated successfully',
+          word_count: wordCount,
+          chapter_id: id,
+          regenerated_chapter_id: id,
+          other_chapters_unchanged: otherChapters,
+          warning: 'No AI provider configured - used fallback generation'
+        });
+        return res.end();
+      }
+
+      console.log(`[Regenerate Stream] Using ${provider.getProviderType()} provider`);
+
+      // Use streaming with sanitized messages
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+
+      let fullContent = '';
+
+      // Stream from provider
+      for await (const event of provider.stream(messages, { maxTokens: 4000 })) {
+        if (event.type === 'delta' && event.content) {
+          fullContent += event.content;
+          sendEvent('delta', { content: event.content });
+        } else if (event.type === 'error') {
+          const errorMessage = event.error || 'Unknown error during regeneration';
+
+          // Feature #233: Check if this is a moderation error and retry with simplified prompt
+          if (isModerationError(errorMessage)) {
+            console.log('[Regenerate Stream] Moderation error detected, retrying with simplified prompt');
+            sendEvent('phase', { phase: 'writing', message: 'Retrying with simplified prompt...' });
+
+            // Build simplified prompt for retry
+            const simplified = buildSimplifiedPrompt(chapter.title, chapter.project_title, language);
+
+            try {
+              const simplifiedMessages = [
+                { role: 'system', content: simplified.systemPrompt },
+                { role: 'user', content: simplified.userPrompt }
+              ];
+
+              let retryContent = '';
+              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: 4000 })) {
+                if (retryEvent.type === 'delta' && retryEvent.content) {
+                  retryContent += retryEvent.content;
+                  sendEvent('delta', { content: retryEvent.content });
+                } else if (retryEvent.type === 'error') {
+                  // Even simplified prompt failed - provide user feedback
+                  const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+                  sendEvent('error', {
+                    message: userMessage,
+                    original_error: retryEvent.error,
+                    is_moderation: true
+                  });
+                  return res.end();
+                }
+              }
+
+              if (retryContent) {
+                // Success with simplified prompt
+                const now = new Date().toISOString();
+                const wordCount = retryContent.split(/\s+/).filter(w => w.length > 0).length;
+
+                db.prepare(`
+                  UPDATE chapters
+                  SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+                  WHERE id = ?
+                `).run(retryContent, wordCount, now, id);
+
+                sendEvent('done', {
+                  message: 'Chapter regenerated successfully (simplified mode)',
+                  word_count: wordCount,
+                  chapter_id: id,
+                  regenerated_chapter_id: id,
+                  other_chapters_unchanged: otherChapters,
+                  note: 'Used simplified prompt due to content sensitivity'
+                });
+                return res.end();
+              }
+            } catch (retryError: any) {
+              console.error('[Regenerate Stream] Retry with simplified prompt failed:', retryError);
+              const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+              sendEvent('error', { message: userMessage, is_moderation: true });
+              return res.end();
+            }
+          }
+
+          sendEvent('error', { message: errorMessage });
+          return res.end();
+        }
+      }
+
+      // Send revision phase
+      sendEvent('phase', { phase: 'revision', message: 'Reviewing regenerated content...' });
+
+      // Update chapter in database
+      const now = new Date().toISOString();
+      const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
+
+      db.prepare(`
+        UPDATE chapters
+        SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+        WHERE id = ?
+      `).run(fullContent, wordCount, now, id);
+
+      // Log regeneration
+      const logId = uuidv4();
+      db.prepare(`
+        INSERT INTO generation_logs (id, project_id, chapter_id, model_used, phase, tokens_input, tokens_output, duration_ms, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        logId,
+        chapter.project_id,
+        id,
+        humanModel ? `${humanModel.name} (${provider.getProviderType()})` : provider.getProviderType(),
+        'streaming_regeneration',
+        0,
+        wordCount,
+        0,
+        'completed',
+        now
+      );
+
+      console.log(`[Regenerate Stream] Regenerated chapter "${chapter.title}" with ${wordCount} words`);
+
+      sendEvent('done', {
+        message: `Chapter "${chapter.title}" regenerated successfully. Other ${otherChapters.length} chapters unchanged.`,
+        word_count: wordCount,
+        chapter_id: id,
+        regenerated_chapter_id: id,
+        other_chapters_unchanged: otherChapters
+      });
+
+      return res.end();
+
+    } catch (aiError: any) {
+      console.error('[Regenerate Stream] AI error:', aiError);
+
+      // Feature #233: Check for moderation errors
+      if (isModerationError(aiError)) {
+        console.log('[Regenerate Stream] Moderation error in catch block');
+        const userMessage = getModerationErrorMessage(language, sanitizedContent.warnings);
+        sendEvent('error', { message: userMessage, is_moderation: true });
+        return res.end();
+      }
+
+      // Fallback to template generation on other errors
+      sendEvent('phase', { phase: 'writing', message: 'Using fallback generation...' });
+
+      const fallbackContent = generateTemplateContent(
+        chapter.title,
+        chapter.area,
+        prompt_context,
+        humanModel,
+        projectSources
+      );
+
+      // Stream the fallback content
+      const words = fallbackContent.split(' ');
+      for (let i = 0; i < words.length; i++) {
+        sendEvent('delta', { content: words[i] + ' ' });
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      const wordCount = fallbackContent.split(/\s+/).filter(w => w.length > 0).length;
+
+      // Update chapter in database
+      const now = new Date().toISOString();
+      db.prepare(`
+        UPDATE chapters
+        SET content = ?, word_count = ?, updated_at = ?, status = 'generated'
+        WHERE id = ?
+      `).run(fallbackContent, wordCount, now, id);
+
+      sendEvent('done', {
+        message: 'Chapter regenerated (fallback mode)',
+        word_count: wordCount,
+        chapter_id: id,
+        regenerated_chapter_id: id,
+        other_chapters_unchanged: otherChapters,
+        warning: 'AI service unavailable - used fallback generation'
+      });
+
+      return res.end();
+    }
+
+  } catch (error) {
+    console.error('[Regenerate Stream] Error regenerating chapter:', error);
+    res.status(500).json({ message: 'Failed to regenerate chapter' });
+  }
+});
+
 // POST /api/chapters/:id/enhance-dialogue - Enhance dialogue in selected text (Feature #188)
 router.post('/chapters/:id/enhance-dialogue', authenticateToken, generationRateLimit, async (req, res) => {
   try {

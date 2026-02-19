@@ -1,9 +1,13 @@
-// Feature #267: Create Sequel with Outline Preview Modal
+// Feature #267: Create Sequel with 3-Phase Flow
+// Phase 1: Choose from 3 AI-generated plot proposals
+// Phase 2: Generate chapter outline based on chosen plot
+// Phase 3: Confirm and create the sequel
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Loader2, BookOpen, Sparkles, FileText, CheckCircle, AlertCircle,
-  ChevronDown, ChevronUp, Edit2, RefreshCw, X, Check, Pencil
+  Loader2, BookOpen, Sparkles, CheckCircle,
+  ChevronDown, ChevronUp, RefreshCw, X, Check, Pencil,
+  ArrowLeft, ArrowRight, Users, MapPin, Zap
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
@@ -19,6 +23,15 @@ interface CreateSequelWithOutlineModalProps {
   language: 'it' | 'en';
   onSuccess: (projectId: string) => void;
   onError: (error: string) => void;
+}
+
+interface PlotProposal {
+  id: number;
+  title: string;
+  synopsis: string;
+  themes: string[];
+  key_characters: string[];
+  tone: string;
 }
 
 interface ChapterOutline {
@@ -42,6 +55,8 @@ interface EditingChapter {
   summary: string;
 }
 
+type Phase = 'title' | 'proposals' | 'outline' | 'creating';
+
 export default function CreateSequelWithOutlineModal({
   isOpen,
   onClose,
@@ -52,11 +67,19 @@ export default function CreateSequelWithOutlineModal({
 }: CreateSequelWithOutlineModalProps) {
   const { t } = useTranslation();
 
+  // State
+  const [phase, setPhase] = useState<Phase>('title');
   const [title, setTitle] = useState('');
   const [numChapters, setNumChapters] = useState(10);
   const [loading, setLoading] = useState(false);
+
+  // Phase 1: Proposals
+  const [proposals, setProposals] = useState<PlotProposal[]>([]);
+  const [selectedProposal, setSelectedProposal] = useState<PlotProposal | null>(null);
+  const [context, setContext] = useState<any>(null);
+
+  // Phase 2: Outline
   const [outline, setOutline] = useState<Outline | null>(null);
-  const [creating, setCreating] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
   const [editingChapter, setEditingChapter] = useState<EditingChapter | null>(null);
 
@@ -69,19 +92,63 @@ export default function CreateSequelWithOutlineModal({
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      setPhase('title');
       setTitle('');
       setNumChapters(10);
-      setOutline(null);
       setLoading(false);
-      setCreating(false);
+      setProposals([]);
+      setSelectedProposal(null);
+      setOutline(null);
       setExpandedChapters(new Set());
       setEditingChapter(null);
+      setContext(null);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  // ==================== Phase 1: Generate Proposals ====================
+  const handleGenerateProposals = async () => {
+    setLoading(true);
+    setProposals([]);
+    setSelectedProposal(null);
+
+    try {
+      const response = await apiService.generateSequelProposals(
+        project.id,
+        title.trim() || undefined,
+        language
+      );
+
+      if (response.success && response.proposals.length > 0) {
+        setProposals(response.proposals);
+        setContext(response.context);
+        setPhase('proposals');
+      } else {
+        onError(isItalian ? 'Nessuna proposta generata' : 'No proposals generated');
+      }
+    } catch (err: any) {
+      onError(err.message || (isItalian ? 'Errore nella generazione delle proposte' : 'Failed to generate proposals'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== Phase 2: Generate Outline ====================
+  const handleSelectProposal = (proposal: PlotProposal) => {
+    setSelectedProposal(proposal);
+  };
+
+  const handleConfirmProposal = () => {
+    if (selectedProposal) {
+      setPhase('outline');
+      handleGenerateOutline();
+    }
+  };
+
   const handleGenerateOutline = async () => {
+    if (!selectedProposal) return;
+
     setLoading(true);
     setOutline(null);
 
@@ -90,27 +157,29 @@ export default function CreateSequelWithOutlineModal({
         project.id,
         title.trim() || undefined,
         language,
-        numChapters
+        numChapters,
+        selectedProposal.synopsis
       );
 
       if (response.success && response.outline) {
         setOutline(response.outline);
-        // Expand first 3 chapters by default
         setExpandedChapters(new Set([0, 1, 2]));
       } else {
-        onError(response.message || t('projectPage.sequelPreview.outlineError', 'Failed to generate outline'));
+        onError(response.message || (isItalian ? 'Errore nella generazione dell\'outline' : 'Failed to generate outline'));
       }
     } catch (err: any) {
-      onError(err.message || t('projectPage.sequelPreview.outlineError', 'Failed to generate outline'));
+      onError(err.message || (isItalian ? 'Errore nella generazione dell\'outline' : 'Failed to generate outline'));
     } finally {
       setLoading(false);
     }
   };
 
+  // ==================== Phase 3: Confirm & Create ====================
   const handleConfirmSequel = async () => {
     if (!outline) return;
 
-    setCreating(true);
+    setPhase('creating');
+    setLoading(true);
 
     try {
       const response = await apiService.confirmSequel(
@@ -120,16 +189,18 @@ export default function CreateSequelWithOutlineModal({
         language
       );
 
-      toast.success(t('projectPage.sequelPreview.success', 'Sequel created successfully!'));
+      toast.success(isItalian ? 'Sequel creato con successo!' : 'Sequel created successfully!');
       onSuccess(response.project.id);
       onClose();
     } catch (err: any) {
-      onError(err.message || t('projectPage.sequelPreview.createError', 'Failed to create sequel'));
+      onError(err.message || (isItalian ? 'Errore nella creazione del sequel' : 'Failed to create sequel'));
+      setPhase('outline');
     } finally {
-      setCreating(false);
+      setLoading(false);
     }
   };
 
+  // ==================== Chapter Editing ====================
   const toggleChapter = (index: number) => {
     const newExpanded = new Set(expandedChapters);
     if (newExpanded.has(index)) {
@@ -143,50 +214,76 @@ export default function CreateSequelWithOutlineModal({
   const startEditingChapter = (index: number) => {
     const chapter = outline?.chapters[index];
     if (chapter) {
-      setEditingChapter({
-        index,
-        title: chapter.title,
-        summary: chapter.summary
-      });
+      setEditingChapter({ index, title: chapter.title, summary: chapter.summary });
     }
   };
 
   const saveChapterEdit = () => {
     if (!outline || editingChapter === null) return;
-
     const updatedChapters = [...outline.chapters];
     updatedChapters[editingChapter.index] = {
       ...updatedChapters[editingChapter.index],
       title: editingChapter.title,
       summary: editingChapter.summary
     };
-
-    setOutline({
-      ...outline,
-      chapters: updatedChapters
-    });
+    setOutline({ ...outline, chapters: updatedChapters });
     setEditingChapter(null);
   };
 
-  const cancelChapterEdit = () => {
-    setEditingChapter(null);
+  // ==================== Phase indicator ====================
+  const PhaseIndicator = () => {
+    const phases = [
+      { key: 'title', label: isItalian ? 'Titolo' : 'Title', num: 1 },
+      { key: 'proposals', label: isItalian ? 'Trama' : 'Plot', num: 2 },
+      { key: 'outline', label: isItalian ? 'Capitoli' : 'Chapters', num: 3 },
+    ];
+    const currentIdx = phases.findIndex(p => p.key === phase) || 0;
+
+    return (
+      <div className="flex items-center justify-center gap-2 mb-6">
+        {phases.map((p, idx) => (
+          <div key={p.key} className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              idx < currentIdx
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : idx === currentIdx
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+            }`}>
+              {idx < currentIdx ? (
+                <CheckCircle className="w-3.5 h-3.5" />
+              ) : (
+                <span className="w-4 h-4 flex items-center justify-center rounded-full bg-current/10 text-[10px] font-bold">
+                  {p.num}
+                </span>
+              )}
+              {p.label}
+            </div>
+            {idx < phases.length - 1 && (
+              <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
               <BookOpen className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {t('projectPage.sequelPreview.title', 'Create Sequel')}
+              {isItalian ? 'Crea Seguito' : 'Create Sequel'}
             </h2>
           </div>
           <button
             onClick={onClose}
+            disabled={loading && phase === 'creating'}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -194,21 +291,20 @@ export default function CreateSequelWithOutlineModal({
         </div>
 
         <div className="p-6">
-          {/* Description */}
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {t(
-              'projectPage.sequelPreview.description',
-              'Create a sequel to "{{title}}" with AI-generated chapter outline. Review and edit before confirming.',
-              { title: project.title }
-            )}
-          </p>
+          <PhaseIndicator />
 
-          {/* Phase 1: Initial Configuration */}
-          {!outline && (
+          {/* ==================== PHASE 1: Title Input ==================== */}
+          {phase === 'title' && (
             <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-400">
+                {isItalian
+                  ? `Crea un seguito per "${project.title}". Scegli un titolo e l'AI genererà 3 possibili trame tra cui scegliere.`
+                  : `Create a sequel to "${project.title}". Choose a title and AI will generate 3 possible plots to choose from.`}
+              </p>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('projectPage.sequel.sequelTitle', 'Sequel Title')}
+                  {isItalian ? 'Titolo del seguito' : 'Sequel Title'}
                 </label>
                 <input
                   type="text"
@@ -220,203 +316,119 @@ export default function CreateSequelWithOutlineModal({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('projectPage.sequel.numChapters', 'Number of chapters:')}
-                </label>
-                <input
-                  type="number"
-                  min={5}
-                  max={20}
-                  value={numChapters}
-                  onChange={(e) => setNumChapters(Math.max(5, Math.min(20, parseInt(e.target.value) || 10)))}
-                  disabled={loading}
-                  className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50"
-                />
-              </div>
-
               <button
-                onClick={handleGenerateOutline}
+                onClick={handleGenerateProposals}
                 disabled={loading}
                 className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {t('projectPage.sequelPreview.generating', 'Generating outline...')}
+                    {isItalian ? 'Generazione proposte di trama...' : 'Generating plot proposals...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    {t('projectPage.sequelPreview.generateOutline', 'Generate Chapter Outline')}
+                    {isItalian ? 'Genera 3 Proposte di Trama' : 'Generate 3 Plot Proposals'}
                   </>
                 )}
               </button>
             </div>
           )}
 
-          {/* Phase 2: Outline Preview */}
-          {outline && (
+          {/* ==================== PHASE 2: Plot Proposals ==================== */}
+          {phase === 'proposals' && (
             <div className="space-y-4">
-              {/* Title display */}
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300">
-                  {outline.sequelTitle}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {outline.chapters.length} {t('projectPage.sequelPreview.chaptersPlanned', 'chapters planned')}
-                </p>
-              </div>
-
-              {/* Themes (if any) */}
-              {outline.themes && outline.themes.length > 0 && (
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('projectPage.sequelPreview.themes', 'Themes to explore')}
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {outline.themes.map((theme, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full"
-                      >
-                        {theme}
-                      </span>
-                    ))}
-                  </div>
+              {/* Context info */}
+              {context && (
+                <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5" />
+                    {context.aliveCharactersCount} {isItalian ? 'personaggi vivi' : 'alive characters'}
+                    {context.deadCharactersCount > 0 && (
+                      <span className="text-red-500"> + {context.deadCharactersCount} {isItalian ? 'morti' : 'dead'}</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {context.locationsCount} {isItalian ? 'luoghi' : 'locations'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5" />
+                    {context.plotEventsCount} {isItalian ? 'eventi' : 'events'}
+                  </span>
                 </div>
               )}
 
-              {/* Chapters list */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('projectPage.sequelPreview.chapterOutline', 'Chapter Outline')}
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  {t('projectPage.sequelPreview.editHint', 'Click on a chapter to expand and edit')}
-                </p>
+              <p className="text-gray-600 dark:text-gray-400">
+                {isItalian
+                  ? 'Scegli la direzione che preferisci per il tuo seguito:'
+                  : 'Choose the direction you prefer for your sequel:'}
+              </p>
 
-                {outline.chapters.map((chapter, index) => {
-                  const isExpanded = expandedChapters.has(index);
-                  const isEditing = editingChapter?.index === index;
-
+              {/* Proposal cards */}
+              <div className="space-y-3">
+                {proposals.map((proposal) => {
+                  const isSelected = selectedProposal?.id === proposal.id;
                   return (
                     <div
-                      key={index}
-                      className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden"
+                      key={proposal.id}
+                      onClick={() => handleSelectProposal(proposal)}
+                      className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-sm'
+                      }`}
                     >
-                      {/* Chapter header */}
-                      <div
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => !isEditing && toggleChapter(index)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-6">
-                            #{index + 1}
-                          </span>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editingChapter.title}
-                                onChange={(e) => setEditingChapter({ ...editingChapter, title: e.target.value })}
-                                onClick={(e) => e.stopPropagation()}
-                                className="px-2 py-1 border border-purple-400 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                              />
-                            ) : (
-                              chapter.title
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!isEditing && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditingChapter(index);
-                              }}
-                              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                              title={t('common.edit', 'Edit')}
-                            >
-                              <Pencil className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            </button>
-                          )}
-                          {isExpanded ? (
-                            <ChevronUp className="w-5 h-5 text-gray-500" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5 text-gray-500" />
-                          )}
-                        </div>
+                      {/* Proposal header */}
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className={`font-semibold text-lg ${
+                          isSelected ? 'text-purple-700 dark:text-purple-300' : 'text-gray-900 dark:text-gray-100'
+                        }`}>
+                          {proposal.title}
+                        </h3>
+                        {isSelected && (
+                          <CheckCircle className="w-6 h-6 text-purple-500 flex-shrink-0 ml-2" />
+                        )}
                       </div>
 
-                      {/* Chapter content (expanded) */}
-                      {isExpanded && (
-                        <div className="p-3 border-t border-gray-200 dark:border-gray-600">
-                          {isEditing ? (
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
-                                  {t('projectPage.sequelPreview.summary', 'Summary')}
-                                </label>
-                                <textarea
-                                  value={editingChapter.summary}
-                                  onChange={(e) => setEditingChapter({ ...editingChapter, summary: e.target.value })}
-                                  rows={4}
-                                  className="w-full px-3 py-2 border border-purple-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={cancelChapterEdit}
-                                  className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                >
-                                  {t('common.cancel', 'Cancel')}
-                                </button>
-                                <button
-                                  onClick={saveChapterEdit}
-                                  className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center gap-1"
-                                >
-                                  <Check className="w-4 h-4" />
-                                  {t('common.save', 'Save')}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                  {chapter.summary}
-                                </p>
-                              </div>
+                      {/* Tone badge */}
+                      {proposal.tone && (
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mb-2">
+                          {proposal.tone}
+                        </span>
+                      )}
 
-                              {chapter.returning_characters && chapter.returning_characters.length > 0 && (
-                                <div>
-                                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                    {t('projectPage.sequelPreview.returningCharacters', 'Returning characters')}:
-                                  </span>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {chapter.returning_characters.map((char, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded"
-                                      >
-                                        {char}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                      {/* Synopsis */}
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-3">
+                        {proposal.synopsis}
+                      </p>
 
-                              {chapter.connection_to_previous && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                  <span className="font-medium">
-                                    {t('projectPage.sequelPreview.connection', 'Connection to previous novel')}:
-                                  </span>{' '}
-                                  {chapter.connection_to_previous}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                      {/* Themes */}
+                      {proposal.themes.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {proposal.themes.map((theme, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full"
+                            >
+                              {theme}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Key characters */}
+                      {proposal.key_characters.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {proposal.key_characters.map((char, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full"
+                            >
+                              {char}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -424,59 +436,264 @@ export default function CreateSequelWithOutlineModal({
                 })}
               </div>
 
+              {/* Number of chapters */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {isItalian ? 'Numero di capitoli per il seguito:' : 'Number of chapters for the sequel:'}
+                </label>
+                <input
+                  type="number"
+                  min={3}
+                  max={30}
+                  value={numChapters}
+                  onChange={(e) => setNumChapters(Math.max(3, Math.min(30, parseInt(e.target.value) || 10)))}
+                  className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
+              </div>
+
               {/* Action buttons */}
-              <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-3 pt-2">
                 <button
-                  onClick={onClose}
-                  disabled={creating}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  onClick={() => setPhase('title')}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                 >
-                  {t('common.cancel', 'Cancel')}
+                  <ArrowLeft className="w-4 h-4" />
+                  {isItalian ? 'Indietro' : 'Back'}
                 </button>
 
                 <button
-                  onClick={handleGenerateOutline}
-                  disabled={loading || creating}
+                  onClick={handleGenerateProposals}
+                  disabled={loading}
                   className="px-4 py-2 border border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  {t('projectPage.sequelPreview.regenerate', 'Regenerate')}
+                  {isItalian ? 'Rigenera proposte' : 'Regenerate'}
                 </button>
 
                 <button
-                  onClick={handleConfirmSequel}
-                  disabled={creating}
+                  onClick={handleConfirmProposal}
+                  disabled={!selectedProposal || loading}
                   className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {creating ? (
+                  {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {t('projectPage.sequelPreview.creating', 'Creating sequel...')}
+                      {isItalian ? 'Generazione capitoli...' : 'Generating chapters...'}
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-5 h-5" />
-                      {t('projectPage.sequelPreview.confirmAndCreate', 'Accept & Create Sequel')}
+                      <ArrowRight className="w-5 h-5" />
+                      {isItalian ? 'Conferma e Genera Capitoli' : 'Confirm & Generate Chapters'}
                     </>
                   )}
                 </button>
               </div>
+            </div>
+          )}
 
-              {/* What will be copied */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mt-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  {t('projectPage.sequel.whatCopied', 'What will be copied:')}
-                </h4>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                  <li>• {t('projectPage.sequel.characters', 'All characters (marked as returning)')}</li>
-                  <li>• {t('projectPage.sequel.locations', 'All locations')}</li>
-                  <li>• {t('projectPage.sequel.synopsis', 'Original synopsis (as reference)')}</li>
-                  <li>• {t('projectPage.sequel.sources', 'All source materials')}</li>
-                  <li className="text-purple-600 dark:text-purple-400">
-                    • {t('projectPage.sequelPreview.chaptersWithSynopsis', '{{num}} chapters with titles and summaries', { num: outline.chapters.length })}
-                  </li>
-                </ul>
-              </div>
+          {/* ==================== PHASE 3: Chapter Outline ==================== */}
+          {phase === 'outline' && (
+            <div className="space-y-4">
+              {/* Loading state */}
+              {loading && !outline && (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {isItalian ? 'Generazione outline capitoli...' : 'Generating chapter outline...'}
+                  </p>
+                </div>
+              )}
+
+              {outline && (
+                <>
+                  {/* Selected plot summary */}
+                  {selectedProposal && (
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300">
+                        {outline.sequelTitle}
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        {isItalian ? 'Trama scelta' : 'Chosen plot'}: <span className="font-medium">{selectedProposal.title}</span>
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {outline.chapters.length} {isItalian ? 'capitoli pianificati' : 'chapters planned'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Themes */}
+                  {outline.themes && outline.themes.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {outline.themes.map((theme, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full"
+                        >
+                          {theme}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Chapters list */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {isItalian ? 'Clicca su un capitolo per espandere. Usa la matita per modificare.' : 'Click a chapter to expand. Use the pencil to edit.'}
+                    </p>
+
+                    {outline.chapters.map((chapter, index) => {
+                      const isExpanded = expandedChapters.has(index);
+                      const isEditing = editingChapter?.index === index;
+
+                      return (
+                        <div
+                          key={index}
+                          className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden"
+                        >
+                          {/* Chapter header */}
+                          <div
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={() => !isEditing && toggleChapter(index)}
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <span className="text-xs font-medium text-purple-500 w-6 flex-shrink-0">
+                                #{index + 1}
+                              </span>
+                              <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                {chapter.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {chapter.returning_characters && chapter.returning_characters.length > 0 && (
+                                <span className="text-xs text-gray-400 mr-1">
+                                  <Users className="w-3.5 h-3.5 inline" /> {chapter.returning_characters.length}
+                                </span>
+                              )}
+                              {!isEditing && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditingChapter(index); }}
+                                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                                </button>
+                              )}
+                              {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                            </div>
+                          </div>
+
+                          {/* Chapter content */}
+                          {isExpanded && (
+                            <div className="p-3 border-t border-gray-200 dark:border-gray-600">
+                              {isEditing ? (
+                                <div className="space-y-3">
+                                  <input
+                                    type="text"
+                                    value={editingChapter!.title}
+                                    onChange={(e) => setEditingChapter({ ...editingChapter!, title: e.target.value })}
+                                    className="w-full px-3 py-2 border border-purple-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
+                                  />
+                                  <textarea
+                                    value={editingChapter!.summary}
+                                    onChange={(e) => setEditingChapter({ ...editingChapter!, summary: e.target.value })}
+                                    rows={5}
+                                    className="w-full px-3 py-2 border border-purple-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button onClick={() => setEditingChapter(null)} className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                                      {isItalian ? 'Annulla' : 'Cancel'}
+                                    </button>
+                                    <button onClick={saveChapterEdit} className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1">
+                                      <Check className="w-3.5 h-3.5" />
+                                      {isItalian ? 'Salva' : 'Save'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                    {chapter.summary}
+                                  </p>
+                                  {chapter.returning_characters && chapter.returning_characters.length > 0 && (
+                                    <div>
+                                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {isItalian ? 'Personaggi' : 'Characters'}:
+                                      </span>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {chapter.returning_characters.map((char, idx) => (
+                                          <span key={idx} className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">
+                                            {char}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {chapter.new_elements && chapter.new_elements.length > 0 && (
+                                    <div>
+                                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {isItalian ? 'Nuovi elementi' : 'New elements'}:
+                                      </span>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {chapter.new_elements.map((el, idx) => (
+                                          <span key={idx} className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded">
+                                            {el}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => { setOutline(null); setPhase('proposals'); }}
+                      disabled={loading}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      {isItalian ? 'Cambia trama' : 'Change plot'}
+                    </button>
+
+                    <button
+                      onClick={handleGenerateOutline}
+                      disabled={loading}
+                      className="px-4 py-2 border border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-300 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                      {isItalian ? 'Rigenera' : 'Regenerate'}
+                    </button>
+
+                    <button
+                      onClick={handleConfirmSequel}
+                      disabled={loading}
+                      className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {isItalian ? 'Conferma e Crea Seguito' : 'Confirm & Create Sequel'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ==================== CREATING STATE ==================== */}
+          {phase === 'creating' && (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+              <p className="text-gray-600 dark:text-gray-400 text-lg">
+                {isItalian ? 'Creazione sequel in corso...' : 'Creating sequel...'}
+              </p>
+              <p className="text-gray-500 dark:text-gray-500 text-sm">
+                {isItalian ? 'Copia personaggi, luoghi, fonti e capitoli...' : 'Copying characters, locations, sources and chapters...'}
+              </p>
             </div>
           )}
         </div>

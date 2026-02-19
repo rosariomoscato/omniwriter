@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, X, Loader2, BookOpen, Plus, FolderOpen } from 'lucide-react';
@@ -18,6 +18,9 @@ interface Saga {
 
 export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModalProps) {
   const { t } = useTranslation();
+
+  // Helper function to use correct translation path
+  const tm = (key: string, options?: any) => t(`projectPage.analyzeNovelModal.${key}`, options);
   const navigate = useNavigate();
   const toast = useToastNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +49,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
       const response = await apiService.getSagas();
       // Only show Romanziere sagas since this is for novels
       const romanziereSagas = response.sagas.filter((s: Saga) => s.area === 'romanziere');
+      console.log('Loaded romanziere sagas:', romanziereSagas);
       setSagas(romanziereSagas);
     } catch (err) {
       console.error('Failed to load sagas:', err);
@@ -54,10 +58,12 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
     }
   };
 
-  // Handle modal open
-  const handleModalOpen = () => {
-    loadSagas();
-  };
+  // Load sagas when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadSagas();
+    }
+  }, [isOpen]);
 
   // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +73,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
       const validExtensions = ['.txt', '.docx', '.doc', '.pdf', '.rtf'];
       const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
       if (!validExtensions.includes(fileExtension)) {
-        setError(t('analyzeNovelModal.errorFileType'));
+        setError(tm('errorFileType'));
         return;
       }
       setNovelFile(file);
@@ -84,24 +90,24 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
   // Handle form submission
   const handleSubmit = async () => {
     if (!novelFile) {
-      setError(t('analyzeNovelModal.errorSelectFile'));
+      setError(tm('errorSelectFile'));
       return;
     }
 
     if (!projectTitle.trim()) {
-      setError(t('analyzeNovelModal.errorTitleRequired'));
+      setError(tm('errorTitleRequired'));
       return;
     }
 
     if (createNewSaga && !newSagaTitle.trim()) {
-      setError(t('analyzeNovelModal.errorSagaTitleRequired'));
+      setError(tm('errorSagaTitleRequired'));
       return;
     }
 
     try {
       setIsAnalyzing(true);
       setError(null);
-      setAnalysisProgress(t('analyzeNovelModal.progress.uploading'));
+      setAnalysisProgress(tm('progress.uploading'));
 
       // Call the standalone analyze-novel endpoint
       const response = await apiService.analyzeNovelStandalone({
@@ -114,7 +120,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
         setAnalysisProgress(progress);
       });
 
-      toast.success(t('analyzeNovelModal.successMessage', {
+      toast.success(tm('successMessage', {
         characters: response.extracted.characters,
         locations: response.extracted.locations,
         plotEvents: response.extracted.plotEvents
@@ -128,8 +134,8 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
       navigate(`/projects/${response.projectId}`);
     } catch (err: any) {
       console.error('Analysis error:', err);
-      setError(err.message || t('analyzeNovelModal.errorMessage'));
-      toast.error(err.message || t('analyzeNovelModal.errorMessage'));
+      setError(err.message || tm('errorMessage'));
+      toast.error(err.message || tm('errorMessage'));
     } finally {
       setIsAnalyzing(false);
       setAnalysisProgress('');
@@ -168,7 +174,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-purple-600" />
-            {t('analyzeNovelModal.title')}
+            {tm('title')}
           </h2>
           <button
             onClick={handleClose}
@@ -183,13 +189,13 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
         <div className="p-4 space-y-4">
           {/* Description */}
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {t('analyzeNovelModal.description')}
+            {tm('description')}
           </p>
 
           {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('analyzeNovelModal.selectFile')} *
+              {tm('selectFile')} *
             </label>
             <div
               onClick={() => !isAnalyzing && fileInputRef.current?.click()}
@@ -214,10 +220,10 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
                 <div className="flex flex-col items-center">
                   <Upload className="w-8 h-8 text-gray-400 mb-2" />
                   <span className="text-sm text-gray-600 dark:text-gray-300">
-                    {t('analyzeNovelModal.uploadText')}
+                    {tm('uploadText')}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {t('analyzeNovelModal.formatHint')}
+                    {tm('formatHint')}
                   </span>
                 </div>
               )}
@@ -227,14 +233,14 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
           {/* Project Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('analyzeNovelModal.projectTitle')} *
+              {tm('projectTitle')} *
             </label>
             <input
               type="text"
               value={projectTitle}
               onChange={(e) => setProjectTitle(e.target.value)}
               disabled={isAnalyzing}
-              placeholder={t('analyzeNovelModal.projectTitlePlaceholder')}
+              placeholder={tm('projectTitlePlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
             />
           </div>
@@ -242,7 +248,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
           {/* Language */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('analyzeNovelModal.language')}
+              {tm('language')}
             </label>
             <select
               value={language}
@@ -258,7 +264,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
           {/* Saga Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('analyzeNovelModal.sagaSelection')}
+              {tm('sagaSelection')}
             </label>
 
             {/* Create new saga option */}
@@ -276,7 +282,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
               />
               <label htmlFor="createNewSaga" className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
                 <Plus className="w-4 h-4" />
-                {t('analyzeNovelModal.createNewSaga')}
+                {tm('createNewSaga')}
               </label>
             </div>
 
@@ -286,7 +292,7 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
                 value={newSagaTitle}
                 onChange={(e) => setNewSagaTitle(e.target.value)}
                 disabled={isAnalyzing}
-                placeholder={t('analyzeNovelModal.newSagaTitlePlaceholder')}
+                placeholder={tm('newSagaTitlePlaceholder')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
               />
             ) : (
@@ -296,11 +302,11 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
                 disabled={isAnalyzing || loadingSagas}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
               >
-                <option value="">{t('analyzeNovelModal.noSaga')}</option>
+                <option value="">{tm('noSaga')}</option>
                 {loadingSagas ? (
-                  <option disabled>{t('analyzeNovelModal.loadingSagas')}</option>
+                  <option disabled>{tm('loadingSagas')}</option>
                 ) : sagas.length === 0 ? (
-                  <option disabled>{t('analyzeNovelModal.noSagasAvailable')}</option>
+                  <option disabled>{tm('noSagasAvailable')}</option>
                 ) : (
                   sagas.map((saga) => (
                     <option key={saga.id} value={saga.id}>
@@ -347,12 +353,12 @@ export default function AnalyzeNovelModal({ isOpen, onClose }: AnalyzeNovelModal
             {isAnalyzing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {t('analyzeNovelModal.analyzing')}
+                {tm('analyzing')}
               </>
             ) : (
               <>
                 <BookOpen className="w-4 h-4" />
-                {t('analyzeNovelModal.analyzeButton')}
+                {tm('analyzeButton')}
               </>
             )}
           </button>
