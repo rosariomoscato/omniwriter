@@ -595,7 +595,12 @@
       "noIssuesTitle": "No Plot Holes Detected!",
       "noIssuesDesc": "Your story appears to be consistent and well-structured.",
       "referencedChapters": "Referenced chapters:",
-      "suggestion": "Suggestion:"
+      "suggestion": "Suggestion:",
+      "analyzing": "Analyzing plot holes...",
+      "analyzingHint": "This operation may take a few minutes with AI.",
+      "completed": "Plot hole detection completed: {{count}} issues found",
+      "timeoutError": "The analysis took too long. Please try again or try with fewer chapters.",
+      "noChaptersError": "Please generate some chapters first before detecting plot holes"
     },
     "consistency": {
       "title": "Consistency Check Results",
@@ -608,7 +613,9 @@
       "typeCharacter": "character",
       "typeLocation": "location",
       "typeTimeline": "timeline",
-      "typeOther": "other"
+      "typeOther": "other",
+      "analyzing": "Checking consistency...",
+      "analyzingHint": "This operation may take a few minutes with AI."
     }
   },
   "common": {

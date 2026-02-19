@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen, Lightbulb } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -902,25 +902,43 @@ export default function ProjectDetail() {
     if (!project) return;
 
     if (chapters.length === 0) {
-      toast.error('Please generate some chapters first before detecting plot holes');
+      toast.error(t('projectPage.plotHoles.noChaptersError', 'Please generate some chapters first before detecting plot holes'));
       return;
     }
+
+    // Feature #282: Use AbortController for timeout handling
+    const controller = new AbortController();
+    const TIMEOUT_MS = 120000; // 2 minutes timeout for AI analysis
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, TIMEOUT_MS);
 
     try {
       setDetectingPlotHoles(true);
       setError('');
       setShowPlotHolesResults(false);
-      toast.info('Analyzing plot for potential inconsistencies...');
+      toast.info(t('projectPage.plotHoles.analyzing', 'Analyzing plot for potential inconsistencies...'));
 
-      const response = await apiService.detectPlotHoles(id!, i18n.language);
+      const response = await apiService.detectPlotHoles(id!, i18n.language, controller.signal);
 
-      toast.success(`Plot hole detection completed: ${response.total_issues} issues found`);
+      clearTimeout(timeoutId);
+
+      toast.success(t('projectPage.plotHoles.completed', { count: response.total_issues, defaultValue: `Plot hole detection completed: ${response.total_issues} issues found` }));
 
       setPlotHolesResults(response.plot_holes);
       setShowPlotHolesResults(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to detect plot holes');
-      toast.error(err.message || 'Failed to detect plot holes');
+      clearTimeout(timeoutId);
+
+      // Feature #282: Handle timeout gracefully
+      if (err.name === 'AbortError') {
+        const timeoutMsg = t('projectPage.plotHoles.timeoutError', 'The analysis took too long. Please try again or try with fewer chapters.');
+        setError(timeoutMsg);
+        toast.error(timeoutMsg);
+      } else {
+        setError(err.message || 'Failed to detect plot holes');
+        toast.error(err.message || 'Failed to detect plot holes');
+      }
     } finally {
       setDetectingPlotHoles(false);
     }
@@ -2288,7 +2306,7 @@ export default function ProjectDetail() {
               </button>
             )}
 
-            {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182) */}
+            {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182, #282) */}
             {project?.area === 'romanziere' && (
               <button
                 onClick={handleDetectPlotHoles}
@@ -2296,7 +2314,11 @@ export default function ProjectDetail() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Detect potential plot inconsistencies and holes"
               >
-                <RefreshCw className="w-4 h-4" />
+                {detectingPlotHoles ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
                 {detectingPlotHoles ? t('common.loading') : t('projectPage.chapters.detectPlotHoles')}
               </button>
             )}
@@ -2323,6 +2345,36 @@ export default function ProjectDetail() {
             </button>
           </div>
         </div>
+
+        {/* Feature #282: Loading indicator for plot hole detection */}
+        {detectingPlotHoles && (
+          <div className="px-4 py-4 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-200 dark:border-rose-800 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-rose-600 dark:text-rose-400 animate-spin" />
+            <div>
+              <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                {t('projectPage.plotHoles.analyzing', 'Analisi buchi di trama in corso...')}
+              </p>
+              <p className="text-xs text-rose-500 dark:text-rose-400 mt-0.5">
+                {t('projectPage.plotHoles.analyzingHint', 'Questa operazione potrebbe richiedere qualche minuto con l\'AI.')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Feature #282: Loading indicator for consistency check */}
+        {checkingConsistency && (
+          <div className="px-4 py-4 bg-teal-50 dark:bg-teal-900/20 border-b border-teal-200 dark:border-teal-800 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-teal-600 dark:text-teal-400 animate-spin" />
+            <div>
+              <p className="text-sm font-medium text-teal-700 dark:text-teal-300">
+                {t('projectPage.consistency.analyzing', 'Verifica coerenza in corso...')}
+              </p>
+              <p className="text-xs text-teal-500 dark:text-teal-400 mt-0.5">
+                {t('projectPage.consistency.analyzingHint', 'Questa operazione potrebbe richiedere qualche minuto con l\'AI.')}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Batch Export Bar */}
         {showBatchExport && (
@@ -3506,7 +3558,7 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* Feature #182: Plot Hole Detection Results */}
+      {/* Feature #182, #282: Plot Hole Detection Results - with defensive rendering */}
       {showPlotHolesResults && plotHolesResults && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full my-8 flex flex-col max-h-[90vh]">
@@ -3519,7 +3571,7 @@ export default function ProjectDetail() {
                     {t('projectPage.plotHoles.title')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('projectPage.plotHoles.issue', { count: plotHolesResults.length })}
+                    {t('projectPage.plotHoles.issue', { count: Array.isArray(plotHolesResults) ? plotHolesResults.length : 0 })}
                   </p>
                 </div>
               </div>
@@ -3534,9 +3586,9 @@ export default function ProjectDetail() {
               </button>
             </div>
 
-            {/* Content */}
+            {/* Content - Feature #282: Defensive rendering with Array.isArray check */}
             <div className="flex-1 overflow-auto p-6">
-              {plotHolesResults.length === 0 ? (
+              {(!Array.isArray(plotHolesResults) || plotHolesResults.length === 0) ? (
                 <div className="text-center py-12">
                   <RefreshCw className="w-16 h-16 mx-auto mb-4 text-green-500" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">

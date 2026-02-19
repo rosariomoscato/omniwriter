@@ -1617,8 +1617,8 @@ class ApiService {
     });
   }
 
-  // Plot hole detection (Feature #182)
-  async detectPlotHoles(projectId: string, language: string = 'it'): Promise<{
+  // Plot hole detection (Feature #182, #282 - added signal support for timeout handling)
+  async detectPlotHoles(projectId: string, language: string = 'it', signal?: AbortSignal): Promise<{
     message: string;
     plot_holes: Array<{
       type: string;
@@ -1642,7 +1642,7 @@ class ApiService {
     }>(`/projects/${projectId}/detect-plot-holes`, {
       method: 'POST',
       body: JSON.stringify({ language }),
-    });
+    }, 0, signal);
   }
 
   // Consistency checker across chapters (Feature #183)
