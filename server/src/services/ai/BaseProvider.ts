@@ -22,6 +22,10 @@ export abstract class BaseProvider {
   protected providerType: ProviderType;
   protected retryConfig: RetryConfig;
 
+  // Feature #273: Default timeout settings
+  protected static readonly DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;     // 5 minutes total timeout
+  protected static readonly DEFAULT_IDLE_TIMEOUT_MS = 60 * 1000;   // 60 seconds idle timeout
+
   constructor(config: ProviderConfig, providerType: ProviderType, retryConfig?: RetryConfig) {
     this.config = config;
     this.providerType = providerType;
@@ -79,6 +83,80 @@ export abstract class BaseProvider {
    */
   protected sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Feature #273: Create AbortController with timeout
+   * @param timeoutMs Total timeout in milliseconds (0 = no timeout)
+   * @returns AbortController and cleanup function
+   */
+  protected createTimeoutController(timeoutMs: number = 0): { controller: AbortController; cleanup: () => void } {
+    const controller = new AbortController();
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    if (timeoutMs > 0) {
+      timeoutId = setTimeout(() => {
+        controller.abort(new Error(`Request timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+    }
+
+    return {
+      controller,
+      cleanup: () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      }
+    };
+  }
+
+  /**
+   * Feature #273: Create watchdog timer for detecting stalled streams
+   * @param idleTimeoutMs Max time without data before aborting (default: 60 seconds)
+   * @param onTimeout Callback when timeout fires
+   * @returns Object with reset and cleanup functions
+   */
+  protected createStreamWatchdog(
+    idleTimeoutMs: number = BaseProvider.DEFAULT_IDLE_TIMEOUT_MS,
+    onTimeout: () => void
+  ): { reset: () => void; cleanup: () => void } {
+    let watchdogId: NodeJS.Timeout | null = null;
+
+    const startWatchdog = () => {
+      if (watchdogId) {
+        clearTimeout(watchdogId);
+      }
+      watchdogId = setTimeout(() => {
+        console.warn(`[${this.providerType}] Stream watchdog triggered - no data for ${idleTimeoutMs}ms`);
+        onTimeout();
+      }, idleTimeoutMs);
+    };
+
+    startWatchdog(); // Start initially
+
+    return {
+      reset: () => {
+        startWatchdog(); // Reset the timer
+      },
+      cleanup: () => {
+        if (watchdogId) {
+          clearTimeout(watchdogId);
+          watchdogId = null;
+        }
+      }
+    };
+  }
+
+  /**
+   * Feature #273: Check if an error is a timeout/abort error
+   */
+  protected isAbortError(error: unknown): boolean {
+    if (error instanceof Error) {
+      return error.name === 'AbortError' ||
+             error.message.includes('abort') ||
+             error.message.includes('timeout');
+    }
+    return false;
   }
 
   /**

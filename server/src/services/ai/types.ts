@@ -24,6 +24,9 @@ export interface CompletionOptions {
   presencePenalty?: number;
   stopSequences?: string[];
   stream?: boolean;
+  // Feature #273: Timeout configuration for streaming
+  timeoutMs?: number;          // Overall request timeout (default: 5 minutes)
+  idleTimeoutMs?: number;      // Max time without receiving data (default: 60 seconds)
 }
 
 // Model information

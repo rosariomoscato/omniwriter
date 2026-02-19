@@ -182,12 +182,24 @@ export class GeminiProvider extends BaseProvider {
     const model = options?.model || this.getDefaultModel();
     const body = this.buildRequestBody(messages, options);
 
+    // Feature #273: Get timeout settings from options or use defaults
+    const timeoutMs = options?.timeoutMs || BaseProvider.DEFAULT_TIMEOUT_MS;
+    const idleTimeoutMs = options?.idleTimeoutMs || BaseProvider.DEFAULT_IDLE_TIMEOUT_MS;
+
     let retries = 0;
     const maxRetries = this.retryConfig.maxRetries;
     let delay = this.retryConfig.initialDelayMs;
 
     while (true) {
+      // Feature #273: Create AbortController with timeout for each request attempt
+      const { controller: timeoutController, cleanup: timeoutCleanup } = this.createTimeoutController(timeoutMs);
+
+      // Feature #273: Track if stream is stalled
+      let streamStalled = false;
+
       try {
+        console.log(`[Gemini] Starting stream with timeout=${timeoutMs}ms, idleTimeout=${idleTimeoutMs}ms`);
+
         const response = await fetch(
           `${this.getBaseUrl()}/models/${model}:streamGenerateContent?key=${this.config.apiKey}&alt=sse`,
           {
@@ -196,11 +208,13 @@ export class GeminiProvider extends BaseProvider {
               ...this.getHeaders(),
               'Accept': 'text/event-stream'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: timeoutController.signal  // Feature #273: Add abort signal
           }
         );
 
         if (!response.ok) {
+          timeoutCleanup();
           const errorData = await response.json().catch(() => ({})) as { error?: { code?: number; message?: string; status?: string } };
           const error = this.mapError({ status: response.status, message: errorData.error?.message, error: errorData.error });
 
@@ -217,6 +231,7 @@ export class GeminiProvider extends BaseProvider {
         }
 
         if (!response.body) {
+          timeoutCleanup();
           yield { type: 'error', error: 'No response body' };
           return;
         }
@@ -229,57 +244,101 @@ export class GeminiProvider extends BaseProvider {
         let totalContent = '';
         let usage: TokenUsage | undefined;
 
-        while (true) {
-          const { done, value } = await reader.read();
+        // Feature #273: Create watchdog to detect stalled streams
+        const watchdog = this.createStreamWatchdog(idleTimeoutMs, () => {
+          streamStalled = true;
+          console.warn(`[Gemini] Stream stalled - no data for ${idleTimeoutMs}ms, aborting`);
+          reader.cancel().catch(() => {});  // Cancel the reader
+          timeoutController.abort(new Error(`Stream stalled - no data for ${idleTimeoutMs}ms`));
+        });
 
-          if (done) {
-            break;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-
-            if (!trimmed || !trimmed.startsWith('data: ')) {
-              continue;
+        try {
+          while (true) {
+            // Feature #273: Check if stream was stalled by watchdog
+            if (streamStalled) {
+              yield { type: 'error', error: `Stream stalled - no data received for ${idleTimeoutMs / 1000} seconds` };
+              return;
             }
 
-            const data = trimmed.slice(6);
+            const { done, value } = await reader.read();
 
-            try {
-              const parsed = JSON.parse(data) as GeminiResponse;
+            if (done) {
+              break;
+            }
 
-              if (parsed.candidates && parsed.candidates.length > 0) {
-                const text = parsed.candidates[0].content.parts
-                  .filter(p => p.text)
-                  .map(p => p.text)
-                  .join('');
+            // Feature #273: Reset watchdog on each successful read
+            watchdog.reset();
 
-                if (text) {
-                  totalContent += text;
-                  yield { type: 'delta', content: text };
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+
+              if (!trimmed || !trimmed.startsWith('data: ')) {
+                continue;
+              }
+
+              const data = trimmed.slice(6);
+
+              try {
+                const parsed = JSON.parse(data) as GeminiResponse;
+
+                if (parsed.candidates && parsed.candidates.length > 0) {
+                  const text = parsed.candidates[0].content.parts
+                    .filter(p => p.text)
+                    .map(p => p.text)
+                    .join('');
+
+                  if (text) {
+                    totalContent += text;
+                    yield { type: 'delta', content: text };
+                  }
                 }
-              }
 
-              if (parsed.usageMetadata) {
-                usage = {
-                  promptTokens: parsed.usageMetadata.promptTokenCount,
-                  completionTokens: parsed.usageMetadata.candidatesTokenCount,
-                  totalTokens: parsed.usageMetadata.totalTokenCount
-                };
+                if (parsed.usageMetadata) {
+                  usage = {
+                    promptTokens: parsed.usageMetadata.promptTokenCount,
+                    completionTokens: parsed.usageMetadata.candidatesTokenCount,
+                    totalTokens: parsed.usageMetadata.totalTokenCount
+                  };
+                }
+              } catch {
+                // Skip malformed JSON chunks
               }
-            } catch {
-              // Skip malformed JSON chunks
             }
           }
+        } finally {
+          watchdog.cleanup();
+          timeoutCleanup();
         }
 
         yield { type: 'done', content: totalContent, usage };
         return;
       } catch (error) {
+        timeoutCleanup();
+
+        // Feature #273: Check for abort/timeout errors
+        if (this.isAbortError(error) || streamStalled) {
+          const timeoutMsg = streamStalled
+            ? `Stream stalled - no data for ${idleTimeoutMs / 1000} seconds`
+            : `Request timeout after ${timeoutMs / 1000} seconds`;
+
+          console.warn(`[Gemini] ${timeoutMsg}`);
+
+          if (retries < maxRetries) {
+            yield { type: 'error', error: `Timeout, retrying (${retries + 1}/${maxRetries}): ${timeoutMsg}` };
+            await this.sleep(delay);
+            delay = Math.min(delay * this.retryConfig.backoffMultiplier, this.retryConfig.maxDelayMs);
+            retries++;
+            continue;
+          }
+
+          yield { type: 'error', error: timeoutMsg };
+          return;
+        }
+
         const aiError = this.mapError(error);
 
         if (aiError.retryable && retries < maxRetries) {

@@ -874,7 +874,10 @@
       "moderationError": "Il filtro di moderazione AI ha bloccato la generazione",
       "moderationSuggestion": "Prova a semplificare le descrizioni di personaggi, luoghi o eventi.",
       "retryingSimplified": "Riprovo con prompt semplificato...",
-      "simplifiedMode": "Capitolo generato (modalità semplificata)"
+      "simplifiedMode": "Capitolo generato (modalità semplificata)",
+      "streamStalled": "La generazione è stata interrotta - nessun dato ricevuto per troppo tempo",
+      "streamTimeout": "La richiesta è andata in timeout - riprova",
+      "connectionLost": "Connessione persa con il server AI"
     }
   },
   "newProject": {

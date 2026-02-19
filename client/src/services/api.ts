@@ -1109,11 +1109,13 @@ class ApiService {
   }
 
   // Generate chapter with SSE streaming (Feature #232)
+  // Feature #273: Added client-side timeout/watchdog detection
   generateChapterStream(
     chapterId: string,
     options?: {
       human_model_id?: string;
       prompt_context?: string;
+      idleTimeoutMs?: number;  // Feature #273: Client-side idle timeout (default 90s)
     },
     callbacks?: {
       onPhase?: (phase: string, message: string) => void;
@@ -1127,8 +1129,35 @@ class ApiService {
 
     const controller = new AbortController();
 
+    // Feature #273: Client-side watchdog for detecting stalled streams
+    // Slightly longer than server's 60s to let server timeout first
+    const IDLE_TIMEOUT_MS = options?.idleTimeoutMs || 90 * 1000; // 90 seconds default
+    let idleWatchdogId: ReturnType<typeof setTimeout> | null = null;
+    let lastDataTime = Date.now();
+
+    const resetWatchdog = () => {
+      lastDataTime = Date.now();
+      if (idleWatchdogId) {
+        clearTimeout(idleWatchdogId);
+      }
+      idleWatchdogId = setTimeout(() => {
+        const elapsed = Math.round((Date.now() - lastDataTime) / 1000);
+        console.warn(`[Generate Stream] Client watchdog triggered - no data for ${elapsed}s`);
+        controller.abort(new Error(`Stream stalled - no data received for ${elapsed} seconds`));
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const cleanupWatchdog = () => {
+      if (idleWatchdogId) {
+        clearTimeout(idleWatchdogId);
+        idleWatchdogId = null;
+      }
+    };
+
     const promise = (async () => {
       try {
+        resetWatchdog(); // Start watchdog
+
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -1144,12 +1173,14 @@ class ApiService {
         });
 
         if (!response.ok) {
+          cleanupWatchdog();
           const error = await response.json().catch(() => ({ message: 'Network error' }));
           throw new Error(error.message || `HTTP ${response.status}`);
         }
 
         const reader = response.body?.getReader();
         if (!reader) {
+          cleanupWatchdog();
           throw new Error('No response body');
         }
 
@@ -1158,7 +1189,13 @@ class ApiService {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            cleanupWatchdog();
+            break;
+          }
+
+          // Feature #273: Reset watchdog on each successful read
+          resetWatchdog();
 
           buffer += decoder.decode(value, { stream: true });
 
@@ -1181,9 +1218,11 @@ class ApiService {
                   callbacks?.onDelta?.(data.content);
                   break;
                 case 'done':
+                  cleanupWatchdog();
                   callbacks?.onDone?.(data);
                   break;
                 case 'error':
+                  cleanupWatchdog();
                   callbacks?.onError?.(data.message);
                   break;
               }
@@ -1193,9 +1232,15 @@ class ApiService {
           }
         }
       } catch (error: any) {
+        cleanupWatchdog();
         if (error.name === 'AbortError') {
-          // User cancelled - this is expected
-          console.log('[Generate] Generation cancelled by user');
+          // Feature #273: Check if this was a timeout abort
+          if (error.message && error.message.includes('stalled')) {
+            callbacks?.onError?.(error.message);
+          } else {
+            // User cancelled - this is expected
+            console.log('[Generate] Generation cancelled by user');
+          }
         } else {
           callbacks?.onError?.(error.message || 'Unknown error');
         }
@@ -1203,17 +1248,22 @@ class ApiService {
     })();
 
     return {
-      abort: () => controller.abort(),
+      abort: () => {
+        cleanupWatchdog();
+        controller.abort();
+      },
       promise,
     };
   }
 
   // Regenerate chapter with SSE streaming (Feature #271)
+  // Feature #273: Added client-side timeout/watchdog detection
   regenerateChapterStream(
     chapterId: string,
     options?: {
       human_model_id?: string;
       prompt_context?: string;
+      idleTimeoutMs?: number;  // Feature #273: Client-side idle timeout (default 90s)
     },
     callbacks?: {
       onPhase?: (phase: string, message: string) => void;
@@ -1235,8 +1285,34 @@ class ApiService {
 
     const controller = new AbortController();
 
+    // Feature #273: Client-side watchdog for detecting stalled streams
+    const IDLE_TIMEOUT_MS = options?.idleTimeoutMs || 90 * 1000; // 90 seconds default
+    let idleWatchdogId: ReturnType<typeof setTimeout> | null = null;
+    let lastDataTime = Date.now();
+
+    const resetWatchdog = () => {
+      lastDataTime = Date.now();
+      if (idleWatchdogId) {
+        clearTimeout(idleWatchdogId);
+      }
+      idleWatchdogId = setTimeout(() => {
+        const elapsed = Math.round((Date.now() - lastDataTime) / 1000);
+        console.warn(`[Regenerate Stream] Client watchdog triggered - no data for ${elapsed}s`);
+        controller.abort(new Error(`Stream stalled - no data received for ${elapsed} seconds`));
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const cleanupWatchdog = () => {
+      if (idleWatchdogId) {
+        clearTimeout(idleWatchdogId);
+        idleWatchdogId = null;
+      }
+    };
+
     const promise = (async () => {
       try {
+        resetWatchdog(); // Start watchdog
+
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -1252,12 +1328,14 @@ class ApiService {
         });
 
         if (!response.ok) {
+          cleanupWatchdog();
           const error = await response.json().catch(() => ({ message: 'Network error' }));
           throw new Error(error.message || `HTTP ${response.status}`);
         }
 
         const reader = response.body?.getReader();
         if (!reader) {
+          cleanupWatchdog();
           throw new Error('No response body');
         }
 
@@ -1266,7 +1344,13 @@ class ApiService {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            cleanupWatchdog();
+            break;
+          }
+
+          // Feature #273: Reset watchdog on each successful read
+          resetWatchdog();
 
           buffer += decoder.decode(value, { stream: true });
 
@@ -1289,9 +1373,11 @@ class ApiService {
                   callbacks?.onDelta?.(data.content);
                   break;
                 case 'done':
+                  cleanupWatchdog();
                   callbacks?.onDone?.(data);
                   break;
                 case 'error':
+                  cleanupWatchdog();
                   callbacks?.onError?.(data.message);
                   break;
               }
@@ -1301,9 +1387,15 @@ class ApiService {
           }
         }
       } catch (error: any) {
+        cleanupWatchdog();
         if (error.name === 'AbortError') {
-          // User cancelled - this is expected
-          console.log('[Regenerate] Regeneration cancelled by user');
+          // Feature #273: Check if this was a timeout abort
+          if (error.message && error.message.includes('stalled')) {
+            callbacks?.onError?.(error.message);
+          } else {
+            // User cancelled - this is expected
+            console.log('[Regenerate] Regeneration cancelled by user');
+          }
         } else {
           callbacks?.onError?.(error.message || 'Unknown error');
         }
@@ -1311,7 +1403,10 @@ class ApiService {
     })();
 
     return {
-      abort: () => controller.abort(),
+      abort: () => {
+        cleanupWatchdog();
+        controller.abort();
+      },
       promise,
     };
   }

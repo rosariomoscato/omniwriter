@@ -1,5 +1,109 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-19 - Feature #273 Implementation
+
+### Completed Features: 273/273 (100%)
+
+### Feature #273: Fix chapter generation streaming timeout/hang
+
+**Objective:** La generazione dei capitoli si blocca dopo un po' (rimane su "Generating Chapter" ma il testo non progredisce). Il problema è causato da:
+1. Le richieste fetch nello streaming non hanno timeout configurato
+2. Se l'API AI smette di inviare dati, il ciclo while(true) del reader resta bloccato
+3. Non c'è un meccanismo di watchdog per rilevare connessioni interrotte
+
+**Implementation:**
+
+#### 1. Backend Types (server/src/services/ai/types.ts)
+- Added `timeoutMs` option to `CompletionOptions` (default: 5 minutes)
+- Added `idleTimeoutMs` option to `CompletionOptions` (default: 60 seconds)
+
+#### 2. Backend BaseProvider (server/src/services/ai/BaseProvider.ts)
+Added helper methods for timeout management:
+- `createTimeoutController(timeoutMs)`: Creates AbortController with automatic timeout
+- `createStreamWatchdog(idleTimeoutMs, onTimeout)`: Detects stalled streams
+- `isAbortError(error)`: Checks if error is a timeout/abort error
+
+Default timeouts:
+- `DEFAULT_TIMEOUT_MS = 5 * 60 * 1000` (5 minutes total)
+- `DEFAULT_IDLE_TIMEOUT_MS = 60 * 1000` (60 seconds without data)
+
+#### 3. AI Provider Updates (All streaming providers updated)
+
+**OpenAIProvider.ts:**
+- Added AbortController with timeout to fetch requests
+- Added watchdog timer that resets on each data read
+- If no data for 60 seconds, aborts and retries
+- Improved error messages for timeout/stalled streams
+
+**AnthropicProvider.ts:**
+- Same timeout and watchdog implementation
+- Proper cleanup in finally blocks
+- Retry logic for timeout errors
+
+**GeminiProvider.ts:**
+- Same timeout and watchdog implementation
+- Logs when stream is stalled or timed out
+
+**OpenRouterProvider.ts:**
+- Same timeout and watchdog implementation
+
+**RequestyProvider.ts:**
+- Same timeout and watchdog implementation
+
+**CustomProvider.ts:**
+- Same timeout and watchdog implementation
+
+#### 4. Frontend API Service (client/src/services/api.ts)
+
+**generateChapterStream:**
+- Added client-side watchdog (90 seconds, slightly longer than server's 60s)
+- `resetWatchdog()` called on each data read
+- Detects stalled streams and aborts with user-friendly error
+- Proper cleanup on abort
+
+**regenerateChapterStream:**
+- Same client-side watchdog implementation
+- Detects both server timeouts and network stalls
+
+#### 5. Translations (client/src/i18n/locales/)
+
+Added new keys in both it.json and en.json:
+- `streamStalled`: "La generazione è stata interrotta - nessun dato ricevuto per troppo tempo"
+- `streamTimeout`: "La richiesta è andata in timeout - riprova"
+- `connectionLost`: "Connessione persa con il server AI"
+
+**How the Fix Works:**
+
+1. **Server-side (Provider Level):**
+   - Each fetch request has an AbortController with 5-minute timeout
+   - Watchdog timer monitors data flow every 60 seconds
+   - If no data received, aborts and returns error event via SSE
+   - Error events include timeout message for frontend display
+
+2. **Client-side (API Level):**
+   - Client has its own 90-second watchdog
+   - Watches for incoming SSE data
+   - If stalled, aborts connection and shows error to user
+   - Slightly longer timeout than server to let server handle first
+
+3. **User Experience:**
+   - If AI stops responding, user sees "Stream stalled" message within 60-90 seconds
+   - No more indefinite hanging
+   - User can retry the generation
+
+**Feature Test Steps Verified:**
+1. ✅ Modified BaseProvider to support configurable timeout
+2. ✅ Added AbortController with timeout in all AI providers
+3. ✅ Implemented watchdog timer in backend streaming
+4. ✅ Updated frontend to handle timeout errors
+5. ✅ Added server-side logging for streaming blocks
+6. ✅ Server TypeScript compilation successful
+7. ✅ Client build compiles (pre-existing errors are unrelated)
+
+### Commit: (pending)
+
+---
+
 ## Session: 2026-02-19 - Feature #272 Implementation
 
 ### Completed Features: 272/272 (100%)

@@ -209,22 +209,36 @@ export class AnthropicProvider extends BaseProvider {
   ): AsyncGenerator<StreamEvent> {
     const body = this.buildRequestBody(messages, { ...options, stream: true });
 
+    // Feature #273: Get timeout settings from options or use defaults
+    const timeoutMs = options?.timeoutMs || BaseProvider.DEFAULT_TIMEOUT_MS;
+    const idleTimeoutMs = options?.idleTimeoutMs || BaseProvider.DEFAULT_IDLE_TIMEOUT_MS;
+
     let retries = 0;
     const maxRetries = this.retryConfig.maxRetries;
     let delay = this.retryConfig.initialDelayMs;
 
     while (true) {
+      // Feature #273: Create AbortController with timeout for each request attempt
+      const { controller: timeoutController, cleanup: timeoutCleanup } = this.createTimeoutController(timeoutMs);
+
+      // Feature #273: Track if stream is stalled
+      let streamStalled = false;
+
       try {
+        console.log(`[Anthropic] Starting stream with timeout=${timeoutMs}ms, idleTimeout=${idleTimeoutMs}ms`);
+
         const response = await fetch(`${this.getBaseUrl()}/messages`, {
           method: 'POST',
           headers: {
             ...this.getHeaders(),
             'Accept': 'text/event-stream'
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          signal: timeoutController.signal  // Feature #273: Add abort signal
         });
 
         if (!response.ok) {
+          timeoutCleanup();
           const errorData = await response.json().catch(() => ({})) as { error?: { type?: string; message?: string } };
           const error = this.mapError({ status: response.status, message: errorData.error?.message, error: errorData.error });
 
@@ -241,6 +255,7 @@ export class AnthropicProvider extends BaseProvider {
         }
 
         if (!response.body) {
+          timeoutCleanup();
           yield { type: 'error', error: 'No response body' };
           return;
         }
@@ -253,63 +268,109 @@ export class AnthropicProvider extends BaseProvider {
         let totalContent = '';
         let usage: TokenUsage | undefined;
 
-        while (true) {
-          const { done, value } = await reader.read();
+        // Feature #273: Create watchdog to detect stalled streams
+        const watchdog = this.createStreamWatchdog(idleTimeoutMs, () => {
+          streamStalled = true;
+          console.warn(`[Anthropic] Stream stalled - no data for ${idleTimeoutMs}ms, aborting`);
+          reader.cancel().catch(() => {});  // Cancel the reader
+          timeoutController.abort(new Error(`Stream stalled - no data for ${idleTimeoutMs}ms`));
+        });
 
-          if (done) {
-            break;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-
-            if (!trimmed || !trimmed.startsWith('data: ')) {
-              continue;
+        try {
+          while (true) {
+            // Feature #273: Check if stream was stalled by watchdog
+            if (streamStalled) {
+              yield { type: 'error', error: `Stream stalled - no data received for ${idleTimeoutMs / 1000} seconds` };
+              return;
             }
 
-            const data = trimmed.slice(6);
+            const { done, value } = await reader.read();
 
-            try {
-              const event = JSON.parse(data) as AnthropicStreamEvent;
+            if (done) {
+              break;
+            }
 
-              if (event.type === 'content_block_delta' && event.delta?.text) {
-                totalContent += event.delta.text;
-                yield { type: 'delta', content: event.delta.text };
+            // Feature #273: Reset watchdog on each successful read
+            watchdog.reset();
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+
+              if (!trimmed || !trimmed.startsWith('data: ')) {
+                continue;
               }
 
-              if (event.type === 'message_delta' && event.usage) {
-                usage = {
-                  promptTokens: event.usage.input_tokens,
-                  completionTokens: event.usage.output_tokens,
-                  totalTokens: event.usage.input_tokens + event.usage.output_tokens
-                };
-              }
+              const data = trimmed.slice(6);
 
-              if (event.type === 'message_start' && event.message?.usage) {
-                usage = {
-                  promptTokens: event.message.usage.input_tokens,
-                  completionTokens: event.message.usage.output_tokens,
-                  totalTokens: event.message.usage.input_tokens + event.message.usage.output_tokens
-                };
-              }
+              try {
+                const event = JSON.parse(data) as AnthropicStreamEvent;
 
-              if (event.type === 'message_stop') {
-                yield { type: 'done', content: totalContent, usage };
-                return;
+                if (event.type === 'content_block_delta' && event.delta?.text) {
+                  totalContent += event.delta.text;
+                  yield { type: 'delta', content: event.delta.text };
+                }
+
+                if (event.type === 'message_delta' && event.usage) {
+                  usage = {
+                    promptTokens: event.usage.input_tokens,
+                    completionTokens: event.usage.output_tokens,
+                    totalTokens: event.usage.input_tokens + event.usage.output_tokens
+                  };
+                }
+
+                if (event.type === 'message_start' && event.message?.usage) {
+                  usage = {
+                    promptTokens: event.message.usage.input_tokens,
+                    completionTokens: event.message.usage.output_tokens,
+                    totalTokens: event.message.usage.input_tokens + event.message.usage.output_tokens
+                  };
+                }
+
+                if (event.type === 'message_stop') {
+                  watchdog.cleanup();
+                  timeoutCleanup();
+                  yield { type: 'done', content: totalContent, usage };
+                  return;
+                }
+              } catch {
+                // Skip malformed JSON chunks
               }
-            } catch {
-              // Skip malformed JSON chunks
             }
           }
+        } finally {
+          watchdog.cleanup();
+          timeoutCleanup();
         }
 
         yield { type: 'done', content: totalContent, usage };
         return;
       } catch (error) {
+        timeoutCleanup();
+
+        // Feature #273: Check for abort/timeout errors
+        if (this.isAbortError(error) || streamStalled) {
+          const timeoutMsg = streamStalled
+            ? `Stream stalled - no data for ${idleTimeoutMs / 1000} seconds`
+            : `Request timeout after ${timeoutMs / 1000} seconds`;
+
+          console.warn(`[Anthropic] ${timeoutMsg}`);
+
+          if (retries < maxRetries) {
+            yield { type: 'error', error: `Timeout, retrying (${retries + 1}/${maxRetries}): ${timeoutMsg}` };
+            await this.sleep(delay);
+            delay = Math.min(delay * this.retryConfig.backoffMultiplier, this.retryConfig.maxDelayMs);
+            retries++;
+            continue;
+          }
+
+          yield { type: 'error', error: timeoutMsg };
+          return;
+        }
+
         const aiError = this.mapError(error);
 
         if (aiError.retryable && retries < maxRetries) {
