@@ -841,6 +841,10 @@
     "stay": "Stay",
     "leaveWithoutSaving": "Leave without saving",
     "readabilityAnalysis": "Readability Analysis",
+    "addSummary": "Add synopsis",
+    "editSummary": "Edit synopsis",
+    "hideSummary": "Hide synopsis",
+    "summaryPlaceholder": "Briefly describe what should happen in this chapter...",
     "revising": "Revising...",
     "enhancing": "Enhancing...",
     "versionHistory": {

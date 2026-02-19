@@ -172,7 +172,7 @@ export function sanitizeSourceExcerpt(fileName: string, content: string): string
  * Returns a sanitized version with content limits and sensitive word filtering
  */
 export function sanitizePromptContent(data: {
-  characters?: Array<{ name: string; description: string; traits?: string }>;
+  characters?: Array<{ name: string; description: string; traits?: string; status_at_end?: string; status_notes?: string }>;
   locations?: Array<{ name: string; description: string }>;
   plotEvents?: Array<{ title: string; description: string }>;
   sources?: Array<{ file_name: string; content_text: string }>;
@@ -182,6 +182,7 @@ export function sanitizePromptContent(data: {
   projectContext?: string;
 }): {
   characters: string;
+  deadCharacters: string;
   locations: string;
   plotEvents: string;
   sources: string;
@@ -191,14 +192,40 @@ export function sanitizePromptContent(data: {
   const warnings: string[] = [];
   const sections: Record<string, string> = {};
 
-  // Process characters
+  // Process characters - separate alive and dead
   let charactersSection = '';
+  let deadCharactersSection = '';
   if (data.characters && data.characters.length > 0) {
-    const sanitizedCharacters = data.characters.slice(0, 10).map(c =>
-      sanitizeCharacterDescription(c.name, c.description, c.traits)
-    );
-    charactersSection = sanitizedCharacters.join('\n');
+    // Separate characters by status
+    const aliveCharacters = data.characters.filter(c => c.status_at_end !== 'dead');
+    const deadCharacters = data.characters.filter(c => c.status_at_end === 'dead');
+
+    // Sanitize alive characters
+    const sanitizedAlive = aliveCharacters.slice(0, 10).map(c => {
+      let charDesc = sanitizeCharacterDescription(c.name, c.description, c.traits);
+      // Add status notes for special states (injured, missing)
+      if (c.status_at_end && c.status_at_end !== 'alive' && c.status_at_end !== 'unknown') {
+        charDesc += ` [Status: ${c.status_at_end}]`;
+      }
+      if (c.status_notes) {
+        charDesc += ` [Note: ${truncateText(c.status_notes, 100)}]`;
+      }
+      return charDesc;
+    });
+    charactersSection = sanitizedAlive.join('\n');
     sections.characters = charactersSection;
+
+    // Sanitize dead characters separately
+    if (deadCharacters.length > 0) {
+      const sanitizedDead = deadCharacters.map(c => {
+        let charDesc = `- ${c.name}`;
+        if (c.status_notes) {
+          charDesc += ` (${truncateText(c.status_notes, 100)})`;
+        }
+        return charDesc;
+      });
+      deadCharactersSection = sanitizedDead.join('\n');
+    }
 
     if (data.characters.length > 10) {
       warnings.push('characters_limited');
@@ -272,6 +299,7 @@ export function sanitizePromptContent(data: {
 
   return {
     characters: charactersSection,
+    deadCharacters: deadCharactersSection,
     locations: locationsSection,
     plotEvents: plotEventsSection,
     sources: sourcesSection,

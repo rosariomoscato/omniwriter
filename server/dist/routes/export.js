@@ -877,8 +877,8 @@ router.post('/projects/:id/google-drive/load', auth_1.authenticateToken, roles_1
             const chapterId = (0, uuid_1.v4)();
             const wordCount = chapter.content.split(/\s+/).filter(w => w.length > 0).length;
             totalWordCount += wordCount;
-            db.prepare(`INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'imported', ?, datetime('now'), datetime('now'))`).run(chapterId, projectId, chapter.title, chapter.content, i);
+            db.prepare(`INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, '', ?, 'imported', ?, datetime('now'), datetime('now'))`).run(chapterId, projectId, chapter.title, chapter.content, i, wordCount);
         }
         // Update project word count
         db.prepare('UPDATE projects SET word_count = ?, updated_at = datetime("now") WHERE id = ?')

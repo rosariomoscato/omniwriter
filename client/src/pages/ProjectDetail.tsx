@@ -2495,6 +2495,11 @@ export default function ProjectDetail() {
                     <h3 className="text-gray-900 dark:text-gray-100 font-medium">
                       {chapter.title}
                     </h3>
+                    {chapter.summary && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2 italic">
+                        {chapter.summary}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`px-2 py-0.5 text-xs rounded ${
                         chapter.status === 'draft' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :

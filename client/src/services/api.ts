@@ -160,6 +160,7 @@ export interface Chapter {
   project_id: string;
   title: string;
   content: string;
+  summary: string;
   order_index: number;
   status: 'draft' | 'generated' | 'revised' | 'final';
   word_count: number;
@@ -923,14 +924,14 @@ class ApiService {
     return this.request<{ chapter: Chapter }>(`/chapters/${id}`);
   }
 
-  async createChapter(projectId: string, data: { title: string }): Promise<{ chapter: Chapter }> {
+  async createChapter(projectId: string, data: { title: string; summary?: string }): Promise<{ chapter: Chapter }> {
     return this.request<{ chapter: Chapter }>(`/projects/${projectId}/chapters`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateChapter(id: string, data: { title?: string; content?: string; status?: string; expected_updated_at?: string }): Promise<{ chapter: Chapter }> {
+  async updateChapter(id: string, data: { title?: string; content?: string; summary?: string; status?: string; expected_updated_at?: string }): Promise<{ chapter: Chapter }> {
     return this.request<{ chapter: Chapter }>(`/chapters/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

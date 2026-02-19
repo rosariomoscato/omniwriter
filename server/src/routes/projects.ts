@@ -653,13 +653,14 @@ router.post('/:id/duplicate', authenticateToken, (req: AuthRequest, res: Respons
     for (const chapter of chapters) {
       const newChapterId = uuidv4();
       db.prepare(
-        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
       ).run(
         newChapterId,
         newProjectId,
         chapter.title,
         chapter.content || '',
+        chapter.summary || '',
         chapter.order_index,
         chapter.status,
         chapter.word_count || 0
@@ -1213,12 +1214,13 @@ Continue the story from where it ended.`;
 
             try {
               db.prepare(
-                `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+                `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
               ).run(
                 chapterId,
                 newProjectId,
                 chapter.title || `Chapter ${i + 1}`,
+                chapter.summary || '',
                 i
               );
               chaptersGenerated++;
@@ -1240,8 +1242,8 @@ Continue the story from where it ended.`;
 
             try {
               db.prepare(
-                `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+                `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+                 VALUES (?, ?, ?, '', ?, 'draft', 0, datetime('now'), datetime('now'))`
               ).run(chapterId, newProjectId, title, i);
               chaptersGenerated++;
             } catch (insertErr) {
@@ -1708,9 +1710,9 @@ Continue the story from where it ended.`;
         const chapterId = uuidv4();
 
         db.prepare(
-          `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
-        ).run(chapterId, newProjectId, chapter.title || `Chapter ${i + 1}`, i);
+          `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+        ).run(chapterId, newProjectId, chapter.title || `Chapter ${i + 1}`, chapter.summary || '', i);
 
         chaptersToGenerate.push({
           id: chapterId,
@@ -1732,8 +1734,8 @@ Continue the story from where it ended.`;
         const title = fallbackTitles[i];
 
         db.prepare(
-          `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+          `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, '', ?, 'draft', 0, datetime('now'), datetime('now'))`
         ).run(chapterId, newProjectId, title, i);
 
         chaptersToGenerate.push({
@@ -1785,7 +1787,7 @@ Continue the story from where it ended.`;
             : null;
 
           // Build chapter generation prompt
-          const chapterSystemPrompt = isItalian
+          let chapterSystemPrompt = isItalian
             ? `Sei uno scrittore professionista che aiuta a creare capitoli di romanzi.
 
 PROGETTO: "${sanitizeSensitiveWords(sequelTitle)}"
@@ -1793,8 +1795,7 @@ GENERE: ${originalProject.genre || 'Narrativa'}
 TONO: ${originalProject.tone || 'Neutro'}
 PUBBLICO: ${originalProject.target_audience || 'Adulti'}
 
-CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.orderIndex + 1})
-RIASSUNTO PREVISTO: ${chapter.summary || 'Non specificato'}`
+CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.orderIndex + 1})${chapter.summary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapter.summary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi. Il contenuto generato deve espandere tutti gli elementi narrativi descritti nella sinossi mantenendo coerenza con la trama prevista.` : ''}`
             : `You are a professional writer helping create novel chapters.
 
 PROJECT: "${sanitizeSensitiveWords(sequelTitle)}"
@@ -1802,18 +1803,47 @@ GENRE: ${originalProject.genre || 'Fiction'}
 TONE: ${originalProject.tone || 'Neutral'}
 AUDIENCE: ${originalProject.target_audience || 'Adults'}
 
-CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.orderIndex + 1})
-PLANNED SUMMARY: ${chapter.summary || 'Not specified'}`;
+CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.orderIndex + 1})${chapter.summary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapter.summary}\n\nIMPORTANT: You must faithfully follow this synopsis. The generated content must expand all narrative elements described in the synopsis while maintaining coherence with the planned plot.` : ''}`;
 
           // Add character context
-          const sequelCharacters = db.prepare('SELECT name, description, traits FROM characters WHERE project_id = ?').all(newProjectId) as any[];
+          // Feature #275: Include character status (alive/dead) in sequel generation
+          const sequelCharacters = db.prepare('SELECT name, description, traits, status_at_end, status_notes FROM characters WHERE project_id = ?').all(newProjectId) as any[];
           if (sequelCharacters.length > 0) {
-            const charList = sequelCharacters.map(c =>
-              `- ${c.name}: ${c.description || 'No description'} ${c.traits ? `(${c.traits})` : ''}`
-            ).join('\n');
-            chapterSystemPrompt += isItalian
-              ? `\n\nPERSONAGGI DISPONIBILI:\n${charList}`
-              : `\n\nAVAILABLE CHARACTERS:\n${charList}`;
+            // Separate alive and dead characters
+            const aliveChars = sequelCharacters.filter(c => c.status_at_end !== 'dead');
+            const deadChars = sequelCharacters.filter(c => c.status_at_end === 'dead');
+
+            // Add alive characters
+            if (aliveChars.length > 0) {
+              const charList = aliveChars.map(c => {
+                let charText = `- ${c.name}: ${c.description || 'No description'} ${c.traits ? `(${c.traits})` : ''}`;
+                // Add status notes for special states
+                if (c.status_at_end && c.status_at_end !== 'alive' && c.status_at_end !== 'unknown') {
+                  charText += ` [Status: ${c.status_at_end}]`;
+                }
+                if (c.status_notes) {
+                  charText += ` [Note: ${c.status_notes}]`;
+                }
+                return charText;
+              }).join('\n');
+              chapterSystemPrompt += isItalian
+                ? `\n\nPERSONAGGI DISPONIBILI:\n${charList}`
+                : `\n\nAVAILABLE CHARACTERS:\n${charList}`;
+            }
+
+            // Add dead characters warning
+            if (deadChars.length > 0) {
+              const deadList = deadChars.map(c => {
+                let deadText = `- ${c.name}`;
+                if (c.status_notes) {
+                  deadText += ` (${c.status_notes})`;
+                }
+                return deadText;
+              }).join('\n');
+              chapterSystemPrompt += isItalian
+                ? `\n\nPERSONAGGI MORTI (NON USARE - SONO MORTI):\n${deadList}\n\nIMPORTANTE: Questi personaggi sono morti e NON devono apparire nel sequel.`
+                : `\n\nDEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${deadList}\n\nIMPORTANT: These characters are dead and MUST NOT appear in this sequel.`;
+            }
           }
 
           // Add location context
@@ -1828,22 +1858,38 @@ PLANNED SUMMARY: ${chapter.summary || 'Not specified'}`;
           }
 
           const chapterUserPrompt = isItalian
-            ? `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+            ? (chapter.summary
+              ? `Basandoti sulla seguente sinossi, scrivi il capitolo completo "${sanitizeSensitiveWords(chapter.title)}" che espande tutti gli eventi narrativi descritti.
+
+SINOSSI DA ESPANDERE:
+${chapter.summary}
 
 ${previousChapterContent ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'Questo è il primo capitolo del seguito.'}
 ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
 
-${chapter.summary ? `RIASSUNTO DA SEGUIRE: ${chapter.summary}` : ''}
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi e continuando la storia dal romanzo precedente.`
+              : `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
-Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano che continui la storia dal romanzo precedente.`
-            : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+${previousChapterContent ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'Questo è il primo capitolo del seguito.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
+
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano che continui la storia dal romanzo precedente.`)
+            : (chapter.summary
+              ? `Based on the following synopsis, write the complete chapter "${sanitizeSensitiveWords(chapter.title)}" expanding all the narrative events described.
+
+SYNOPSIS TO EXPAND:
+${chapter.summary}
 
 ${previousChapterContent ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'This is the first chapter of the sequel.'}
 ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
 
-${chapter.summary ? `SUMMARY TO FOLLOW: ${chapter.summary}` : ''}
+Write an engaging chapter of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis and continuing the story from the previous novel.`
+              : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
-Write an engaging chapter of approximately 2000-3000 words in English that continues the story from the previous novel.`;
+${previousChapterContent ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapterContent.title)}"` : 'This is the first chapter of the sequel.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
+
+Write an engaging chapter of approximately 2000-3000 words in English that continues the story from the previous novel.`);
 
           // Generate chapter content
           let chapterContent = '';
@@ -2397,8 +2443,8 @@ router.post('/import', authenticateToken, upload.single('file'), async (req: Aut
       totalWordCount += wordCount;
 
       db.prepare(
-        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'imported', ?, datetime('now'), datetime('now'))`
+        `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, '', ?, 'imported', ?, datetime('now'), datetime('now'))`
       ).run(
         chapterId,
         projectId,
@@ -4090,13 +4136,14 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
         const chapterContent = `# ${title}\n\n**${contentTmpl.outlineSummary}:**\n${summary}\n\n**${contentTmpl.notes}:**\n${contentTmpl.notesContent(tone)}\n\n${contentTmpl.targetWordCount(avgChapterWords)}`;
 
         db.prepare(
-          `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+          `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
         ).run(
           chapterId,
           projectId,
           title,
           chapterContent,
+          summary || '',
           i // order_index: chapter position in the outline
         );
 
@@ -4413,12 +4460,13 @@ Continue the story from where it ended.`;
 
         try {
           db.prepare(
-            `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-             VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+            `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
           ).run(
             chapterId,
             sequelProjectId,
             chapter.title || `Chapter ${i + 1}`,
+            chapter.summary || '',
             orderIndex
           );
 
@@ -4448,9 +4496,9 @@ Continue the story from where it ended.`;
 
         try {
           db.prepare(
-            `INSERT INTO chapters (id, project_id, title, order_index, status, word_count, created_at, updated_at)
-             VALUES (?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
-          ).run(chapterId, sequelProjectId, title, i);
+            `INSERT INTO chapters (id, project_id, title, summary, order_index, status, word_count, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+          ).run(chapterId, sequelProjectId, title, summary, i);
 
           createdChapters.push({ id: chapterId, title, summary });
         } catch (insertErr) {
@@ -5952,17 +6000,18 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
       const chapterData = outline.chapters[i];
       const chapterId = uuidv4();
 
-      // Store the summary in content field (will be used as basis for generation)
+      // Store the summary in both the summary field and optionally in content for non-generated chapters
       const chapterContent = generateContent ? '' : (chapterData.summary || '');
 
       db.prepare(
-        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'draft', ?, datetime('now'), datetime('now'))`
+        `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, datetime('now'), datetime('now'))`
       ).run(
         chapterId,
         newProjectId,
         chapterData.title,
         chapterContent,
+        chapterData.summary || '',
         i,
         chapterContent.length
       );

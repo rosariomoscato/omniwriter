@@ -21,6 +21,8 @@ export default function ChapterEditor() {
   const [project, setProject] = useState<Project | null>(null);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -394,6 +396,7 @@ export default function ChapterEditor() {
 
       setContent(chapterContent);
       setTitle(chapterTitle);
+      setSummary(response.chapter.summary || '');
 
       // Initialize history with loaded content
       historyRef.current = [chapterContent];
@@ -426,7 +429,8 @@ export default function ChapterEditor() {
 
       await apiService.updateChapter(chapterId, {
         title: title.trim(),
-        content
+        content,
+        summary
       });
 
       // Update local state
@@ -435,6 +439,7 @@ export default function ChapterEditor() {
           ...chapter,
           title: title.trim(),
           content,
+          summary,
           word_count: wordCount,
           updated_at: new Date().toISOString()
         });
@@ -1258,6 +1263,30 @@ export default function ChapterEditor() {
             placeholder="Chapter title..."
             aria-label="Chapter title"
           />
+
+          {/* Chapter Summary (Feature #276) */}
+          <div className="mt-2">
+            <button
+              onClick={() => setShowSummaryEditor(!showSummaryEditor)}
+              className="flex items-center gap-1 px-3 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            >
+              <span>{summary ? '📝' : '➕'}</span>
+              <span>{showSummaryEditor ? t('chapterEditor.hideSummary', 'Nascondi sinossi') : (summary ? t('chapterEditor.editSummary', 'Modifica sinossi') : t('chapterEditor.addSummary', 'Aggiungi sinossi'))}</span>
+              {summary && !showSummaryEditor && (
+                <span className="ml-2 text-gray-400 dark:text-gray-500 italic truncate max-w-xs">{summary.slice(0, 80)}{summary.length > 80 ? '...' : ''}</span>
+              )}
+            </button>
+            {showSummaryEditor && (
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={3}
+                className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                placeholder={t('chapterEditor.summaryPlaceholder', 'Descrivi brevemente cosa deve accadere in questo capitolo...')}
+                aria-label="Chapter summary"
+              />
+            )}
+          </div>
 
           {/* Full-screen mode hint */}
           {isFullScreen && (

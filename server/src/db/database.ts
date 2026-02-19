@@ -115,6 +115,7 @@ function runMigrations(db: Database.Database): void {
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       content TEXT DEFAULT '',
+      summary TEXT DEFAULT '',
       order_index INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'generated', 'revised', 'final')),
       word_count INTEGER DEFAULT 0,
@@ -379,6 +380,15 @@ function runMigrations(db: Database.Database): void {
     if (!characterColumnNames.includes('status_notes')) {
       console.log('[Database] Adding status_notes column to characters...');
       db.exec('ALTER TABLE characters ADD COLUMN status_notes TEXT DEFAULT \'\'');
+    }
+
+    // Add summary column to chapters table for outline synopses (Feature #276)
+    const chaptersInfo = db.prepare('PRAGMA table_info(chapters)').all() as { name: string }[];
+    const chapterColumnNames = chaptersInfo.map(col => col.name);
+
+    if (!chapterColumnNames.includes('summary')) {
+      console.log('[Database] Adding summary column to chapters...');
+      db.exec('ALTER TABLE chapters ADD COLUMN summary TEXT DEFAULT \'\'');
     }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);

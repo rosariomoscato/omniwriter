@@ -28,7 +28,7 @@ router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
     }
 
     const chapters = db.prepare(
-      'SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at FROM chapters WHERE project_id = ? ORDER BY order_index ASC'
+      'SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at FROM chapters WHERE project_id = ? ORDER BY order_index ASC'
     ).all(projectId);
 
     res.json({ chapters });
@@ -42,7 +42,7 @@ router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
 router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
   try {
     const { id: projectId } = req.params;
-    const { title } = req.body;
+    const { title, summary } = req.body;
     const userId = (req as any).user.id;
     const db = getDatabase();
 
@@ -66,8 +66,8 @@ router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -75,6 +75,7 @@ router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
       projectId,
       title.trim(),
       '',
+      (summary || '').trim(),
       nextOrderIndex,
       'draft',
       0,
@@ -84,7 +85,7 @@ router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
 
     // Fetch created chapter
     const chapter = db.prepare(
-      'SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at FROM chapters WHERE id = ?'
+      'SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at FROM chapters WHERE id = ?'
     ).get(chapterId);
 
     console.log(`[Chapters] Created chapter "${title}" for project ${projectId}`);
@@ -103,7 +104,7 @@ router.get('/chapters/:id', authenticateToken, (req, res) => {
     const db = getDatabase();
 
     const chapter = db.prepare(`
-      SELECT c.id, c.project_id, c.title, c.content, c.order_index, c.status, c.word_count, c.created_at, c.updated_at
+      SELECT c.id, c.project_id, c.title, c.content, c.summary, c.order_index, c.status, c.word_count, c.created_at, c.updated_at
       FROM chapters c
       JOIN projects p ON c.project_id = p.id
       WHERE c.id = ? AND p.user_id = ?
@@ -124,7 +125,7 @@ router.get('/chapters/:id', authenticateToken, (req, res) => {
 router.put('/chapters/:id', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content, status, expected_updated_at } = req.body;
+    const { title, content, summary, status, expected_updated_at } = req.body;
     const userId = (req as any).user.id;
     const db = getDatabase();
 
@@ -144,7 +145,7 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
     if (expected_updated_at && existingChapter.updated_at !== expected_updated_at) {
       // Return 409 Conflict with current chapter data
       const currentChapter = db.prepare(`
-        SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+        SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at
         FROM chapters WHERE id = ?
       `).get(id);
 
@@ -177,6 +178,10 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
       const wordCount = content.trim() ? content.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
       updates.push('word_count = ?');
       values.push(wordCount);
+    }
+    if (summary !== undefined) {
+      updates.push('summary = ?');
+      values.push(summary);
     }
     if (status !== undefined) {
       updates.push('status = ?');
@@ -220,7 +225,7 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     // Fetch updated chapter
     const chapter = db.prepare(`
-      SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+      SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at
       FROM chapters WHERE id = ?
     `).get(id);
 
@@ -456,7 +461,7 @@ router.post('/chapters/:id/restore/:versionId', authenticateToken, (req, res) =>
 
     // Fetch updated chapter
     const chapter = db.prepare(`
-      SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+      SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at
       FROM chapters WHERE id = ?
     `).get(id);
 
@@ -652,7 +657,7 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
 
     // Verify chapter exists and belongs to user's project
     const chapter = db.prepare(`
-      SELECT c.id, c.title, c.content, c.project_id, c.order_index, c.status,
+      SELECT c.id, c.title, c.content, c.summary, c.project_id, c.order_index, c.status,
              p.area, p.settings_json, p.title as project_title, p.genre, p.tone, p.target_audience,
              u.preferred_language
       FROM chapters c
@@ -663,6 +668,7 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
       id: string;
       title: string;
       content: string;
+      summary: string;
       project_id: string;
       order_index: number;
       status: string;
@@ -713,13 +719,13 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
       LIMIT 5
     `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[];
 
-    // Fetch characters for context
+    // Fetch characters for context (including status information)
     const characters = db.prepare(`
-      SELECT name, description, traits
+      SELECT name, description, traits, status_at_end, status_notes
       FROM characters
       WHERE project_id = ?
       ORDER BY created_at ASC
-    `).all(chapter.project_id) as { name: string; description: string; traits: string }[];
+    `).all(chapter.project_id) as { name: string; description: string; traits: string; status_at_end: string; status_notes: string }[];
 
     // Fetch locations for context
     const locations = db.prepare(`
@@ -772,8 +778,9 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
     const isItalian = language === 'it';
 
     // Feature #233: Sanitize content to avoid moderation triggers
+    // Feature #275: Include character status (alive/dead) information
     const sanitizedContent = sanitizePromptContent({
-      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits })),
+      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits, status_at_end: c.status_at_end, status_notes: c.status_notes })),
       locations: locations.map(l => ({ name: l.name, description: l.description })),
       plotEvents: plotEvents.map(e => ({ title: e.title, description: e.description })),
       sources: projectSources.map(s => ({ file_name: s.file_name, content_text: s.content_text })),
@@ -798,7 +805,7 @@ GENERE: ${chapter.genre || 'Narrativa'}
 TONO: ${chapter.tone || 'Neutro'}
 PUBBLICO: ${chapter.target_audience || 'Adulti'}
 
-CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})`;
+CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})${chapter.summary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapter.summary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi. Il contenuto generato deve espandere tutti gli elementi narrativi descritti nella sinossi mantenendo coerenza con la trama prevista.` : ''}`;
     } else {
       systemPrompt = `You are a professional writer helping create novel chapters.
 
@@ -807,7 +814,7 @@ GENRE: ${chapter.genre || 'Fiction'}
 TONE: ${chapter.tone || 'Neutral'}
 AUDIENCE: ${chapter.target_audience || 'Adults'}
 
-CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})`;
+CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})${chapter.summary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapter.summary}\n\nIMPORTANT: You must faithfully follow this synopsis. The generated content must expand all narrative elements described in the synopsis while maintaining coherence with the planned plot.` : ''}`;
     }
 
     // Add Human Model style if provided
@@ -845,6 +852,15 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       }
     }
 
+    // Feature #275: Add dead characters warning
+    if (sanitizedContent.deadCharacters) {
+      if (isItalian) {
+        systemPrompt += `\n\nPERSONAGGI MORTI (NON USARE - SONO MORTI):\n${sanitizedContent.deadCharacters}\n\nIMPORTANTE: Questi personaggi sono morti e NON devono apparire nel capitolo.`;
+      } else {
+        systemPrompt += `\n\nDEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${sanitizedContent.deadCharacters}\n\nIMPORTANT: These characters are dead and MUST NOT appear in this chapter.`;
+      }
+    }
+
     // Add sanitized location context
     if (sanitizedContent.locations) {
       if (isItalian) {
@@ -875,7 +891,19 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     // Build user prompt
     let userPrompt = '';
     if (isItalian) {
-      userPrompt = `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+      userPrompt = chapter.summary
+        ? `Basandoti sulla seguente sinossi, scrivi il capitolo completo "${sanitizeSensitiveWords(chapter.title)}" che espande tutti gli eventi narrativi descritti.
+
+SINOSSI DA ESPANDERE:
+${chapter.summary}
+
+${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
+
+${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.`
+        : `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
 ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
@@ -884,7 +912,19 @@ ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` 
 
 Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.`;
     } else {
-      userPrompt = `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+      userPrompt = chapter.summary
+        ? `Based on the following synopsis, write the complete chapter "${sanitizeSensitiveWords(chapter.title)}" expanding all the narrative events described.
+
+SYNOPSIS TO EXPAND:
+${chapter.summary}
+
+${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
+
+${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Write an engaging chapter of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.`
+        : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
 ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
@@ -1447,7 +1487,7 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
 
     // Return the updated chapter and confirm other chapters are unchanged
     const updatedChapter = db.prepare(`
-      SELECT id, project_id, title, content, order_index, status, word_count, created_at, updated_at
+      SELECT id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at
       FROM chapters
       WHERE id = ?
     `).get(id);
@@ -1482,7 +1522,7 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
 
     // Verify chapter exists and belongs to user's project
     const chapter = db.prepare(`
-      SELECT c.id, c.title, c.content, c.project_id, c.order_index, c.status,
+      SELECT c.id, c.title, c.content, c.summary, c.project_id, c.order_index, c.status,
              p.area, p.settings_json, p.title as project_title, p.genre, p.tone, p.target_audience,
              u.preferred_language
       FROM chapters c
@@ -1493,6 +1533,7 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
       id: string;
       title: string;
       content: string;
+      summary: string;
       project_id: string;
       order_index: number;
       status: string;
@@ -1543,13 +1584,13 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
       LIMIT 5
     `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[];
 
-    // Fetch characters for context
+    // Fetch characters for context (including status information)
     const characters = db.prepare(`
-      SELECT name, description, traits
+      SELECT name, description, traits, status_at_end, status_notes
       FROM characters
       WHERE project_id = ?
       ORDER BY created_at ASC
-    `).all(chapter.project_id) as { name: string; description: string; traits: string }[];
+    `).all(chapter.project_id) as { name: string; description: string; traits: string; status_at_end: string; status_notes: string }[];
 
     // Fetch locations for context
     const locations = db.prepare(`
@@ -1610,8 +1651,9 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
     const isItalian = language === 'it';
 
     // Feature #233: Sanitize content to avoid moderation triggers
+    // Feature #275: Include character status (alive/dead) information
     const sanitizedContent = sanitizePromptContent({
-      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits })),
+      characters: characters.map(c => ({ name: c.name, description: c.description, traits: c.traits, status_at_end: c.status_at_end, status_notes: c.status_notes })),
       locations: locations.map(l => ({ name: l.name, description: l.description })),
       plotEvents: plotEvents.map(e => ({ title: e.title, description: e.description })),
       sources: projectSources.map(s => ({ file_name: s.file_name, content_text: s.content_text })),
@@ -1636,7 +1678,7 @@ GENERE: ${chapter.genre || 'Narrativa'}
 TONO: ${chapter.tone || 'Neutro'}
 PUBBLICO: ${chapter.target_audience || 'Adulti'}
 
-CAPITOLO DA RIGENERARE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})
+CAPITOLO DA RIGENERARE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})${chapter.summary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapter.summary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi nella rigenerazione. Il contenuto rigenerato deve espandere tutti gli elementi narrativi descritti nella sinossi.` : ''}
 
 NOTA: Questo è un capitolo esistente che deve essere rigenerato con nuovo contenuto.`;
     } else {
@@ -1647,7 +1689,7 @@ GENRE: ${chapter.genre || 'Fiction'}
 TONE: ${chapter.tone || 'Neutral'}
 AUDIENCE: ${chapter.target_audience || 'Adults'}
 
-CHAPTER TO REGENERATE: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})
+CHAPTER TO REGENERATE: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})${chapter.summary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapter.summary}\n\nIMPORTANT: You must faithfully follow this synopsis in the regeneration. The regenerated content must expand all narrative elements described in the synopsis.` : ''}
 
 NOTE: This is an existing chapter that needs to be regenerated with fresh content.`;
     }
@@ -1687,6 +1729,15 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       }
     }
 
+    // Feature #275: Add dead characters warning
+    if (sanitizedContent.deadCharacters) {
+      if (isItalian) {
+        systemPrompt += `\n\nPERSONAGGI MORTI (NON USARE - SONO MORTI):\n${sanitizedContent.deadCharacters}\n\nIMPORTANTE: Questi personaggi sono morti e NON devono apparire nel capitolo.`;
+      } else {
+        systemPrompt += `\n\nDEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${sanitizedContent.deadCharacters}\n\nIMPORTANT: These characters are dead and MUST NOT appear in this chapter.`;
+      }
+    }
+
     // Add sanitized location context
     if (sanitizedContent.locations) {
       if (isItalian) {
@@ -1717,7 +1768,19 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     // Build user prompt for regeneration
     let userPrompt = '';
     if (isItalian) {
-      userPrompt = `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+      userPrompt = chapter.summary
+        ? `Basandoti sulla seguente sinossi, rigenera il capitolo completo "${sanitizeSensitiveWords(chapter.title)}" espandendo tutti gli eventi narrativi descritti.
+
+SINOSSI DA ESPANDERE:
+${chapter.summary}
+
+${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
+${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
+
+${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.`
+        : `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
 ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
@@ -1726,7 +1789,19 @@ ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` 
 
 Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano che mantenga la coerenza con la storia.`;
     } else {
-      userPrompt = `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+      userPrompt = chapter.summary
+        ? `Based on the following synopsis, regenerate the complete chapter "${sanitizeSensitiveWords(chapter.title)}" expanding all the narrative events described.
+
+SYNOPSIS TO EXPAND:
+${chapter.summary}
+
+${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
+${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
+
+${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
+
+Generate fresh, engaging chapter content of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.`
+        : `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
 
 ${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
 ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}

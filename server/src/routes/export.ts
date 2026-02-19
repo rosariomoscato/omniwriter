@@ -1005,9 +1005,9 @@ router.post('/projects/:id/google-drive/load', authenticateToken, requirePremium
       totalWordCount += wordCount;
 
       db.prepare(
-        `INSERT INTO chapters (id, project_id, title, content, order_index, status, word_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'imported', ?, datetime('now'), datetime('now'))`
-      ).run(chapterId, projectId, chapter.title, chapter.content, i);
+        `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+         VALUES (?, ?, ?, ?, '', ?, 'imported', ?, datetime('now'), datetime('now'))`
+      ).run(chapterId, projectId, chapter.title, chapter.content, i, wordCount);
     }
 
     // Update project word count

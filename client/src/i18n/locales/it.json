@@ -841,6 +841,10 @@
     "stay": "Rimani",
     "leaveWithoutSaving": "Esci senza salvare",
     "readabilityAnalysis": "Analisi Leggibilità",
+    "addSummary": "Aggiungi sinossi",
+    "editSummary": "Modifica sinossi",
+    "hideSummary": "Nascondi sinossi",
+    "summaryPlaceholder": "Descrivi brevemente cosa deve accadere in questo capitolo...",
     "revising": "Revisione...",
     "enhancing": "Miglioramento...",
     "versionHistory": {
