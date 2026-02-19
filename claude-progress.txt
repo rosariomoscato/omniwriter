@@ -1,5 +1,85 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-19 - Feature #280 Implementation
+
+### Completed Features: 280/280 (100%)
+
+### Feature #280: Smart fallback when selected_provider_id is null
+
+**Status:** ✅ COMPLETED
+
+**Objective:** When `getProviderForUser()` is called and `selected_provider_id` is null/empty in user_preferences, the system should intelligently find an active provider for the user instead of returning null. This fixes Plot Hole Detection and other AI features that fail silently when provider is not explicitly selected.
+
+**Implementation:**
+
+Modified `getUserProviderFromDB()` in `server/src/services/ai-service.ts` with smart fallback logic:
+
+#### Case 1: selected_provider_id is explicitly set
+- Use it directly as before
+- Look up provider in active providers list
+
+#### Case 2: Smart fallback - infer from model prefix
+- If `selected_provider_id` is null but `selected_model_id` contains a model prefix (e.g., 'openai/gpt-4')
+- Extract provider type from prefix and match against user's active providers
+- Mapping: openai→openai, anthropic/claude→anthropic, google/gemini→google_gemini, etc.
+
+#### Case 3: Single active provider fallback
+- If user has exactly one active provider in llm_providers table, use it automatically
+- Logs warning to suggest explicit selection
+
+#### Case 4: Multiple providers - ambiguous
+- If user has multiple active providers with no selection, return null
+- Log message asking user to select a provider
+
+**Code Changes:**
+
+```javascript
+// Case 2: Smart fallback - try to infer provider from selected_model_id prefix
+const modelId = prefs?.selected_model_id;
+if (modelId && modelId.includes('/')) {
+  const prefix = modelId.split('/')[0].toLowerCase();
+  const prefixToProvider: Record<string, ProviderType> = {
+    'openai': 'openai',
+    'anthropic': 'anthropic',
+    'claude': 'anthropic',
+    'google': 'google_gemini',
+    'gemini': 'google_gemini',
+    'openrouter': 'open_router',
+    'requesty': 'requesty'
+  };
+  // ... match and use provider
+}
+
+// Case 3: If user has exactly one active provider, use it automatically
+if (activeProviders.length === 1) {
+  console.log(`[AI-Service] [FALLBACK] User has single active provider '${provider.provider_type}', using it automatically`);
+  console.warn('[AI-Service] [FALLBACK] Consider explicitly selecting a provider in settings.');
+  // ... create and return provider
+}
+```
+
+**Verification (API Testing):**
+
+1. ✅ Tested with user having NO providers - correctly returns null, falls back to environment
+2. ✅ Tested with user having SINGLE provider, no selection - Case 3 fallback works:
+   - Log: `[AI-Service] [FALLBACK] User has single active provider 'openai', using it automatically`
+   - Plot hole detection: `ai_provider_available: true`
+3. ✅ Tested with model prefix "openai/gpt-4", no selected_provider_id - Case 2 fallback works:
+   - Log: `[AI-Service] [FALLBACK] Inferred provider type 'openai' from model 'openai/gpt-4'`
+   - Plot hole detection: `ai_provider_available: true`
+
+**Feature Test Steps Verified:**
+1. ✅ Modify getUserProviderFromDB() in server/src/services/ai-service.ts
+2. ✅ Add fallback logic: if selected_provider_id is null, query llm_providers table for user's active providers
+3. ✅ If user has exactly one active provider, use it automatically
+4. ✅ If user has multiple providers, try to match by model prefix (e.g., 'openai/' in model ID)
+5. ✅ Log warning when using fallback provider selection
+6. ✅ Test Plot Hole Detection works after fix
+
+### Commit: 6ad0bc3
+
+---
+
 ## Session: 2026-02-19 - Feature #279 Verification
 
 ### Completed Features: 279/279 (100%)
