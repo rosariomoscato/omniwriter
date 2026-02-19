@@ -600,6 +600,7 @@
       "analyzingHint": "This operation may take a few minutes with AI.",
       "completed": "Plot hole detection completed: {{count}} issues found",
       "timeoutError": "The analysis took too long. Please try again or try with fewer chapters.",
+      "networkError": "Network connection failed. Please check your internet and try again.",
       "noChaptersError": "Please generate some chapters first before detecting plot holes"
     },
     "consistency": {

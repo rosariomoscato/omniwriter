@@ -390,7 +390,14 @@ class ApiService {
       return {} as T;
     }
 
-    return response.json();
+    // Feature #282: Add defensive JSON parsing with error handling
+    try {
+      const data = await response.json();
+      return data;
+    } catch (parseError: any) {
+      console.error('[API] Failed to parse JSON response:', parseError);
+      throw new Error('Invalid response from server. Please try again.');
+    }
   }
 
   private delay(ms: number): Promise<void> {

@@ -600,6 +600,7 @@
       "analyzingHint": "Questa operazione potrebbe richiedere qualche minuto con l'AI.",
       "completed": "Rilevamento buchi di trama completato: {{count}} problemi trovati",
       "timeoutError": "L'analisi ha impiegato troppo tempo. Riprova o prova con meno capitoli.",
+      "networkError": "Connessione di rete fallita. Controlla la tua connessione internet e riprova.",
       "noChaptersError": "Genera prima alcuni capitoli prima di rilevare i buchi di trama"
     },
     "consistency": {

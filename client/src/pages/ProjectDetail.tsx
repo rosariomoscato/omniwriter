@@ -923,7 +923,18 @@ export default function ProjectDetail() {
 
       clearTimeout(timeoutId);
 
-      toast.success(t('projectPage.plotHoles.completed', { count: response.total_issues, defaultValue: `Plot hole detection completed: ${response.total_issues} issues found` }));
+      // Feature #282: Defensive validation of response structure
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response from server');
+      }
+
+      if (!Array.isArray(response.plot_holes)) {
+        console.warn('[Plot Holes] Response does not contain plot_holes array:', response);
+        response.plot_holes = [];
+      }
+
+      const issueCount = response.total_issues ?? response.plot_holes?.length ?? 0;
+      toast.success(t('projectPage.plotHoles.completed', { count: issueCount, defaultValue: `Plot hole detection completed: ${issueCount} issues found` }));
 
       setPlotHolesResults(response.plot_holes);
       setShowPlotHolesResults(true);
@@ -935,9 +946,18 @@ export default function ProjectDetail() {
         const timeoutMsg = t('projectPage.plotHoles.timeoutError', 'The analysis took too long. Please try again or try with fewer chapters.');
         setError(timeoutMsg);
         toast.error(timeoutMsg);
+      } else if ((err as any).isNetworkError || err.message?.includes('Network')) {
+        const networkMsg = t('projectPage.plotHoles.networkError', 'Network connection failed. Please check your internet and try again.');
+        setError(networkMsg);
+        toast.error(networkMsg);
+      } else if ((err as any).isAuthError) {
+        // Auth error will be handled by App.tsx redirect
+        console.error('[Plot Holes] Auth error:', err.message);
       } else {
-        setError(err.message || 'Failed to detect plot holes');
-        toast.error(err.message || 'Failed to detect plot holes');
+        const errorMsg = err.message || 'Failed to detect plot holes';
+        setError(errorMsg);
+        toast.error(errorMsg);
+        console.error('[Plot Holes] Error:', err);
       }
     } finally {
       setDetectingPlotHoles(false);
