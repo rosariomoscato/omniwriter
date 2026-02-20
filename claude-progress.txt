@@ -1,5 +1,58 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #288 Implementation
+
+### Completed Features: 288/288 (100%)
+
+### Feature #288: Fix version comparison missing content
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Quando l'utente seleziona due versioni per il confronto, vede una pagina bianca perché il backend non include il campo 'content' nella query che restituisce la lista delle versioni.
+
+**Root Cause:**
+The SQL query in `/api/chapters/:id/versions` endpoint was missing the `content` field:
+```sql
+-- Before (missing content):
+SELECT id, chapter_id, version_number, created_at, change_description
+FROM chapter_versions
+```
+
+**Fix Applied:**
+Added the `content` field to the SELECT query in `server/src/routes/chapters.ts` (line 354):
+```sql
+-- After (includes content):
+SELECT id, chapter_id, content, version_number, created_at, change_description
+FROM chapter_versions
+```
+
+**Files Changed:**
+- `server/src/routes/chapters.ts` (1 line modified)
+
+**Verification (Browser Automation Testing):**
+1. ✅ Created new test user account (testversion288@test.com)
+2. ✅ Created Romanziere project "Test Version Compare Novel"
+3. ✅ Created chapter "Chapter 1: The Beginning"
+4. ✅ Added content and saved multiple versions:
+   - Version 1: "This is the first version of the chapter content..."
+   - Version 2: "This is the SECOND version of the chapter content..."
+   - Version 3: "This is the THIRD version of the chapter content..."
+5. ✅ Clicked version history button (Cronologia Versioni)
+6. ✅ Selected Version 1 and Version 2 for comparison
+7. ✅ Verified comparison view shows content from both versions side-by-side
+8. ✅ No JS console errors
+
+**API Verification:**
+```bash
+curl -s http://127.0.0.1:3001/api/chapters/:id/versions
+# Returns versions with content field:
+{"versions":[{"id":"...","chapter_id":"...","content":"This is the first version...","version_number":1,...}]}
+```
+
+**Commit:** 5991c1d
+
+---
+
 ## Session: 2026-02-20 - Feature #287 Implementation
 
 ### Completed Features: 287/287 (100%)
