@@ -1,5 +1,60 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #287 Implementation
+
+### Completed Features: 287/287 (100%)
+
+### Feature #287: Remove "Analizza Fonte" button from project page
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Remove the "Analizza Fonte" (Analyze Source) button from ProjectDetail.tsx to simplify the UI. The novel analysis functionality remains available from the Dashboard via the "Analizza Romanzo" button.
+
+**Implementation:**
+
+1. **Removed State Variables (lines 142-144):**
+   - `showAnalyzeNovel` - toggle for displaying the analyze form
+   - `analyzingNovel` - loading state during analysis
+   - `novelFile` - uploaded file for analysis
+
+2. **Removed handleAnalyzeNovel Function (lines 825-873):**
+   - Complete function for handling file upload and novel analysis
+   - Called `apiService.analyzeNovel()` to process the uploaded file
+   - Handled success/error messages and reloaded characters/locations/plot events
+
+3. **Removed "Analizza Fonte" Button (lines 2873-2880):**
+   - Purple button with FileText icon in the Personaggi section
+   - Toggled the analyze novel form
+
+4. **Removed setShowAnalyzeNovel(false) from Add Character Button:**
+   - No longer needed since analyze novel state doesn't exist
+
+5. **Removed Analyze Novel Form (lines 2978-3033):**
+   - Complete form with file upload and submit/cancel buttons
+   - Displayed in the Personaggi section when showAnalyzeNovel was true
+
+**Files Changed:**
+- `client/src/pages/ProjectDetail.tsx` (119 lines removed)
+
+**Verification (Browser Automation):**
+1. ✅ Created new test user account (feature287@test.com)
+2. ✅ Created Romanziere project "Test Project Feature 287"
+3. ✅ Navigated to project detail page
+4. ✅ Verified "Analizza Fonte" button is NOT present in Personaggi section
+5. ✅ Verified only "Leggi Sinossi" and "Aggiungi Personaggio" buttons remain
+6. ✅ Verified "Analizza Romanzo" feature works from Dashboard (opens modal)
+7. ✅ No JS console errors related to code changes
+8. ✅ Frontend compiles successfully with HMR
+
+**Remaining Features:**
+- Novel analysis via Dashboard → "Analizza Romanzo" button
+- Uses `AnalyzeNovelModal` component for the UI
+- API endpoint `/api/projects/:id/analyze-novel` still exists for future use
+
+### Commit: 6e773e8
+
+---
+
 ## Session: 2026-02-20 - Feature #286 Implementation
 
 ### Completed Features: 286/286 (100%)
