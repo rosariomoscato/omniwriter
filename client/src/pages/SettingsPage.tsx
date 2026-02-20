@@ -955,7 +955,7 @@ export default function SettingsPage() {
                         <button
                           onClick={() => handleTestProvider(provider.id)}
                           disabled={testingProviderId === provider.id}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                           title={t('settings.llmProviders.testConnection')}
                         >
                           {testingProviderId === provider.id ? (
@@ -981,7 +981,7 @@ export default function SettingsPage() {
                         )}
                         <button
                           onClick={() => openEditProviderDialog(provider)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
                           {t('settings.llmProviders.edit')}
                         </button>
