@@ -1,5 +1,83 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #296 Implementation
+
+### Completed Features: 296/296 (100%)
+
+### Feature #296: Fix EPUB cover image upload failure
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Fix the cover image upload failure for EPUB export. The upload was failing with a database error.
+
+**Root Cause Analysis:**
+Upon investigating the server logs, the error was:
+```
+[Export] Cover upload error: SqliteError: CHECK constraint failed: format IN ('docx', 'epub', 'rtf', 'pdf', 'txt')
+```
+
+The `export_history` table had a CHECK constraint on the `format` column that only allowed specific values: 'docx', 'epub', 'rtf', 'pdf', 'txt'. The cover upload endpoint was trying to insert 'cover' as the format, which violated this constraint.
+
+**Implementation:**
+
+#### 1. Database Schema Update (server/src/db/database.ts)
+
+**Updated initial schema (line 257):**
+Changed from:
+```sql
+format TEXT NOT NULL CHECK(format IN ('docx', 'epub', 'rtf', 'pdf', 'txt'))
+```
+To:
+```sql
+format TEXT NOT NULL CHECK(format IN ('docx', 'epub', 'rtf', 'pdf', 'txt', 'cover'))
+```
+
+#### 2. Migration Added (lines 422-446)
+
+Since SQLite doesn't support modifying CHECK constraints directly, a migration was added to:
+1. Create a new table `export_history_new` with the updated constraint
+2. Copy all data from the old table
+3. Drop the old table
+4. Rename the new table
+
+The migration checks if the constraint already includes 'cover' before running (idempotent).
+
+**Verification (API Testing):**
+1. ✅ Database migration applied successfully
+2. ✅ Created test user with premium role
+3. ✅ Created test project
+4. ✅ Generated minimal PNG image for upload
+5. ✅ Called POST /api/projects/:id/export/cover endpoint
+6. ✅ Upload succeeded with status 200
+7. ✅ Database record created with format='cover'
+8. ✅ File saved to uploads/covers/ directory
+
+**Server Log Evidence:**
+```
+[Database] export_history has cover constraint: true
+[Export] Cover image uploaded: 98941b8c452b66ad744ecde21b532fa9 for project: test-cover-xxx
+```
+
+**API Response:**
+```json
+{
+  "id": "21f7da3c-004b-4deb-a384-5d5a5aed9994",
+  "filename": "98941b8c452b66ad744ecde21b532fa9",
+  "path": "uploads/covers/98941b8c452b66ad744ecde21b532fa9"
+}
+```
+
+**Files Modified:**
+- `server/src/db/database.ts` (schema + migration)
+
+**Commit:** 2300140
+
+---
+## MILESTONE ACHIEVED: 296/296 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
+---
 ## Session: 2026-02-20 - Feature #294 Verification
 
 ### Completed Features: 294/294 (100%)
@@ -3694,3 +3772,55 @@ All test steps verified. Feature ready for production.
 
 All features have been successfully implemented and verified\!
 
+
+---
+## Session: 2026-02-20 - Feature #295 Implementation
+
+### Completed Features: 295/295 (100%)
+
+### Feature #295: Fix DOCX and EPUB export generating invalid files
+
+**Problem:**
+- DOCX export was returning plain TXT instead of a valid DOCX file
+- EPUB export was generating only HTML instead of a proper EPUB ZIP file
+
+**Root Causes:**
+1. The `docx` library import was commented out, and `generateDocx()` was falling back to TXT
+2. The `generateEpub()` function was returning HTML content instead of creating a proper EPUB 3.0 ZIP structure
+
+**Implementation:**
+
+#### 1. DOCX Export Fix
+- Uncommented the `docx` library import (line 10)
+- Removed the fallback to TXT in `generateDocx()` function
+- The `docx` library (v9.5.1) was already installed and working
+
+#### 2. EPUB Export Fix
+- Added `JSZip` import for creating ZIP files (jszip is already available as a dependency of docx)
+- Completely rewrote `generateEpub()` to create a proper EPUB 3.0 file structure:
+  - `mimetype` file (uncompressed, must be first)
+  - `META-INF/container.xml` pointing to content.opf
+  - `OEBPS/content.opf` - package document with metadata
+  - `OEBPS/toc.ncx` - navigation control file
+  - `OEBPS/toc.xhtml` - table of contents page
+  - `OEBPS/cover.xhtml` - cover page
+  - `OEBPS/chapter_N.xhtml` - chapter content files
+  - `OEBPS/styles/style.css` - CSS stylesheet
+- Updated all call sites to `await` the async function
+
+#### 3. Verification
+- Created standalone test script that verified:
+  - DOCX: Generates valid 7702-byte ZIP file with correct PK signature
+  - EPUB: Generates valid 1334-byte ZIP file with correct PK signature
+
+**Files Modified:**
+- `server/src/routes/export.ts`
+
+**Commit:** 224117d
+
+**Status: COMPLETE ✅**
+
+---
+## MILESTONE ACHIEVED: 295/295 Features Passing (100%)
+
+All features have been successfully implemented and verified!
