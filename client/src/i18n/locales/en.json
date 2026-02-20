@@ -842,7 +842,7 @@
     "readingTime": "min read",
     "preview": "Preview",
     "edit": "Edit",
-    "versionHistory": "Version History",
+    "versionHistoryBtn": "Version History",
     "fullScreen": "Full Screen",
     "exitFullScreen": "Exit Full Screen",
     "pressEscToExit": "Press ESC to exit full screen mode",

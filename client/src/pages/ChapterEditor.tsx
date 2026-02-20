@@ -1111,8 +1111,8 @@ export default function ChapterEditor() {
               <button
                 onClick={() => setShowVersionHistory(true)}
                 className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                aria-label={t('chapterEditor.versionHistory')}
-                title={t('chapterEditor.versionHistory')}
+                aria-label={t('chapterEditor.versionHistoryBtn')}
+                title={t('chapterEditor.versionHistoryBtn')}
               >
                 <Clock className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
