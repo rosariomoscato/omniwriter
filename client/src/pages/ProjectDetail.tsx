@@ -2374,7 +2374,7 @@ export default function ProjectDetail() {
                 onClick={handleGenerateOutline}
                 disabled={generatingOutline}
                 className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Generate a full novel outline with chapter summaries"
+                title={t('projectPage.chapters.generateOutlineHint')}
               >
                 <FileText className="w-4 h-4" />
                 {generatingOutline ? t('common.loading') : t('projectPage.chapters.generateOutline')}
@@ -2388,7 +2388,7 @@ export default function ProjectDetail() {
                   onClick={handleDetectPlotHoles}
                   disabled={detectingPlotHoles}
                   className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Detect potential plot inconsistencies and holes"
+                  title={t('projectPage.chapters.detectPlotHolesHint')}
                 >
                   {detectingPlotHoles ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -2428,7 +2428,7 @@ export default function ProjectDetail() {
                 onClick={handleCheckConsistency}
                 disabled={checkingConsistency}
                 className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Check consistency of characters and locations across chapters"
+                title={t('projectPage.chapters.checkConsistencyHint')}
               >
                 <Network className="w-4 h-4" />
                 {checkingConsistency ? t('common.loading') : t('projectPage.chapters.checkConsistency')}
@@ -2675,7 +2675,7 @@ export default function ProjectDetail() {
                     }}
                     disabled={regeneratingChapterId === chapter.id}
                     className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Regenerate chapter"
+                    title={t('projectPage.chapters.regenerateChapterHint')}
                   >
                     <RefreshCw className={`w-4 h-4 ${regeneratingChapterId === chapter.id ? 'animate-spin' : ''}`} />
                   </button>
@@ -2685,7 +2685,7 @@ export default function ProjectDetail() {
                       handleDeleteChapter(chapter.id);
                     }}
                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title="Delete chapter"
+                    title={t('projectPage.chapters.deleteChapterHint')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -2864,7 +2864,7 @@ export default function ProjectDetail() {
                 <button
                   onClick={() => setShowRelationshipMap(true)}
                   className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  title="View character relationship map"
+                  title={t('projectPage.characters.relationshipMapHint')}
                 >
                   <Network className="w-4 h-4" />
                   {t('relationships.title')}
@@ -2873,7 +2873,7 @@ export default function ProjectDetail() {
               <button
                 onClick={() => setShowAnalyzeNovel(!showAnalyzeNovel)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
-                title="Upload a novel file to extract characters, locations, and plot events"
+                title={t('projectPage.characters.analyzeNovelHint')}
               >
                 <FileText className="w-4 h-4" />
                 {t('projectPage.characters.analyzeNovel')}
@@ -2882,7 +2882,7 @@ export default function ProjectDetail() {
                 onClick={handleViewSynopsis}
                 disabled={loadingSynopsis}
                 className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                title="Read the synopsis generated from the analyzed novel"
+                title={t('projectPage.characters.readSynopsisHint')}
               >
                 <BookOpen className="w-4 h-4" />
                 {loadingSynopsis ? t('projectPage.synopsis.loading') : t('projectPage.synopsis.readSynopsis')}
@@ -3101,14 +3101,14 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => handleEditCharacter(character)}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-                        title="Edit character"
+                        title={t('projectPage.characters.editHint')}
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteCharacter(character.id)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                        title="Delete character"
+                        title={t('projectPage.characters.deleteHint')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -3235,7 +3235,7 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => startEditLocation(location)}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Edit location"
+                        title={t('projectPage.locations.editHint')}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -3245,7 +3245,7 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => handleDeleteLocation(location.id)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Delete location"
+                        title={t('projectPage.locations.deleteHint')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -3389,14 +3389,14 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => startEditPlotEvent(plotEvent)}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Edit plot event"
+                        title={t('projectPage.plotEvents.editHint')}
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeletePlotEvent(plotEvent.id)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Delete plot event"
+                        title={t('projectPage.plotEvents.deleteHint')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

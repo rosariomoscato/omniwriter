@@ -413,6 +413,11 @@
       "generateOutline": "Genera Indice",
       "detectPlotHoles": "Rileva Buchi di Trama",
       "checkConsistency": "Verifica Coerenza",
+      "generateOutlineHint": "Genera un indice completo del romanzo con le sinossi dei capitoli",
+      "detectPlotHolesHint": "Rileva potenziali incongruenze e buchi nella trama",
+      "checkConsistencyHint": "Verifica la coerenza di personaggi e luoghi tra i capitoli",
+      "regenerateChapterHint": "Rigenera capitolo",
+      "deleteChapterHint": "Elimina capitolo",
       "confirmDelete": "Sei sicuro di voler eliminare questo capitolo?",
       "confirmRegenerate": "Sei sicuro di voler rigenerare il capitolo \"{{title}}\"?\n\nSolo questo capitolo sarà rigenerato. Tutti gli altri capitoli rimarranno invariati.",
       "deleteTitle": "Elimina Capitolo",
@@ -463,6 +468,11 @@
       "createForProject": "Crea personaggi per il tuo progetto",
       "add": "Aggiungi Personaggio",
       "analyzeNovel": "Analizza Fonte",
+      "relationshipMapHint": "Visualizza la mappa delle relazioni tra personaggi",
+      "analyzeNovelHint": "Carica un file romanzo per estrarre personaggi, luoghi ed eventi di trama",
+      "readSynopsisHint": "Leggi la sinossi generata dal romanzo analizzato",
+      "editHint": "Modifica personaggio",
+      "deleteHint": "Elimina personaggio",
       "editTitle": "Modifica Personaggio",
       "addTitle": "Aggiungi Nuovo Personaggio",
       "namePlaceholder": "Nome personaggio...",
@@ -539,7 +549,9 @@
       "descriptionPlaceholder": "Descrizione fisica e ambiente...",
       "significancePlaceholder": "Importanza nella storia (rilevanza per la trama, atmosfera, significato simbolico)...",
       "confirmDelete": "Sei sicuro di voler eliminare questo luogo?",
-      "deleteTitle": "Elimina Luogo"
+      "deleteTitle": "Elimina Luogo",
+      "editHint": "Modifica luogo",
+      "deleteHint": "Elimina luogo"
     },
     "plotEvents": {
       "title": "Eventi di Trama",
@@ -551,7 +563,9 @@
       "typePlaceholder": "Tipo di evento (es. climax, colpo di scena, introduzione)...",
       "linkToChapter": "Collega al capitolo (opzionale)",
       "confirmDelete": "Sei sicuro di voler eliminare questo evento di trama?",
-      "deleteTitle": "Elimina Evento di Trama"
+      "deleteTitle": "Elimina Evento di Trama",
+      "editHint": "Modifica evento di trama",
+      "deleteHint": "Elimina evento di trama"
     },
     "statusLabels": {
       "draft": "Bozza",

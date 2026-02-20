@@ -413,6 +413,11 @@
       "generateOutline": "Generate Outline",
       "detectPlotHoles": "Detect Plot Holes",
       "checkConsistency": "Check Consistency",
+      "generateOutlineHint": "Generate a full novel outline with chapter summaries",
+      "detectPlotHolesHint": "Detect potential plot inconsistencies and holes",
+      "checkConsistencyHint": "Check consistency of characters and locations across chapters",
+      "regenerateChapterHint": "Regenerate chapter",
+      "deleteChapterHint": "Delete chapter",
       "confirmDelete": "Are you sure you want to delete this chapter?",
       "confirmRegenerate": "Are you sure you want to regenerate chapter \"{{title}}\"?\n\nOnly this chapter will be regenerated. All other chapters will remain unchanged.",
       "deleteTitle": "Delete Chapter",
@@ -463,6 +468,11 @@
       "createForProject": "Create characters for your project",
       "add": "Add Character",
       "analyzeNovel": "Analyze Source",
+      "relationshipMapHint": "View character relationship map",
+      "analyzeNovelHint": "Upload a novel file to extract characters, locations, and plot events",
+      "readSynopsisHint": "Read the synopsis generated from the analyzed novel",
+      "editHint": "Edit character",
+      "deleteHint": "Delete character",
       "editTitle": "Edit Character",
       "addTitle": "Add New Character",
       "namePlaceholder": "Character name...",
@@ -539,7 +549,9 @@
       "descriptionPlaceholder": "Physical description and environment...",
       "significancePlaceholder": "Significance in the story (plot importance, atmosphere, symbolic meaning)...",
       "confirmDelete": "Are you sure you want to delete this location?",
-      "deleteTitle": "Delete Location"
+      "deleteTitle": "Delete Location",
+      "editHint": "Edit location",
+      "deleteHint": "Delete location"
     },
     "plotEvents": {
       "title": "Plot Events",
@@ -551,7 +563,9 @@
       "typePlaceholder": "Event type (e.g., climax, twist, introduction)...",
       "linkToChapter": "Link to chapter (optional)",
       "confirmDelete": "Are you sure you want to delete this plot event?",
-      "deleteTitle": "Delete Plot Event"
+      "deleteTitle": "Delete Plot Event",
+      "editHint": "Edit plot event",
+      "deleteHint": "Delete plot event"
     },
     "statusLabels": {
       "draft": "Draft",
