@@ -1,1 +1,1 @@
-$!
+ sleep 4 cat client.log

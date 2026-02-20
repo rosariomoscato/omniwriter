@@ -7264,6 +7264,9 @@ ${chapterSummaries}`;
     }
 
     // Also update character status_at_end based on AI analysis if available
+    // Feature #307: Also add NEW characters found by AI
+    const newCharactersAdded: Array<{ id: string; name: string; role: string; status: string }> = [];
+
     if (usedAI && charactersData.length > 0) {
       for (const charData of charactersData) {
         // Try to match with existing characters
@@ -7271,11 +7274,102 @@ ${chapterSummaries}`;
           c.name.toLowerCase() === charData.name.toLowerCase()
         );
         if (existingChar) {
+          // Update existing character's status
           const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
           const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
           db.prepare(
-            'UPDATE characters SET status_at_end = ?, status_notes = ?, updated_at = datetime(\'now\') WHERE id = ?'
-          ).run(status, charData.notes || '', existingChar.id);
+            'UPDATE characters SET status_at_end = ?, status_notes = ?, role_in_story = ?, updated_at = datetime(\'now\') WHERE id = ?'
+          ).run(status, charData.notes || '', charData.role || existingChar.role_in_story, existingChar.id);
+        } else if (charData.name && charData.name.trim()) {
+          // Feature #307: Add NEW character found by AI
+          const newCharId = uuidv4();
+          const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
+          const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
+
+          db.prepare(
+            `INSERT INTO characters (id, project_id, saga_id, name, description, role_in_story, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+          ).run(newCharId, projectId, project.saga_id, charData.name.trim(), charData.notes || '', charData.role || '', status, charData.notes || '');
+
+          newCharactersAdded.push({
+            id: newCharId,
+            name: charData.name.trim(),
+            role: charData.role || '',
+            status: status
+          });
+
+          console.log('[Finalize] Added new character:', charData.name);
+        }
+      }
+    }
+
+    // Feature #307: Add NEW locations found by AI
+    const newLocationsAdded: Array<{ id: string; name: string; description: string }> = [];
+
+    if (usedAI && locationsData.length > 0) {
+      for (const locData of locationsData) {
+        if (!locData.name || !locData.name.trim()) continue;
+
+        // Try to match with existing locations
+        const existingLoc = locations.find(l =>
+          l.name.toLowerCase() === locData.name.toLowerCase()
+        );
+
+        if (!existingLoc) {
+          // Add NEW location
+          const newLocId = uuidv4();
+
+          db.prepare(
+            `INSERT INTO locations (id, project_id, saga_id, name, description, significance, extracted_from_upload, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+          ).run(newLocId, projectId, project.saga_id, locData.name.trim(), locData.description || '', locData.significance || '');
+
+          newLocationsAdded.push({
+            id: newLocId,
+            name: locData.name.trim(),
+            description: locData.description || ''
+          });
+
+          console.log('[Finalize] Added new location:', locData.name);
+        }
+      }
+    }
+
+    // Feature #307: Add NEW plot events found by AI
+    const newEventsAdded: Array<{ id: string; title: string; description: string; type: string }> = [];
+
+    if (usedAI && eventsData.length > 0) {
+      // Get max order_index for new events
+      const maxOrderResult = db.prepare(
+        'SELECT COALESCE(MAX(order_index), 0) as max_order FROM plot_events WHERE project_id = ?'
+      ).get(projectId) as { max_order: number };
+      let nextOrder = maxOrderResult.max_order + 1;
+
+      for (const eventData of eventsData) {
+        if (!eventData.title || !eventData.title.trim()) continue;
+
+        // Try to match with existing events
+        const existingEvent = plotEvents.find(e =>
+          e.title.toLowerCase() === eventData.title.toLowerCase()
+        );
+
+        if (!existingEvent) {
+          // Add NEW plot event
+          const newEventId = uuidv4();
+
+          db.prepare(
+            `INSERT INTO plot_events (id, project_id, saga_id, title, description, event_type, order_index, extracted_from_upload, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+          ).run(newEventId, projectId, project.saga_id, eventData.title.trim(), eventData.description || '', eventData.type || 'plot', nextOrder++);
+
+          newEventsAdded.push({
+            id: newEventId,
+            title: eventData.title.trim(),
+            description: eventData.description || '',
+            type: eventData.type || 'plot'
+          });
+
+          console.log('[Finalize] Added new plot event:', eventData.title);
         }
       }
     }
@@ -7286,7 +7380,10 @@ ${chapterSummaries}`;
       episodeNumber,
       projectTitle: project.title,
       sagaTitle: saga.title,
-      method: usedAI ? 'AI-powered' : 'algorithmic'
+      method: usedAI ? 'AI-powered' : 'algorithmic',
+      newCharacters: newCharactersAdded.length,
+      newLocations: newLocationsAdded.length,
+      newEvents: newEventsAdded.length
     });
 
     res.json({
@@ -7302,6 +7399,12 @@ ${chapterSummaries}`;
         locations: JSON.parse(continuityRecord.locations_visited || '[]'),
         finalized_at: continuityRecord.updated_at,
         method: usedAI ? 'ai_powered' : 'algorithmic'
+      },
+      // Feature #307: Return newly created elements
+      newElements: {
+        characters: newCharactersAdded,
+        locations: newLocationsAdded,
+        events: newEventsAdded
       }
     });
 

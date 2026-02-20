@@ -678,7 +678,11 @@
       "notesPlaceholder": "es. È diventato re dopo aver sconfitto il signore oscuro...",
       "saveChanges": "Salva Modifiche",
       "savedChanges": "Dati di continuity salvati con successo!",
-      "saveError": "Impossibile salvare le modifiche"
+      "saveError": "Impossibile salvare le modifiche",
+      "newCharacters": "{{count}} personaggi",
+      "newLocations": "{{count}} luoghi",
+      "newEvents": "{{count}} eventi",
+      "successWithNew": "Episodio finalizzato! Scoperti: {{items}}"
     },
     "sagaContinuity": {
       "title": "Continuity della Saga",

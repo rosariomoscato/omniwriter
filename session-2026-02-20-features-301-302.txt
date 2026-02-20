@@ -1,0 +1,119 @@
+## Session: 2026-02-20 - Features #301 and #302 Implementation
+
+### Completed Features: 301/304 (99.0%)
+
+### Feature #301: Finalize Episode button and dialog
+
+**Objective:** Add a "Finalizza per Saga" button in the ProjectDetail page for completed romanziere projects that are part of a saga. Opens a dialog showing preview of character states and allows finalizing for the saga.
+
+**Implementation:**
+
+#### 1. Added State Management (ProjectDetail.tsx)
+- `showFinalizeDialog` - Controls dialog visibility
+- `finalizing` - Tracks finalization progress
+- `finalizePreview` - Stores the continuity data after finalization
+
+#### 2. Added "Finalizza per Saga" Button
+- Appears only when: project.area === 'romanziere' && projectSagaId && project.status === 'completed'
+- Styled with teal color (bg-teal-600) and CheckCircle icon
+- Positioned after "Assign to Saga" button, before "Export"
+- Includes tooltip with hint text
+
+#### 3. Created Finalize Episode Dialog
+**Before Finalization:**
+- Shows project info (title, saga assignment, status, chapters count)
+- Displays warning hint about analyzing chapters
+- Cancel and Confirm buttons
+
+**After Finalization:**
+- Green success box with episode number
+- Synopsis section with full text
+- Characters section with status badges (Alive/Dead/Injured/Missing/Transformed)
+- Events section with titles and descriptions
+- Locations section with significance
+
+#### 4. Handler Functions
+- `handleFinalizeEpisode()` - Calls apiService.finalizeEpisode() with language
+- `confirmFinalizeEpisode()` - Closes dialog and triggers finalization
+
+#### 5. Translations
+- Added "sagas.assigned": "Assegnato" (IT) and "Assigned" (EN)
+- Uses existing finalizeEpisode translation keys (already present from Feature #298)
+
+**Files Modified:**
+- client/src/pages/ProjectDetail.tsx - Added button, dialog, and handlers
+- client/src/i18n/locales/it.json - Added "assigned" key
+- client/src/i18n/locales/en.json - Added "assigned" key
+
+**Commit:** efe743c
+
+**Status: COMPLETE ✅**
+
+---
+
+### Feature #302: Saga Timeline view
+
+**Objective:** Create a Timeline view in the Saga page that shows all episodes with: character states per episode, events that happened, synopses. Allows viewing the complete continuity.
+
+**Implementation:**
+
+#### 1. Created SagaTimeline Component (SagaTimeline.tsx)
+**Features:**
+- Fetches continuity data via apiService.getSagaContinuity(sagaId)
+- Shows cumulative stats at top (Characters Alive, Dead, Total)
+- Displays episodes in chronological order (by episode_number)
+- Visual timeline with numbered badges and connector lines
+
+**Per Episode Display:**
+- Episode number badge
+- Project title
+- Synopsis (full text)
+- Characters with status badges:
+  - Alive: Green with Heart icon
+  - Dead: Red with Skull icon
+  - Injured: Orange with Activity icon
+  - Missing: Yellow with Heart icon
+  - Transformed: Purple with Heart icon
+- Key events with titles and descriptions
+- Locations with significance
+
+**States:**
+- Loading: Skeleton placeholders
+- Error: Error message
+- No Episodes: Empty state with helpful message
+- Success: Full timeline display
+
+#### 2. Integrated into SagasPage
+- Imported SagaTimeline component
+- Added after the projects list section
+- Renders only when a saga is selected
+- Automatically loads continuity data
+
+#### 3. Translations
+- Uses existing sagaContinuity translation keys:
+  - cumulativeState, charactersAlive, charactersDead, totalCharacters
+  - timeline, noEpisodes, episode
+- Uses existing finalizeEpisode keys for episode data
+
+**Files Created:**
+- client/src/components/SagaTimeline.tsx - Full timeline component (11,921 bytes)
+
+**Files Modified:**
+- client/src/pages/SagasPage.tsx - Added import and component integration
+
+**Commit:** e83afa5 (part of Features #298 and #299 verification)
+
+**Status: COMPLETE ✅**
+
+---
+
+## Summary
+
+**Session Features Completed:** #301, #302 (2 features)
+
+**Current Status: 301/304 Features Passing (99.0%)**
+
+**Remaining Features:** 3
+**Completion:** 99.0%
+
+All assigned features (#301 and #302) have been successfully implemented and verified.

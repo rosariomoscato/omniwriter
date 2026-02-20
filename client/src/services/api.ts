@@ -1992,6 +1992,12 @@ class ApiService {
       finalized_at: string;
       method: string;
     };
+    // Feature #307: Newly created elements
+    newElements?: {
+      characters: Array<{ id: string; name: string; role: string; status: string }>;
+      locations: Array<{ id: string; name: string; description: string }>;
+      events: Array<{ id: string; title: string; description: string; type: string }>;
+    };
   }> {
     return this.request(`/projects/${projectId}/finalize-episode`, {
       method: 'POST',

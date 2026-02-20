@@ -678,7 +678,11 @@
       "notesPlaceholder": "e.g. Became king after defeating the dark lord...",
       "saveChanges": "Save Changes",
       "savedChanges": "Continuity data saved successfully!",
-      "saveError": "Failed to save changes"
+      "saveError": "Failed to save changes",
+      "newCharacters": "{{count}} characters",
+      "newLocations": "{{count}} locations",
+      "newEvents": "{{count}} events",
+      "successWithNew": "Episode finalized! Discovered: {{items}}"
     },
     "sagaContinuity": {
       "title": "Saga Continuity",

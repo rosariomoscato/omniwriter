@@ -1,25 +1,29 @@
-const Database = require('better-sqlite3');
-const db = new Database('./data/omniwriter.db');
+const Database = require('./server/node_modules/better-sqlite3');
+const db = new Database('./server/data/omniwriter.db');
 
-// List all tables
-const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
-console.log('Tables found:', tables.map(t => t.name).join(', '));
-console.log('Total tables:', tables.length);
+// Feature 3: Verify the test user we created still exists after server operations
+// The user was created: test-1771626156723 with email persistence-test-1771626156723@example.com
+var testId = 'test-1771626156723';
 
-// Verify key columns on users table
-const usersSchema = db.prepare("PRAGMA table_info(users)").all();
-console.log('\nUsers table columns:', usersSchema.map(c => c.name).join(', '));
+var user = db.prepare('SELECT id, email, name, role, created_at FROM users WHERE id = ?').get(testId);
+if (user) {
+  console.log('SUCCESS: User persists in database after server operations');
+  console.log('User details:', JSON.stringify(user, null, 2));
 
-// Verify key columns on projects table
-const projectsSchema = db.prepare("PRAGMA table_info(projects)").all();
-console.log('\nProjects table columns:', projectsSchema.map(c => c.name).join(', '));
+  // Clean up test user
+  db.prepare('DELETE FROM users WHERE id = ?').run(testId);
+  console.log('Test user cleaned up');
+} else {
+  console.log('FAILURE: User NOT found - data was not persisted');
+  console.log('This would indicate in-memory storage was used');
+  process.exit(1);
+}
 
-// Verify key columns on chapters table
-const chaptersSchema = db.prepare("PRAGMA table_info(chapters)").all();
-console.log('\nChapters table columns:', chaptersSchema.map(c => c.name).join(', '));
-
-// Check foreign keys are enabled
-const fkStatus = db.prepare("PRAGMA foreign_keys").get();
-console.log('\nForeign keys enabled:', fkStatus);
+// Also verify other users exist (from server logs we saw user 1c23253b-f881-4786-9491-3b22da0ae680)
+var existingUser = db.prepare('SELECT id, email, name FROM users WHERE id = ?').get('1c23253b-f881-4786-9491-3b22da0ae680');
+if (existingUser) {
+  console.log('\nVerified existing user also persists:', existingUser.email);
+}
 
 db.close();
+console.log('\nFeature 3 VERIFIED: Data persists in SQLite database');

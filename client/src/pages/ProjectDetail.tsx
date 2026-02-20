@@ -941,7 +941,37 @@ export default function ProjectDetail() {
       setEditedSynopsis(result.continuity.synopsis || '');
       setEditedCharacters(result.continuity.characters || []);
       setContinuityEdited(false);
-      toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
+
+      // Feature #307: Show new elements count and refresh data
+      const newElements = result.newElements;
+      if (newElements) {
+        const totalNew = (newElements.characters?.length || 0) +
+                        (newElements.locations?.length || 0) +
+                        (newElements.events?.length || 0);
+
+        if (totalNew > 0) {
+          const parts: string[] = [];
+          if (newElements.characters?.length) {
+            parts.push(t('projectPage.finalizeEpisode.newCharacters', '{{count}} characters', { count: newElements.characters.length }));
+          }
+          if (newElements.locations?.length) {
+            parts.push(t('projectPage.finalizeEpisode.newLocations', '{{count}} locations', { count: newElements.locations.length }));
+          }
+          if (newElements.events?.length) {
+            parts.push(t('projectPage.finalizeEpisode.newEvents', '{{count}} events', { count: newElements.events.length }));
+          }
+          toast.success(t('projectPage.finalizeEpisode.successWithNew', 'Episode finalized! Discovered: {{items}}', { items: parts.join(', ') }));
+        } else {
+          toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
+        }
+
+        // Refresh project data to show new elements
+        await loadCharacters();
+        await loadLocations();
+        await loadPlotEvents();
+      } else {
+        toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
+      }
     } catch (err: any) {
       console.error('[FinalizeEpisode] Error:', err);
       toast.error(err.message || t('projectPage.finalizeEpisode.error', 'Error during episode finalization'));
