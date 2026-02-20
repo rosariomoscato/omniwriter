@@ -1,0 +1,76 @@
+## Session: 2026-02-21 - Feature #307 Implementation
+
+### Completed Features: 307/307 (100%)
+
+### Feature #307: Enrich project data when finalizing episode
+
+**Objective:** When user clicks "Finalizza Episodio", the AI analyzes the novel content. This enhancement ensures NEW characters, locations, and plot events found by AI are added to their respective database tables (not just saved to the continuity table).
+
+**Implementation:**
+
+#### 1. Backend - server/src/routes/projects.ts
+
+Added logic to insert NEW elements found by AI:
+
+**New Characters (lines 7268-7304):**
+- Checks if character already exists by name (case-insensitive)
+- If new, inserts into `characters` table with:
+  - project_id, saga_id
+  - name, description (from notes), role_in_story
+  - status_at_end, status_notes
+- Adds to `newCharactersAdded` array for response
+
+**New Locations (lines 7307-7336):**
+- Checks if location already exists by name (case-insensitive)
+- If new, inserts into `locations` table with:
+  - project_id, saga_id
+  - name, description, significance
+- Adds to `newLocationsAdded` array for response
+
+**New Plot Events (lines 7339-7375):**
+- Checks if event already exists by title (case-insensitive)
+- Calculates next order_index
+- If new, inserts into `plot_events` table with:
+  - project_id, saga_id
+  - title, description, event_type, order_index
+- Adds to `newEventsAdded` array for response
+
+**API Response (lines 7404-7408):**
+- Returns `newElements` object with:
+  - characters: Array of newly added characters
+  - locations: Array of newly added locations
+  - events: Array of newly added plot events
+
+#### 2. Frontend API Service - client/src/services/api.ts
+
+Updated `finalizeEpisode()` return type to include `newElements` with characters, locations, and events arrays.
+
+#### 3. Frontend UI - client/src/pages/ProjectDetail.tsx
+
+Updated `handleFinalizeEpisode()`:
+- Calculates total new elements found
+- Builds success message with element counts
+- Shows localized message: "Episodio finalizzato! Scoperti: X personaggi, Y luoghi, Z eventi"
+- Refreshes project data after finalization (loadCharacters, loadLocations, loadPlotEvents)
+
+#### 4. Translations
+
+Added translations for Italian and English:
+- newCharacters, newLocations, newEvents
+- successWithNew message
+
+**Verification:**
+- API endpoint tested and returns `newElements` in response
+- Frontend displays success message with discovered elements
+- Data refreshes correctly after finalization
+- Feature works with AI-powered analysis (when AI provider is configured)
+- Algorithmic fallback works as before (copies existing data only)
+
+**Note:** The feature requires an AI provider to extract NEW elements. Without AI, the algorithmic fallback only copies existing characters/locations/events to the continuity table.
+
+### Commit: b7dab34
+
+---
+## MILESTONE ACHIEVED: 307/307 Features Passing (100%)
+
+All features have been successfully implemented and verified!
