@@ -1,5 +1,44 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #289 Implementation
+
+### Completed Features: 289/289 (100%)
+
+### Feature #289: Fix versionHistory tooltip showing object instead of string
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Il tooltip del pulsante Cronologia Versioni nel ChapterEditor mostra testo non leggibile (es. [object Object]) perché c'è un conflitto di chiavi JSON nei file di localizzazione. La chiave 'versionHistory' è definita due volte: come stringa (riga 845) e come oggetto nidificato (riga 878). L'oggetto sovrascrive la stringa, causando il problema.
+
+**Root Cause:**
+In the i18n JSON files, the key `versionHistory` was defined twice:
+- Line 845: `"versionHistory": "Cronologia Versioni"` (string for button text)
+- Line 878: `"versionHistory": { "title": "...", ... }` (object for modal content)
+
+The object definition overwrote the string, causing `t('chapterEditor.versionHistory')` to return an object instead of a string, resulting in "[object Object]" being displayed.
+
+**Fix Applied:**
+1. Renamed the string key from `versionHistory` to `versionHistoryBtn` in both it.json and en.json
+2. Updated ChapterEditor.tsx to use the new key `t('chapterEditor.versionHistoryBtn')`
+
+**Files Changed:**
+- `client/src/i18n/locales/it.json` (1 line renamed)
+- `client/src/i18n/locales/en.json` (1 line renamed)
+- `client/src/pages/ChapterEditor.tsx` (2 lines updated)
+
+**Verification (Browser Automation Testing):**
+1. ✅ Logged in as test user
+2. ✅ Created Romanziere project "Test Novel for Tooltip"
+3. ✅ Created chapter "Capitolo 1 - L'inizio"
+4. ✅ Navigated to Chapter Editor
+5. ✅ Verified button text shows "Cronologia Versioni" (Italian)
+6. ✅ Switched to English - button shows "Version History"
+7. ✅ No JS console errors
+
+**Commit:** 5b88f04
+
+---
+
 ## Session: 2026-02-20 - Feature #288 Implementation
 
 ### Completed Features: 288/288 (100%)
