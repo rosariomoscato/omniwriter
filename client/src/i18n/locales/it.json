@@ -601,7 +601,13 @@
       "completed": "Rilevamento buchi di trama completato: {{count}} problemi trovati",
       "timeoutError": "L'analisi ha impiegato troppo tempo. Riprova o prova con meno capitoli.",
       "networkError": "Connessione di rete fallita. Controlla la tua connessione internet e riprova.",
-      "noChaptersError": "Genera prima alcuni capitoli prima di rilevare i buchi di trama"
+      "noChaptersError": "Genera prima alcuni capitoli prima di rilevare i buchi di trama",
+      "viewLastAnalysis": "Vedi Analisi",
+      "viewLastAnalysisHint": "Visualizza l'ultima analisi dei buchi di trama salvata",
+      "savedAnalysis": "Salvata",
+      "analyzedOn": "Analizzata il",
+      "loadError": "Impossibile caricare l'analisi salvata",
+      "lastAnalysis": "Ultima analisi"
     },
     "consistency": {
       "title": "Risultati Verifica Coerenza",

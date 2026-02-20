@@ -4757,13 +4757,44 @@ Identify all narrative issues, even minor ones. It's important to find areas for
 
     // Feature #278: Include analysis method in response for debugging
     const usedAI = plotHoles.length > 0 || characters.length > 0;
+    const analysisMethod = usedAI ? 'ai_powered' : 'algorithmic_fallback';
+
+    // Feature #283: Save analysis results to database
+    try {
+      const analysisId = randomUUID();
+      const summary = plotHoles.length === 0
+        ? 'No plot holes detected'
+        : `${plotHoles.length} issue${plotHoles.length > 1 ? 's' : ''} found: ${plotHoles.filter(h => h.severity === 'high').length} high, ${plotHoles.filter(h => h.severity === 'medium').length} medium, ${plotHoles.filter(h => h.severity === 'low').length} low severity`;
+
+      // Delete any existing analysis for this project (only keep the latest)
+      db.prepare('DELETE FROM plot_hole_analyses WHERE project_id = ?').run(projectId);
+
+      // Insert the new analysis
+      db.prepare(`
+        INSERT INTO plot_hole_analyses (id, project_id, results_json, summary, analysis_method, chapters_analyzed, total_issues)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        analysisId,
+        projectId,
+        JSON.stringify(plotHoles),
+        summary,
+        analysisMethod,
+        chapters.length,
+        plotHoles.length
+      );
+
+      console.log('[Projects] Saved plot hole analysis to database:', analysisId);
+    } catch (saveError) {
+      // Log but don't fail the request if saving fails
+      console.error('[Projects] Failed to save plot hole analysis:', saveError instanceof Error ? saveError.message : 'Unknown error');
+    }
 
     res.json({
       message: 'Plot hole detection completed',
       plot_holes: plotHoles,
       total_issues: plotHoles.length,
       analysis_info: {
-        method: usedAI ? 'ai_powered' : 'algorithmic_fallback',
+        method: analysisMethod,
         chapters_analyzed: chapters.length,
         registered_characters: characters.length,
         registered_locations: locations.length,
@@ -4773,6 +4804,73 @@ Identify all narrative issues, even minor ones. It's important to find areas for
   } catch (error) {
     console.error('[Projects] Plot hole detection error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Failed to detect plot holes' });
+  }
+});
+
+// GET /api/projects/:id/plot-hole-analysis - Get the latest saved plot hole analysis (Feature #283)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/:id/plot-hole-analysis', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    // Verify project belongs to user
+    const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Get the latest analysis for this project
+    const analysis = db.prepare(`
+      SELECT id, analysis_date, results_json, summary, analysis_method, chapters_analyzed, total_issues, created_at
+      FROM plot_hole_analyses
+      WHERE project_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(projectId) as {
+      id: string;
+      analysis_date: string;
+      results_json: string;
+      summary: string;
+      analysis_method: string;
+      chapters_analyzed: number;
+      total_issues: number;
+      created_at: string;
+    } | undefined;
+
+    if (!analysis) {
+      res.json({
+        has_analysis: false,
+        message: 'No analysis found for this project'
+      });
+      return;
+    }
+
+    // Parse the results JSON
+    let plotHoles = [];
+    try {
+      plotHoles = JSON.parse(analysis.results_json);
+    } catch (parseError) {
+      console.error('[Projects] Failed to parse plot hole results JSON:', parseError);
+      plotHoles = [];
+    }
+
+    res.json({
+      has_analysis: true,
+      id: analysis.id,
+      analysis_date: analysis.analysis_date,
+      plot_holes: plotHoles,
+      total_issues: analysis.total_issues,
+      summary: analysis.summary,
+      analysis_method: analysis.analysis_method,
+      chapters_analyzed: analysis.chapters_analyzed,
+      created_at: analysis.created_at
+    });
+  } catch (error) {
+    console.error('[Projects] Get plot hole analysis error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to get plot hole analysis' });
   }
 });
 

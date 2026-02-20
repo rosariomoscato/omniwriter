@@ -1652,6 +1652,47 @@ class ApiService {
     }, 0, signal);
   }
 
+  // Feature #283: Get the latest saved plot hole analysis
+  async getPlotHoleAnalysis(projectId: string): Promise<{
+    has_analysis: boolean;
+    message?: string;
+    id?: string;
+    analysis_date?: string;
+    plot_holes?: Array<{
+      type: string;
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }>;
+    total_issues?: number;
+    summary?: string;
+    analysis_method?: string;
+    chapters_analyzed?: number;
+    created_at?: string;
+  }> {
+    return this.request<{
+      has_analysis: boolean;
+      message?: string;
+      id?: string;
+      analysis_date?: string;
+      plot_holes?: Array<{
+        type: string;
+        severity: 'low' | 'medium' | 'high';
+        description: string;
+        chapter_references: string[];
+        suggestion: string;
+      }>;
+      total_issues?: number;
+      summary?: string;
+      analysis_method?: string;
+      chapters_analyzed?: number;
+      created_at?: string;
+    }>(`/projects/${projectId}/plot-hole-analysis`, {
+      method: 'GET',
+    });
+  }
+
   // Consistency checker across chapters (Feature #183)
   async checkConsistency(projectId: string, language: string = 'it'): Promise<{
     message: string;

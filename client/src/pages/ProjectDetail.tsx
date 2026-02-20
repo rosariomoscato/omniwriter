@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen, Lightbulb } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen, Lightbulb, Eye } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -147,6 +147,16 @@ export default function ProjectDetail() {
   const [detectingPlotHoles, setDetectingPlotHoles] = useState(false);
   const [plotHolesResults, setPlotHolesResults] = useState<any>(null);
   const [showPlotHolesResults, setShowPlotHolesResults] = useState(false);
+  // Feature #283: Saved plot hole analysis state
+  const [savedPlotHoleAnalysis, setSavedPlotHoleAnalysis] = useState<{
+    has_analysis: boolean;
+    analysis_date?: string;
+    summary?: string;
+    total_issues?: number;
+    created_at?: string;
+  } | null>(null);
+  const [loadingSavedAnalysis, setLoadingSavedAnalysis] = useState(false);
+  const [viewingSavedAnalysis, setViewingSavedAnalysis] = useState(false);
   const [checkingConsistency, setCheckingConsistency] = useState(false);
   const [consistencyResults, setConsistencyResults] = useState<any>(null);
   const [showConsistencyResults, setShowConsistencyResults] = useState(false);
@@ -175,6 +185,27 @@ export default function ProjectDetail() {
       setProjectSagaId(project.saga_id);
     }
   }, [project]);
+
+  // Feature #283: Load saved plot hole analysis for Romanziere projects
+  useEffect(() => {
+    if (project && project.area === 'romanziere') {
+      loadSavedPlotHoleAnalysis();
+    }
+  }, [project?.id]);
+
+  const loadSavedPlotHoleAnalysis = async () => {
+    if (!id) return;
+    try {
+      setLoadingSavedAnalysis(true);
+      const response = await apiService.getPlotHoleAnalysis(id);
+      setSavedPlotHoleAnalysis(response.has_analysis ? response : null);
+    } catch (error) {
+      console.error('[Plot Holes] Failed to load saved analysis:', error);
+      setSavedPlotHoleAnalysis(null);
+    } finally {
+      setLoadingSavedAnalysis(false);
+    }
+  };
 
   useEffect(() => {
     if (showLinkSources) {
@@ -938,6 +969,10 @@ export default function ProjectDetail() {
 
       setPlotHolesResults(response.plot_holes);
       setShowPlotHolesResults(true);
+      setViewingSavedAnalysis(false); // This is a fresh analysis, not a saved one
+
+      // Feature #283: Refresh the saved analysis status
+      loadSavedPlotHoleAnalysis();
     } catch (err: any) {
       clearTimeout(timeoutId);
 
@@ -961,6 +996,26 @@ export default function ProjectDetail() {
       }
     } finally {
       setDetectingPlotHoles(false);
+    }
+  };
+
+  // Feature #283: Handle viewing saved analysis
+  const handleViewSavedAnalysis = async () => {
+    if (!id || !savedPlotHoleAnalysis) return;
+
+    try {
+      setLoadingSavedAnalysis(true);
+      const response = await apiService.getPlotHoleAnalysis(id);
+      if (response.has_analysis && response.plot_holes) {
+        setPlotHolesResults(response.plot_holes);
+        setShowPlotHolesResults(true);
+        setViewingSavedAnalysis(true);
+      }
+    } catch (error) {
+      console.error('[Plot Holes] Failed to load saved analysis:', error);
+      toast.error(t('projectPage.plotHoles.loadError', 'Failed to load saved analysis'));
+    } finally {
+      setLoadingSavedAnalysis(false);
     }
   };
 
@@ -2326,21 +2381,45 @@ export default function ProjectDetail() {
               </button>
             )}
 
-            {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182, #282) */}
+            {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182, #282, #283) */}
             {project?.area === 'romanziere' && (
-              <button
-                onClick={handleDetectPlotHoles}
-                disabled={detectingPlotHoles}
-                className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Detect potential plot inconsistencies and holes"
-              >
-                {detectingPlotHoles ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
+              <>
+                <button
+                  onClick={handleDetectPlotHoles}
+                  disabled={detectingPlotHoles}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Detect potential plot inconsistencies and holes"
+                >
+                  {detectingPlotHoles ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  {detectingPlotHoles ? t('common.loading') : t('projectPage.chapters.detectPlotHoles')}
+                  {/* Feature #283: Show last analysis indicator */}
+                  {savedPlotHoleAnalysis && !detectingPlotHoles && (
+                    <span className="ml-1 text-xs opacity-75">
+                      ({savedPlotHoleAnalysis.total_issues})
+                    </span>
+                  )}
+                </button>
+                {/* Feature #283: View Last Analysis button */}
+                {savedPlotHoleAnalysis && (
+                  <button
+                    onClick={handleViewSavedAnalysis}
+                    disabled={loadingSavedAnalysis}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={t('projectPage.plotHoles.viewLastAnalysisHint', 'View the last saved plot hole analysis')}
+                  >
+                    {loadingSavedAnalysis ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                    {t('projectPage.plotHoles.viewLastAnalysis', 'View Analysis')}
+                  </button>
                 )}
-                {detectingPlotHoles ? t('common.loading') : t('projectPage.chapters.detectPlotHoles')}
-              </button>
+              </>
             )}
 
             {/* Consistency Checker button - Only for Romanziere projects (Feature #183) */}
@@ -3578,20 +3657,34 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* Feature #182, #282: Plot Hole Detection Results - with defensive rendering */}
+      {/* Feature #182, #282, #283: Plot Hole Detection Results - with defensive rendering */}
       {showPlotHolesResults && plotHolesResults && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full my-8 flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-rose-50 dark:bg-rose-900/20">
               <div className="flex items-center gap-3">
-                <RefreshCw className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                {viewingSavedAnalysis ? (
+                  <Eye className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                ) : (
+                  <RefreshCw className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                )}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {t('projectPage.plotHoles.title')}
+                    {viewingSavedAnalysis && (
+                      <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                        ({t('projectPage.plotHoles.savedAnalysis', 'Saved')})
+                      </span>
+                    )}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {t('projectPage.plotHoles.issue', { count: Array.isArray(plotHolesResults) ? plotHolesResults.length : 0 })}
+                    {viewingSavedAnalysis && savedPlotHoleAnalysis?.created_at && (
+                      <span className="ml-2">
+                        • {t('projectPage.plotHoles.analyzedOn', 'Analyzed')} {new Date(savedPlotHoleAnalysis.created_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -3599,6 +3692,7 @@ export default function ProjectDetail() {
                 onClick={() => {
                   setShowPlotHolesResults(false);
                   setPlotHolesResults(null);
+                  setViewingSavedAnalysis(false);
                 }}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
