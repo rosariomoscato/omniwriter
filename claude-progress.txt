@@ -1,5 +1,57 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #286 Implementation
+
+### Completed Features: 286/286 (100%)
+
+### Feature #286: Fix hardcoded English tooltips in ProjectDetail.tsx
+
+**Status:** ✅ COMPLETED
+
+**Problem:** The ProjectDetail.tsx page had 14 hardcoded English tooltip/title attributes that did not change when users switched between Italian and English languages.
+
+**Solution:**
+Replaced all hardcoded English title attributes with proper t() translation function calls using the existing i18n system.
+
+**Implementation:**
+
+1. **Added Italian translations (it.json):**
+   - `projectPage.chapters.generateOutlineHint`: "Genera un indice completo del romanzo con le sinossi dei capitoli"
+   - `projectPage.chapters.detectPlotHolesHint`: "Rileva potenziali incongruenze e buchi nella trama"
+   - `projectPage.chapters.checkConsistencyHint`: "Verifica la coerenza di personaggi e luoghi tra i capitoli"
+   - `projectPage.chapters.regenerateChapterHint`: "Rigenera capitolo"
+   - `projectPage.chapters.deleteChapterHint`: "Elimina capitolo"
+   - `projectPage.characters.relationshipMapHint`: "Visualizza la mappa delle relazioni tra personaggi"
+   - `projectPage.characters.analyzeNovelHint`: "Carica un file romanzo per estrarre personaggi, luoghi ed eventi di trama"
+   - `projectPage.characters.readSynopsisHint`: "Leggi la sinossi generata dal romanzo analizzato"
+   - `projectPage.characters.editHint`: "Modifica personaggio"
+   - `projectPage.characters.deleteHint`: "Elimina personaggio"
+   - `projectPage.locations.editHint`: "Modifica luogo"
+   - `projectPage.locations.deleteHint`: "Elimina luogo"
+   - `projectPage.plotEvents.editHint`: "Modifica evento di trama"
+   - `projectPage.plotEvents.deleteHint`: "Elimina evento di trama"
+
+2. **Added English translations (en.json):**
+   - Same keys with English values
+
+3. **Updated ProjectDetail.tsx:**
+   - Replaced 14 hardcoded `title="..."` attributes with `title={t('projectPage...')}` calls
+
+**Files Changed:**
+- `client/src/i18n/locales/it.json` (14 new keys)
+- `client/src/i18n/locales/en.json` (14 new keys)
+- `client/src/pages/ProjectDetail.tsx` (14 title attributes updated)
+
+**Verification:**
+1. ✅ Created test account (test286b@test.com)
+2. ✅ Created Romanziere project "Test Tooltips Project"
+3. ✅ Verified Italian tooltip shows: "Genera un indice completo del romanzo con le sinossi dei capitoli"
+4. ✅ Switched to English language
+5. ✅ Verified English tooltip shows: "Generate a full novel outline with chapter summaries"
+6. ✅ Git commit: 28a904e
+
+---
+
 ## Session: 2026-02-20 - Feature #285 Implementation
 
 ### Completed Features: 285/285 (100%)
