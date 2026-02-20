@@ -5281,7 +5281,7 @@ function analyzeResolutionGaps(
   return issues;
 }
 
-// POST /api/projects/:id/check-consistency - Check consistency across chapters (Feature #183)
+// POST /api/projects/:id/check-consistency - Check consistency across chapters (Feature #183, #290)
 // @ts-expect-error - AuthRequest type compatibility with router
 router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -5320,8 +5320,8 @@ router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest
     const characters = db.prepare('SELECT name, description, traits FROM characters WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string; traits: string }>;
     const locations = db.prepare('SELECT name, description, significance FROM locations WHERE project_id = ?').all(projectId) as Array<{ name: string; description: string; significance: string }>;
 
-    // Analyze consistency issues
-    const inconsistencies: Array<{
+    // Feature #290: AI-powered consistency check
+    let inconsistencies: Array<{
       type: 'character' | 'location' | 'timeline' | 'description';
       entity_name: string;
       description: string;
@@ -5329,21 +5329,202 @@ router.post('/:id/check-consistency', authenticateToken, async (req: AuthRequest
       suggestion: string;
     }> = [];
 
-    // 1. Check character description consistency
-    const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters, language);
-    inconsistencies.push(...characterIssues);
+    // Add detailed logging for debugging
+    console.log('[Consistency] Starting analysis for project:', projectId);
+    console.log('[Consistency] User ID:', userId);
+    console.log('[Consistency] Chapters found:', chapters.length);
+    console.log('[Consistency] Registered characters:', characters.length);
+    console.log('[Consistency] Registered locations:', locations.length);
+    console.log('[Consistency] Language:', language);
 
-    // 2. Check location description consistency
-    const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations, language);
-    inconsistencies.push(...locationIssues);
+    try {
+      // Try AI-powered consistency check first
+      console.log('[Consistency] Calling getProviderForUser...');
+      const provider = getProviderForUser(userId);
+      console.log('[Consistency] Provider result:', provider ? provider.getProviderType() : 'null');
 
-    // 3. Check character trait consistency
-    const traitIssues = analyzeCharacterTraitConsistency(chapters, characters, language);
-    inconsistencies.push(...traitIssues);
+      if (provider) {
+        console.log('[Projects] Using AI-powered consistency check with provider:', provider.getProviderType());
 
-    // 4. Check timeline continuity
-    const timelineIssues = analyzeTimelineContinuity(chapters, language);
-    inconsistencies.push(...timelineIssues);
+        const isItalian = language === 'it';
+
+        // Build chapter summaries for the AI (truncate content to avoid token limits)
+        const chapterSummaries = chapters.map((ch, idx) => {
+          const contentPreview = ch.content.substring(0, 1500);
+          return `CAPITOLO ${idx + 1}: "${ch.title}"\n${contentPreview}...`;
+        }).join('\n\n---\n\n');
+
+        // Build character list with traits
+        const characterList = characters.map(c =>
+          `- ${c.name}: ${c.description || 'Nessuna descrizione'}${c.traits ? ` [Tratti: ${c.traits}]` : ''}`
+        ).join('\n');
+
+        // Build location list
+        const locationList = locations.map(l =>
+          `- ${l.name}: ${l.description || 'Nessuna descrizione'}${l.significance ? ` [Importanza: ${l.significance}]` : ''}`
+        ).join('\n');
+
+        // Build system prompt for consistency check
+        const systemPrompt = isItalian
+          ? `Sei un esperto editor e analista narrativo. Il tuo compito è analizzare un romanzo per identificare INCOERENZE tra capitoli.
+
+Analizza SEMPRE il testo e identifica ALMENO 2-3 problemi potenziali di coerenza, anche se minori. È molto raro che un romanzo sia perfettamente coerente.
+
+Cerca questi tipi di INCOERENZE:
+1. PERSONAGGI: Descrizioni fisiche che cambiano (colore capelli, occhi, altezza, età), tratti di personalità contraddittori, conoscenze che appaiono/scompaiono, relazioni incoerenti
+2. LUOGHI: Descrizioni di luoghi che cambiano, distanze/tempi di viaggio incoerenti, dettagli ambientali contraddittori
+3. TIMELINE: Contraddizioni temporali, date/anni incoerenti, stagioni che cambiano improvvisamente, sequenza di eventi illogica
+4. DETTAGLI: Nomi che cambiano ortografia, oggetti che appaiono/scompaiono, numeri incoerenti (età, quantità)
+
+IMPORTANTE: Cerca specificamente contraddizioni TRA capitoli diversi, non problemi all'interno dello stesso capitolo.
+
+Rispondi SOLO con JSON valido nel formato:
+{
+  "inconsistencies": [
+    {
+      "type": "character|location|timeline|description",
+      "entity_name": "Nome dell'entità coinvolta",
+      "description": "Descrizione chiara dell'incoerenza",
+      "chapter_references": ["Titoli dei capitoli coinvolti"],
+      "suggestion": "Suggerimento pratico per risolvere"
+    }
+  ]
+}`
+          : `You are an expert editor and narrative analyst. Your task is to analyze a novel to identify INCONSISTENCIES between chapters.
+
+ALWAYS analyze the text and identify AT LEAST 2-3 potential consistency issues, even if minor. It's very rare for a novel to be perfectly consistent.
+
+Look for these types of INCONSISTENCIES:
+1. CHARACTER: Physical descriptions that change (hair color, eyes, height, age), contradictory personality traits, knowledge that appears/disappears, inconsistent relationships
+2. LOCATION: Location descriptions that change, inconsistent travel distances/times, contradictory environmental details
+3. TIMELINE: Temporal contradictions, inconsistent dates/years, seasons that suddenly change, illogical event sequence
+4. DETAILS: Names that change spelling, objects that appear/disappear, inconsistent numbers (ages, quantities)
+
+IMPORTANT: Look specifically for contradictions BETWEEN different chapters, not problems within the same chapter.
+
+Respond ONLY with valid JSON in the format:
+{
+  "inconsistencies": [
+    {
+      "type": "character|location|timeline|description",
+      "entity_name": "Name of the entity involved",
+      "description": "Clear description of the inconsistency",
+      "chapter_references": ["Titles of chapters involved"],
+      "suggestion": "Practical suggestion to fix"
+    }
+  ]
+}`;
+
+        const userPrompt = isItalian
+          ? `Analizza questo romanzo intitolato "${project.title}" per INCOERENZE tra capitoli.
+
+PERSONAGGI REGISTRATI:
+${characterList || 'Nessun personaggio registrato'}
+
+LUOGHI REGISTRATI:
+${locationList || 'Nessun luogo registrato'}
+
+CONTENUTO DEI CAPITOLI:
+${chapterSummaries}
+
+Identifica tutte le incoerenze tra capitoli, anche minori. È importante mantenere la coerenza narrativa.`
+          : `Analyze this novel titled "${project.title}" for INCONSISTENCIES between chapters.
+
+REGISTERED CHARACTERS:
+${characterList || 'No characters registered'}
+
+REGISTERED LOCATIONS:
+${locationList || 'No locations registered'}
+
+CHAPTER CONTENT:
+${chapterSummaries}
+
+Identify all inconsistencies between chapters, even minor ones. It's important to maintain narrative consistency.`;
+
+        const response = await provider.chat(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          { temperature: 0.3, maxTokens: 3000 }
+        );
+
+        // Parse AI response
+        let jsonStr = response.content || '';
+        console.log('[Consistency] Raw AI response length:', jsonStr.length);
+        console.log('[Consistency] Raw AI response preview:', jsonStr.substring(0, 500));
+
+        // Extract JSON from markdown code blocks if present
+        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+          console.log('[Consistency] Extracted JSON from code block');
+        }
+
+        let aiResult;
+        try {
+          aiResult = JSON.parse(jsonStr);
+        } catch (parseError) {
+          console.error('[Consistency] JSON parse error:', parseError instanceof Error ? parseError.message : String(parseError));
+          console.error('[Consistency] Attempting to parse string (first 1000 chars):', jsonStr.substring(0, 1000));
+          throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+        }
+
+        if (aiResult.inconsistencies && Array.isArray(aiResult.inconsistencies)) {
+          inconsistencies = aiResult.inconsistencies.map((issue: any) => ({
+            type: issue.type || 'description',
+            entity_name: issue.entity_name || '',
+            description: issue.description || '',
+            chapter_references: Array.isArray(issue.chapter_references) ? issue.chapter_references : [],
+            suggestion: issue.suggestion || ''
+          }));
+        } else {
+          console.warn('[Consistency] AI response missing inconsistencies array, got:', Object.keys(aiResult));
+        }
+
+        console.log('[Projects] AI consistency check completed:', {
+          total_inconsistencies: inconsistencies.length,
+          method: 'AI-powered'
+        });
+
+      } else {
+        // Fallback to algorithmic analysis if no AI provider
+        console.log('[Consistency] No AI provider available, falling back to algorithmic analysis');
+        // 1. Check character description consistency
+        const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters, language);
+        inconsistencies.push(...characterIssues);
+
+        // 2. Check location description consistency
+        const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations, language);
+        inconsistencies.push(...locationIssues);
+
+        // 3. Check character trait consistency
+        const traitIssues = analyzeCharacterTraitConsistency(chapters, characters, language);
+        inconsistencies.push(...traitIssues);
+
+        // 4. Check timeline continuity
+        const timelineIssues = analyzeTimelineContinuity(chapters, language);
+        inconsistencies.push(...timelineIssues);
+        console.log('[Consistency] Algorithmic analysis found', inconsistencies.length, 'issues');
+      }
+    } catch (aiError) {
+      console.warn('[Projects] AI analysis failed, falling back to algorithmic:', aiError instanceof Error ? aiError.message : String(aiError));
+      if (aiError instanceof Error && aiError.stack) {
+        console.warn('[Projects] Stack trace:', aiError.stack);
+      }
+      // Fallback to algorithmic analysis on AI error
+      const characterIssues = analyzeCharacterDescriptionConsistency(chapters, characters, language);
+      inconsistencies.push(...characterIssues);
+
+      const locationIssues = analyzeLocationDescriptionConsistency(chapters, locations, language);
+      inconsistencies.push(...locationIssues);
+
+      const traitIssues = analyzeCharacterTraitConsistency(chapters, characters, language);
+      inconsistencies.push(...traitIssues);
+
+      const timelineIssues = analyzeTimelineContinuity(chapters, language);
+      inconsistencies.push(...timelineIssues);
+    }
 
     console.log('[Projects] Consistency check completed:', {
       total_inconsistencies: inconsistencies.length,
