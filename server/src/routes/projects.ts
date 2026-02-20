@@ -1080,17 +1080,18 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
     );
 
     // Copy characters and mark them as returning (extracted_from_upload = 0)
-    // Skip dead characters - they should not appear in the sequel
+    // Feature #309: Copy ALL characters including dead ones - they are part of saga continuity
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
     let charsCopied = 0;
-    let charsSkipped = 0;
+    let deadCharsCopied = 0;
     for (const character of characters) {
-      if (character.status_at_end === 'dead') {
-        charsSkipped++;
-        console.log(`[Projects] Skipping dead character: ${character.name}`);
-        continue;
-      }
       const newCharacterId = uuidv4();
+      // Keep the status_at_end for dead characters - they are part of saga history
+      const keepStatus = character.status_at_end === 'dead' ? 'dead' : 'unknown';
+      if (character.status_at_end === 'dead') {
+        deadCharsCopied++;
+        console.log(`[Projects] Copying dead character for saga continuity: ${character.name}`);
+      }
       // Mark as returning character by setting extracted_from_upload = 0
       db.prepare(
         `INSERT INTO characters (id, project_id, saga_id, name, description, traits, backstory, role_in_story, relationships_json, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
@@ -1105,12 +1106,12 @@ router.post('/:id/sequel', authenticateToken, async (req: AuthRequest, res: Resp
         character.backstory || '',
         character.role_in_story || '',
         character.relationships_json || '[]',
-        'unknown',  // Reset status for sequel
+        keepStatus,  // Keep 'dead' status for dead characters, reset others to 'unknown'
         character.status_notes || ''  // Keep notes for reference
       );
       charsCopied++;
     }
-    console.log(`[Projects] Copied ${charsCopied} characters to sequel (skipped ${charsSkipped} dead characters)`);
+    console.log(`[Projects] Copied ${charsCopied} characters to sequel (${deadCharsCopied} dead for continuity)`);
 
     // Copy locations with reference to saga
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
@@ -1599,16 +1600,16 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
       message: isItalian ? 'Copia personaggi e luoghi...' : 'Copying characters and locations...'
     });
 
-    // Copy characters (exclude dead characters)
+    // Feature #309: Copy ALL characters including dead ones - they are part of saga continuity
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
     let charactersCopied = 0;
-    let charactersSkipped = 0;
+    let deadCharsCopied = 0;
     for (const character of characters) {
-      // Skip characters with status_at_end = 'dead'
+      // Keep the status_at_end for dead characters - they are part of saga history
+      const keepStatus = character.status_at_end === 'dead' ? 'dead' : 'unknown';
       if (character.status_at_end === 'dead') {
-        charactersSkipped++;
-        console.log(`[Projects-Stream] Skipping dead character: ${character.name} (${character.status_at_end})`);
-        continue;
+        deadCharsCopied++;
+        console.log(`[Projects-Stream] Copying dead character for saga continuity: ${character.name}`);
       }
       const newCharacterId = uuidv4();
       db.prepare(
@@ -1624,12 +1625,12 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
         character.backstory || '',
         character.role_in_story || '',
         character.relationships_json || '[]',
-        'unknown',  // Reset status to unknown for sequel
+        keepStatus,  // Keep 'dead' status for dead characters, reset others to 'unknown'
         character.status_notes || ''  // Keep notes for reference
       );
       charactersCopied++;
     }
-    console.log(`[Projects-Stream] Copied ${charactersCopied} characters to sequel (skipped ${charactersSkipped} dead characters)`);
+    console.log(`[Projects-Stream] Copied ${charactersCopied} characters to sequel (${deadCharsCopied} dead for continuity)`);
 
     // Copy locations
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
@@ -6780,15 +6781,16 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
 
     console.log('[Projects-Confirm] Created sequel project:', newProjectId);
 
-    // Copy characters (exclude dead characters)
+    // Feature #309: Copy ALL characters including dead ones - they are part of saga continuity
     const characters = db.prepare('SELECT * FROM characters WHERE project_id = ?').all(projectId) as any[];
     let charsCopiedConfirm = 0;
-    let charsSkippedConfirm = 0;
+    let deadCharsCopiedConfirm = 0;
     for (const character of characters) {
+      // Keep the status_at_end for dead characters - they are part of saga history
+      const keepStatus = character.status_at_end === 'dead' ? 'dead' : 'unknown';
       if (character.status_at_end === 'dead') {
-        charsSkippedConfirm++;
-        console.log(`[Projects-Confirm] Skipping dead character: ${character.name}`);
-        continue;
+        deadCharsCopiedConfirm++;
+        console.log(`[Projects-Confirm] Copying dead character for saga continuity: ${character.name}`);
       }
       const newCharacterId = uuidv4();
       db.prepare(
@@ -6804,12 +6806,12 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
         character.backstory || '',
         character.role_in_story || '',
         character.relationships_json || '[]',
-        'unknown',  // Reset status for sequel
+        keepStatus,  // Keep 'dead' status for dead characters, reset others to 'unknown'
         character.status_notes || ''  // Keep notes for reference
       );
       charsCopiedConfirm++;
     }
-    console.log(`[Projects-Confirm] Copied ${charsCopiedConfirm} characters (skipped ${charsSkippedConfirm} dead)`);
+    console.log(`[Projects-Confirm] Copied ${charsCopiedConfirm} characters (${deadCharsCopiedConfirm} dead for continuity)`);
 
     // Copy locations
     const locations = db.prepare('SELECT * FROM locations WHERE project_id = ?').all(projectId) as any[];
@@ -7017,23 +7019,57 @@ router.post('/:id/finalize-episode', authenticateToken, async (req: AuthRequest,
         ).join('\n');
 
         const systemPrompt = isItalian
-          ? `Sei un esperto editor letterario. Analizza questo episodio/romanzo di una saga e produci un riepilogo di continuity per la scrittura del prossimo episodio.
+          ? `Sei un esperto editor letterario. Analizza questo episodio/romanzo di una saga e produci un riepilogo DI CONTINUITÀ COMPLETO E DETTAGLIATO per la scrittura del prossimo episodio.
 
 Devi estrarre:
 1. SINOSSI: Un riassunto completo dell'episodio (200-400 parole)
-2. PERSONAGGI: Per ogni personaggio significativo:
-   - status: stato finale preciso (alive/dead/injured/missing/transformed)
-   - role: ruolo SPECIFICO nella storia (es. "Re di Valoria", "Capitana delle Guardie Reali", "Consigliere del Regno" - NON generico come "protagonista")
-   - notes: informazioni cruciali per il seguito (cambiamenti di stato, nuove posizioni, relazioni evolute)
-3. EVENTI PRINCIPALI: Gli eventi chiave della trama che influenzeranno il prossimo episodio
+2. PERSONAGGI: OGNI personaggio che appare o viene menzionato (vedi requisiti dettagliati sotto)
+3. EVENTI PRINCIPALI: MINIMO 5-10 eventi chiave per capitolo (OBBLIGATORIO)
 4. LUOGHI: I luoghi principali e il loro stato alla fine dell'episodio
 
-⚠️ IMPORTANTE - RUOLI E STATI DEI PERSONAGGI:
-- Il campo "role" deve contenere il titolo/posizione SPECIFICO del personaggio alla FINE dell'episodio
-- Se un personaggio cambia ruolo durante la storia (es. diventa Re), il role finale deve riflettere questo cambiamento
-- Il campo "notes" deve spiegare COME il personaggio è arrivato a quel ruolo/stato
-- Esempio corretto: { "name": "Marco", "status": "alive", "role": "Re di Valoria", "notes": "Diventa re dopo aver sconfitto Mordekai e liberato il regno" }
-- Esempio SBAGLIATO: { "name": "Marco", "status": "alive", "role": "protagonista", "notes": "Sopravvive" }
+🔴 REGOLE FONDAMENTALI PER I PERSONAGGI:
+
+A) INCLUDI TUTTI I TIPI DI PERSONAGGI:
+   - Protagonisti e personaggi principali
+   - Antagonisti e nemici (es. "Mordekai", "Il Signore Oscuro")
+   - Personaggi secondari che appaiono o vengono menzionati
+   - Personaggi deceduti durante la storia (con status: "dead")
+   - Personaggi menzionati ma morti prima della storia (con status: "dead", notes: "Morto prima dell'inizio")
+   - Alleati, mentori, familiari, servitori
+
+B) NON OMETTERE NESSUN PERSONAGGIO:
+   - Se un personaggio viene menzionato nel testo, DEVE essere incluso nell'output
+   - Anche se appare solo in un capitolo
+   - Anche se è un antagonista che viene sconfitto
+   - Anche se muore durante la storia
+
+C) ESTRZIONE DELLO STATUS (OBBLIGATORIO):
+   - status DEVE essere dedotto dal testo: "alive", "dead", "injured", "missing", "transformed"
+   - NON usare MAI "unknown" - deduci sempre dal contesto
+   - Se un personaggio muore nel testo → status: "dead"
+   - Se non si sa se è vivo o morto → status: "missing"
+   - Se viene ferito gravemente → status: "injured"
+
+D) RUOLI SPECIFICI:
+   - role: titolo/posizione SPECIFICO (es. "Re di Valoria", "Nemico Giurato", "Mentore Caduto")
+   - NON usare ruoli generici come "protagonista", "antagonista", "personaggio secondario"
+
+⚠️ REGOLE FONDAMENTALI PER GLI EVENTI:
+- DEVI estrarre MINIMO 5-10 eventi per l'intero episodio
+- Se l'episodio ha più capitoli, estrai almeno 2-3 eventi per capitolo
+- Ogni evento deve avere: title descrittivo, description dettagliata, type appropriato
+- Tipi di eventi: plot, conflict, resolution, revelation, transformation, death, arrival, departure
+
+ESEMPI CORRETTI DI PERSONAGGI:
+{ "name": "Antonio", "status": "dead", "role": "Guardia Reale", "notes": "Ucciso da Mordekai nel capitolo 3 per proteggere il re" }
+{ "name": "Mordekai", "status": "dead", "role": "Signore Oscuro", "notes": "Antagonista principale, sconfitto e ucciso da Marco nel finale" }
+{ "name": "Luca", "status": "dead", "role": "Principe di Valoria", "notes": "Fratello di Marco, morto in guerra prima dell'inizio della storia" }
+{ "name": "Elena", "status": "alive", "role": "Regina di Valoria", "notes": "Diventa regina dopo il matrimonio con Marco" }
+
+ESEMPI CORRETTI DI EVENTI:
+{ "title": "Mordekai attacca il castello", "description": "L'esercito oscuro assedia le mura del castello", "type": "conflict" }
+{ "title": "Morte di Antonio", "description": "La guardia reale si sacrifica per salvare il re", "type": "death" }
+{ "title": "Rivelazione della spada", "description": "Marco scopre di essere l'unico in grado di brandire la Spada della Luce", "type": "revelation" }
 
 Rispondi SOLO con JSON valido nel formato:
 {
@@ -7042,29 +7078,63 @@ Rispondi SOLO con JSON valido nel formato:
     { "name": "Nome", "status": "alive|dead|injured|missing|transformed", "notes": "Note dettagliate sullo stato finale e cambiamenti", "role": "Titolo/posizione specifica alla fine dell'episodio" }
   ],
   "events": [
-    { "title": "Titolo evento", "description": "Descrizione", "type": "plot|conflict|resolution|revelation|transformation" }
+    { "title": "Titolo evento", "description": "Descrizione dettagliata", "type": "plot|conflict|resolution|revelation|transformation|death|arrival|departure" }
   ],
   "locations": [
     { "name": "Nome luogo", "description": "Descrizione", "significance": "Importanza per la saga" }
   ]
 }`
-          : `You are an expert literary editor. Analyze this episode/novel from a saga and produce a continuity summary for writing the next episode.
+          : `You are an expert literary editor. Analyze this episode/novel from a saga and produce a COMPREHENSIVE AND DETAILED continuity summary for writing the next episode.
 
 Extract:
 1. SYNOPSIS: A complete summary of the episode (200-400 words)
-2. CHARACTERS: For each significant character:
-   - status: precise final state (alive/dead/injured/missing/transformed)
-   - role: SPECIFIC role in the story (e.g. "King of Valoria", "Captain of the Royal Guard", "Kingdom Advisor" - NOT generic like "protagonist")
-   - notes: crucial information for the sequel (status changes, new positions, evolved relationships)
-3. KEY EVENTS: Plot events that will influence the next episode
+2. CHARACTERS: EVERY character that appears or is mentioned (see detailed requirements below)
+3. KEY EVENTS: MINIMUM 5-10 key events per episode (MANDATORY)
 4. LOCATIONS: Main locations and their state at the end
 
-⚠️ CRITICAL - CHARACTER ROLES AND STATES:
-- The "role" field must contain the character's SPECIFIC title/position at the END of the episode
-- If a character changes role during the story (e.g. becomes King), the final role must reflect this change
-- The "notes" field must explain HOW the character reached that role/state
-- Correct example: { "name": "Marco", "status": "alive", "role": "King of Valoria", "notes": "Becomes king after defeating Mordekai and freeing the kingdom" }
-- WRONG example: { "name": "Marco", "status": "alive", "role": "protagonist", "notes": "Survives" }
+🔴 FUNDAMENTAL CHARACTER RULES:
+
+A) INCLUDE ALL TYPES OF CHARACTERS:
+   - Protagonists and main characters
+   - Antagonists and villains (e.g., "Mordekai", "The Dark Lord")
+   - Secondary characters who appear or are mentioned
+   - Characters who die during the story (with status: "dead")
+   - Characters mentioned but dead before the story (with status: "dead", notes: "Died before the story began")
+   - Allies, mentors, family members, servants
+
+B) DO NOT OMIT ANY CHARACTER:
+   - If a character is mentioned in the text, they MUST be included in the output
+   - Even if they only appear in one chapter
+   - Even if they are a defeated antagonist
+   - Even if they die during the story
+
+C) STATUS EXTRACTION (MANDATORY):
+   - status MUST be inferred from the text: "alive", "dead", "injured", "missing", "transformed"
+   - NEVER use "unknown" - always infer from context
+   - If a character dies in the text → status: "dead"
+   - If it's unknown whether they're alive or dead → status: "missing"
+   - If gravely wounded → status: "injured"
+
+D) SPECIFIC ROLES:
+   - role: SPECIFIC title/position (e.g., "King of Valoria", "Sworn Enemy", "Fallen Mentor")
+   - DO NOT use generic roles like "protagonist", "antagonist", "secondary character"
+
+⚠️ FUNDAMENTAL EVENT RULES:
+- You MUST extract MINIMUM 5-10 events for the entire episode
+- If the episode has multiple chapters, extract at least 2-3 events per chapter
+- Each event must have: descriptive title, detailed description, appropriate type
+- Event types: plot, conflict, resolution, revelation, transformation, death, arrival, departure
+
+CORRECT CHARACTER EXAMPLES:
+{ "name": "Antonio", "status": "dead", "role": "Royal Guard", "notes": "Killed by Mordekai in chapter 3 to protect the king" }
+{ "name": "Mordekai", "status": "dead", "role": "Dark Lord", "notes": "Main antagonist, defeated and killed by Marco in the finale" }
+{ "name": "Luca", "status": "dead", "role": "Prince of Valoria", "notes": "Marco's brother, died in war before the story began" }
+{ "name": "Elena", "status": "alive", "role": "Queen of Valoria", "notes": "Becomes queen after marrying Marco" }
+
+CORRECT EVENT EXAMPLES:
+{ "title": "Mordekai attacks the castle", "description": "The dark army besieges the castle walls", "type": "conflict" }
+{ "title": "Death of Antonio", "description": "The royal guard sacrifices himself to save the king", "type": "death" }
+{ "title": "Sword revelation", "description": "Marco discovers he is the only one who can wield the Sword of Light", "type": "revelation" }
 
 Respond ONLY with valid JSON:
 {
@@ -7073,7 +7143,7 @@ Respond ONLY with valid JSON:
     { "name": "Name", "status": "alive|dead|injured|missing|transformed", "notes": "Detailed notes on final state and changes", "role": "Specific title/position at the end of the episode" }
   ],
   "events": [
-    { "title": "Event title", "description": "Description", "type": "plot|conflict|resolution|revelation|transformation" }
+    { "title": "Event title", "description": "Detailed description", "type": "plot|conflict|resolution|revelation|transformation|death|arrival|departure" }
   ],
   "locations": [
     { "name": "Location name", "description": "Description", "significance": "Importance for the saga" }
@@ -7265,23 +7335,56 @@ ${chapterSummaries}`;
 
     // Also update character status_at_end based on AI analysis if available
     // Feature #307: Also add NEW characters found by AI
+    // Feature #309: Check if character exists in ANY project of the saga before adding
     const newCharactersAdded: Array<{ id: string; name: string; role: string; status: string }> = [];
+
+    // Feature #309: Get ALL characters from the saga (not just current project)
+    const sagaCharacters = db.prepare(
+      'SELECT id, project_id, name, description, role_in_story, status_at_end FROM characters WHERE saga_id = ?'
+    ).all(project.saga_id) as Array<{ id: string; project_id: string; name: string; description: string; role_in_story: string; status_at_end: string }>;
 
     if (usedAI && charactersData.length > 0) {
       for (const charData of charactersData) {
-        // Try to match with existing characters
+        // Feature #309: Check if character exists ANYWHERE in the saga
+        const existingSagaChar = sagaCharacters.find(c =>
+          c.name.toLowerCase() === charData.name.toLowerCase()
+        );
+
+        // Also check current project characters for direct update
         const existingChar = characters.find(c =>
           c.name.toLowerCase() === charData.name.toLowerCase()
         );
+
         if (existingChar) {
-          // Update existing character's status
+          // Update existing character's status in current project
           const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
           const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
           db.prepare(
             'UPDATE characters SET status_at_end = ?, status_notes = ?, role_in_story = ?, updated_at = datetime(\'now\') WHERE id = ?'
           ).run(status, charData.notes || '', charData.role || existingChar.role_in_story, existingChar.id);
+          console.log('[Finalize] Updated existing character:', charData.name, 'status:', status);
+        } else if (existingSagaChar) {
+          // Feature #309: Character exists in saga but not in current project
+          // Don't duplicate - just add a reference to the saga character in this project
+          console.log(`[Finalize] Character "${charData.name}" exists in saga (project: ${existingSagaChar.project_id}), adding to current project`);
+          const newCharId = uuidv4();
+          const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
+          const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
+
+          // Copy character to current project with updated status
+          db.prepare(
+            `INSERT INTO characters (id, project_id, saga_id, name, description, role_in_story, status_at_end, status_notes, extracted_from_upload, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
+          ).run(newCharId, projectId, project.saga_id, charData.name.trim(), charData.notes || existingSagaChar.description, charData.role || existingSagaChar.role_in_story, status, charData.notes || '');
+
+          newCharactersAdded.push({
+            id: newCharId,
+            name: charData.name.trim(),
+            role: charData.role || existingSagaChar.role_in_story,
+            status: status
+          });
         } else if (charData.name && charData.name.trim()) {
-          // Feature #307: Add NEW character found by AI
+          // Feature #307: Add truly NEW character (never appeared in saga)
           const newCharId = uuidv4();
           const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
           const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
@@ -7298,7 +7401,7 @@ ${chapterSummaries}`;
             status: status
           });
 
-          console.log('[Finalize] Added new character:', charData.name);
+          console.log('[Finalize] Added NEW character to saga:', charData.name);
         }
       }
     }
