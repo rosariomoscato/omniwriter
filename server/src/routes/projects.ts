@@ -4761,7 +4761,7 @@ Identify all narrative issues, even minor ones. It's important to find areas for
 
     // Feature #283: Save analysis results to database
     try {
-      const analysisId = randomUUID();
+      const analysisId = uuidv4();
       const summary = plotHoles.length === 0
         ? 'No plot holes detected'
         : `${plotHoles.length} issue${plotHoles.length > 1 ? 's' : ''} found: ${plotHoles.filter(h => h.severity === 'high').length} high, ${plotHoles.filter(h => h.severity === 'medium').length} medium, ${plotHoles.filter(h => h.severity === 'low').length} low severity`;
