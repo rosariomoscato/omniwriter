@@ -1015,8 +1015,8 @@ export default function ProjectDetail() {
       setShowConsistencyResults(true);
       setViewingSavedConsistency(false); // This is a fresh analysis, not a saved one
 
-      // Feature #291: Refresh the saved consistency check status
-      loadSavedConsistencyCheck();
+      // Feature #291 & #293: Refresh the saved consistency check status (await to ensure date is available)
+      await loadSavedConsistencyCheck();
     } catch (err: any) {
       setError(err.message || 'Failed to check consistency');
       toast.error(err.message || 'Failed to check consistency');
@@ -3751,7 +3751,7 @@ export default function ProjectDetail() {
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {t('projectPage.consistency.issue', { count: consistencyResults.length })}
-                    {viewingSavedConsistency && savedConsistencyCheck?.created_at && (
+                    {savedConsistencyCheck?.created_at && (
                       <span className="ml-2">
                         • {t('projectPage.consistency.checkedOn', 'Verificata il')} {new Date(savedConsistencyCheck.created_at).toLocaleDateString()}
                       </span>
