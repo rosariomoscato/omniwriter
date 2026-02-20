@@ -616,7 +616,7 @@
       "timeoutError": "The analysis took too long. Please try again or try with fewer chapters.",
       "networkError": "Network connection failed. Please check your internet and try again.",
       "noChaptersError": "Please generate some chapters first before detecting plot holes",
-      "viewLastAnalysis": "View Analysis",
+      "viewLastAnalysis": "View Holes",
       "viewLastAnalysisHint": "View the last saved plot hole analysis",
       "savedAnalysis": "Saved",
       "analyzedOn": "Analyzed on",

@@ -1582,7 +1582,7 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => handleStatusChange('draft')}
                         disabled={updatingStatus}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'draft' ? 'bg-gray-600' : 'bg-gray-300'}`}></span>
                         {t('projectPage.statusLabels.draft')}
@@ -1591,7 +1591,7 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => handleStatusChange('in_progress')}
                         disabled={updatingStatus}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'in_progress' ? 'bg-blue-600' : 'bg-gray-300'}`}></span>
                         {t('projectPage.statusLabels.inProgress')}
@@ -1600,7 +1600,7 @@ export default function ProjectDetail() {
                       <button
                         onClick={() => handleStatusChange('completed')}
                         disabled={updatingStatus}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         <span className={`w-3 h-3 rounded-full ${project?.status === 'completed' ? 'bg-green-600' : 'bg-gray-300'}`}></span>
                         {t('projectPage.statusLabels.completed')}
@@ -3751,6 +3751,11 @@ export default function ProjectDetail() {
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {t('projectPage.consistency.issue', { count: consistencyResults.length })}
+                    {viewingSavedConsistency && savedConsistencyCheck?.created_at && (
+                      <span className="ml-2">
+                        • {t('projectPage.consistency.checkedOn', 'Verificata il')} {new Date(savedConsistencyCheck.created_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
