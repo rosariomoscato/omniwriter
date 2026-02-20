@@ -139,9 +139,6 @@ export default function ProjectDetail() {
   const [draggedChapterIndex, setDraggedChapterIndex] = useState<number | null>(null);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [showAnalyzeNovel, setShowAnalyzeNovel] = useState(false);
-  const [analyzingNovel, setAnalyzingNovel] = useState(false);
-  const [novelFile, setNovelFile] = useState<File | null>(null);
   const [generatingOutline, setGeneratingOutline] = useState(false);
   const [outlineGenerated, setOutlineGenerated] = useState(false);
   const [detectingPlotHoles, setDetectingPlotHoles] = useState(false);
@@ -819,56 +816,6 @@ export default function ProjectDetail() {
     } catch (err: any) {
       setError(err.message || 'Failed to link sources');
       toast.error(err.message || 'Failed to link sources');
-    }
-  };
-
-  const handleAnalyzeNovel = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!novelFile) {
-      setError(t('projectPage.analyzeNovelForm.errorMessage'));
-      return;
-    }
-
-    try {
-      setAnalyzingNovel(true);
-      setError('');
-      // Pass current language for AI-based analysis (Feature #249)
-      const currentLanguage = i18n.language === 'en' ? 'en' : 'it';
-      const response = await apiService.analyzeNovel(id!, novelFile, currentLanguage);
-
-      const totalExtracted = response.extracted.characters + response.extracted.locations + response.extracted.plotEvents;
-
-      if (totalExtracted === 0) {
-        // Show warning if nothing was extracted
-        toast.warning(t('projectPage.analyzeNovelForm.noResultsMessage'));
-      } else if (response.extracted.synopsis) {
-        toast.success(t('projectPage.analyzeNovelForm.successMessageWithSynopsis', {
-          characters: response.extracted.characters,
-          locations: response.extracted.locations,
-          plotEvents: response.extracted.plotEvents
-        }));
-      } else {
-        toast.success(t('projectPage.analyzeNovelForm.successMessage', {
-          characters: response.extracted.characters,
-          locations: response.extracted.locations,
-          plotEvents: response.extracted.plotEvents
-        }));
-      }
-
-      // Reload characters, locations, and plot events
-      await Promise.all([
-        loadCharacters(),
-        loadLocations(),
-        loadPlotEvents()
-      ]);
-
-      setShowAnalyzeNovel(false);
-      setNovelFile(null);
-    } catch (err: any) {
-      setError(err.message || t('projectPage.analyzeNovelForm.errorMessage'));
-    } finally {
-      setAnalyzingNovel(false);
     }
   };
 
@@ -2871,14 +2818,6 @@ export default function ProjectDetail() {
                 </button>
               )}
               <button
-                onClick={() => setShowAnalyzeNovel(!showAnalyzeNovel)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
-                title={t('projectPage.characters.analyzeNovelHint')}
-              >
-                <FileText className="w-4 h-4" />
-                {t('projectPage.characters.analyzeNovel')}
-              </button>
-              <button
                 onClick={handleViewSynopsis}
                 disabled={loadingSynopsis}
                 className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
@@ -2893,7 +2832,6 @@ export default function ProjectDetail() {
                   setEditingCharacter(null);
                   setCharacterForm({ name: '', description: '', traits: '', backstory: '', role_in_story: '' });
                   setError('');
-                  setShowAnalyzeNovel(false);
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
@@ -2969,63 +2907,6 @@ export default function ProjectDetail() {
                     className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   >
                     Cancel
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-
-          {/* Analyze Novel Form */}
-          {showAnalyzeNovel && (
-            <form onSubmit={handleAnalyzeNovel} className="p-4 border-b border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/20">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                {t('projectPage.analyzeNovelForm.title')}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                {t('projectPage.analyzeNovelForm.description')}
-              </p>
-              <div className="space-y-3">
-                <label className="flex-1">
-                  <div className="flex items-center justify-center w-full h-24 px-4 transition bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-purple-500 focus:outline-none">
-                    <div className="flex flex-col items-center">
-                      <FileText className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {analyzingNovel ? t('projectPage.analyzeNovelForm.analyzing') : novelFile ? novelFile.name : t('projectPage.analyzeNovelForm.uploadText')}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {t('projectPage.analyzeNovelForm.formatHint')}
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".txt,.docx,.doc,.pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setNovelFile(file);
-                      }}
-                      disabled={analyzingNovel}
-                    />
-                  </div>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={analyzingNovel || !novelFile}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {analyzingNovel ? t('projectPage.analyzeNovelForm.analyzing') : t('projectPage.analyzeNovelForm.analyzeButton')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAnalyzeNovel(false);
-                      setNovelFile(null);
-                      setError('');
-                    }}
-                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {t('projectPage.analyzeNovelForm.cancelButton')}
                   </button>
                 </div>
               </div>
