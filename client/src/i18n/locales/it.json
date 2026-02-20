@@ -669,7 +669,16 @@
       "statusTransformed": "Trasformato",
       "statusUnknown": "Sconosciuto",
       "resultTitle": "Risultato Finalizzazione",
-      "close": "Chiudi"
+      "close": "Chiudi",
+      "reviewRoles": "Revisiona ruoli e stati prima di creare il sequel",
+      "status": "Stato",
+      "role": "Ruolo/Titolo (es. \"Re di Valoria\")",
+      "rolePlaceholder": "es. Re di Valoria, Capitano delle Guardie...",
+      "notes": "Note (cambiamenti importanti, nuove posizioni)",
+      "notesPlaceholder": "es. È diventato re dopo aver sconfitto il signore oscuro...",
+      "saveChanges": "Salva Modifiche",
+      "savedChanges": "Dati di continuity salvati con successo!",
+      "saveError": "Impossibile salvare le modifiche"
     },
     "sagaContinuity": {
       "title": "Continuity della Saga",
@@ -680,6 +689,13 @@
       "charactersDead": "Personaggi Morti",
       "totalCharacters": "Totale Personaggi",
       "timeline": "Timeline degli Eventi"
+    },
+    "characterStatus": {
+      "alive": "Vivo",
+      "dead": "Morto",
+      "injured": "Ferito",
+      "missing": "Disperso",
+      "unknown": "Sconosciuto"
     }
   },
   "common": {
@@ -692,6 +708,8 @@
     "filter": "Filtra",
     "sort": "Ordina",
     "loading": "Caricamento...",
+    "saving": "Salvataggio...",
+    "editable": "Modificabile",
     "error": "Errore",
     "success": "Successo",
     "confirm": "Conferma",

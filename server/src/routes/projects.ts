@@ -131,36 +131,59 @@ function fetchContinuityForProject(db: any, projectId: string, isItalian: boolea
     console.warn('[Continuity] Failed to parse timeline_json:', e);
   }
 
-  // Format character states with emphasis on status
+  // Format character states with emphasis on status AND role/title
+  // IMPORTANT: Notes often contain crucial info like "became King of Valoria"
   const aliveCharacters = characters.filter((c: any) => c.status === 'alive');
   const deadCharacters = characters.filter((c: any) => c.status === 'dead');
   const injuredCharacters = characters.filter((c: any) => c.status === 'injured');
   const missingCharacters = characters.filter((c: any) => c.status === 'missing');
+  const unknownCharacters = characters.filter((c: any) => !c.status || c.status === 'unknown');
+
+  // Helper to format a character with role and notes prominently displayed
+  const formatCharacterWithRole = (c: any) => {
+    let parts = [c.name];
+    // Role is the specific title/position - show it prominently
+    if (c.role) {
+      parts.push(`[${c.role}]`);
+    }
+    // Notes contain important state changes - always include them
+    if (c.notes) {
+      parts.push(`- ${c.notes}`);
+    }
+    return parts.join(' ');
+  };
 
   let characterStates = '';
 
   if (aliveCharacters.length > 0) {
     characterStates += isItalian
-      ? `\n🟢 PERSONAGGI VIVI:\n${aliveCharacters.map((c: any) => `- ${c.name}${c.notes ? ` (${c.notes})` : ''}${c.role ? ` - ${c.role}` : ''}`).join('\n')}\n`
-      : `\n🟢 ALIVE CHARACTERS:\n${aliveCharacters.map((c: any) => `- ${c.name}${c.notes ? ` (${c.notes})` : ''}${c.role ? ` - ${c.role}` : ''}`).join('\n')}\n`;
+      ? `\n🟢 PERSONAGGI VIVI (con ruolo attuale):\n${aliveCharacters.map(formatCharacterWithRole).join('\n')}\n`
+      : `\n🟢 ALIVE CHARACTERS (with current role):\n${aliveCharacters.map(formatCharacterWithRole).join('\n')}\n`;
   }
 
   if (deadCharacters.length > 0) {
     characterStates += isItalian
-      ? `\n🔴 PERSONAGGI MORTI (NON USARE - SONO MORTI):\n${deadCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
-      : `\n🔴 DEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${deadCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+      ? `\n🔴 PERSONAGGI MORTI (NON USARE - SONO MORTI):\n${deadCharacters.map(formatCharacterWithRole).join('\n')}\n`
+      : `\n🔴 DEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${deadCharacters.map(formatCharacterWithRole).join('\n')}\n`;
   }
 
   if (injuredCharacters.length > 0) {
     characterStates += isItalian
-      ? `\n🟡 PERSONAGGI FERITI:\n${injuredCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
-      : `\n🟡 INJURED CHARACTERS:\n${injuredCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+      ? `\n🟡 PERSONAGGI FERITI:\n${injuredCharacters.map(formatCharacterWithRole).join('\n')}\n`
+      : `\n🟡 INJURED CHARACTERS:\n${injuredCharacters.map(formatCharacterWithRole).join('\n')}\n`;
   }
 
   if (missingCharacters.length > 0) {
     characterStates += isItalian
-      ? `\n⚪ PERSONAGGI DISPERSI:\n${missingCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
-      : `\n⚪ MISSING CHARACTERS:\n${missingCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+      ? `\n⚪ PERSONAGGI DISPERSI:\n${missingCharacters.map(formatCharacterWithRole).join('\n')}\n`
+      : `\n⚪ MISSING CHARACTERS:\n${missingCharacters.map(formatCharacterWithRole).join('\n')}\n`;
+  }
+
+  // Also include characters with unknown status if they have role/notes
+  if (unknownCharacters.length > 0 && unknownCharacters.some((c: any) => c.role || c.notes)) {
+    characterStates += isItalian
+      ? `\n⚪ PERSONAGGI CON STATO NON SPECIFICATO:\n${unknownCharacters.filter((c: any) => c.role || c.notes).map(formatCharacterWithRole).join('\n')}\n`
+      : `\n⚪ CHARACTERS WITH UNSPECIFIED STATUS:\n${unknownCharacters.filter((c: any) => c.role || c.notes).map(formatCharacterWithRole).join('\n')}\n`;
   }
 
   // Format events summary
@@ -6998,15 +7021,25 @@ router.post('/:id/finalize-episode', authenticateToken, async (req: AuthRequest,
 
 Devi estrarre:
 1. SINOSSI: Un riassunto completo dell'episodio (200-400 parole)
-2. PERSONAGGI: Per ogni personaggio significativo, il loro stato finale (vivo/morto/ferito/disperso/trasformato), il loro ruolo, e note rilevanti per il seguito
+2. PERSONAGGI: Per ogni personaggio significativo:
+   - status: stato finale preciso (alive/dead/injured/missing/transformed)
+   - role: ruolo SPECIFICO nella storia (es. "Re di Valoria", "Capitana delle Guardie Reali", "Consigliere del Regno" - NON generico come "protagonista")
+   - notes: informazioni cruciali per il seguito (cambiamenti di stato, nuove posizioni, relazioni evolute)
 3. EVENTI PRINCIPALI: Gli eventi chiave della trama che influenzeranno il prossimo episodio
 4. LUOGHI: I luoghi principali e il loro stato alla fine dell'episodio
+
+⚠️ IMPORTANTE - RUOLI E STATI DEI PERSONAGGI:
+- Il campo "role" deve contenere il titolo/posizione SPECIFICO del personaggio alla FINE dell'episodio
+- Se un personaggio cambia ruolo durante la storia (es. diventa Re), il role finale deve riflettere questo cambiamento
+- Il campo "notes" deve spiegare COME il personaggio è arrivato a quel ruolo/stato
+- Esempio corretto: { "name": "Marco", "status": "alive", "role": "Re di Valoria", "notes": "Diventa re dopo aver sconfitto Mordekai e liberato il regno" }
+- Esempio SBAGLIATO: { "name": "Marco", "status": "alive", "role": "protagonista", "notes": "Sopravvive" }
 
 Rispondi SOLO con JSON valido nel formato:
 {
   "synopsis": "Riassunto completo dell'episodio...",
   "characters": [
-    { "name": "Nome", "status": "alive|dead|injured|missing|transformed", "notes": "Note sullo stato finale", "role": "Ruolo nella storia" }
+    { "name": "Nome", "status": "alive|dead|injured|missing|transformed", "notes": "Note dettagliate sullo stato finale e cambiamenti", "role": "Titolo/posizione specifica alla fine dell'episodio" }
   ],
   "events": [
     { "title": "Titolo evento", "description": "Descrizione", "type": "plot|conflict|resolution|revelation|transformation" }
@@ -7019,15 +7052,25 @@ Rispondi SOLO con JSON valido nel formato:
 
 Extract:
 1. SYNOPSIS: A complete summary of the episode (200-400 words)
-2. CHARACTERS: For each significant character, their final state (alive/dead/injured/missing/transformed), role, and notes relevant for the sequel
+2. CHARACTERS: For each significant character:
+   - status: precise final state (alive/dead/injured/missing/transformed)
+   - role: SPECIFIC role in the story (e.g. "King of Valoria", "Captain of the Royal Guard", "Kingdom Advisor" - NOT generic like "protagonist")
+   - notes: crucial information for the sequel (status changes, new positions, evolved relationships)
 3. KEY EVENTS: Plot events that will influence the next episode
 4. LOCATIONS: Main locations and their state at the end
+
+⚠️ CRITICAL - CHARACTER ROLES AND STATES:
+- The "role" field must contain the character's SPECIFIC title/position at the END of the episode
+- If a character changes role during the story (e.g. becomes King), the final role must reflect this change
+- The "notes" field must explain HOW the character reached that role/state
+- Correct example: { "name": "Marco", "status": "alive", "role": "King of Valoria", "notes": "Becomes king after defeating Mordekai and freeing the kingdom" }
+- WRONG example: { "name": "Marco", "status": "alive", "role": "protagonist", "notes": "Survives" }
 
 Respond ONLY with valid JSON:
 {
   "synopsis": "Complete episode summary...",
   "characters": [
-    { "name": "Name", "status": "alive|dead|injured|missing|transformed", "notes": "Final state notes", "role": "Story role" }
+    { "name": "Name", "status": "alive|dead|injured|missing|transformed", "notes": "Detailed notes on final state and changes", "role": "Specific title/position at the end of the episode" }
   ],
   "events": [
     { "title": "Event title", "description": "Description", "type": "plot|conflict|resolution|revelation|transformation" }
@@ -7265,6 +7308,116 @@ ${chapterSummaries}`;
   } catch (error) {
     console.error('[Projects] Finalize episode error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Failed to finalize episode' });
+  }
+});
+
+// PUT /api/projects/:id/continuity - Update continuity data for a project
+// Allows users to review and edit extracted continuity data before creating a sequel
+// @ts-expect-error - AuthRequest type compatibility with router
+router.put('/:id/continuity', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const { characters, events, locations, synopsis } = req.body;
+
+    console.log('[Projects] Updating continuity for project:', projectId);
+
+    // Verify project belongs to user
+    const project = db.prepare(
+      'SELECT id, saga_id FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as { id: string; saga_id: string | null } | undefined;
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (!project.saga_id) {
+      res.status(400).json({ message: 'Project must belong to a saga to update continuity' });
+      return;
+    }
+
+    // Find the continuity record for this project
+    const continuity = db.prepare(
+      'SELECT id FROM saga_continuity WHERE source_project_id = ? AND saga_id = ?'
+    ).get(projectId, project.saga_id) as { id: string } | undefined;
+
+    if (!continuity) {
+      res.status(404).json({ message: 'No continuity record found for this project. Finalize the episode first.' });
+      return;
+    }
+
+    // Update the continuity record
+    db.prepare(
+      `UPDATE saga_continuity SET
+        cumulative_synopsis = ?,
+        characters_state = ?,
+        events_summary = ?,
+        locations_visited = ?,
+        updated_at = datetime('now')
+      WHERE id = ?`
+    ).run(
+      synopsis || '',
+      JSON.stringify(characters || []),
+      JSON.stringify(events || []),
+      JSON.stringify(locations || []),
+      continuity.id
+    );
+
+    // Also update the characters table with the corrected data
+    if (Array.isArray(characters)) {
+      for (const charData of characters) {
+        if (charData.name) {
+          // Find existing character by name in this project
+          const existingChar = db.prepare(
+            'SELECT id FROM characters WHERE project_id = ? AND LOWER(name) = LOWER(?)'
+          ).get(projectId, charData.name) as { id: string } | undefined;
+
+          if (existingChar) {
+            const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
+            const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
+            db.prepare(
+              `UPDATE characters SET
+                role_in_story = ?,
+                status_at_end = ?,
+                status_notes = ?,
+                updated_at = datetime('now')
+              WHERE id = ?`
+            ).run(
+              charData.role || '',
+              status,
+              charData.notes || '',
+              existingChar.id
+            );
+          }
+        }
+      }
+    }
+
+    // Return updated continuity record
+    const updatedContinuity = db.prepare('SELECT * FROM saga_continuity WHERE id = ?').get(continuity.id) as any;
+
+    console.log('[Projects] Continuity updated successfully for project:', projectId);
+
+    res.json({
+      message: 'Continuity updated successfully',
+      continuity: {
+        id: updatedContinuity.id,
+        saga_id: updatedContinuity.saga_id,
+        project_id: updatedContinuity.source_project_id,
+        episode_number: updatedContinuity.episode_number,
+        synopsis: updatedContinuity.cumulative_synopsis || '',
+        characters: JSON.parse(updatedContinuity.characters_state || '[]'),
+        events: JSON.parse(updatedContinuity.events_summary || '[]'),
+        locations: JSON.parse(updatedContinuity.locations_visited || '[]'),
+        updated_at: updatedContinuity.updated_at
+      }
+    });
+
+  } catch (error) {
+    console.error('[Projects] Update continuity error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to update continuity' });
   }
 });
 

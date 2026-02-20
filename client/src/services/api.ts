@@ -1999,6 +1999,32 @@ class ApiService {
     });
   }
 
+  // Update continuity data for a project (Feature #306)
+  async updateContinuity(projectId: string, data: {
+    synopsis?: string;
+    characters?: Array<{ name: string; status: string; notes: string; role: string }>;
+    events?: Array<{ title: string; description: string; type: string }>;
+    locations?: Array<{ name: string; description: string; significance: string }>;
+  }): Promise<{
+    message: string;
+    continuity: {
+      id: string;
+      saga_id: string;
+      project_id: string;
+      episode_number: number;
+      synopsis: string;
+      characters: Array<{ name: string; status: string; notes: string; role: string }>;
+      events: Array<{ title: string; description: string; type: string }>;
+      locations: Array<{ name: string; description: string; significance: string }>;
+      updated_at: string;
+    };
+  }> {
+    return this.request(`/projects/${projectId}/continuity`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Get saga continuity data (Feature #299)
   async getSagaContinuity(sagaId: string): Promise<{
     saga: { id: string; title: string; description: string; area: string };

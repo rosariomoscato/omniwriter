@@ -79,6 +79,11 @@ export default function ProjectDetail() {
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [finalizePreview, setFinalizePreview] = useState<any>(null);
+  // Feature #306: Editable continuity data
+  const [editedCharacters, setEditedCharacters] = useState<any[]>([]);
+  const [editedSynopsis, setEditedSynopsis] = useState('');
+  const [savingContinuity, setSavingContinuity] = useState(false);
+  const [continuityEdited, setContinuityEdited] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -931,6 +936,11 @@ export default function ProjectDetail() {
       const result = await apiService.finalizeEpisode(project.id, i18n.language);
       setFinalizeResult(result.continuity);
       setShowFinalizeResult(true);
+      // Feature #306: Also set preview and editable states
+      setFinalizePreview(result.continuity);
+      setEditedSynopsis(result.continuity.synopsis || '');
+      setEditedCharacters(result.continuity.characters || []);
+      setContinuityEdited(false);
       toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
     } catch (err: any) {
       console.error('[FinalizeEpisode] Error:', err);
@@ -938,6 +948,39 @@ export default function ProjectDetail() {
     } finally {
       setFinalizingEpisode(false);
     }
+  };
+
+  // Feature #306: Save edited continuity data
+  const handleSaveContinuityEdits = async () => {
+    if (!project || !finalizePreview) return;
+
+    setSavingContinuity(true);
+    try {
+      const result = await apiService.updateContinuity(project.id, {
+        synopsis: editedSynopsis,
+        characters: editedCharacters,
+        events: finalizePreview.events,
+        locations: finalizePreview.locations
+      });
+      setFinalizePreview(result.continuity);
+      setContinuityEdited(false);
+      toast.success(t('projectPage.finalizeEpisode.savedChanges', 'Continuity data saved successfully!'));
+    } catch (err: any) {
+      console.error('[SaveContinuity] Error:', err);
+      toast.error(err.message || t('projectPage.finalizeEpisode.saveError', 'Failed to save changes'));
+    } finally {
+      setSavingContinuity(false);
+    }
+  };
+
+  // Feature #306: Update character field
+  const updateCharacterField = (idx: number, field: string, value: string) => {
+    setEditedCharacters(prev => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return updated;
+    });
+    setContinuityEdited(true);
   };
 
   const handleDetectPlotHoles = async () => {
@@ -1559,8 +1602,9 @@ export default function ProjectDetail() {
   };
 
   // confirmFinalizeEpisode triggers handleFinalizeEpisode after dialog confirmation
+  // Feature #306: Keep dialog open to show editable results
   const confirmFinalizeEpisode = () => {
-    setShowFinalizeDialog(false);
+    // Don't close dialog - keep it open to show editable results
     handleFinalizeEpisode();
   };
 
@@ -1876,40 +1920,88 @@ export default function ProjectDetail() {
                     </div>
                   </div>
 
-                  {finalizePreview.synopsis && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t('projectPage.finalizeEpisode.synopsis')}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                        {finalizePreview.synopsis}
-                      </p>
-                    </div>
-                  )}
+                  {/* Feature #306: Editable synopsis */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      {t('projectPage.finalizeEpisode.synopsis')}
+                      <span className="text-xs text-gray-400">({t('common.editable', 'Editable')})</span>
+                    </h4>
+                    <textarea
+                      value={editedSynopsis}
+                      onChange={(e) => {
+                        setEditedSynopsis(e.target.value);
+                        setContinuityEdited(true);
+                      }}
+                      className="w-full text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      rows={4}
+                    />
+                  </div>
 
-                  {finalizePreview.characters && finalizePreview.characters.length > 0 && (
+                  {/* Feature #306: Editable character data with role/status/notes */}
+                  {editedCharacters && editedCharacters.length > 0 && (
                     <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                         {t('projectPage.characters')}
+                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                          ⚠️ {t('projectPage.finalizeEpisode.reviewRoles', 'Review roles and statuses before creating sequel')}
+                        </span>
                       </h4>
-                      <div className="max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2">
-                        {finalizePreview.characters.map((char: any, idx: number) => (
-                          <div key={idx} className="text-sm border-b border-gray-200 dark:border-gray-600 last:border-0 pb-2 last:pb-0">
-                            <div className="font-medium text-gray-900 dark:text-gray-100">{char.name}</div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                              {char.status} - {char.role}
-                            </div>
-                            {char.notes && (
-                              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 italic">
-                                {char.notes}
+                      <div className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-3">
+                        {editedCharacters.map((char: any, idx: number) => (
+                          <div key={idx} className="text-sm border-b border-gray-200 dark:border-gray-600 last:border-0 pb-3 last:pb-0">
+                            <div className="font-medium text-gray-900 dark:text-gray-100 mb-2">{char.name}</div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              {/* Status dropdown */}
+                              <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                                  {t('projectPage.finalizeEpisode.status', 'Status')}
+                                </label>
+                                <select
+                                  value={char.status || 'unknown'}
+                                  onChange={(e) => updateCharacterField(idx, 'status', e.target.value)}
+                                  className="w-full text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                >
+                                  <option value="alive">🟢 {t('characterStatus.alive', 'Alive')}</option>
+                                  <option value="dead">🔴 {t('characterStatus.dead', 'Dead')}</option>
+                                  <option value="injured">🟡 {t('characterStatus.injured', 'Injured')}</option>
+                                  <option value="missing">⚪ {t('characterStatus.missing', 'Missing')}</option>
+                                  <option value="unknown">❓ {t('characterStatus.unknown', 'Unknown')}</option>
+                                </select>
                               </div>
-                            )}
+                              {/* Role input */}
+                              <div className="md:col-span-2">
+                                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                                  {t('projectPage.finalizeEpisode.role', 'Role/Title (e.g. "King of Valoria")')}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={char.role || ''}
+                                  onChange={(e) => updateCharacterField(idx, 'role', e.target.value)}
+                                  placeholder={t('projectPage.finalizeEpisode.rolePlaceholder', 'e.g. King of Valoria, Captain of Guards...')}
+                                  className="w-full text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                />
+                              </div>
+                            </div>
+                            {/* Notes textarea */}
+                            <div className="mt-2">
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                                {t('projectPage.finalizeEpisode.notes', 'Notes (important changes, new positions)')}
+                              </label>
+                              <textarea
+                                value={char.notes || ''}
+                                onChange={(e) => updateCharacterField(idx, 'notes', e.target.value)}
+                                placeholder={t('projectPage.finalizeEpisode.notesPlaceholder', 'e.g. Became king after defeating the dark lord...')}
+                                className="w-full text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                rows={2}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
+                  {/* Events (read-only, for reference) */}
                   {finalizePreview.events && finalizePreview.events.length > 0 && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1926,6 +2018,7 @@ export default function ProjectDetail() {
                     </div>
                   )}
 
+                  {/* Locations (read-only, for reference) */}
                   {finalizePreview.locations && finalizePreview.locations.length > 0 && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1942,11 +2035,34 @@ export default function ProjectDetail() {
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-2">
+                  {/* Action buttons */}
+                  <div className="flex justify-end gap-2 mt-4">
+                    {continuityEdited && (
+                      <button
+                        onClick={handleSaveContinuityEdits}
+                        disabled={savingContinuity}
+                        className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {savingContinuity ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            {t('common.saving', 'Saving...')}
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            {t('projectPage.finalizeEpisode.saveChanges', 'Save Changes')}
+                          </>
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setShowFinalizeDialog(false);
                         setFinalizePreview(null);
+                        setEditedCharacters([]);
+                        setEditedSynopsis('');
+                        setContinuityEdited(false);
                       }}
                       className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
                     >

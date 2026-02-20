@@ -669,7 +669,16 @@
       "statusTransformed": "Transformed",
       "statusUnknown": "Unknown",
       "resultTitle": "Finalization Result",
-      "close": "Close"
+      "close": "Close",
+      "reviewRoles": "Review roles and statuses before creating sequel",
+      "status": "Status",
+      "role": "Role/Title (e.g. \"King of Valoria\")",
+      "rolePlaceholder": "e.g. King of Valoria, Captain of Guards...",
+      "notes": "Notes (important changes, new positions)",
+      "notesPlaceholder": "e.g. Became king after defeating the dark lord...",
+      "saveChanges": "Save Changes",
+      "savedChanges": "Continuity data saved successfully!",
+      "saveError": "Failed to save changes"
     },
     "sagaContinuity": {
       "title": "Saga Continuity",
@@ -680,6 +689,13 @@
       "charactersDead": "Characters Dead",
       "totalCharacters": "Total Characters",
       "timeline": "Event Timeline"
+    },
+    "characterStatus": {
+      "alive": "Alive",
+      "dead": "Dead",
+      "injured": "Injured",
+      "missing": "Missing",
+      "unknown": "Unknown"
     }
   },
   "common": {
@@ -692,6 +708,8 @@
     "filter": "Filter",
     "sort": "Sort",
     "loading": "Loading...",
+    "saving": "Saving...",
+    "editable": "Editable",
     "error": "Error",
     "success": "Success",
     "confirm": "Confirm",
