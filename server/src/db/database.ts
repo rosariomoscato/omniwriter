@@ -254,7 +254,7 @@ function runMigrations(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS export_history (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      format TEXT NOT NULL CHECK(format IN ('docx', 'epub', 'rtf', 'pdf', 'txt')),
+      format TEXT NOT NULL CHECK(format IN ('docx', 'epub', 'rtf', 'pdf', 'txt', 'cover')),
       file_path TEXT NOT NULL DEFAULT '',
       epub_cover_url TEXT,
       epub_metadata_json TEXT,
@@ -417,6 +417,32 @@ function runMigrations(db: Database.Database): void {
     if (!chapterColumnNames.includes('summary')) {
       console.log('[Database] Adding summary column to chapters...');
       db.exec('ALTER TABLE chapters ADD COLUMN summary TEXT DEFAULT \'\'');
+    }
+
+    // Feature #296: Update export_history CHECK constraint to include 'cover' format
+    // SQLite doesn't support modifying constraints, so we need to recreate the table
+    try {
+      const exportHistoryInfo = db.prepare('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?').get('table', 'export_history') as { sql: string } | undefined;
+      if (exportHistoryInfo && !exportHistoryInfo.sql.includes("'cover'")) {
+        console.log('[Database] Updating export_history CHECK constraint to include cover format...');
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS export_history_new (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            format TEXT NOT NULL CHECK(format IN ('docx', 'epub', 'rtf', 'pdf', 'txt', 'cover')),
+            file_path TEXT NOT NULL DEFAULT '',
+            epub_cover_url TEXT,
+            epub_metadata_json TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+          );
+          INSERT INTO export_history_new SELECT * FROM export_history;
+          DROP TABLE export_history;
+          ALTER TABLE export_history_new RENAME TO export_history;
+        `);
+        console.log('[Database] export_history table updated successfully');
+      }
+    } catch (migrationError) {
+      console.log('[Database] export_history migration (may already be applied):', migrationError);
     }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);
