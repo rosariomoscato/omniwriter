@@ -6618,4 +6618,382 @@ router.post('/:id/sequel/confirm', authenticateToken, async (req: AuthRequest, r
   }
 });
 
+// POST /api/projects/:id/finalize-episode - Finalize episode for saga continuity (Feature #298)
+// Extracts final character states, main events, and generates synopsis.
+// Saves/updates record in saga_continuity table.
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/finalize-episode', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const language: Language = req.body?.language ||
+                 (req.headers['accept-language']?.startsWith('en') ? 'en' : 'it') as Language;
+
+    console.log('[Projects] Finalizing episode for project:', projectId);
+
+    // Verify project belongs to user
+    const project = db.prepare(
+      'SELECT id, title, description, area, saga_id FROM projects WHERE id = ? AND user_id = ?'
+    ).get(projectId, userId) as { id: string; title: string; description: string; area: string; saga_id: string | null } | undefined;
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Project must belong to a saga
+    if (!project.saga_id) {
+      res.status(400).json({ message: 'Project must belong to a saga to finalize episode' });
+      return;
+    }
+
+    // Verify saga ownership
+    const saga = db.prepare(
+      'SELECT id, title FROM sagas WHERE id = ? AND user_id = ?'
+    ).get(project.saga_id, userId) as { id: string; title: string } | undefined;
+
+    if (!saga) {
+      res.status(404).json({ message: 'Saga not found' });
+      return;
+    }
+
+    // Get all chapters with content
+    const chapters = db.prepare(
+      'SELECT id, title, content, summary, order_index FROM chapters WHERE project_id = ? ORDER BY order_index'
+    ).all(projectId) as Array<{ id: string; title: string; content: string; summary: string; order_index: number }>;
+
+    if (chapters.length === 0) {
+      res.status(400).json({ message: 'No chapters found. Please create chapters before finalizing the episode.' });
+      return;
+    }
+
+    // Get existing characters for this project
+    const characters = db.prepare(
+      'SELECT id, name, description, role_in_story, status_at_end, status_notes, traits, backstory FROM characters WHERE project_id = ?'
+    ).all(projectId) as Array<{
+      id: string; name: string; description: string; role_in_story: string;
+      status_at_end: string; status_notes: string; traits: string; backstory: string;
+    }>;
+
+    // Get existing locations
+    const locations = db.prepare(
+      'SELECT id, name, description, significance FROM locations WHERE project_id = ?'
+    ).all(projectId) as Array<{ id: string; name: string; description: string; significance: string }>;
+
+    // Get existing plot events
+    const plotEvents = db.prepare(
+      'SELECT id, title, description, event_type, order_index FROM plot_events WHERE project_id = ? ORDER BY order_index'
+    ).all(projectId) as Array<{ id: string; title: string; description: string; event_type: string; order_index: number }>;
+
+    console.log('[Finalize] Chapters:', chapters.length, 'Characters:', characters.length, 'Events:', plotEvents.length);
+
+    // Build continuity data
+    let synopsis = '';
+    let charactersData: Array<{ name: string; status: string; notes: string; role: string }> = [];
+    let eventsData: Array<{ title: string; description: string; type: string }> = [];
+    let locationsData: Array<{ name: string; description: string; significance: string }> = [];
+
+    // Try AI-powered analysis first
+    let usedAI = false;
+    try {
+      const provider = getProviderForUser(userId);
+      if (provider) {
+        console.log('[Finalize] Using AI provider:', provider.getProviderType());
+
+        const isItalian = language === 'it';
+
+        // Build chapter content for AI analysis (truncated to avoid token limits)
+        const chapterSummaries = chapters.map((ch, idx) => {
+          const content = ch.content || '';
+          const contentPreview = content.substring(0, 2000);
+          const summaryLine = ch.summary ? `\nSINOSSI: ${ch.summary}` : '';
+          return `CAPITOLO ${idx + 1}: "${ch.title}"${summaryLine}\n${contentPreview}${content.length > 2000 ? '...' : ''}`;
+        }).join('\n\n---\n\n');
+
+        // Build character context
+        const characterList = characters.map(c =>
+          `- ${c.name} (${c.role_in_story || 'ruolo non specificato'}): ${c.description || 'nessuna descrizione'}${c.status_at_end && c.status_at_end !== 'unknown' ? ` [stato: ${c.status_at_end}]` : ''}`
+        ).join('\n');
+
+        // Build events context
+        const eventsList = plotEvents.map(e =>
+          `- ${e.title}: ${e.description || ''}`
+        ).join('\n');
+
+        const systemPrompt = isItalian
+          ? `Sei un esperto editor letterario. Analizza questo episodio/romanzo di una saga e produci un riepilogo di continuity per la scrittura del prossimo episodio.
+
+Devi estrarre:
+1. SINOSSI: Un riassunto completo dell'episodio (200-400 parole)
+2. PERSONAGGI: Per ogni personaggio significativo, il loro stato finale (vivo/morto/ferito/disperso/trasformato), il loro ruolo, e note rilevanti per il seguito
+3. EVENTI PRINCIPALI: Gli eventi chiave della trama che influenzeranno il prossimo episodio
+4. LUOGHI: I luoghi principali e il loro stato alla fine dell'episodio
+
+Rispondi SOLO con JSON valido nel formato:
+{
+  "synopsis": "Riassunto completo dell'episodio...",
+  "characters": [
+    { "name": "Nome", "status": "alive|dead|injured|missing|transformed", "notes": "Note sullo stato finale", "role": "Ruolo nella storia" }
+  ],
+  "events": [
+    { "title": "Titolo evento", "description": "Descrizione", "type": "plot|conflict|resolution|revelation|transformation" }
+  ],
+  "locations": [
+    { "name": "Nome luogo", "description": "Descrizione", "significance": "Importanza per la saga" }
+  ]
+}`
+          : `You are an expert literary editor. Analyze this episode/novel from a saga and produce a continuity summary for writing the next episode.
+
+Extract:
+1. SYNOPSIS: A complete summary of the episode (200-400 words)
+2. CHARACTERS: For each significant character, their final state (alive/dead/injured/missing/transformed), role, and notes relevant for the sequel
+3. KEY EVENTS: Plot events that will influence the next episode
+4. LOCATIONS: Main locations and their state at the end
+
+Respond ONLY with valid JSON:
+{
+  "synopsis": "Complete episode summary...",
+  "characters": [
+    { "name": "Name", "status": "alive|dead|injured|missing|transformed", "notes": "Final state notes", "role": "Story role" }
+  ],
+  "events": [
+    { "title": "Event title", "description": "Description", "type": "plot|conflict|resolution|revelation|transformation" }
+  ],
+  "locations": [
+    { "name": "Location name", "description": "Description", "significance": "Importance for the saga" }
+  ]
+}`;
+
+        const userMessage = isItalian
+          ? `Analizza questo episodio della saga "${saga.title}":
+
+TITOLO EPISODIO: "${project.title}"
+DESCRIZIONE: ${project.description || 'Nessuna descrizione'}
+
+PERSONAGGI REGISTRATI:
+${characterList || 'Nessun personaggio registrato'}
+
+EVENTI REGISTRATI:
+${eventsList || 'Nessun evento registrato'}
+
+CAPITOLI:
+${chapterSummaries}`
+          : `Analyze this episode from the saga "${saga.title}":
+
+EPISODE TITLE: "${project.title}"
+DESCRIPTION: ${project.description || 'No description'}
+
+REGISTERED CHARACTERS:
+${characterList || 'No characters registered'}
+
+REGISTERED EVENTS:
+${eventsList || 'No events registered'}
+
+CHAPTERS:
+${chapterSummaries}`;
+
+        const messages: ChatMessage[] = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ];
+
+        console.log('[Finalize] Sending to AI for analysis...');
+        const response = await provider.chat(messages, {
+          temperature: 0.3,
+          max_tokens: 4000
+        });
+
+        console.log('[Finalize] AI response length:', response?.length || 0);
+
+        if (response) {
+          // Parse JSON from AI response
+          let parsed: any = null;
+          try {
+            // Try to extract JSON from the response
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              parsed = JSON.parse(jsonMatch[0]);
+            }
+          } catch (parseErr) {
+            console.warn('[Finalize] Failed to parse AI JSON response:', parseErr);
+          }
+
+          if (parsed) {
+            synopsis = parsed.synopsis || '';
+            if (Array.isArray(parsed.characters)) {
+              charactersData = parsed.characters.map((c: any) => ({
+                name: c.name || '',
+                status: c.status || 'alive',
+                notes: c.notes || '',
+                role: c.role || ''
+              }));
+            }
+            if (Array.isArray(parsed.events)) {
+              eventsData = parsed.events.map((e: any) => ({
+                title: e.title || '',
+                description: e.description || '',
+                type: e.type || 'plot'
+              }));
+            }
+            if (Array.isArray(parsed.locations)) {
+              locationsData = parsed.locations.map((l: any) => ({
+                name: l.name || '',
+                description: l.description || '',
+                significance: l.significance || ''
+              }));
+            }
+            usedAI = true;
+            console.log('[Finalize] AI analysis complete:', {
+              synopsisLen: synopsis.length,
+              characters: charactersData.length,
+              events: eventsData.length,
+              locations: locationsData.length
+            });
+          }
+        }
+      }
+    } catch (aiError) {
+      console.warn('[Finalize] AI analysis failed, using algorithmic fallback:', aiError instanceof Error ? aiError.message : 'Unknown error');
+    }
+
+    // Algorithmic fallback if AI is not available
+    if (!usedAI) {
+      console.log('[Finalize] Using algorithmic fallback for continuity extraction');
+
+      // Build synopsis from chapter summaries and content
+      const summaryParts = chapters.map((ch, idx) => {
+        if (ch.summary) return ch.summary;
+        // Extract first 200 chars from content as a basic summary
+        const content = (ch.content || '').replace(/<[^>]+>/g, '').trim();
+        return content.substring(0, 200) + (content.length > 200 ? '...' : '');
+      }).filter(s => s.length > 0);
+      synopsis = summaryParts.join(' ');
+
+      // Extract characters from the characters table
+      charactersData = characters.map(c => ({
+        name: c.name,
+        status: c.status_at_end || 'unknown',
+        notes: c.status_notes || c.description || '',
+        role: c.role_in_story || ''
+      }));
+
+      // Extract events from plot_events table
+      eventsData = plotEvents.map(e => ({
+        title: e.title,
+        description: e.description || '',
+        type: e.event_type || 'plot'
+      }));
+
+      // Extract locations
+      locationsData = locations.map(l => ({
+        name: l.name,
+        description: l.description || '',
+        significance: l.significance || ''
+      }));
+    }
+
+    // Determine episode number
+    const existingContinuity = db.prepare(
+      'SELECT MAX(episode_number) as max_ep FROM saga_continuity WHERE saga_id = ?'
+    ).get(project.saga_id) as { max_ep: number | null } | undefined;
+
+    // Check if this project already has a continuity entry
+    const existingEntry = db.prepare(
+      'SELECT id, episode_number FROM saga_continuity WHERE saga_id = ? AND source_project_id = ?'
+    ).get(project.saga_id, projectId) as { id: string; episode_number: number } | undefined;
+
+    let episodeNumber: number;
+    let continuityId: string;
+
+    if (existingEntry) {
+      // Update existing entry
+      continuityId = existingEntry.id;
+      episodeNumber = existingEntry.episode_number;
+      console.log('[Finalize] Updating existing continuity entry:', continuityId, 'ep:', episodeNumber);
+
+      db.prepare(
+        `UPDATE saga_continuity SET
+          cumulative_synopsis = ?,
+          characters_state = ?,
+          events_summary = ?,
+          locations_visited = ?,
+          updated_at = datetime('now')
+        WHERE id = ?`
+      ).run(
+        synopsis,
+        JSON.stringify(charactersData),
+        JSON.stringify(eventsData),
+        JSON.stringify(locationsData),
+        continuityId
+      );
+    } else {
+      // Create new entry with incremented episode number
+      episodeNumber = (existingContinuity?.max_ep || 0) + 1;
+      continuityId = uuidv4();
+      console.log('[Finalize] Creating new continuity entry:', continuityId, 'ep:', episodeNumber);
+
+      db.prepare(
+        `INSERT INTO saga_continuity (id, saga_id, source_project_id, episode_number, cumulative_synopsis, characters_state, events_summary, locations_visited, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).run(
+        continuityId,
+        project.saga_id,
+        projectId,
+        episodeNumber,
+        synopsis,
+        JSON.stringify(charactersData),
+        JSON.stringify(eventsData),
+        JSON.stringify(locationsData)
+      );
+    }
+
+    // Also update character status_at_end based on AI analysis if available
+    if (usedAI && charactersData.length > 0) {
+      for (const charData of charactersData) {
+        // Try to match with existing characters
+        const existingChar = characters.find(c =>
+          c.name.toLowerCase() === charData.name.toLowerCase()
+        );
+        if (existingChar) {
+          const validStatuses = ['alive', 'dead', 'injured', 'missing', 'unknown'];
+          const status = validStatuses.includes(charData.status) ? charData.status : 'unknown';
+          db.prepare(
+            'UPDATE characters SET status_at_end = ?, status_notes = ?, updated_at = datetime(\'now\') WHERE id = ?'
+          ).run(status, charData.notes || '', existingChar.id);
+        }
+      }
+    }
+
+    const continuityRecord = db.prepare('SELECT * FROM saga_continuity WHERE id = ?').get(continuityId) as any;
+
+    console.log('[Finalize] Episode finalized successfully:', {
+      episodeNumber,
+      projectTitle: project.title,
+      sagaTitle: saga.title,
+      method: usedAI ? 'AI-powered' : 'algorithmic'
+    });
+
+    res.json({
+      message: 'Episode finalized successfully',
+      continuity: {
+        id: continuityRecord.id,
+        saga_id: continuityRecord.saga_id,
+        project_id: continuityRecord.source_project_id,
+        episode_number: continuityRecord.episode_number,
+        synopsis: continuityRecord.cumulative_synopsis || '',
+        characters: JSON.parse(continuityRecord.characters_state || '[]'),
+        events: JSON.parse(continuityRecord.events_summary || '[]'),
+        locations: JSON.parse(continuityRecord.locations_visited || '[]'),
+        finalized_at: continuityRecord.updated_at,
+        method: usedAI ? 'ai_powered' : 'algorithmic'
+      }
+    });
+
+  } catch (error) {
+    console.error('[Projects] Finalize episode error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to finalize episode' });
+  }
+});
+
 export default router;

@@ -1977,6 +1977,83 @@ class ApiService {
     return this.request<{ sources: Source[]; count: number }>(`/sagas/${sagaId}/sources`);
   }
 
+  // Finalize episode for saga continuity (Feature #298)
+  async finalizeEpisode(projectId: string, language?: string): Promise<{
+    message: string;
+    continuity: {
+      id: string;
+      saga_id: string;
+      project_id: string;
+      episode_number: number;
+      synopsis: string;
+      characters: Array<{ name: string; status: string; notes: string; role: string }>;
+      events: Array<{ title: string; description: string; type: string }>;
+      locations: Array<{ name: string; description: string; significance: string }>;
+      finalized_at: string;
+      method: string;
+    };
+  }> {
+    return this.request(`/projects/${projectId}/finalize-episode`, {
+      method: 'POST',
+      body: JSON.stringify({ language: language || 'it' }),
+    });
+  }
+
+  // Get saga continuity data (Feature #299)
+  async getSagaContinuity(sagaId: string): Promise<{
+    saga: { id: string; title: string; description: string; area: string };
+    episodes: Array<{
+      id: string;
+      saga_id: string;
+      project_id: string;
+      project_title: string;
+      project_status: string;
+      episode_number: number;
+      synopsis: string;
+      characters: Array<{ name: string; status: string; notes: string; role: string }>;
+      events: Array<{ title: string; description: string; type: string }>;
+      locations: Array<{ name: string; description: string; significance: string }>;
+      finalized_at: string;
+    }>;
+    episode_count: number;
+    cumulative: {
+      characters: Array<{ name: string; status: string; notes: string; role: string; last_seen_episode: number }>;
+      locations: Array<{ name: string; description: string; significance: string; last_seen_episode: number }>;
+      events: Array<{ title: string; description: string; type: string; episode_number: number }>;
+      characters_alive: number;
+      characters_dead: number;
+      characters_total: number;
+    };
+  }> {
+    return this.request(`/sagas/${sagaId}/continuity`);
+  }
+
+  // Create sequel within a saga with continuity (Feature #300)
+  async createSagaSequel(
+    sagaId: string,
+    data: {
+      title: string;
+      description?: string;
+      source_project_id?: string;
+    }
+  ): Promise<{
+    message: string;
+    project: Project;
+    sequel_info: {
+      source_project_id: string;
+      source_project_title: string;
+      continuity_id: string | null;
+      characters_copied: number;
+      characters_skipped_dead: number;
+      locations_copied: number;
+    };
+  }> {
+    return this.request(`/sagas/${sagaId}/create-sequel`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // User profile endpoints
   async getUserProfile(): Promise<{ user: {
     id: string;

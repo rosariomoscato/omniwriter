@@ -5,6 +5,7 @@ import { apiService, Saga, CreateSagaData, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { Plus, BookOpen, FileText, Edit3, Trash2, X, FolderOpen, ArrowRight } from 'lucide-react';
+import SagaTimeline from '../components/SagaTimeline';
 
 export default function SagasPage() {
   const { t } = useTranslation();
@@ -354,6 +355,9 @@ export default function SagasPage() {
                   )}
                 </div>
               </div>
+
+              {/* Feature #302: Saga Timeline */}
+              <SagaTimeline sagaId={selectedSaga.id} />
             </div>
           )}
         </div>

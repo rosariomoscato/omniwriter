@@ -437,6 +437,12 @@ function runMigrations(db: Database.Database): void {
       db.exec('ALTER TABLE chapters ADD COLUMN summary TEXT DEFAULT \'\'');
     }
 
+    // Feature #300: Add continuity_id column to projects for saga sequel references
+    if (!projectColumnNames.includes('continuity_id')) {
+      console.log('[Database] Adding continuity_id column to projects...');
+      db.exec('ALTER TABLE projects ADD COLUMN continuity_id TEXT REFERENCES saga_continuity(id) ON DELETE SET NULL');
+    }
+
     // Feature #296: Update export_history CHECK constraint to include 'cover' format
     // SQLite doesn't support modifying constraints, so we need to recreate the table
     try {
