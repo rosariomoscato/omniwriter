@@ -1558,22 +1558,7 @@ export default function ProjectDetail() {
     }
   };
 
-  // Feature #301: Finalize Episode for Saga
-  const handleFinalizeEpisode = async () => {
-    if (!project) return;
-
-    try {
-      setFinalizing(true);
-      const response = await apiService.finalizeEpisode(project.id, i18n.language === 'en' ? 'en' : 'it');
-      setFinalizePreview(response.continuity);
-      toast.success(t('projectPage.finalizeEpisode.success'));
-    } catch (err: any) {
-      toast.error(err.message || t('projectPage.finalizeEpisode.error'));
-    } finally {
-      setFinalizing(false);
-    }
-  };
-
+  // confirmFinalizeEpisode triggers handleFinalizeEpisode after dialog confirmation
   const confirmFinalizeEpisode = () => {
     setShowFinalizeDialog(false);
     handleFinalizeEpisode();
