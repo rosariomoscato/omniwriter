@@ -643,6 +643,43 @@
       "checkedOn": "Checked on",
       "loadError": "Failed to load saved consistency check",
       "lastCheck": "Last check"
+    },
+    "finalizeEpisode": {
+      "button": "Finalize Episode",
+      "buttonHint": "Extract the final state of the novel and save it to saga continuity",
+      "title": "Episode Finalization",
+      "confirming": "Finalizing...",
+      "confirmingHint": "Analyzing chapters to extract characters, events and synopsis...",
+      "success": "Episode finalized successfully!",
+      "error": "Error during episode finalization",
+      "noSaga": "The project must belong to a saga to finalize the episode",
+      "noChapters": "Create chapters before finalizing the episode",
+      "episodeNumber": "Episode #{{number}}",
+      "synopsis": "Synopsis",
+      "characters": "Characters",
+      "events": "Key Events",
+      "locations": "Locations",
+      "method": "Method",
+      "methodAI": "AI Analysis",
+      "methodAlgorithmic": "Algorithmic Analysis",
+      "statusAlive": "Alive",
+      "statusDead": "Dead",
+      "statusInjured": "Injured",
+      "statusMissing": "Missing",
+      "statusTransformed": "Transformed",
+      "statusUnknown": "Unknown",
+      "resultTitle": "Finalization Result",
+      "close": "Close"
+    },
+    "sagaContinuity": {
+      "title": "Saga Continuity",
+      "noEpisodes": "No episodes finalized yet",
+      "episode": "Episode",
+      "cumulativeState": "Cumulative State",
+      "charactersAlive": "Characters Alive",
+      "charactersDead": "Characters Dead",
+      "totalCharacters": "Total Characters",
+      "timeline": "Event Timeline"
     }
   },
   "common": {
@@ -1314,7 +1351,8 @@
     "removing": "Removing...",
     "assignSuccess": "Project assigned to saga successfully",
     "removeSuccess": "Project removed from saga successfully",
-    "sagaBadge": "Saga"
+    "sagaBadge": "Saga",
+    "assigned": "Assigned"
   },
   "areas": {
     "romanziere": "Novelist",

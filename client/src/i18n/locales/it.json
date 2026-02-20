@@ -643,6 +643,43 @@
       "checkedOn": "Verificata il",
       "loadError": "Impossibile caricare la verifica salvata",
       "lastCheck": "Ultima verifica"
+    },
+    "finalizeEpisode": {
+      "button": "Finalizza Episodio",
+      "buttonHint": "Estrai lo stato finale del romanzo e salvalo nella continuity della saga",
+      "title": "Finalizzazione Episodio",
+      "confirming": "Finalizzazione in corso...",
+      "confirmingHint": "Analisi dei capitoli per estrarre personaggi, eventi e sinossi...",
+      "success": "Episodio finalizzato con successo!",
+      "error": "Errore durante la finalizzazione dell'episodio",
+      "noSaga": "Il progetto deve appartenere a una saga per finalizzare l'episodio",
+      "noChapters": "Crea prima dei capitoli prima di finalizzare l'episodio",
+      "episodeNumber": "Episodio #{{number}}",
+      "synopsis": "Sinossi",
+      "characters": "Personaggi",
+      "events": "Eventi Principali",
+      "locations": "Luoghi",
+      "method": "Metodo",
+      "methodAI": "Analisi AI",
+      "methodAlgorithmic": "Analisi Algoritmica",
+      "statusAlive": "Vivo",
+      "statusDead": "Morto",
+      "statusInjured": "Ferito",
+      "statusMissing": "Disperso",
+      "statusTransformed": "Trasformato",
+      "statusUnknown": "Sconosciuto",
+      "resultTitle": "Risultato Finalizzazione",
+      "close": "Chiudi"
+    },
+    "sagaContinuity": {
+      "title": "Continuity della Saga",
+      "noEpisodes": "Nessun episodio finalizzato ancora",
+      "episode": "Episodio",
+      "cumulativeState": "Stato Cumulativo",
+      "charactersAlive": "Personaggi Vivi",
+      "charactersDead": "Personaggi Morti",
+      "totalCharacters": "Totale Personaggi",
+      "timeline": "Timeline degli Eventi"
     }
   },
   "common": {
@@ -1314,7 +1351,8 @@
     "removing": "Rimozione...",
     "assignSuccess": "Progetto assegnato alla saga con successo",
     "removeSuccess": "Progetto rimosso dalla saga con successo",
-    "sagaBadge": "Saga"
+    "sagaBadge": "Saga",
+    "assigned": "Assegnato"
   },
   "areas": {
     "romanziere": "Romanziere",

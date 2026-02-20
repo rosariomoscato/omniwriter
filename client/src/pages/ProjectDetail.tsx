@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen, Lightbulb, Eye } from 'lucide-react';
+import { Plus, BookOpen, Trash2, ChevronRight, FileText, Upload, Download, User, MapPin, Calendar, Edit3, Image as ImageIcon, Crown, Copy, Settings, Archive, ArchiveRestore, ChevronDown, GripVertical, X, Tag, Search, RefreshCw, Network, CheckCircle, Unlink, Loader2, Layers, Share2, FolderOpen, Lightbulb, Eye, Flag } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RedattoreConfig from '../components/RedattoreConfig';
 import SaggistaConfig from '../components/SaggistaConfig';
@@ -75,6 +75,10 @@ export default function ProjectDetail() {
   // Feature #254: Assign to Saga
   const [showAssignSagaModal, setShowAssignSagaModal] = useState(false);
   const [projectSagaId, setProjectSagaId] = useState<string | null>(null);
+  // Feature #301: Finalize Episode
+  const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalizePreview, setFinalizePreview] = useState<any>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
@@ -167,6 +171,10 @@ export default function ProjectDetail() {
   } | null>(null);
   const [loadingSavedConsistency, setLoadingSavedConsistency] = useState(false);
   const [viewingSavedConsistency, setViewingSavedConsistency] = useState(false);
+  // Feature #298: Finalize episode state
+  const [finalizingEpisode, setFinalizingEpisode] = useState(false);
+  const [finalizeResult, setFinalizeResult] = useState<any>(null);
+  const [showFinalizeResult, setShowFinalizeResult] = useState(false);
   const [humanModels, setHumanModels] = useState<any[]>([]);
   const [loadingHumanModels, setLoadingHumanModels] = useState(false);
   // Synopsis modal state
@@ -903,6 +911,35 @@ export default function ProjectDetail() {
     }
   };
 
+  // Feature #298: Finalize episode for saga continuity
+  const handleFinalizeEpisode = async () => {
+    if (!project) return;
+
+    if (!project.saga_id) {
+      toast.error(t('projectPage.finalizeEpisode.noSaga', 'The project must belong to a saga to finalize the episode'));
+      return;
+    }
+
+    if (chapters.length === 0) {
+      toast.error(t('projectPage.finalizeEpisode.noChapters', 'Create chapters before finalizing the episode'));
+      return;
+    }
+
+    setFinalizingEpisode(true);
+    try {
+      toast.info(t('projectPage.finalizeEpisode.confirming', 'Finalizing...'));
+      const result = await apiService.finalizeEpisode(project.id, i18n.language);
+      setFinalizeResult(result.continuity);
+      setShowFinalizeResult(true);
+      toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
+    } catch (err: any) {
+      console.error('[FinalizeEpisode] Error:', err);
+      toast.error(err.message || t('projectPage.finalizeEpisode.error', 'Error during episode finalization'));
+    } finally {
+      setFinalizingEpisode(false);
+    }
+  };
+
   const handleDetectPlotHoles = async () => {
     if (!project) return;
 
@@ -1521,6 +1558,27 @@ export default function ProjectDetail() {
     }
   };
 
+  // Feature #301: Finalize Episode for Saga
+  const handleFinalizeEpisode = async () => {
+    if (!project) return;
+
+    try {
+      setFinalizing(true);
+      const response = await apiService.finalizeEpisode(project.id, i18n.language === 'en' ? 'en' : 'it');
+      setFinalizePreview(response.continuity);
+      toast.success(t('projectPage.finalizeEpisode.success'));
+    } catch (err: any) {
+      toast.error(err.message || t('projectPage.finalizeEpisode.error'));
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+  const confirmFinalizeEpisode = () => {
+    setShowFinalizeDialog(false);
+    handleFinalizeEpisode();
+  };
+
   return (
     <div className="p-6">
       <Breadcrumbs labelOverrides={id && project ? { [id]: project.title } : undefined} />
@@ -1671,6 +1729,17 @@ export default function ProjectDetail() {
                 <FolderOpen className="w-4 h-4" />
                 {projectSagaId ? t('sagas.sagaBadge', 'Saga') : t('sagas.assignToSaga', 'Assign to Saga')}
               </button>
+              {/* Feature #301: Finalize Episode - Only for completed romanziere projects in a saga */}
+              {project?.area === 'romanziere' && projectSagaId && project.status === 'completed' && (
+                <button
+                  onClick={() => setShowFinalizeDialog(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  title={t('projectPage.finalizeEpisode.buttonHint')}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {t('projectPage.finalizeEpisode.button')}
+                </button>
+              )}
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -1725,6 +1794,185 @@ export default function ProjectDetail() {
             }
           }}
         />
+      )}
+
+      {/* Feature #301: Finalize Episode Dialog */}
+      {showFinalizeDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-teal-600" />
+                {t('projectPage.finalizeEpisode.button')}
+              </h3>
+
+              {!finalizePreview ? (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {t('projectPage.finalizeEpisode.buttonHint')}
+                  </p>
+
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                        {t('projectPage.title')}:
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-100">{project?.title}</span>
+                    </div>
+                    {projectSagaId && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                          {t('sagas.sagaBadge')}:
+                        </span>
+                        <span className="text-teal-600 dark:text-teal-400">
+                          {t('sagas.assigned')}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                        {t('common.status')}:
+                      </span>
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        {project?.status === 'completed' ? t('projectPage.status.completed') : project?.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                        {t('projectPage.chapters')}:
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-100">{chapters.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {t('projectPage.finalizeEpisode.confirmingHint')}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowFinalizeDialog(false)}
+                      disabled={finalizing}
+                      className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={confirmFinalizeEpisode}
+                      disabled={finalizing}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {finalizing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          {t('projectPage.finalizeEpisode.confirming')}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          {t('projectPage.finalizeEpisode.button')}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                      ✓ {t('projectPage.finalizeEpisode.success')}
+                    </p>
+                    <div className="text-xs text-green-700 dark:text-green-300 space-y-1">
+                      <div>
+                        <span className="font-medium">{t('projectPage.finalizeEpisode.episodeNumber', { number: finalizePreview.episode_number })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {finalizePreview.synopsis && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('projectPage.finalizeEpisode.synopsis')}
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                        {finalizePreview.synopsis}
+                      </p>
+                    </div>
+                  )}
+
+                  {finalizePreview.characters && finalizePreview.characters.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('projectPage.characters')}
+                      </h4>
+                      <div className="max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2">
+                        {finalizePreview.characters.map((char: any, idx: number) => (
+                          <div key={idx} className="text-sm border-b border-gray-200 dark:border-gray-600 last:border-0 pb-2 last:pb-0">
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{char.name}</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              {char.status} - {char.role}
+                            </div>
+                            {char.notes && (
+                              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1 italic">
+                                {char.notes}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {finalizePreview.events && finalizePreview.events.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('projectPage.plotEvents')}
+                      </h4>
+                      <div className="max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2">
+                        {finalizePreview.events.map((event: any, idx: number) => (
+                          <div key={idx} className="text-sm">
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{event.title}</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">{event.description}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {finalizePreview.locations && finalizePreview.locations.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('projectPage.locations')}
+                      </h4>
+                      <div className="max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2">
+                        {finalizePreview.locations.map((loc: any, idx: number) => (
+                          <div key={idx} className="text-sm">
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{loc.name}</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">{loc.significance}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setShowFinalizeDialog(false);
+                        setFinalizePreview(null);
+                      }}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {t('common.close')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Export Dialog */}
@@ -2455,6 +2703,23 @@ export default function ProjectDetail() {
                   </button>
                 )}
               </>
+            )}
+
+            {/* Feature #298: Finalize Episode button - Only for saga projects */}
+            {project?.saga_id && (
+              <button
+                onClick={handleFinalizeEpisode}
+                disabled={finalizingEpisode}
+                className="flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={t('projectPage.finalizeEpisode.buttonHint', 'Extract the final state of the novel and save it to saga continuity')}
+              >
+                {finalizingEpisode ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Flag className="w-4 h-4" />
+                )}
+                {finalizingEpisode ? t('projectPage.finalizeEpisode.confirming', 'Finalizing...') : t('projectPage.finalizeEpisode.button', 'Finalize Episode')}
+              </button>
             )}
 
             <button
