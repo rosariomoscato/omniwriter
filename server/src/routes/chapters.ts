@@ -11,6 +11,7 @@ import {
   getModerationErrorMessage,
   sanitizeSensitiveWords
 } from '../services/contentModeration';
+import { fetchContinuityForProject } from './projects'; // Feature #304 - Import continuity helper
 
 const router = express.Router();
 
@@ -886,6 +887,62 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       } else {
         systemPrompt += `\n\nREFERENCE SOURCES:\n${sanitizedContent.sources}`;
       }
+    }
+
+    // Feature #304: Add saga continuity context if this is a sequel project
+    const continuityContext = fetchContinuityForProject(db, chapter.project_id, isItalian);
+    if (continuityContext.hasContinuity) {
+      console.log('[Generate Stream] Including continuity context for chapter generation:', {
+        projectId: chapter.project_id,
+        episodeCount: continuityContext.episodeCount,
+        hasSynopsis: !!continuityContext.cumulativeSynopsis,
+        hasCharacterStates: !!continuityContext.characterStates,
+        hasEvents: !!continuityContext.eventsSummary
+      });
+
+      // Add cumulative synopsis if available
+      if (continuityContext.cumulativeSynopsis) {
+        systemPrompt += continuityContext.cumulativeSynopsis;
+      }
+
+      // Add character states from continuity (more detailed than project characters)
+      if (continuityContext.characterStates) {
+        systemPrompt += continuityContext.characterStates;
+      }
+
+      // Add events summary from continuity
+      if (continuityContext.eventsSummary) {
+        systemPrompt += continuityContext.eventsSummary;
+      }
+
+      // Add locations visited from continuity
+      if (continuityContext.locationsVisited) {
+        systemPrompt += continuityContext.locationsVisited;
+      }
+
+      // Add timeline context from continuity
+      if (continuityContext.timelineContext) {
+        systemPrompt += continuityContext.timelineContext;
+      }
+
+      // Add explicit continuity instructions
+      systemPrompt += isItalian
+        ? `\n\n📋 ISTRUZIONI DI COERENZA CON LA SAGA:\n`
+        + `- Questo capitolo fa parte di una saga con ${continuityContext.episodeCount} episodi precedenti\n`
+        + `- Mantieni coerenza con tutti gli episodi precedenti\n`
+        + `- Rispetta rigorosamente lo stato dei personaggi (vivi/morti/feriti/dispersi)\n`
+        + `- NON resuscitare personaggi morti\n`
+        + `- Considera tutti gli eventi passati quando scrivi nuovi eventi\n`
+        + `- Mantieni coerenza con i luoghi già visitati\n`
+        + `- Rispetta la linea temporale stabilita\n`
+        : `\n\n📋 SAGA CONTINUITY INSTRUCTIONS:\n`
+        + `- This chapter is part of a saga with ${continuityContext.episodeCount} previous episodes\n`
+        + `- Maintain consistency with all previous episodes\n`
+        + `- Strictly respect character status (alive/dead/injured/missing)\n`
+        + `- DO NOT resurrect dead characters\n`
+        + `- Consider all past events when writing new events\n`
+        + `- Maintain consistency with locations already visited\n`
+        + `- Respect the established timeline\n`;
     }
 
     // Build user prompt
@@ -1771,6 +1828,62 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       } else {
         systemPrompt += `\n\nREFERENCE SOURCES:\n${sanitizedContent.sources}`;
       }
+    }
+
+    // Feature #304: Add saga continuity context if this is a sequel project
+    const continuityContext = fetchContinuityForProject(db, chapter.project_id, isItalian);
+    if (continuityContext.hasContinuity) {
+      console.log('[Regenerate Stream] Including continuity context for chapter regeneration:', {
+        projectId: chapter.project_id,
+        episodeCount: continuityContext.episodeCount,
+        hasSynopsis: !!continuityContext.cumulativeSynopsis,
+        hasCharacterStates: !!continuityContext.characterStates,
+        hasEvents: !!continuityContext.eventsSummary
+      });
+
+      // Add cumulative synopsis if available
+      if (continuityContext.cumulativeSynopsis) {
+        systemPrompt += continuityContext.cumulativeSynopsis;
+      }
+
+      // Add character states from continuity (more detailed than project characters)
+      if (continuityContext.characterStates) {
+        systemPrompt += continuityContext.characterStates;
+      }
+
+      // Add events summary from continuity
+      if (continuityContext.eventsSummary) {
+        systemPrompt += continuityContext.eventsSummary;
+      }
+
+      // Add locations visited from continuity
+      if (continuityContext.locationsVisited) {
+        systemPrompt += continuityContext.locationsVisited;
+      }
+
+      // Add timeline context from continuity
+      if (continuityContext.timelineContext) {
+        systemPrompt += continuityContext.timelineContext;
+      }
+
+      // Add explicit continuity instructions
+      systemPrompt += isItalian
+        ? `\n\n📋 ISTRUZIONI DI COERENZA CON LA SAGA:\n`
+        + `- Questo capitolo fa parte di una saga con ${continuityContext.episodeCount} episodi precedenti\n`
+        + `- Mantieni coerenza con tutti gli episodi precedenti\n`
+        + `- Rispetta rigorosamente lo stato dei personaggi (vivi/morti/feriti/dispersi)\n`
+        + `- NON resuscitare personaggi morti\n`
+        + `- Considera tutti gli eventi passati quando scrivi nuovi eventi\n`
+        + `- Mantieni coerenza con i luoghi già visitati\n`
+        + `- Rispetta la linea temporale stabilita\n`
+        : `\n\n📋 SAGA CONTINUITY INSTRUCTIONS:\n`
+        + `- This chapter is part of a saga with ${continuityContext.episodeCount} previous episodes\n`
+        + `- Maintain consistency with all previous episodes\n`
+        + `- Strictly respect character status (alive/dead/injured/missing)\n`
+        + `- DO NOT resurrect dead characters\n`
+        + `- Consider all past events when writing new events\n`
+        + `- Maintain consistency with locations already visited\n`
+        + `- Respect the established timeline\n`;
     }
 
     // Build user prompt for regeneration

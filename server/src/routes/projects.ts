@@ -16,6 +16,192 @@ import {
 
 const router = Router();
 
+// Helper function to fetch and format continuity data for AI generation (Feature #304)
+interface ContinuityContext {
+  cumulativeSynopsis: string;
+  characterStates: string;
+  eventsSummary: string;
+  locationsVisited: string;
+  timelineContext: string;
+  hasContinuity: boolean;
+  episodeCount: number;
+}
+
+function fetchContinuityForProject(db: any, projectId: string, isItalian: boolean): ContinuityContext {
+  // First, get the project's saga_id and continuity_id
+  const project = db.prepare('SELECT saga_id, continuity_id FROM projects WHERE id = ?').get(projectId) as
+    { saga_id: string | null; continuity_id: string | null } | undefined;
+
+  if (!project || !project.saga_id) {
+    return {
+      cumulativeSynopsis: '',
+      characterStates: '',
+      eventsSummary: '',
+      locationsVisited: '',
+      timelineContext: '',
+      hasContinuity: false,
+      episodeCount: 0
+    };
+  }
+
+  // Determine which continuity record to use
+  let continuityId = project.continuity_id;
+
+  // If no specific continuity_id, get the latest one for this saga
+  if (!continuityId) {
+    const latestContinuity = db.prepare(
+      `SELECT id FROM saga_continuity
+       WHERE saga_id = ?
+       ORDER BY episode_number DESC
+       LIMIT 1`
+    ).get(project.saga_id) as { id: string } | undefined;
+
+    if (latestContinuity) {
+      continuityId = latestContinuity.id;
+    }
+  }
+
+  // If still no continuity, return empty context
+  if (!continuityId) {
+    return {
+      cumulativeSynopsis: '',
+      characterStates: '',
+      eventsSummary: '',
+      locationsVisited: '',
+      timelineContext: '',
+      hasContinuity: false,
+      episodeCount: 0
+    };
+  }
+
+  // Fetch the continuity record
+  const continuity = db.prepare(
+    `SELECT * FROM saga_continuity WHERE id = ?`
+  ).get(continuityId) as {
+    id: string;
+    saga_id: string;
+    source_project_id: string;
+    episode_number: number;
+    characters_state: string;
+    events_summary: string;
+    cumulative_synopsis: string;
+    locations_visited: string;
+    timeline_json: string;
+  } | undefined;
+
+  if (!continuity) {
+    return {
+      cumulativeSynopsis: '',
+      characterStates: '',
+      eventsSummary: '',
+      locationsVisited: '',
+      timelineContext: '',
+      hasContinuity: false,
+      episodeCount: 0
+    };
+  }
+
+  // Parse JSON fields
+  let characters: any[] = [];
+  let events: any[] = [];
+  let locations: any[] = [];
+  let timeline: any[] = [];
+
+  try {
+    characters = JSON.parse(continuity.characters_state || '[]');
+  } catch (e) {
+    console.warn('[Continuity] Failed to parse characters_state:', e);
+  }
+
+  try {
+    events = JSON.parse(continuity.events_summary || '[]');
+  } catch (e) {
+    console.warn('[Continuity] Failed to parse events_summary:', e);
+  }
+
+  try {
+    locations = JSON.parse(continuity.locations_visited || '[]');
+  } catch (e) {
+    console.warn('[Continuity] Failed to parse locations_visited:', e);
+  }
+
+  try {
+    timeline = JSON.parse(continuity.timeline_json || '[]');
+  } catch (e) {
+    console.warn('[Continuity] Failed to parse timeline_json:', e);
+  }
+
+  // Format character states with emphasis on status
+  const aliveCharacters = characters.filter((c: any) => c.status === 'alive');
+  const deadCharacters = characters.filter((c: any) => c.status === 'dead');
+  const injuredCharacters = characters.filter((c: any) => c.status === 'injured');
+  const missingCharacters = characters.filter((c: any) => c.status === 'missing');
+
+  let characterStates = '';
+
+  if (aliveCharacters.length > 0) {
+    characterStates += isItalian
+      ? `\n🟢 PERSONAGGI VIVI:\n${aliveCharacters.map((c: any) => `- ${c.name}${c.notes ? ` (${c.notes})` : ''}${c.role ? ` - ${c.role}` : ''}`).join('\n')}\n`
+      : `\n🟢 ALIVE CHARACTERS:\n${aliveCharacters.map((c: any) => `- ${c.name}${c.notes ? ` (${c.notes})` : ''}${c.role ? ` - ${c.role}` : ''}`).join('\n')}\n`;
+  }
+
+  if (deadCharacters.length > 0) {
+    characterStates += isItalian
+      ? `\n🔴 PERSONAGGI MORTI (NON USARE - SONO MORTI):\n${deadCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
+      : `\n🔴 DEAD CHARACTERS (DO NOT USE - THEY ARE DEAD):\n${deadCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+  }
+
+  if (injuredCharacters.length > 0) {
+    characterStates += isItalian
+      ? `\n🟡 PERSONAGGI FERITI:\n${injuredCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
+      : `\n🟡 INJURED CHARACTERS:\n${injuredCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+  }
+
+  if (missingCharacters.length > 0) {
+    characterStates += isItalian
+      ? `\n⚪ PERSONAGGI DISPERSI:\n${missingCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`
+      : `\n⚪ MISSING CHARACTERS:\n${missingCharacters.map((c: any) => `- ${c.name}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}\n`;
+  }
+
+  // Format events summary
+  const eventsSummary = events.length > 0
+    ? (isItalian
+      ? `\n📜 EVENTI PASSATI:\n${events.map((e: any, i: number) => `${i + 1}. ${e.title}${e.description ? `: ${e.description}` : ''}`).join('\n')}\n`
+      : `\n📜 PAST EVENTS:\n${events.map((e: any, i: number) => `${i + 1}. ${e.title}${e.description ? `: ${e.description}` : ''}`).join('\n')}\n`)
+    : '';
+
+  // Format locations visited
+  const locationsVisited = locations.length > 0
+    ? (isItalian
+      ? `\n📍 LUOGHI VISITATI:\n${locations.map((l: any) => `- ${l.name}${l.description ? `: ${l.description}` : ''}${l.significance ? ` (${l.significance})` : ''}`).join('\n')}\n`
+      : `\n📍 LOCATIONS VISITED:\n${locations.map((l: any) => `- ${l.name}${l.description ? `: ${l.description}` : ''}${l.significance ? ` (${l.significance})` : ''}`).join('\n')}\n`)
+    : '';
+
+  // Format timeline context
+  const timelineContext = timeline.length > 0
+    ? (isItalian
+      ? `\n⏰ LINEA TEMPORALE:\n${timeline.map((t: any) => `- ${t.period || t.date}: ${t.event || t.description}`).join('\n')}\n`
+      : `\n⏰ TIMELINE:\n${timeline.map((t: any) => `- ${t.period || t.date}: ${t.event || t.description}`).join('\n')}\n`)
+    : '';
+
+  // Format cumulative synopsis
+  const cumulativeSynopsis = continuity.cumulative_synopsis
+    ? (isItalian
+      ? `\n📖 SINOSSI CUMULATIVA DELLA SAGA (${continuity.episode_number} episodi precedenti):\n${continuity.cumulative_synopsis}\n`
+      : `\n📖 CUMULATIVE SAGA SYNOPSIS (${continuity.episode_number} previous episodes):\n${continuity.cumulative_synopsis}\n`)
+    : '';
+
+  return {
+    cumulativeSynopsis,
+    characterStates,
+    eventsSummary,
+    locationsVisited,
+    timelineContext,
+    hasContinuity: true,
+    episodeCount: continuity.episode_number
+  };
+}
+
 // Configure multer for file uploads (stored in memory)
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1528,6 +1714,17 @@ router.post('/:id/sequel-stream', authenticateToken, async (req: AuthRequest, re
       message: isItalian ? 'Generazione outline capitoli...' : 'Generating chapter outline...'
     });
 
+    // Feature #304: Fetch continuity data for outline generation
+    const continuityContext = fetchContinuityForProject(db, projectId, isItalian);
+    if (continuityContext.hasContinuity) {
+      console.log('[Projects-Stream] Using continuity context for outline generation:', {
+        episodeCount: continuityContext.episodeCount,
+        hasSynopsis: !!continuityContext.cumulativeSynopsis,
+        hasCharacterStates: !!continuityContext.characterStates,
+        hasEvents: !!continuityContext.eventsSummary
+      });
+    }
+
     // Gather context for chapter generation
     const previousCharacters = db.prepare(`
       SELECT name, description, traits, backstory, role_in_story, status_at_end, status_notes
@@ -1600,21 +1797,30 @@ Each chapter must have a contextual title (not generic) and a summary that links
 
 ROMANZO PRECEDENTE: "${originalProject.title}"
 ${originalProject.synopsis ? `SINOPSI:\n${originalProject.synopsis}\n` : ''}
+${continuityContext.cumulativeSynopsis || ''}
 
 PERSONAGGI DISPONIBILI PER IL SEQUEL (vivi/attivi):
 ${characterSummaries || 'Nessun personaggio registrato'}
 ${deadCharacterSummaries ? `\nPERSONAGGI MORTI NEL ROMANZO PRECEDENTE (NON devono apparire come vivi nel sequel):\n${deadCharacterSummaries}` : ''}
+${continuityContext.characterStates || ''}
 
 LUOGHI DAL ROMANZO PRECEDENTE:
 ${locationSummaries || 'Nessun luogo registrato'}
+${continuityContext.locationsVisited || ''}
 
 EVENTI DI TRAMA PRINCIPALI:
 ${plotSummary || 'Nessun evento registrato'}
+${continuityContext.eventsSummary || ''}
 
 RIASSUNTO CAPITOLI PRECEDENTI:
 ${chapterSummary || 'Nessun capitolo disponibile'}
+${continuityContext.timelineContext ? `\n${continuityContext.timelineContext}` : ''}
 
 TITOLO DEL SEQUEL: "${sequelTitle}"
+
+${continuityContext.hasContinuity
+  ? `⚠️ IMPORTANTE: Questo sequel fa parte di una saga con ${continuityContext.episodeCount} episodi precedenti. Mantieni la massima coerenza con tutti gli episodi precedenti, rispettando lo stato di tutti i personaggi e gli eventi già accaduti.\n\n`
+  : ''}
 
 Genera un outline con ${numChapters} capitoli nel seguente formato JSON:
 {
@@ -1637,21 +1843,30 @@ Continua la storia dal punto in cui è terminata.`
 
 PREVIOUS NOVEL: "${originalProject.title}"
 ${originalProject.synopsis ? `SYNOPSIS:\n${originalProject.synopsis}\n` : ''}
+${continuityContext.cumulativeSynopsis || ''}
 
 CHARACTERS AVAILABLE FOR THE SEQUEL (alive/active):
 ${characterSummaries || 'No characters registered'}
 ${deadCharacterSummaries ? `\nCHARACTERS WHO DIED IN THE PREVIOUS NOVEL (must NOT appear alive in the sequel):\n${deadCharacterSummaries}` : ''}
+${continuityContext.characterStates || ''}
 
 LOCATIONS FROM PREVIOUS NOVEL:
 ${locationSummaries || 'No locations registered'}
+${continuityContext.locationsVisited || ''}
 
 MAIN PLOT EVENTS:
 ${plotSummary || 'No plot events registered'}
+${continuityContext.eventsSummary || ''}
 
 PREVIOUS CHAPTERS SUMMARY:
 ${chapterSummary || 'No chapters available'}
+${continuityContext.timelineContext ? `\n${continuityContext.timelineContext}` : ''}
 
 SEQUEL TITLE: "${sequelTitle}"
+
+${continuityContext.hasContinuity
+  ? `⚠️ IMPORTANT: This sequel is part of a saga with ${continuityContext.episodeCount} previous episodes. Maintain maximum consistency with all previous episodes, respecting the status of all characters and events that have already occurred.\n\n`
+  : ''}
 
 Generate an outline with ${numChapters} chapters in the following JSON format:
 {
@@ -1853,6 +2068,63 @@ CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.o
             chapterSystemPrompt += isItalian
               ? `\n\nLUOGHI:\n${locList}`
               : `\n\nLOCATIONS:\n${locList}`;
+          }
+
+          // Feature #304: Add saga continuity context for richer AI generation
+          const continuityContext = fetchContinuityForProject(db, newProjectId, isItalian);
+          if (continuityContext.hasContinuity) {
+            console.log('[Projects-Stream] Including continuity context for chapter generation:', {
+              episodeCount: continuityContext.episodeCount,
+              hasSynopsis: !!continuityContext.cumulativeSynopsis,
+              hasCharacterStates: !!continuityContext.characterStates,
+              hasEvents: !!continuityContext.eventsSummary,
+              hasLocations: !!continuityContext.locationsVisited,
+              hasTimeline: !!continuityContext.timelineContext
+            });
+
+            // Add cumulative synopsis if available
+            if (continuityContext.cumulativeSynopsis) {
+              chapterSystemPrompt += continuityContext.cumulativeSynopsis;
+            }
+
+            // Add character states from continuity (more detailed than project characters)
+            if (continuityContext.characterStates) {
+              chapterSystemPrompt += continuityContext.characterStates;
+            }
+
+            // Add events summary from continuity
+            if (continuityContext.eventsSummary) {
+              chapterSystemPrompt += continuityContext.eventsSummary;
+            }
+
+            // Add locations visited from continuity
+            if (continuityContext.locationsVisited) {
+              chapterSystemPrompt += continuityContext.locationsVisited;
+            }
+
+            // Add timeline context from continuity
+            if (continuityContext.timelineContext) {
+              chapterSystemPrompt += continuityContext.timelineContext;
+            }
+
+            // Add explicit continuity instructions
+            chapterSystemPrompt += isItalian
+              ? `\n\n📋 ISTRUZIONI DI COERENZA CON LA SAGA:\n`
+              + `- Mantieni coerenza con tutti gli episodi precedenti della saga\n`
+              + `- Rispetta rigorosamente lo stato dei personaggi (vivi/morti/feriti/dispersi)\n`
+              + `- NON resuscitare personaggi morti\n`
+              + `- Considera tutti gli eventi passati quando scrivi nuovi eventi\n`
+              + `- Mantieni coerenza con i luoghi già visitati e la loro importanza\n`
+              + `- Rispetta la linea temporale stabilita\n`
+              + `- Continua naturalmente gli archi narrativi dei personaggi\n`
+              : `\n\n📋 SAGA CONTINUITY INSTRUCTIONS:\n`
+              + `- Maintain consistency with all previous saga episodes\n`
+              + `- Strictly respect character status (alive/dead/injured/missing)\n`
+              + `- DO NOT resurrect dead characters\n`
+              + `- Consider all past events when writing new events\n`
+              + `- Maintain consistency with locations already visited and their significance\n`
+              + `- Respect the established timeline\n`
+              + `- Continue character arcs naturally\n`;
           }
 
           const chapterUserPrompt = isItalian
@@ -6995,5 +7267,8 @@ ${chapterSummaries}`;
     res.status(500).json({ message: 'Failed to finalize episode' });
   }
 });
+
+// Export the continuity helper function for use in other modules (Feature #304)
+export { fetchContinuityForProject };
 
 export default router;

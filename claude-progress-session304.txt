@@ -1,0 +1,168 @@
+# Session 2026-02-20 - Feature #304 Implementation
+
+## Feature #304: Use continuity context in AI generation
+
+### Objective
+Integrare i dati di continuity nella generazione AI dei capitoli del sequel. L'AI deve conoscere: personaggi morti, feriti, luoghi visitati, eventi precedenti per mantenere coerenza.
+
+### Implementation Summary
+
+#### 1. Created Helper Function: `fetchContinuityForProject()`
+
+**File:** `server/src/routes/projects.ts` (lines 48-180)
+
+**Purpose:** Fetch and format continuity data from `saga_continuity` table.
+
+**Features:**
+- Queries continuity based on project's `saga_id` and `continuity_id`
+- Parses JSON fields: characters_state, events_summary, locations_visited, timeline_json
+- Formats with visual indicators (🟢 alive, 🔴 dead, 🟡 injured, ⚪ missing)
+- Returns structured ContinuityContext object
+- Exported for use in other modules
+
+#### 2. Updated Sequel-Stream Endpoint
+
+**File:** `server/src/routes/projects.ts`
+
+**Outline Generation (lines 1721-1867):**
+- Fetches continuity before building outline
+- Adds cumulative synopsis to prompt
+- Adds character states from continuity
+- Adds events summary
+- Adds locations visited
+- Adds timeline context
+- Includes warning about saga requirements
+
+**Chapter Generation (lines 2046-2104):**
+- Fetches continuity for each chapter
+- Adds all continuity fields to system prompt
+- Includes explicit continuity instructions:
+  - Maintain consistency with all previous episodes
+  - Strictly respect character status
+  - DO NOT resurrect dead characters
+  - Consider all past events
+  - Maintain location consistency
+  - Respect established timeline
+
+#### 3. Updated Generate-Stream Endpoint
+
+**File:** `server/src/routes/chapters.ts`
+
+**Changes:**
+- Imported fetchContinuityForProject (line 14)
+- Added continuity fetching (lines 904-948)
+- Includes all continuity data in system prompt
+- Adds explicit continuity instructions
+
+**Purpose:** Ensures sequel chapter generation respects saga continuity.
+
+#### 4. Updated Regenerate-Stream Endpoint
+
+**File:** `server/src/routes/chapters.ts`
+
+**Changes:**
+- Added continuity context fetching (lines 1833-1885)
+- Includes all continuity fields
+- Adds explicit continuity instructions
+
+**Purpose:** Maintains saga consistency when regenerating chapters.
+
+### Continuity Data Structure
+
+From `saga_continuity` table:
+- `cumulative_synopsis`: Full saga narrative
+- `characters_state`: JSON array with status (alive/dead/injured/missing)
+- `events_summary`: JSON array of past events
+- `locations_visited`: JSON array of locations
+- `timeline_json`: JSON array of timeline events
+
+### AI Prompt Enhancement
+
+When continuity is available, the AI receives:
+1. Project metadata
+2. Human Model style
+3. Current chapter context
+4. Project characters (basic)
+5. Dead character warnings
+6. Project locations (basic)
+7. **📖 Cumulative Saga Synopsis** (continuity)
+8. **🟢🔴🟡⚪ Character States** (continuity, with status)
+9. **📜 Past Events** (continuity, all episodes)
+10. **📍 Locations Visited** (continuity, all episodes)
+11. **⏰ Timeline** (continuity)
+12. **📋 Saga Continuity Instructions** (explicit requirements)
+13. User prompt
+
+### Benefits
+
+1. **Prevents Character Resurrection:** Dead characters explicitly marked and forbidden
+2. **Event Coherence:** All past events available for reference
+3. **Location Consistency:** AI knows visited locations and significance
+4. **Narrative Continuity:** Cumulative synopsis provides full story arc
+5. **Timeline Accuracy:** Temporal relationships maintained
+6. **Character Arc Continuity:** Status notes inform development
+
+### Feature Test Steps
+
+1. ✅ "Modificare generateChapterContent per includere continuity" - Implemented in all generation endpoints
+2. ✅ "Costruire contesto AI con: personaggi vivi/morti, relazioni, eventi passati, sinossi episodi precedenti" - All fields included
+3. ✅ "Aggiungere prompt instructions per rispettare continuity" - Explicit instructions added
+4. ⏸️ "Testare che AI non resusciti personaggi morti" - Requires testing with server restart
+5. ⏸️ "Verificare coerenza luoghi ed eventi" - Requires testing with server restart
+
+### Testing Limitations
+
+Due to sandbox restrictions:
+- Cannot restart server (EPERM on port 5001)
+- Cannot use npx commands (403 Forbidden)
+- Cannot run browser automation tests
+
+The implementation is complete and ready for testing once server is manually restarted.
+
+### Files Modified
+
+1. `server/src/routes/projects.ts`
+   - Added fetchContinuityForProject() helper (lines 48-180)
+   - Updated sequel-stream outline generation (lines 1721-1867)
+   - Updated sequel-stream chapter generation (lines 2046-2104)
+   - Exported helper function (line 7273)
+
+2. `server/src/routes/chapters.ts`
+   - Imported fetchContinuityForProject (line 14)
+   - Updated generate-stream endpoint (lines 904-948)
+   - Updated regenerate-stream endpoint (lines 1833-1885)
+
+### Logging Added
+
+Comprehensive logging for debugging:
+```
+[Projects-Stream] Including continuity context for chapter generation: {
+  episodeCount: 3,
+  hasSynopsis: true,
+  hasCharacterStates: true,
+  hasEvents: true,
+  hasLocations: true,
+  hasTimeline: true
+}
+```
+
+### Documentation
+
+Created `feature_304_implementation.md` with complete implementation details.
+
+### Status
+
+**Implementation:** ✅ Complete
+**Testing:** ⏸️ Blocked by sandbox restrictions
+**Ready for:** Manual testing after server restart
+
+### Next Steps
+
+When server is available:
+1. Create test saga with 2+ projects
+2. Finalize first project to generate continuity
+3. Create sequel and generate chapters
+4. Verify dead characters don't appear
+5. Verify event references are accurate
+6. Verify location consistency
+7. Mark feature as passing if tests succeed
