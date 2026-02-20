@@ -351,7 +351,7 @@ router.get('/chapters/:id/versions', authenticateToken, (req, res) => {
     }
 
     const versions = db.prepare(`
-      SELECT id, chapter_id, version_number, created_at, change_description
+      SELECT id, chapter_id, content, version_number, created_at, change_description
       FROM chapter_versions
       WHERE chapter_id = ?
       ORDER BY version_number DESC
