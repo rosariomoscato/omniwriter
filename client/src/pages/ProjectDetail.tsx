@@ -157,6 +157,16 @@ export default function ProjectDetail() {
   const [checkingConsistency, setCheckingConsistency] = useState(false);
   const [consistencyResults, setConsistencyResults] = useState<any>(null);
   const [showConsistencyResults, setShowConsistencyResults] = useState(false);
+  // Feature #291: Saved consistency check state
+  const [savedConsistencyCheck, setSavedConsistencyCheck] = useState<{
+    has_analysis: boolean;
+    analysis_date?: string;
+    summary?: string;
+    total_issues?: number;
+    created_at?: string;
+  } | null>(null);
+  const [loadingSavedConsistency, setLoadingSavedConsistency] = useState(false);
+  const [viewingSavedConsistency, setViewingSavedConsistency] = useState(false);
   const [humanModels, setHumanModels] = useState<any[]>([]);
   const [loadingHumanModels, setLoadingHumanModels] = useState(false);
   // Synopsis modal state
@@ -184,9 +194,11 @@ export default function ProjectDetail() {
   }, [project]);
 
   // Feature #283: Load saved plot hole analysis for Romanziere projects
+  // Feature #291: Also load saved consistency check for Romanziere projects
   useEffect(() => {
     if (project && project.area === 'romanziere') {
       loadSavedPlotHoleAnalysis();
+      loadSavedConsistencyCheck();
     }
   }, [project?.id]);
 
@@ -201,6 +213,21 @@ export default function ProjectDetail() {
       setSavedPlotHoleAnalysis(null);
     } finally {
       setLoadingSavedAnalysis(false);
+    }
+  };
+
+  // Feature #291: Load saved consistency check
+  const loadSavedConsistencyCheck = async () => {
+    if (!id) return;
+    try {
+      setLoadingSavedConsistency(true);
+      const response = await apiService.getConsistencyCheck(id);
+      setSavedConsistencyCheck(response.has_analysis ? response : null);
+    } catch (error) {
+      console.error('[Consistency] Failed to load saved check:', error);
+      setSavedConsistencyCheck(null);
+    } finally {
+      setLoadingSavedConsistency(false);
     }
   };
 
@@ -986,11 +1013,35 @@ export default function ProjectDetail() {
 
       setConsistencyResults(response.inconsistencies);
       setShowConsistencyResults(true);
+      setViewingSavedConsistency(false); // This is a fresh analysis, not a saved one
+
+      // Feature #291: Refresh the saved consistency check status
+      loadSavedConsistencyCheck();
     } catch (err: any) {
       setError(err.message || 'Failed to check consistency');
       toast.error(err.message || 'Failed to check consistency');
     } finally {
       setCheckingConsistency(false);
+    }
+  };
+
+  // Feature #291: Handle viewing saved consistency check
+  const handleViewSavedConsistency = async () => {
+    if (!id || !savedConsistencyCheck) return;
+
+    try {
+      setLoadingSavedConsistency(true);
+      const response = await apiService.getConsistencyCheck(id);
+      if (response.has_analysis && response.inconsistencies) {
+        setConsistencyResults(response.inconsistencies);
+        setShowConsistencyResults(true);
+        setViewingSavedConsistency(true);
+      }
+    } catch (error) {
+      console.error('[Consistency] Failed to load saved check:', error);
+      toast.error(t('projectPage.consistency.loadError', 'Failed to load saved consistency check'));
+    } finally {
+      setLoadingSavedConsistency(false);
     }
   };
 
@@ -2371,15 +2422,39 @@ export default function ProjectDetail() {
 
             {/* Consistency Checker button - Only for Romanziere projects (Feature #183) */}
             {project?.area === 'romanziere' && (
-              <button
-                onClick={handleCheckConsistency}
-                disabled={checkingConsistency}
-                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={t('projectPage.chapters.checkConsistencyHint')}
-              >
-                <Network className="w-4 h-4" />
-                {checkingConsistency ? t('common.loading') : t('projectPage.chapters.checkConsistency')}
-              </button>
+              <>
+                <button
+                  onClick={handleCheckConsistency}
+                  disabled={checkingConsistency}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t('projectPage.chapters.checkConsistencyHint')}
+                >
+                  <Network className="w-4 h-4" />
+                  {checkingConsistency ? t('common.loading') : t('projectPage.chapters.checkConsistency')}
+                  {/* Feature #291: Show last analysis indicator */}
+                  {savedConsistencyCheck && !checkingConsistency && (
+                    <span className="ml-1 text-xs opacity-75">
+                      ({savedConsistencyCheck.total_issues})
+                    </span>
+                  )}
+                </button>
+                {/* Feature #291: View Last Consistency Check button */}
+                {savedConsistencyCheck && (
+                  <button
+                    onClick={handleViewSavedConsistency}
+                    disabled={loadingSavedConsistency}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={t('projectPage.consistency.viewLastCheckHint', 'View the last saved consistency check')}
+                  >
+                    {loadingSavedConsistency ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                    {t('projectPage.consistency.viewLastCheck', 'View Coherence')}
+                  </button>
+                )}
+              </>
             )}
 
             <button

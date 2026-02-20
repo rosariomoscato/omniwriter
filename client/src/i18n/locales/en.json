@@ -636,7 +636,13 @@
       "typeTimeline": "timeline",
       "typeOther": "other",
       "analyzing": "Checking consistency...",
-      "analyzingHint": "This operation may take a few minutes with AI."
+      "analyzingHint": "This operation may take a few minutes with AI.",
+      "viewLastCheck": "View Consistency",
+      "viewLastCheckHint": "View the last saved consistency check",
+      "savedCheck": "Saved",
+      "checkedOn": "Checked on",
+      "loadError": "Failed to load saved consistency check",
+      "lastCheck": "Last check"
     }
   },
   "common": {

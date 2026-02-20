@@ -312,6 +312,19 @@ function runMigrations(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Feature #291: Consistency check results storage
+    CREATE TABLE IF NOT EXISTS consistency_checks (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      analysis_date TEXT NOT NULL DEFAULT (datetime('now')),
+      results_json TEXT NOT NULL DEFAULT '[]',
+      summary TEXT DEFAULT '',
+      analysis_method TEXT DEFAULT 'ai_powered' CHECK(analysis_method IN ('ai_powered', 'algorithmic_fallback')),
+      chapters_analyzed INTEGER DEFAULT 0,
+      total_issues INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Indexes for performance
     CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
     CREATE INDEX IF NOT EXISTS idx_projects_saga_id ON projects(saga_id);
@@ -338,6 +351,7 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_llm_providers_user_id ON llm_providers(user_id);
     CREATE INDEX IF NOT EXISTS idx_llm_providers_is_active ON llm_providers(is_active);
     CREATE INDEX IF NOT EXISTS idx_plot_hole_analyses_project_id ON plot_hole_analyses(project_id);
+    CREATE INDEX IF NOT EXISTS idx_consistency_checks_project_id ON consistency_checks(project_id);
   `);
 
   // Handle schema migrations for existing tables

@@ -1721,6 +1721,47 @@ class ApiService {
     });
   }
 
+  // Feature #291: Get the latest saved consistency check
+  async getConsistencyCheck(projectId: string): Promise<{
+    has_analysis: boolean;
+    message?: string;
+    id?: string;
+    analysis_date?: string;
+    inconsistencies?: Array<{
+      type: 'character' | 'location' | 'timeline' | 'description';
+      entity_name: string;
+      description: string;
+      chapter_references: string[];
+      suggestion: string;
+    }>;
+    total_issues?: number;
+    summary?: string;
+    analysis_method?: string;
+    chapters_analyzed?: number;
+    created_at?: string;
+  }> {
+    return this.request<{
+      has_analysis: boolean;
+      message?: string;
+      id?: string;
+      analysis_date?: string;
+      inconsistencies?: Array<{
+        type: 'character' | 'location' | 'timeline' | 'description';
+        entity_name: string;
+        description: string;
+        chapter_references: string[];
+        suggestion: string;
+      }>;
+      total_issues?: number;
+      summary?: string;
+      analysis_method?: string;
+      chapters_analyzed?: number;
+      created_at?: string;
+    }>(`/projects/${projectId}/consistency-check`, {
+      method: 'GET',
+    });
+  }
+
   // Character endpoints
   async getProjectCharacters(projectId: string): Promise<{ characters: Character[]; count: number }> {
     return this.request<{ characters: Character[]; count: number }>(`/projects/${projectId}/characters`);

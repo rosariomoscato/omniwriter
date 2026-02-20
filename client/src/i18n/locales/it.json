@@ -636,7 +636,13 @@
       "typeTimeline": "timeline",
       "typeOther": "altro",
       "analyzing": "Verifica coerenza in corso...",
-      "analyzingHint": "Questa operazione potrebbe richiedere qualche minuto con l'AI."
+      "analyzingHint": "Questa operazione potrebbe richiedere qualche minuto con l'AI.",
+      "viewLastCheck": "Vedi Coerenza",
+      "viewLastCheckHint": "Visualizza l'ultima verifica coerenza salvata",
+      "savedCheck": "Salvata",
+      "checkedOn": "Verificata il",
+      "loadError": "Impossibile caricare la verifica salvata",
+      "lastCheck": "Ultima verifica"
     }
   },
   "common": {

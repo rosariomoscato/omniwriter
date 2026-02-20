@@ -5536,14 +5536,120 @@ Identify all inconsistencies between chapters, even minor ones. It's important t
       }
     });
 
+    // Feature #291: Determine analysis method
+    const provider = getProviderForUser(userId);
+    const analysisMethod = provider ? 'ai_powered' : 'algorithmic_fallback';
+
+    // Feature #291: Save analysis results to database
+    try {
+      const analysisId = uuidv4();
+      const summary = inconsistencies.length === 0
+        ? 'No inconsistencies detected'
+        : `${inconsistencies.length} issue${inconsistencies.length > 1 ? 's' : ''} found: ${inconsistencies.filter(i => i.type === 'character').length} character, ${inconsistencies.filter(i => i.type === 'location').length} location, ${inconsistencies.filter(i => i.type === 'timeline').length} timeline, ${inconsistencies.filter(i => i.type === 'description').length} description`;
+
+      // Delete any existing analysis for this project (only keep the latest)
+      db.prepare('DELETE FROM consistency_checks WHERE project_id = ?').run(projectId);
+
+      // Insert the new analysis
+      db.prepare(`
+        INSERT INTO consistency_checks (id, project_id, results_json, summary, analysis_method, chapters_analyzed, total_issues)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        analysisId,
+        projectId,
+        JSON.stringify(inconsistencies),
+        summary,
+        analysisMethod,
+        chapters.length,
+        inconsistencies.length
+      );
+
+      console.log('[Projects] Saved consistency check to database:', analysisId);
+    } catch (saveError) {
+      // Log but don't fail the request if saving fails
+      console.error('[Projects] Failed to save consistency check:', saveError instanceof Error ? saveError.message : 'Unknown error');
+    }
+
     res.json({
       message: 'Consistency check completed',
       inconsistencies: inconsistencies,
-      total_inconsistencies: inconsistencies.length
+      total_inconsistencies: inconsistencies.length,
+      analysis_info: {
+        method: analysisMethod,
+        chapters_analyzed: chapters.length,
+        ai_provider_available: !!provider
+      }
     });
   } catch (error) {
     console.error('[Projects] Consistency check error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Failed to check consistency' });
+  }
+});
+
+// GET /api/projects/:id/consistency-check - Get the latest saved consistency check (Feature #291)
+// @ts-expect-error - AuthRequest type compatibility with router
+router.get('/:id/consistency-check', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    // Verify project belongs to user
+    const project = db.prepare('SELECT id, title, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId) as { id: string; title: string; area: string } | undefined;
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    // Get the latest consistency check for this project
+    const analysis = db.prepare(`
+      SELECT id, analysis_date, results_json, summary, analysis_method, chapters_analyzed, total_issues, created_at
+      FROM consistency_checks
+      WHERE project_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(projectId) as {
+      id: string;
+      analysis_date: string;
+      results_json: string;
+      summary: string;
+      analysis_method: string;
+      chapters_analyzed: number;
+      total_issues: number;
+      created_at: string;
+    } | undefined;
+
+    if (!analysis) {
+      res.json({
+        has_analysis: false,
+        message: 'No consistency check found for this project'
+      });
+      return;
+    }
+
+    // Parse the results JSON
+    let inconsistencies = [];
+    try {
+      inconsistencies = JSON.parse(analysis.results_json);
+    } catch (parseError) {
+      console.error('[Projects] Failed to parse consistency check results JSON:', parseError);
+      inconsistencies = [];
+    }
+
+    res.json({
+      has_analysis: true,
+      id: analysis.id,
+      analysis_date: analysis.analysis_date,
+      inconsistencies: inconsistencies,
+      total_issues: analysis.total_issues,
+      summary: analysis.summary,
+      analysis_method: analysis.analysis_method,
+      chapters_analyzed: analysis.chapters_analyzed,
+      created_at: analysis.created_at
+    });
+  } catch (error) {
+    console.error('[Projects] Get consistency check error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to get consistency check' });
   }
 });
 
