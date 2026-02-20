@@ -325,6 +325,21 @@ function runMigrations(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Feature #297: Saga continuity state tracking
+    CREATE TABLE IF NOT EXISTS saga_continuity (
+      id TEXT PRIMARY KEY,
+      saga_id TEXT NOT NULL REFERENCES sagas(id) ON DELETE CASCADE,
+      source_project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      episode_number INTEGER NOT NULL DEFAULT 1,
+      characters_state TEXT NOT NULL DEFAULT '[]',
+      events_summary TEXT NOT NULL DEFAULT '[]',
+      cumulative_synopsis TEXT DEFAULT '',
+      locations_visited TEXT NOT NULL DEFAULT '[]',
+      timeline_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Indexes for performance
     CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
     CREATE INDEX IF NOT EXISTS idx_projects_saga_id ON projects(saga_id);
@@ -352,6 +367,9 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_llm_providers_is_active ON llm_providers(is_active);
     CREATE INDEX IF NOT EXISTS idx_plot_hole_analyses_project_id ON plot_hole_analyses(project_id);
     CREATE INDEX IF NOT EXISTS idx_consistency_checks_project_id ON consistency_checks(project_id);
+    CREATE INDEX IF NOT EXISTS idx_saga_continuity_saga_id ON saga_continuity(saga_id);
+    CREATE INDEX IF NOT EXISTS idx_saga_continuity_source_project_id ON saga_continuity(source_project_id);
+    CREATE INDEX IF NOT EXISTS idx_saga_continuity_episode ON saga_continuity(saga_id, episode_number);
   `);
 
   // Handle schema migrations for existing tables
