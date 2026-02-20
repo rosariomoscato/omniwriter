@@ -1,5 +1,91 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #294 Verification
+
+### Completed Features: 294/294 (100%)
+
+### Feature #294: Fix status dropdown text visibility in dark mode
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Fix the status dropdown text visibility in dark mode by adding `text-gray-700 dark:text-gray-200` classes to the dropdown buttons.
+
+**Implementation:**
+
+The fix was already applied in the previous session's commit (2545c3d) as part of Feature #292. This session verified the fix through browser automation testing.
+
+#### Changes Made (client/src/pages/ProjectDetail.tsx, lines 1585, 1594, 1603):
+
+Added `text-gray-700 dark:text-gray-200` to the className of the three status dropdown buttons:
+- Draft button (line 1585)
+- In Progress button (line 1594)
+- Completed button (line 1603)
+
+The Archive/Restore button (line 1613) already had `text-yellow-600 dark:text-yellow-400` which is appropriate for that special action.
+
+**Verification (Browser Automation Testing):**
+1. ✅ Started client and server
+2. ✅ Registered new test user (test294@test.com)
+3. ✅ Created new Romanziere project "Test Project for Status Dropdown"
+4. ✅ Clicked "Stato" button to open dropdown - text visible in light mode
+5. ✅ Switched to dark mode - text still clearly visible
+6. ✅ Changed status to "In Corso" - functionality works correctly
+7. ✅ Confirmed all dropdown options are readable in both themes
+
+**Files Modified:**
+- `client/src/pages/ProjectDetail.tsx`
+
+**Commit:** Already committed in 2545c3d (part of Feature #292)
+
+---
+
+## Session: 2026-02-20 - Feature #292 Implementation
+
+### Completed Features: 292/292 (100%)
+
+### Feature #292: Improve analysis button labels and add date
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Migliorare le etichette dei pulsanti di analisi e aggiungere la data.
+1. Rinominare "Vedi Analisi" in "Vedi Buchi" (IT) / "View Analysis" in "View Holes" (EN) per i plot holes
+2. Aggiungere la data di analisi al popup della verifica coerenza: "{{count}} problemi trovati • Verificata il DD/MM/YYYY"
+
+**Implementation:**
+
+#### 1. i18n Translations (client/src/i18n/locales/)
+
+**it.json (line 619):**
+- Changed: `"viewLastAnalysis": "Vedi Analisi"` → `"viewLastAnalysis": "Vedi Buchi"`
+
+**en.json (line 619):**
+- Changed: `"viewLastAnalysis": "View Analysis"` → `"viewLastAnalysis": "View Holes"`
+
+#### 2. Consistency Check Popup (client/src/pages/ProjectDetail.tsx)
+
+Added date display to consistency check popup header (lines 3752-3759):
+```tsx
+<p className="text-sm text-gray-600 dark:text-gray-400">
+  {t('projectPage.consistency.issue', { count: consistencyResults.length })}
+  {viewingSavedConsistency && savedConsistencyCheck?.created_at && (
+    <span className="ml-2">
+      • {t('projectPage.consistency.checkedOn', 'Verificata il')} {new Date(savedConsistencyCheck.created_at).toLocaleDateString()}
+    </span>
+  )}
+</p>
+```
+
+The date only shows when viewing a saved analysis (`viewingSavedConsistency` is true) and `created_at` exists.
+
+**Files Modified:**
+- `client/src/i18n/locales/it.json`
+- `client/src/i18n/locales/en.json`
+- `client/src/pages/ProjectDetail.tsx`
+
+**Commit:** 2545c3d
+
+---
+
 ## Session: 2026-02-20 - Feature #291 Implementation
 
 ### Completed Features: 291/291 (100%)
