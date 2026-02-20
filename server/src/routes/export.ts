@@ -7,7 +7,8 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-// import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx'; // Temporarily disabled
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';
+import JSZip from 'jszip';
 // import { google } from 'googleapis'; // Temporarily disabled
 // import { OAuth2Client } from 'google-auth-library'; // Temporarily disabled
 
@@ -62,7 +63,7 @@ async function exportProjectAsBuffer(projectId: string, format: string): Promise
   if (format === 'docx') {
     return await generateDocx(project.title, project.description || '', chapters);
   } else if (format === 'epub') {
-    return generateEpub(project.title, project.description || '', chapters);
+    return await generateEpub(project.title, project.description || '', chapters);
   } else {
     return generateTxt(project.title, project.description || '', chapters, project.area);
   }
@@ -128,8 +129,8 @@ function markdownToHtml(text: string): string {
   return paragraphs;
 }
 
-// Helper function to generate EPUB file (HTML-based eBook format)
-function generateEpub(
+// Helper function to generate EPUB file (proper EPUB 3.0 format)
+async function generateEpub(
   title: string,
   description: string,
   chapters: any[],
@@ -140,256 +141,262 @@ function generateEpub(
     language?: string;
   },
   coverImagePath?: string
-): Buffer {
-  // Read cover image if provided
-  let coverImageBase64 = '';
-  let coverMediaType = '';
+): Promise<Buffer> {
+  console.log('[Export] Generating proper EPUB 3.0 file');
+  const zip = new JSZip();
+  const uuid = uuidv4();
+  const bookId = `urn:uuid:${uuid}`;
+  const lang = metadata?.language || 'en';
+  const author = metadata?.author || 'OmniWriter';
+  const publisher = metadata?.publisher || 'OmniWriter';
+  const now = new Date().toISOString();
+
+  // Generate unique IDs for chapters
+  const chapterIds = chapters.map((_, i) => `chapter-${i + 1}-${uuidv4().slice(0, 8)}`);
+
+  // ========== mimetype (must be first, uncompressed) ==========
+  zip.file('mimetype', 'application/epub+zip');
+
+  // ========== META-INF/container.xml ==========
+  const metaInf = zip.folder('META-INF');
+  metaInf?.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  // ========== OEBPS folder ==========
+  const oebps = zip.folder('OEBPS');
+
+  // Handle cover image
+  let hasCover = false;
+  let coverMediaType = 'image/jpeg';
   if (coverImagePath && fs.existsSync(coverImagePath)) {
     const ext = path.extname(coverImagePath).toLowerCase();
     coverMediaType = ext === '.png' ? 'image/png' : 'image/jpeg';
     const imageBuffer = fs.readFileSync(coverImagePath);
-    coverImageBase64 = imageBuffer.toString('base64');
+    oebps?.file('images/cover.jpg', imageBuffer);
+    hasCover = true;
   }
 
-  // Generate XHTML content for each chapter
-  const chapterFiles = chapters.map((chapter, index) => {
-    const chapterTitle = escapeHtml(chapter.title || `Chapter ${index + 1}`);
-    const chapterContent = markdownToHtml(chapter.content || '');
-    return {
-      id: `chapter_${index + 1}`,
-      filename: `${chapter.id}.xhtml`,
-      content: chapterContent
-    };
-  });
+  // CSS stylesheet
+  const cssContent = `body {
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.8;
+  margin: 1em;
+  padding: 0;
+  color: #333;
+}
+h1 {
+  text-align: center;
+  font-size: 1.8em;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  page-break-before: always;
+}
+h1:first-of-type {
+  page-break-before: avoid;
+}
+h2 {
+  text-align: center;
+  font-size: 1.5em;
+  margin: 1em 0;
+}
+p {
+  text-indent: 1.5em;
+  margin: 0.5em 0;
+  text-align: justify;
+}
+p:first-child {
+  text-indent: 0;
+}
+.cover {
+  text-align: center;
+  page-break-after: always;
+  padding: 2em;
+}
+.cover h1 {
+  font-size: 2em;
+  page-break-before: avoid;
+}
+.cover img {
+  max-width: 80%;
+  max-height: 60vh;
+}
+.description {
+  font-style: italic;
+  color: #666;
+  margin: 1em 2em;
+}
+.toc {
+  page-break-after: always;
+}
+.toc ol {
+  list-style: decimal;
+  padding-left: 2em;
+}
+.toc li {
+  margin: 0.5em 0;
+}
+.toc a {
+  text-decoration: none;
+  color: #3b82f6;
+}
+strong { font-weight: bold; }
+em { font-style: italic; }
+`;
+  oebps?.file('styles/style.css', cssContent);
 
-  // Build HTML eBook format with EPUB-compatible structure
-  const epubHtml = `<!DOCTYPE html>
-<html lang="${metadata?.language || 'en'}">
+  // Cover page XHTML
+  const coverXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Open+Sans:wght@400;600&display=swap');
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
-      line-height: 1.8;
-      max-width: 700px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      background: #fff;
-      color: #333;
-    }
-
-    h1 {
-      text-align: center;
-      font-family: 'Open Sans', sans-serif;
-      font-size: 2em;
-      margin-top: 3em;
-      margin-bottom: 1em;
-      page-break-before: always;
-      color: #1a1a2e;
-    }
-
-    h1:first-of-type {
-      margin-top: 1em;
-    }
-
-    .cover-page {
-      text-align: center;
-      page-break-after: always;
-      padding-top: 100px;
-      min-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .cover-page img {
-      max-width: 300px;
-      max-height: 400px;
-      margin-bottom: 2em;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      border-radius: 8px;
-    }
-
-    .cover-page h1 {
-      font-size: 2.5em;
-      margin-bottom: 0.5em;
-      margin-top: 1em;
-      font-weight: 700;
-    }
-
-    .description {
-      font-style: italic;
-      color: #666;
-      margin-bottom: 2em;
-      max-width: 500px;
-    }
-
-    .metadata {
-      font-style: italic;
-      color: #888;
-      margin-top: 2em;
-      font-size: 0.9em;
-    }
-
-    .metadata p {
-      margin: 0.5em 0;
-    }
-
-    .toc {
-      page-break-after: always;
-      padding: 2em 0;
-    }
-
-    .toc h2 {
-      text-align: center;
-      font-family: 'Open Sans', sans-serif;
-      font-size: 1.5em;
-      margin-bottom: 1.5em;
-      color: #1a1a2e;
-    }
-
-    .toc ol {
-      list-style: none;
-      padding-left: 0;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    .toc li {
-      padding: 0.75em 0;
-      border-bottom: 1px solid #eee;
-    }
-
-    .toc li:last-child {
-      border-bottom: none;
-    }
-
-    .toc a {
-      text-decoration: none;
-      color: #3b82f6;
-      font-weight: 600;
-      display: block;
-      padding: 0.5em 0;
-      transition: color 0.2s;
-    }
-
-    .toc a:hover {
-      color: #1d4ed8;
-    }
-
-    .chapter {
-      page-break-before: always;
-    }
-
-    .chapter h1 {
-      font-size: 1.8em;
-    }
-
-    .chapter-content {
-      text-align: justify;
-      line-height: 1.9;
-    }
-
-    .chapter-content p {
-      text-indent: 2em;
-      margin: 0.75em 0;
-    }
-
-    .chapter-content p:first-child {
-      text-indent: 0;
-    }
-
-    strong {
-      font-weight: bold;
-    }
-
-    em {
-      font-style: italic;
-    }
-
-    @media print {
-      body {
-        max-width: 100%;
-        padding: 20px;
-      }
-
-      h1 {
-        page-break-before: always;
-      }
-
-      .cover-page, .toc {
-        page-break-after: always;
-      }
-
-      .chapter {
-        page-break-inside: avoid;
-      }
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 20px 15px;
-      }
-
-      .cover-page h1 {
-        font-size: 1.8em;
-      }
-
-      .cover-page img {
-        max-width: 200px;
-        max-height: 280px;
-      }
-
-      h1 {
-        font-size: 1.5em;
-      }
-    }
-  </style>
+  <meta charset="UTF-8"/>
+  <title>${escapeXml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
 </head>
 <body>
-  <!-- Cover Page -->
-  <div class="cover-page">
-    ${coverImagePath ? `<img src="data:${coverMediaType};base64,${coverImageBase64}" alt="Cover">` : ''}
-    <h1>${escapeHtml(title)}</h1>
-    ${description ? `<p class="description">${escapeHtml(description)}</p>` : ''}
-    <div class="metadata">
-      ${metadata?.author ? `<p>By ${escapeHtml(metadata.author)}</p>` : ''}
-      ${metadata?.publisher ? `<p>${escapeHtml(metadata.publisher)}</p>` : ''}
-      ${metadata?.isbn ? `<p>ISBN: ${escapeHtml(metadata.isbn)}</p>` : ''}
-    </div>
+  <div class="cover">
+    ${hasCover ? `<img src="images/cover.jpg" alt="Cover"/>` : ''}
+    <h1>${escapeXml(title)}</h1>
+    ${description ? `<p class="description">${escapeXml(description)}</p>` : ''}
+    <p class="description">By ${escapeXml(author)}</p>
   </div>
-
-  <!-- Table of Contents -->
-  <div class="toc">
-    <h2>Table of Contents</h2>
-    <ol>
-      ${chapterFiles.map((ch, i) => `
-      <li><a href="#chapter_${i + 1}">${i + 1}. ${escapeHtml(chapters[i].title || 'Untitled')}</a></li>
-      `).join('')}
-    </ol>
-  </div>
-
-  <!-- Chapters -->
-  ${chapterFiles.map((ch, i) => `
-  <div class="chapter" id="chapter_${i + 1}">
-    <h1>${escapeHtml(chapters[i].title || `Chapter ${i + 1}`)}</h1>
-    <div class="chapter-content">
-      ${markdownToHtml(chapters[i].content || '')}
-    </div>
-  </div>`).join('\n')}
 </body>
 </html>`;
+  oebps?.file('cover.xhtml', coverXhtml);
 
-  return Buffer.from(epubHtml, 'utf-8');
+  // Table of Contents page
+  const tocXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Table of Contents</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body>
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <nav epub:type="toc">
+      <ol>
+${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escapeXml(ch.title || `Chapter ${i + 1}`)}</a></li>`).join('\n')}
+      </ol>
+    </nav>
+  </div>
+</body>
+</html>`;
+  oebps?.file('toc.xhtml', tocXhtml);
+
+  // Chapter XHTML files
+  chapters.forEach((chapter, index) => {
+    const chapterTitle = escapeXml(chapter.title || `Chapter ${index + 1}`);
+    const chapterContent = markdownToXhtml(chapter.content || '');
+
+    const chapterXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${chapterTitle}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body epub:type="bodymatter">
+  <h1>${chapterTitle}</h1>
+  ${chapterContent}
+</body>
+</html>`;
+    oebps?.file(`chapter_${index + 1}.xhtml`, chapterXhtml);
+  });
+
+  // content.opf - Package document
+  const manifestItems = [
+    `<item id="css" href="styles/style.css" media-type="text/css"/>`,
+    `<item id="cover-xhtml" href="cover.xhtml" media-type="application/xhtml+xml"/>`,
+    `<item id="toc-xhtml" href="toc.xhtml" media-type="application/xhtml+xml"/>`,
+    ...chapters.map((_, i) => `<item id="chapter-${i + 1}" href="chapter_${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
+  ];
+
+  if (hasCover) {
+    manifestItems.unshift(`<item id="cover-image" href="images/cover.jpg" media-type="${coverMediaType}" properties="cover-image"/>`);
+  }
+
+  const spineItems = [
+    `<itemref idref="cover-xhtml"/>`,
+    `<itemref idref="toc-xhtml"/>`,
+    ...chapters.map((_, i) => `<itemref idref="chapter-${i + 1}"/>`)
+  ];
+
+  const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${bookId}</dc:identifier>
+    <dc:title>${escapeXml(title)}</dc:title>
+    <dc:creator>${escapeXml(author)}</dc:creator>
+    <dc:language>${lang}</dc:language>
+    <dc:publisher>${escapeXml(publisher)}</dc:publisher>
+    <dc:date>${now}</dc:date>
+    ${metadata?.isbn ? `<dc:identifier id="isbn">${escapeXml(metadata.isbn)}</dc:identifier>` : ''}
+    ${description ? `<dc:description>${escapeXml(description)}</dc:description>` : ''}
+    <meta property="dcterms:modified">${now.split('.')[0]}Z</meta>
+  </metadata>
+  <manifest>
+    ${manifestItems.join('\n    ')}
+  </manifest>
+  <spine>
+    ${spineItems.join('\n    ')}
+  </spine>
+</package>`;
+  oebps?.file('content.opf', contentOpf);
+
+  // toc.ncx - Navigation Control file (for backward compatibility)
+  const navPoints = chapters.map((ch, i) => `
+    <navPoint id="chapter-${i + 1}" playOrder="${i + 3}">
+      <navLabel><text>${escapeXml(ch.title || `Chapter ${i + 1}`)}</text></navLabel>
+      <content src="chapter_${i + 1}.xhtml"/>
+    </navPoint>`).join('');
+
+  const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${bookId}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <navMap>
+    <navPoint id="cover" playOrder="1">
+      <navLabel><text>Cover</text></navLabel>
+      <content src="cover.xhtml"/>
+    </navPoint>
+    <navPoint id="toc" playOrder="2">
+      <navLabel><text>Table of Contents</text></navLabel>
+      <content src="toc.xhtml"/>
+    </navPoint>${navPoints}
+  </navMap>
+</ncx>`;
+  oebps?.file('toc.ncx', tocNcx);
+
+  // Generate the ZIP buffer
+  const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  console.log('[Export] EPUB file generated, size:', buffer.length, 'bytes');
+  return buffer;
+}
+
+// Helper function to convert markdown to XHTML paragraphs
+function markdownToXhtml(text: string): string {
+  if (!text) return '';
+  let html = escapeXml(text);
+  // Bold: **text** -> <strong>text</strong>
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text* -> <em>text</em>
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Line breaks to paragraphs
+  const paragraphs = html.split('\n').filter(p => p.trim());
+  return paragraphs.map(p => `<p>${p.trim()}</p>`).join('\n  ');
 }
 
 // Helper function to escape XML content for DOCX
@@ -402,15 +409,9 @@ function escapeXmlDocx(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// Helper function to generate a proper DOCX file
-// Temporarily simplified - docx package not installed
+// Helper function to generate a proper DOCX file using docx library
 async function generateDocx(title: string, description: string, chapters: any[], area?: string): Promise<Buffer> {
-  // TODO: Re-enable proper DOCX generation when docx package can be installed
-  // For now, return TXT with .docx extension (not ideal but keeps server running)
-  console.warn('[Export] DOCX package not available, falling back to TXT format');
-  return generateTxt(title, description, chapters, area);
-
-  /*
+  console.log('[Export] Generating DOCX file with docx library');
   const children: any[] = [];
 
   // Add title
@@ -485,8 +486,8 @@ async function generateDocx(title: string, description: string, chapters: any[],
   });
 
   const buffer = await Packer.toBuffer(doc);
+  console.log('[Export] DOCX file generated, size:', buffer.length, 'bytes');
   return buffer;
-  */
 }
 
 // Helper function to generate TXT file
@@ -573,7 +574,7 @@ router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, 
         isbn: metadata?.isbn || undefined,
         language: metadata?.language || 'en'
       };
-      content = generateEpub(project.title, project.description || '', chapters, epubMetadata, coverImagePath);
+      content = await generateEpub(project.title, project.description || '', chapters, epubMetadata, coverImagePath);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
@@ -786,7 +787,7 @@ router.post('/projects/:id/export/batch', authenticateToken, async (req: AuthReq
         isbn: metadata?.isbn || undefined,
         language: metadata?.language || 'en'
       };
-      content = generateEpub(project.title, project.description || '', chapters, epubMetadata, coverImagePath);
+      content = await generateEpub(project.title, project.description || '', chapters, epubMetadata, coverImagePath);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
