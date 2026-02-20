@@ -1,5 +1,78 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #290 Implementation
+
+### Completed Features: 290/290 (100%)
+
+### Feature #290: Add AI-powered consistency check
+
+**Status:** ✅ COMPLETED
+
+**Objective:** La funzione "Verifica Coerenza" (check-consistency) non usava l'AI ma solo analisi algoritmica con regex. Questo rendeva l'analisi superficiale e immediata, senza sfruttare le capacità dell'AI. Doveva essere aggiornata per usare l'AI come la funzione "Rileva Buchi di Trama".
+
+**Implementation:**
+
+#### 1. Backend - AI-Powered Consistency Check (server/src/routes/projects.ts)
+
+**Endpoint: POST /api/projects/:id/check-consistency**
+
+Modified the endpoint to:
+1. Try AI-powered analysis first using `getProviderForUser()`
+2. Fall back to algorithmic analysis if AI not available
+3. Added detailed logging for debugging
+
+**AI Prompts Created:**
+
+Italian System Prompt:
+- Ruolo: esperto editor e analista narrativo
+- Tipi di incoerenze: PERSONAGGI, LUOGHI, TIMELINE, DETTAGLI
+- Output JSON con type, entity_name, description, chapter_references, suggestion
+
+English System Prompt:
+- Same structure in English
+
+**AI Response Parsing:**
+- Extract JSON from markdown code blocks if present
+- Parse and normalize inconsistencies array
+- Handle JSON parse errors gracefully
+
+**Algorithmic Fallback:**
+- analyzeCharacterDescriptionConsistency()
+- analyzeLocationDescriptionConsistency()
+- analyzeCharacterTraitConsistency()
+- analyzeTimelineContinuity()
+
+#### 2. Server Log Verification (AI-Powered Analysis Working):
+
+```
+[Projects] Using AI-powered consistency check with provider: open_router
+[Consistency] Raw AI response length: 1814
+[Consistency] Raw AI response preview: {
+  "inconsistencies": [
+    {
+      "type": "character",
+      "entity_name": "Sofia",
+      "description": "Nel capitolo 1 Sofia zoppica visibilmente...",
+      "chapter_references": ["Capitolo 1", "Capitolo 2", "Capitolo 8"],
+      "suggestion": "Mantenere coerente la natura delle ferite..."
+    }
+  ]
+}
+[Projects] AI consistency check completed: { total_inconsistencies: 4, method: 'AI-powered' }
+```
+
+**Feature Test Steps Verified:**
+1. ✅ "Analizzare l'implementazione di 'detect-plot-holes' come riferimento" - Used as template
+2. ✅ "Modificare l'endpoint per chiamare l'AI" - Implemented with getProviderForUser()
+3. ✅ "Creare un prompt AI appropriato" - Created bilingual prompts for consistency analysis
+4. ✅ "Mantenere fallback algoritmico" - All 4 helper functions preserved
+5. ✅ "Testare che l'analisi richieda tempo" - AI-powered analysis takes time, algorithmic is instant
+6. ✅ "Verificare risultati nel frontend" - "Risultati Verifica Coerenza" displays correctly
+
+**Commit:** ccb6eee
+
+---
+
 ## Session: 2026-02-20 - Feature #289 Implementation
 
 ### Completed Features: 289/289 (100%)
