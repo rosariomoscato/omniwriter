@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { apiService, Saga, CreateSagaData, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { Plus, BookOpen, FileText, Edit3, Trash2, X, FolderOpen, ArrowRight } from 'lucide-react';
+import { Plus, BookOpen, FileText, Edit3, Trash2, X, FolderOpen, ArrowRight, Sparkles } from 'lucide-react';
 import SagaTimeline from '../components/SagaTimeline';
+import CreateSagaSequelModal from '../components/CreateSagaSequelModal';
 
 export default function SagasPage() {
   const { t } = useTranslation();
@@ -29,6 +30,9 @@ export default function SagasPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sagaToDelete, setSagaToDelete] = useState<Saga | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Create sequel modal state (Feature #303)
+  const [showCreateSequelModal, setShowCreateSequelModal] = useState(false);
 
   // Selected saga for detail view
   const [selectedSaga, setSelectedSaga] = useState<Saga | null>(null);
@@ -298,6 +302,16 @@ export default function SagasPage() {
                     <Plus size={18} />
                     {t('sagas.addProject', 'Add Project to Saga')}
                   </button>
+                  {/* Feature #303: Create Sequel with Continuity button */}
+                  {sagaProjects.length > 0 && (
+                    <button
+                      onClick={() => setShowCreateSequelModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Sparkles size={18} />
+                      {t('sagas.createSequel', 'Create Sequel')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -492,6 +506,22 @@ export default function SagasPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Feature #303: Create Saga Sequel Modal */}
+      {showCreateSequelModal && selectedSaga && (
+        <CreateSagaSequelModal
+          sagaId={selectedSaga.id}
+          sagaTitle={selectedSaga.title}
+          sagaProjects={sagaProjects}
+          onClose={() => setShowCreateSequelModal(false)}
+          onSuccess={() => {
+            // Reload saga projects to show the new sequel
+            if (selectedSaga) {
+              loadSagaProjects(selectedSaga.id);
+            }
+          }}
+        />
       )}
     </div>
   );
