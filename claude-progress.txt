@@ -1,5 +1,52 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #285 Implementation
+
+### Completed Features: 285/285 (100%)
+
+### Feature #285: Fix dark mode text color for LLM Provider buttons
+
+**Status:** ✅ COMPLETED
+
+**Problem:** The "Test Connection" and "Edit" buttons in Settings > AI Providers section had dark text that was hard to read in dark mode.
+
+**Root Cause:**
+- The buttons at lines 958 and 984 in `client/src/pages/SettingsPage.tsx` had `text-gray-700` for light mode but no dark mode text color class
+- Without `dark:text-gray-200`, the text remained dark in dark mode, making it hard to read against dark backgrounds
+
+**Fix:**
+Added `text-gray-700 dark:text-gray-200` to both buttons:
+
+1. **Test Connection button (line 958):**
+```tsx
+className="... text-gray-700 dark:text-gray-200 ..."
+```
+
+2. **Edit button (line 984):**
+```tsx
+className="... text-gray-700 dark:text-gray-200 ..."
+```
+
+**Files Changed:**
+- `client/src/pages/SettingsPage.tsx` (2 lines changed)
+
+**Verification:**
+1. ✅ Started dev servers on ports 3000 (client) and 3001 (server)
+2. ✅ Registered new test user (test285@test.com)
+3. ✅ Added a test AI provider to see the buttons
+4. ✅ Took screenshot in light mode - buttons visible and readable
+5. ✅ Switched to dark mode - buttons now use light gray/white text with good contrast
+6. ✅ Verified both "Testa Connessione" and "Modifica" buttons readable in both themes
+7. ✅ Git commit: e550e83
+
+**Browser Automation Testing:**
+- Used playwright-cli to navigate to Settings page
+- Added test provider to display the buttons
+- Verified visual appearance in both light and dark modes
+- Confirmed good contrast and readability in both modes
+
+---
+
 ## Session: 2026-02-20 - Feature #284 Implementation
 
 ### Completed Features: 284/284 (100%)
