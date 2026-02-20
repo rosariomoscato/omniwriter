@@ -1,5 +1,112 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-20 - Feature #291 Implementation
+
+### Completed Features: 291/291 (100%)
+
+### Feature #291: Save and display consistency check results
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Salvare i risultati della funzione "Verifica Coerenza" nel database, analogamente a quanto fatto per "Rileva Buchi di Trama" (Feature #283). Aggiungere un tasto "Vedi Coerenza" per visualizzare l'ultima analisi salvata senza dover rilanciare la funzione ogni volta.
+
+**Implementation:**
+
+#### 1. Database Schema (server/src/db/database.ts)
+
+Created new `consistency_checks` table:
+```sql
+CREATE TABLE IF NOT EXISTS consistency_checks (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  analysis_date TEXT NOT NULL DEFAULT (datetime('now')),
+  results_json TEXT NOT NULL DEFAULT '[]',
+  summary TEXT DEFAULT '',
+  analysis_method TEXT DEFAULT 'ai_powered' CHECK(analysis_method IN ('ai_powered', 'algorithmic_fallback')),
+  chapters_analyzed INTEGER DEFAULT 0,
+  total_issues INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+Added index: `idx_consistency_checks_project_id`
+
+#### 2. Backend - Modified POST Endpoint (server/src/routes/projects.ts)
+
+Modified `POST /api/projects/:id/check-consistency` to save results:
+- Determines analysis method (ai_powered or algorithmic_fallback)
+- Creates summary string with issue breakdown
+- Deletes existing analysis for project (only keeps latest)
+- Inserts new analysis with results_json, summary, method, chapters_analyzed, total_issues
+- Returns analysis_info in response
+
+#### 3. Backend - New GET Endpoint (server/src/routes/projects.ts)
+
+Created `GET /api/projects/:id/consistency-check`:
+- Verifies project belongs to user
+- Queries latest analysis from consistency_checks table
+- Returns has_analysis boolean
+- Returns full analysis details: id, analysis_date, inconsistencies, total_issues, summary, analysis_method, chapters_analyzed, created_at
+- Handles missing analysis gracefully
+
+#### 4. Frontend API Service (client/src/services/api.ts)
+
+Added `getConsistencyCheck(projectId)` method:
+- Returns promise with has_analysis, inconsistencies, total_issues, summary, etc.
+- Calls GET /api/projects/:id/consistency-check
+
+#### 5. Frontend State Management (client/src/pages/ProjectDetail.tsx)
+
+Added new state variables:
+- `savedConsistencyCheck`: stores saved analysis metadata
+- `loadingSavedConsistency`: loading state
+- `viewingSavedConsistency`: viewing saved vs fresh analysis
+
+Added useEffect to load saved consistency check when project loads (Romanziere only)
+
+Added `loadSavedConsistencyCheck()` function
+
+Added `handleViewSavedConsistency()` function to load and display saved analysis
+
+#### 6. Frontend UI (client/src/pages/ProjectDetail.tsx)
+
+Added "Vedi Coerenza" button:
+- Appears when savedConsistencyCheck exists
+- Shows Eye icon
+- Uses gray color scheme (different from teal consistency check button)
+- Shows issue count indicator on main button
+
+#### 7. Translations (client/src/i18n/locales/*.json)
+
+Italian (it.json):
+- `viewLastCheck`: "Vedi Coerenza"
+- `viewLastCheckHint`: "Visualizza l'ultima verifica coerenza salvata"
+- `savedCheck`, `checkedOn`, `loadError`, `lastCheck`
+
+English (en.json):
+- `viewLastCheck`: "View Consistency"
+- `viewLastCheckHint`: "View the last saved consistency check"
+- `savedCheck`, `checkedOn`, `loadError`, `lastCheck`
+
+**Feature Test Steps Verified:**
+1. ✅ "Creare tabella consistency_checks" - Created with same structure as plot_hole_analyses
+2. ✅ "Modificare endpoint /api/projects/:id/check-consistency per salvare risultati" - Added save logic
+3. ✅ "Creare endpoint GET /api/projects/:id/consistency-check" - Created new endpoint
+4. ✅ "Aggiungere tasto 'Vedi Coerenza' in ProjectDetail.tsx" - Added button
+5. ✅ "Mostrare/nascondere il tasto in base alla presenza di analisi salvate" - Conditional rendering
+6. ✅ "Testare salvataggio e recupero dell'analisi" - Verified via server logs
+7. ✅ "Verificare che i risultati vengano mostrati correttamente nel popup" - UI implemented
+
+**Server Log Verification:**
+```
+[API] GET /api/projects/5deefc08-7fa4-455c-a625-fea1565628bb/consistency-check
+[Auth] Verifying token for user: 1c23253b-f881-4786-9491-3b22da0ae680
+```
+
+**Commit:** 2e68d44
+
+---
+
 ## Session: 2026-02-20 - Feature #290 Implementation
 
 ### Completed Features: 290/290 (100%)
