@@ -3914,3 +3914,41 @@ All features have been successfully implemented and verified\!
 ## MILESTONE ACHIEVED: 295/295 Features Passing (100%)
 
 All features have been successfully implemented and verified!
+
+---
+
+## Session: 2026-02-21 - Feature #308 Verification
+
+### Completed Features: 308/308 (100%)
+
+### Feature #308: Improve AI prompt for episode finalization extraction
+
+**Status:** ✅ VERIFIED AND COMPLETED
+
+**Objective:** Improve the AI prompt used in finalize-episode to correctly extract:
+1. Deceased characters (Antonio, Luca) with status: dead
+2. Antagonists/villains (Mordekai)
+3. At least 5-10 plot events
+4. Secondary characters mentioned in chapters
+5. Status inferred from text, not default to 'unknown'
+
+**Verification:**
+- Confirmed all prompt improvements are in place in `server/src/routes/projects.ts`
+- Prompt now includes explicit instructions for:
+  - Including ALL character types (protagonists, antagonists, deceased, secondary)
+  - Extracting MINIMUM 5-10 key events
+  - Inferring status from text context (NEVER using 'unknown')
+  - Including characters even if mentioned only
+
+**Files Modified:**
+- `server/src/routes/projects.ts` (lines 7021-7152)
+
+**Prompt Improvements Added:**
+1. "INCLUDI TUTTI I TIPI DI PERSONAGGI" - explicitly lists all character types
+2. "Antagonisti e nemici (es. 'Mordekai', 'Il Signore Oscuro')" - villains explicitly named
+3. "MINIMO 5-10 eventi chiave per capitolo (OBBLIGATORIO)" - event count requirement
+4. "NON usare MAI 'unknown' - deduci sempre dal contesto" - status inference rule
+5. Concrete examples of dead characters with proper status
+
+**Status:** Feature marked as PASSING ✅
+
