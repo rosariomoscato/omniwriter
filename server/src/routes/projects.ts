@@ -6230,6 +6230,478 @@ function analyzeTimelineContinuity(
 }
 
 // ============================================================================
+// Feature #310: Post-process AI character status extraction
+// Analyzes chapter content to deduce character status when AI returns 'unknown'
+// ============================================================================
+
+/**
+ * Analyzes chapter content to deduce character status from text patterns.
+ * Used as post-processing when AI returns status='unknown'.
+ *
+ * @param characterName - The name of the character to analyze
+ * @param chaptersContent - Combined content of all chapters
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Deduced status: 'dead', 'injured', 'alive', or 'unknown' if no match
+ */
+function analyzeCharacterStatusInText(
+  characterName: string,
+  chaptersContent: string,
+  language: 'it' | 'en' = 'it'
+): { status: string; notes: string } {
+  const name = characterName.trim();
+  if (!name || !chaptersContent) {
+    return { status: 'unknown', notes: '' };
+  }
+
+  const content = chaptersContent.toLowerCase();
+  const nameLower = name.toLowerCase();
+
+  // Escape special regex characters in name
+  const escapedName = nameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Find all occurrences of the character name with surrounding context
+  const namePattern = new RegExp(`.{0,100}${escapedName}.{0,100}`, 'gi');
+  const matches = chaptersContent.match(namePattern) || [];
+  const context = matches.join(' ... ').toLowerCase();
+
+  const isItalian = language === 'it';
+
+  // Death patterns - Italian
+  const deathPatternsIt = [
+    new RegExp(`${escapedName}[^.!?]*(?:muore|è morto|è morta|morì|mori|ucciso|uccisa|uccidere|ammazzato|ammazzata|cadde|caduto|caduta|sacrificò|sacrificato|sacrificata|trafigge|colpì a morte|ferita mortale|morte eroica|morire|perì|peri|deceduto|deceduta|estinto)`, 'i'),
+    new RegExp(`(?:muore|muoiono|è morto|è morta|morì|mori)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`(?:uccide|uccidono|ammazza|uccise|uccisero)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:non si rialzò|non si rialza|non resse|cadde per sempre|ultimo respiro|occhi si chiusero|si spense)`, 'i'),
+    new RegExp(`la morte di ${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:sangue[^.!?]*uscire|sangue[^.!?]*fluire|morì tra le braccia|spirò)`, 'i'),
+    // Pattern: "X uccise Name" or "X uccide Name"
+    new RegExp(`(?:uccise|uccide|ammazzò|ammazza|eliminò|elimina)[^.!?]*${escapedName}`, 'i'),
+    // Pattern: "X sconfisse Name" with lethal context
+    new RegExp(`sconfisse[^.!?]*${escapedName}[^.!?]*(?:uccidendo|ucciso|morto)`, 'i'),
+  ];
+
+  // Death patterns - English
+  const deathPatternsEn = [
+    new RegExp(`${escapedName}[^.!?]*(?:dies|died|is killed|was killed|killed|slain|slayed|fell|sacrificed|mortal wound|death|perished|passed away)`, 'i'),
+    new RegExp(`(?:dies|died|is killed|was killed)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`(?:kills|murders|slays|killed)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:never rose|didn't rise|didn't make it|last breath|eyes closed|passed on)`, 'i'),
+    new RegExp(`the death of ${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:blood[^.!?]*flowing|died in[^.!?]*arms|breathed[^.!?]*last)`, 'i'),
+    // Pattern: "X killed Name" - active verb with Name as object
+    new RegExp(`killed[^.!?]*${escapedName}`, 'i'),
+    // Pattern: "defeated Name" with lethal context
+    new RegExp(`defeated[^.!?]*${escapedName}[^.!?]*(?:killing|killed|dead)`, 'i'),
+  ];
+
+  // Injury patterns - Italian
+  const injuryPatternsIt = [
+    new RegExp(`${escapedName}[^.!?]*(?:ferito|ferita|colpito|colpita|sanguinando|sangue|gravemente|bruciato|bruciata|mutilato|mutilata|perde un|perso un|persa una|cicatrice|menomato|menomata|invalido|invalida)`, 'i'),
+    new RegExp(`(?:ferisce|colpisce|brucia)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:cadde a terra|strisciò|zoppicava|non riusciva a|perdeva sangue)`, 'i'),
+  ];
+
+  // Injury patterns - English
+  const injuryPatternsEn = [
+    new RegExp(`${escapedName}[^.!?]*(?:wounded|injured|hurt|bleeding|blood|badly|burned|burnt|mutilated|lost a|scar|maimed|disabled|crippled)`, 'i'),
+    new RegExp(`(?:wounds|injures|hurts|burns)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:fell to the ground|crawled|limped|couldn't|was bleeding)`, 'i'),
+  ];
+
+  // Alive patterns - Italian
+  const alivePatternsIt = [
+    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|vivo|viva|salvo|salva|si riprese|guarì|guari|ritorno|ritornò|celebrò|celebra|festa|trionfo|vittoria|finalmente)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:alla fine|nell'epilogo|nel finale|visse per|regna|governa)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:abbracciò|sorrise|rise|pianto di gioia|felice)`, 'i'),
+  ];
+
+  // Alive patterns - English
+  const alivePatternsEn = [
+    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|alive|safe|recovered|healed|returned|celebrated|triumph|victory|finally)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:in the end|in the epilogue|in the finale|lived for|reigns|rules)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:hugged|smiled|laughed|tears of joy|happy)`, 'i'),
+  ];
+
+  const deathPatterns = isItalian ? deathPatternsIt : deathPatternsEn;
+  const injuryPatterns = isItalian ? injuryPatternsIt : injuryPatternsEn;
+  const alivePatterns = isItalian ? alivePatternsIt : alivePatternsEn;
+
+  // Check for death patterns first (highest priority)
+  for (const pattern of deathPatterns) {
+    if (pattern.test(context)) {
+      console.log(`[Status Analysis] Found death pattern for "${name}" in text`);
+      return {
+        status: 'dead',
+        notes: isItalian
+          ? `Status dedotto dal testo: il personaggio muore nella storia`
+          : `Status deduced from text: character dies in the story`
+      };
+    }
+  }
+
+  // Check for injury patterns (second priority)
+  for (const pattern of injuryPatterns) {
+    if (pattern.test(context)) {
+      console.log(`[Status Analysis] Found injury pattern for "${name}" in text`);
+      return {
+        status: 'injured',
+        notes: isItalian
+          ? `Status dedotto dal testo: il personaggio viene ferito`
+          : `Status deduced from text: character is wounded`
+      };
+    }
+  }
+
+  // Check for alive patterns (lowest priority for unknown)
+  // Only use this if no death/injury patterns found and character appears in positive context
+  for (const pattern of alivePatterns) {
+    if (pattern.test(context)) {
+      console.log(`[Status Analysis] Found alive pattern for "${name}" in text`);
+      return {
+        status: 'alive',
+        notes: isItalian
+          ? `Status dedotto dal testo: il personaggio sopravvive`
+          : `Status deduced from text: character survives`
+      };
+    }
+  }
+
+  // No conclusive patterns found - keep unknown
+  return { status: 'unknown', notes: '' };
+}
+
+// ============================================================================
+// Feature #311: Automatic event extraction fallback
+// Extracts events from text when AI returns empty or insufficient events
+// ============================================================================
+
+/**
+ * Event pattern configuration for automatic extraction
+ */
+interface EventPattern {
+  patterns: RegExp[];
+  type: string;
+  description: string;
+}
+
+/**
+ * Extracts plot events from chapter content using pattern matching.
+ * Used as fallback when AI returns empty or insufficient events.
+ *
+ * @param chaptersContent - Combined content of all chapters
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Array of extracted events with title, description, and type
+ */
+function extractEventsFromText(
+  chaptersContent: string,
+  language: 'it' | 'en' = 'it'
+): Array<{ title: string; description: string; type: string }> {
+  const events: Array<{ title: string; description: string; type: string }> = [];
+
+  if (!chaptersContent) {
+    return events;
+  }
+
+  const isItalian = language === 'it';
+
+  // Define event patterns with their types
+  const eventPatterns: EventPattern[] = isItalian ? [
+    // Battle/Conflict patterns
+    {
+      patterns: [
+        /battaglia (?:di |del |della |dello )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /battaglia (?:finale|decisiva|epica)/gi,
+        /guerra (?:di |del |della )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /combattimento (?:tra |tra |contro )?([a-zA-Zàèéìòù\s]+)/gi,
+        /scontro (?:tra |tra |contro |final )?([a-zA-Zàèéìòù\s]+)/gi,
+        /assalto (?:a |al |alla )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /assedio (?:di |del |della )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+      ],
+      type: 'conflict',
+      description: 'Conflitto armato'
+    },
+    // Death patterns
+    {
+      patterns: [
+        /morte di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) muore/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) (?:viene |è |fu )?ucciso/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) (?:viene |è |fu )?uccisa/gi,
+        /sacrificio di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) si sacrifica/gi,
+        /assassinio di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /omicidio di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        // "X uccise Y" patterns
+        /(?:uccise|uccide|ammazzò|ammazza|eliminò) ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /(?:uccise|uccide|ammazzò) ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        // "X cadde" patterns
+        /([A-Z][a-zA-Zàèéìòù]+) cadde[^.!?]*(?:morte|ucciso)/gi,
+      ],
+      type: 'death',
+      description: 'Morte di un personaggio'
+    },
+    // Revelation patterns
+    {
+      patterns: [
+        /rivelazione (?:di |del |della |sul |sulla )?([a-zA-Zàèéìòù\s]+)/gi,
+        /segreto (?:rivelato|svelato|scoperto)/gi,
+        /scopre (?:che |il |la |lo )?([a-zA-Zàèéìòù\s]+)/gi,
+        /rivela (?:che |il |la |lo )?([a-zA-Zàèéìòù\s]+)/gi,
+        /verità (?:su |sul |sulla |riguardo )?([a-zA-Zàèéìòù\s]+)/gi,
+        /svela (?:che |il |la )?([a-zA-Zàèéìòù\s]+)/gi,
+        /profezia (?:si avvera|avverata|della )/gi,
+        /predizione (?:si avvera|avverata)/gi,
+      ],
+      type: 'revelation',
+      description: 'Rivelazione importante'
+    },
+    // Transformation patterns
+    {
+      patterns: [
+        /trasformazione di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) si trasforma/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) diventa ([a-zA-Zàèéìòù\s]+)/gi,
+        /metamorfosi di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /evoluzione di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /cambiamento di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+      ],
+      type: 'transformation',
+      description: 'Trasformazione di un personaggio'
+    },
+    // Arrival/Departure patterns
+    {
+      patterns: [
+        /arrivo (?:di |del |della )?([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) arriva (?:a |al |alla |in )/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) giunge (?:a |al |alla |in )/gi,
+        /partenza di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) parte (?:per |verso |da )/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) lascia ([a-zA-Zàèéìòù\s]+)/gi,
+        /ritorno di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) ritorna/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) torna/gi,
+      ],
+      type: 'arrival',
+      description: 'Arrivo o partenza'
+    },
+    // Resolution patterns
+    {
+      patterns: [
+        /vittoria (?:di |del |della |su |sul |sulla )?([a-zA-Zàèéìòù\s]+)/gi,
+        /sconfitta (?:di |del |della )?([a-zA-Zàèéìòù\s]+)/gi,
+        /trionfo (?:di |del |della )?([a-zA-Zàèéìòù\s]+)/gi,
+        /finale (?:felice|drammatico|trionfale)/gi,
+        /conclusione (?:della |del |dello )?([a-zA-Zàèéìòù\s]+)/gi,
+        /pace (?:tra |tra |finalmente)/gi,
+        /alleanza (?:tra |tra |con )/gi,
+      ],
+      type: 'resolution',
+      description: 'Risoluzione del conflitto'
+    },
+    // Journey/Travel patterns
+    {
+      patterns: [
+        /viaggio (?:a |al |alla |in |verso )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) viaggia (?:a |al |alla |in |verso )/gi,
+        /spedizione (?:a |al |alla |in )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /missione (?:a |al |alla |in )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /percorso (?:fino |verso |attraverso )/gi,
+        /odissea di ([A-Z][a-zA-Zàèéìòù]+)/gi,
+      ],
+      type: 'plot',
+      description: 'Viaggio o missione'
+    },
+    // Meeting patterns
+    {
+      patterns: [
+        /incontro (?:tra |tra |con )?([A-Z][a-zA-Zàèéìòù\s]+)/gi,
+        /([A-Z][a-zA-Zàèéìòù]+) incontra ([A-Z][a-zA-Zàèéìòù]+)/gi,
+        /primo incontro (?:tra |tra |con )/gi,
+        /riunione (?:di |del |della )?([a-zA-Zàèéìòù\s]+)/gi,
+        /assemblea (?:di |del |della )?([a-zA-Zàèéìòù\s]+)/gi,
+      ],
+      type: 'plot',
+      description: 'Incontro importante'
+    }
+  ] : [
+    // English patterns
+    {
+      patterns: [
+        /battle (?:of |at )?([A-Z][a-zA-Z\s]+)/gi,
+        /battle (?:final|decisive|epic)/gi,
+        /war (?:of |at )?([A-Z][a-zA-Z\s]+)/gi,
+        /fight (?:between |against )?([a-zA-Z\s]+)/gi,
+        /clash (?:between |against )?([a-zA-Z\s]+)/gi,
+        /assault (?:on |at )?([A-Z][a-zA-Z\s]+)/gi,
+        /siege (?:of |at )?([A-Z][a-zA-Z\s]+)/gi,
+      ],
+      type: 'conflict',
+      description: 'Armed conflict'
+    },
+    {
+      patterns: [
+        /death of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) dies/gi,
+        /([A-Z][a-zA-Z]+) (?:is |was |gets )?killed/gi,
+        /sacrifice of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) sacrifices/gi,
+        /assassination of ([A-Z][a-zA-Z]+)/gi,
+        /murder of ([A-Z][a-zA-Z]+)/gi,
+        // "X killed Y" patterns
+        /(?:killed|kills|murdered|slayed|slew) ([A-Z][a-zA-Z]+)/gi,
+      ],
+      type: 'death',
+      description: 'Death of a character'
+    },
+    {
+      patterns: [
+        /revelation (?:of |about )?([a-zA-Z\s]+)/gi,
+        /secret (?:revealed|uncovered|discovered)/gi,
+        /discovers (?:that |the )?([a-zA-Z\s]+)/gi,
+        /reveals (?:that |the )?([a-zA-Z\s]+)/gi,
+        /truth (?:about |regarding )?([a-zA-Z\s]+)/gi,
+        /uncovers (?:that |the )?([a-zA-Z\s]+)/gi,
+        /prophecy (?:comes true|fulfilled)/gi,
+        /prediction (?:comes true|fulfilled)/gi,
+      ],
+      type: 'revelation',
+      description: 'Important revelation'
+    },
+    {
+      patterns: [
+        /transformation of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) transforms/gi,
+        /([A-Z][a-zA-Z]+) becomes ([a-zA-Z\s]+)/gi,
+        /metamorphosis of ([A-Z][a-zA-Z]+)/gi,
+        /evolution of ([A-Z][a-zA-Z]+)/gi,
+        /change of ([A-Z][a-zA-Z]+)/gi,
+      ],
+      type: 'transformation',
+      description: 'Character transformation'
+    },
+    {
+      patterns: [
+        /arrival of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) arrives (?:at |in )/gi,
+        /([A-Z][a-zA-Z]+) reaches ([a-zA-Z\s]+)/gi,
+        /departure of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) leaves (?:for |towards )/gi,
+        /([A-Z][a-zA-Z]+) departs/gi,
+        /return of ([A-Z][a-zA-Z]+)/gi,
+        /([A-Z][a-zA-Z]+) returns/gi,
+        /([A-Z][a-zA-Z]+) comes back/gi,
+      ],
+      type: 'arrival',
+      description: 'Arrival or departure'
+    },
+    {
+      patterns: [
+        /victory (?:of |over )?([a-zA-Z\s]+)/gi,
+        /defeat (?:of |by )?([a-zA-Z\s]+)/gi,
+        /triumph (?:of )?([a-zA-Z\s]+)/gi,
+        /final(?:ly)? (?:happy|dramatic|triumphant) ending/gi,
+        /conclusion of the ([a-zA-Z\s]+)/gi,
+        /peace (?:between |finally)/gi,
+        /alliance (?:between |with )/gi,
+      ],
+      type: 'resolution',
+      description: 'Conflict resolution'
+    },
+    {
+      patterns: [
+        /journey (?:to |towards )?([A-Z][a-zA-Z\s]+)/gi,
+        /([A-Z][a-zA-Z]+) travels (?:to |towards )/gi,
+        /expedition (?:to )?([A-Z][a-zA-Z\s]+)/gi,
+        /mission (?:to )?([A-Z][a-zA-Z\s]+)/gi,
+        /quest (?:for |to )/gi,
+        /odyssey of ([A-Z][a-zA-Z]+)/gi,
+      ],
+      type: 'plot',
+      description: 'Journey or mission'
+    },
+    {
+      patterns: [
+        /meeting (?:between |with )?([A-Z][a-zA-Z\s]+)/gi,
+        /([A-Z][a-zA-Z]+) meets ([A-Z][a-zA-Z]+)/gi,
+        /first meeting (?:between |with )/gi,
+        /reunion (?:of )?([a-zA-Z\s]+)/gi,
+        /assembly (?:of )?([a-zA-Z\s]+)/gi,
+        /gathering (?:of )?([a-zA-Z\s]+)/gi,
+      ],
+      type: 'plot',
+      description: 'Important meeting'
+    }
+  ];
+
+  // Extract events using patterns
+  for (const patternConfig of eventPatterns) {
+    for (const pattern of patternConfig.patterns) {
+      let match;
+      while ((match = pattern.exec(chaptersContent)) !== null) {
+        // Extract the relevant group or use the full match
+        let title = match[1] || match[0];
+
+        // Clean up the title
+        title = title.trim()
+          .replace(/^(di |del |della |dello |al |alla |ai |agli |in |a |da |dal |dalla )/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        // Skip if title is too short or too long
+        if (title.length < 3 || title.length > 100) continue;
+
+        // Create event title based on pattern type and match
+        const eventTitle = isItalian
+          ? `${patternConfig.description}: ${title}`
+          : `${patternConfig.description}: ${title}`;
+
+        // Check for duplicates
+        const isDuplicate = events.some(e =>
+          e.title.toLowerCase() === eventTitle.toLowerCase() ||
+          e.title.toLowerCase().includes(title.toLowerCase()) ||
+          title.toLowerCase().includes(e.title.toLowerCase())
+        );
+
+        if (!isDuplicate) {
+          events.push({
+            title: eventTitle.substring(0, 150), // Limit title length
+            description: isItalian
+              ? `Evento estratto automaticamente dal testo: ${match[0]}`
+              : `Event automatically extracted from text: ${match[0]}`,
+            type: patternConfig.type
+          });
+        }
+      }
+    }
+  }
+
+  // Limit to reasonable number of events
+  const maxEvents = 15;
+  if (events.length > maxEvents) {
+    // Prioritize by type: death > conflict > revelation > resolution > others
+    const typePriority: Record<string, number> = {
+      'death': 1,
+      'conflict': 2,
+      'revelation': 3,
+      'resolution': 4,
+      'transformation': 5,
+      'arrival': 6,
+      'plot': 7
+    };
+
+    events.sort((a, b) => {
+      const priorityA = typePriority[a.type] || 10;
+      const priorityB = typePriority[b.type] || 10;
+      return priorityA - priorityB;
+    });
+
+    return events.slice(0, maxEvents);
+  }
+
+  return events;
+}
+
+// ============================================================================
 // POST /api/projects/:id/sequel/outline - Generate Sequel Outline (Feature #267)
 // Returns the chapter outline WITHOUT creating the project yet (for preview)
 // ============================================================================
@@ -7276,6 +7748,65 @@ ${chapterSummaries}`;
         description: l.description || '',
         significance: l.significance || ''
       }));
+    }
+
+    // ==========================================================================
+    // Feature #310: Post-process character status for 'unknown' statuses
+    // ==========================================================================
+    const chaptersContent = chapters.map(ch => ch.content || '').join('\n\n');
+
+    // Count unknown characters before post-processing
+    const unknownCountBefore = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+
+    if (unknownCountBefore > 0 && chaptersContent) {
+      console.log(`[Finalize] Feature #310: Post-processing ${unknownCountBefore} characters with 'unknown' status`);
+
+      for (const charData of charactersData) {
+        if (!charData.status || charData.status === 'unknown') {
+          const analysisResult = analyzeCharacterStatusInText(charData.name, chaptersContent, language);
+
+          if (analysisResult.status !== 'unknown') {
+            // Update the character status
+            charData.status = analysisResult.status;
+
+            // Append the deduced notes
+            if (analysisResult.notes) {
+              charData.notes = charData.notes
+                ? `${charData.notes} (${analysisResult.notes})`
+                : analysisResult.notes;
+            }
+
+            console.log(`[Finalize] Feature #310: Updated "${charData.name}" status from 'unknown' to '${charData.status}'`);
+          }
+        }
+      }
+
+      const unknownCountAfter = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+      console.log(`[Finalize] Feature #310: Post-processing complete. Resolved ${unknownCountBefore - unknownCountAfter} statuses`);
+    }
+
+    // ==========================================================================
+    // Feature #311: Automatic event extraction fallback
+    // ==========================================================================
+    const minEvents = 3;
+    if (eventsData.length < minEvents && chaptersContent) {
+      console.log(`[Finalize] Feature #311: Only ${eventsData.length} events found, extracting from text`);
+
+      const extractedEvents = extractEventsFromText(chaptersContent, language);
+
+      if (extractedEvents.length > 0) {
+        // Merge extracted events with existing events, avoiding duplicates
+        const existingTitles = new Set(eventsData.map(e => e.title.toLowerCase()));
+
+        for (const event of extractedEvents) {
+          if (!existingTitles.has(event.title.toLowerCase())) {
+            eventsData.push(event);
+            existingTitles.add(event.title.toLowerCase());
+          }
+        }
+
+        console.log(`[Finalize] Feature #311: Extracted ${extractedEvents.length} additional events, total now: ${eventsData.length}`);
+      }
     }
 
     // Determine episode number
