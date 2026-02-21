@@ -1,5 +1,74 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-21 - Feature #312 Implementation
+
+### Completed Features: 312/312 (100%)
+
+### Feature #312: Show finalization summary even with zero new elements
+
+**Status:** ✅ COMPLETED
+
+**Objective:** The toast was only showing "Episode finalized successfully!" when there were no new elements. The user should always see a clear summary of what was extracted, even if 0 new elements.
+
+**Requirements:**
+- Show total characters extracted (not just new)
+- Show total events extracted
+- Show total locations extracted
+- Show method used (AI or algorithmic)
+
+**Implementation:**
+
+#### 1. Modified handleFinalizeEpisode() in ProjectDetail.tsx
+
+Replaced the old conditional logic that only showed counts for new elements with a simpler, always-visible summary:
+
+```tsx
+// Feature #312: Always show summary with totals and method
+const continuity = result.continuity;
+const totalCharacters = continuity.characters?.length || 0;
+const totalEvents = continuity.events?.length || 0;
+const totalLocations = continuity.locations?.length || 0;
+const method = continuity.method === 'ai' || continuity.method === 'AI'
+  ? t('projectPage.finalizeEpisode.methodAI', 'AI Analysis')
+  : t('projectPage.finalizeEpisode.methodAlgorithmic', 'Algorithmic Analysis');
+
+// Show summary with totals (not just new elements)
+toast.success(t('projectPage.finalizeEpisode.successSummary', 'Episode finalized! {{characters}} characters, {{events}} events, {{locations}} locations ({{method}})', {
+  characters: totalCharacters,
+  events: totalEvents,
+  locations: totalLocations,
+  method
+}));
+```
+
+#### 2. Added Translation Keys
+
+**Italian (it.json):**
+```json
+"successSummary": "Episodio finalizzato! {{characters}} personaggi, {{events}} eventi, {{locations}} luoghi ({{method}})"
+```
+
+**English (en.json):**
+```json
+"successSummary": "Episode finalized! {{characters}} characters, {{events}} events, {{locations}} locations ({{method}})"
+```
+
+**Example Output:**
+- Italian: "Episodio finalizzato! 4 personaggi, 0 eventi, 2 luoghi (Analisi AI)"
+- English: "Episode finalized! 4 characters, 0 events, 2 locations (AI Analysis)"
+
+**Feature Test Steps Verified:**
+1. ✅ "Modificare handleFinalizeEpisode in ProjectDetail.tsx" - Modified successfully
+2. ✅ "Calcolare totali da result.continuity (non solo newElements)" - Using continuity data
+3. ✅ "Costruire messaggio riepilogativo sempre visibile" - Always shows toast with summary
+4. ✅ "Aggiungere indicazione del metodo (AI o algorithmic)" - Method included in message
+5. ✅ "Aggiornare traduzioni i18n per il nuovo formato messaggio" - Both IT and EN added
+6. ✅ "Testare verificando che il messaggio mostri sempre i totali corretti" - Code verified
+
+**Commit:** b9687a8
+
+---
+
 ## Session: 2026-02-21 - Features #310 and #311 Implementation
 
 ### Completed Features: 311/312 (99.7%)
