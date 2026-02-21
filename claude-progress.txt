@@ -4232,3 +4232,67 @@ All features have been successfully implemented and verified!
 
 **Status: Features #315 and #316 MARKED PASSING**
 
+---
+
+## Session: 2026-02-21 - Feature #317 Implementation
+
+### Completed Features: 317/317 (100%)
+
+### Feature #317: Fix character status update after post-processing
+
+**Objective:** Il post-processing (Feature #310/#315) aggiorna correttamente charactersData con gli status dedotti, ma l'UPDATE della tabella characters non utilizza questi dati aggiornati quando usedAI=false.
+
+**Root Cause:**
+The problem was in three conditional blocks in `/server/src/routes/projects.ts`:
+1. Line 8291: `if (usedAI && charactersData.length > 0)` - Only updated characters when AI was used
+2. Line 8357: `if (usedAI && locationsData.length > 0)` - Only updated locations when AI was used
+3. Line 8389: `if (usedAI && eventsData.length > 0)` - Only updated events when AI was used
+
+When `usedAI=false` (algorithmic fallback used), even though post-processing (Features #310, #313, #315) correctly updated `charactersData` with deduced statuses (e.g., Antonio='dead'), the database UPDATE was skipped.
+
+**Solution:**
+Removed the `usedAI` condition from all three blocks:
+- Characters: `if (charactersData.length > 0)` - Always update with post-processed data
+- Locations: `if (locationsData.length > 0)` - Always update with extracted data
+- Events: `if (eventsData.length > 0)` - Always update with extracted data
+
+**Implementation:**
+
+Modified `/server/src/routes/projects.ts`:
+1. Changed `if (usedAI && charactersData.length > 0)` to `if (charactersData.length > 0)` (line 8291)
+2. Changed `if (usedAI && locationsData.length > 0)` to `if (locationsData.length > 0)` (line 8357)
+3. Changed `if (usedAI && eventsData.length > 0)` to `if (eventsData.length > 0)` (line 8389)
+4. Added debug logging to track what's being processed
+
+**Verification:**
+
+Tested with "Il Regno di Valoria" saga (proj-valoria-1):
+
+Before fix:
+- `saga_continuity.characters_state`: Antonio = "dead" (post-processing worked)
+- `characters.status_at_end`: Antonio = "unknown" (database not updated)
+
+After fix:
+- `saga_continuity.characters_state`: Antonio = "dead"
+- `characters.status_at_end`: Antonio = "dead"
+
+Events also correctly added to plot_events table (4 events extracted).
+
+**Feature Test Steps Verified:**
+1. Verified that the UPDATE of characters is executed AFTER post-processing (line 8291)
+2. Verified that charactersData contains correct data after post-processing
+3. Fixed: If usedAI is false but charactersData was populated by fallback, UPDATE still runs
+4. Fixed: Same problem for plot_events - now correctly populates
+5. Added debug logging for which characters are updated and with which status
+6. Tested with "Il Regno di Valoria" - Antonio correctly shows "dead" in characters table
+
+### Commit: cd9aa5b
+
+**Status: Feature #317 MARKED PASSING**
+
+---
+
+## MILESTONE ACHIEVED: 317/317 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
