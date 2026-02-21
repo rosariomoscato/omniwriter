@@ -6702,6 +6702,337 @@ function extractEventsFromText(
 }
 
 // ============================================================================
+// Feature #315: Smart AI-assisted character status extraction
+// 3-level strategy: AI Context Query > Positional Analysis > Default
+// Works for all genres: Fantasy, Sci-Fi, Romance, Thriller, Historical, Contemporary
+// ============================================================================
+
+/**
+ * Level 1: AI Context Query
+ * Uses AI to deduce character status from text context.
+ * This approach is genre-agnostic and works for any type of story.
+ *
+ * @param characterName - Name of the character to analyze
+ * @param relevantText - Text excerpts where the character appears
+ * @param provider - AI provider to use
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Promise with status and notes, or null if AI couldn't determine
+ */
+async function deduceCharacterStatusWithAI(
+  characterName: string,
+  relevantText: string,
+  provider: { chat: (messages: ChatMessage[], options?: any) => Promise<string> },
+  language: 'it' | 'en' = 'it'
+): Promise<{ status: string; notes: string } | null> {
+  const name = characterName.trim();
+  if (!name || !relevantText) {
+    return null;
+  }
+
+  const isItalian = language === 'it';
+
+  const systemPrompt = isItalian
+    ? `Sei un esperto di analisi letteraria. Il tuo compito è determinare lo stato finale di un personaggio basandoti sul testo fornito.
+
+Rispondi SOLO con uno di questi stati:
+- "alive" se il personaggio è vivo alla fine
+- "dead" se il personaggio muore durante la storia
+- "injured" se il personaggio è ferito ma vivo
+- "missing" se il personaggio scompare o non si sa se è vivo o morto
+- "transformed" se il personaggio subisce una trasformazione (diventa un'altra entità, viene trasformato in qualcos'altro)
+
+Rispondi in formato JSON: { "status": "...", "reason": "breve spiegazione" }`
+    : `You are an expert literary analyst. Your task is to determine the final status of a character based on the provided text.
+
+Reply ONLY with one of these statuses:
+- "alive" if the character is alive at the end
+- "dead" if the character dies during the story
+- "injured" if the character is wounded but alive
+- "missing" if the character disappears or it's unknown if they're alive or dead
+- "transformed" if the character undergoes a transformation (becomes another entity, is transformed into something else)
+
+Reply in JSON format: { "status": "...", "reason": "brief explanation" }`;
+
+  const userMessage = isItalian
+    ? `Determina lo stato finale del personaggio "${name}" basandoti su questo estratto della storia:
+
+${relevantText.substring(0, 2000)}${relevantText.length > 2000 ? '...' : ''}
+
+Rispondi SOLO con il JSON.`
+    : `Determine the final status of character "${name}" based on this story excerpt:
+
+${relevantText.substring(0, 2000)}${relevantText.length > 2000 ? '...' : ''}
+
+Reply ONLY with the JSON.`;
+
+  try {
+    console.log(`[Feature #315] Level 1: Querying AI for status of "${name}"`);
+    const response = await provider.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      { temperature: 0.1, max_tokens: 150 }
+    );
+
+    if (response) {
+      // Parse JSON from response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const validStatuses = ['alive', 'dead', 'injured', 'missing', 'transformed'];
+
+        if (parsed.status && validStatuses.includes(parsed.status.toLowerCase())) {
+          console.log(`[Feature #315] Level 1: AI determined "${name}" status as "${parsed.status}"`);
+          return {
+            status: parsed.status.toLowerCase(),
+            notes: parsed.reason || (isItalian
+              ? 'Status determinato dall\'AI'
+              : 'Status determined by AI')
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`[Feature #315] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
+  }
+
+  return null;
+}
+
+/**
+ * Level 2: Positional Analysis
+ * Analyzes whether the character appears in the final portion of the text.
+ * If character is mentioned in the last 20% of the story, they're likely alive.
+ * If they disappear after a critical point, they might be missing.
+ *
+ * @param chapterTexts - Array of chapter texts in order
+ * @param characterName - Name of the character to analyze
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Status and notes based on positional analysis
+ */
+function analyzeCharacterPosition(
+  chapterTexts: string[],
+  characterName: string,
+  language: 'it' | 'en' = 'it'
+): { status: string; notes: string } {
+  const name = characterName.trim().toLowerCase();
+  if (!name || chapterTexts.length === 0) {
+    return { status: 'unknown', notes: '' };
+  }
+
+  const isItalian = language === 'it';
+  const totalChapters = chapterTexts.length;
+
+  // Find which chapters mention the character
+  const mentionChapters: number[] = [];
+  chapterTexts.forEach((text, idx) => {
+    if (text.toLowerCase().includes(name)) {
+      mentionChapters.push(idx);
+    }
+  });
+
+  if (mentionChapters.length === 0) {
+    // Character never mentioned in chapters
+    return { status: 'unknown', notes: '' };
+  }
+
+  const lastMentionChapter = Math.max(...mentionChapters);
+  const lastMentionPosition = lastMentionChapter / totalChapters;
+
+  // If character appears in the last 20% of the text, they're likely alive
+  if (lastMentionPosition >= 0.8) {
+    console.log(`[Feature #315] Level 2: "${characterName}" appears in final chapters (${lastMentionChapter + 1}/${totalChapters}), likely alive`);
+    return {
+      status: 'alive',
+      notes: isItalian
+        ? `Status dedotto: il personaggio appare nel finale (capitolo ${lastMentionChapter + 1})`
+        : `Status deduced: character appears in the finale (chapter ${lastMentionChapter + 1})`
+    };
+  }
+
+  // If character disappears and there are many chapters after last mention
+  const chaptersAfterLastMention = totalChapters - lastMentionChapter - 1;
+  if (chaptersAfterLastMention >= 2 && lastMentionPosition < 0.5) {
+    console.log(`[Feature #315] Level 2: "${characterName}" disappears early (${lastMentionChapter + 1}/${totalChapters}), possibly missing`);
+    return {
+      status: 'missing',
+      notes: isItalian
+        ? `Status dedotto: il personaggio scompare dopo il capitolo ${lastMentionChapter + 1}`
+        : `Status deduced: character disappears after chapter ${lastMentionChapter + 1}`
+    };
+  }
+
+  // No conclusive positional analysis
+  return { status: 'unknown', notes: '' };
+}
+
+/**
+ * Feature #315: Smart AI-assisted character status extraction
+ * Applies the 3-level strategy to determine character status.
+ *
+ * @param characterName - Name of the character
+ * @param chaptersContent - Combined content of all chapters
+ * @param chapterTexts - Array of individual chapter texts for positional analysis
+ * @param provider - AI provider (optional, will try Level 2 if not available)
+ * @param language - 'it' for Italian, 'en' for English
+ * @param usedAI - Whether the main extraction used AI (to avoid redundant calls)
+ * @returns Promise with status and notes
+ */
+async function smartCharacterStatusExtraction(
+  characterName: string,
+  chaptersContent: string,
+  chapterTexts: string[],
+  provider: { chat: (messages: ChatMessage[], options?: any) => Promise<string> } | null,
+  language: 'it' | 'en' = 'it',
+  usedAI: boolean = false
+): Promise<{ status: string; notes: string; method: string }> {
+  const isItalian = language === 'it';
+
+  // Get context around character mentions for AI analysis
+  const name = characterName.trim();
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const namePattern = new RegExp(`.{0,200}${escapedName}.{0,200}`, 'gi');
+  const matches = chaptersContent.match(namePattern) || [];
+  const relevantText = matches.join('\n\n---\n\n');
+
+  // Level 1: AI Context Query (only if we have a provider and didn't use AI for main extraction)
+  // Note: If usedAI is true, the main AI call already tried to determine status, so skip Level 1
+  if (provider && !usedAI && relevantText) {
+    const aiResult = await deduceCharacterStatusWithAI(characterName, relevantText, provider, language);
+    if (aiResult && aiResult.status !== 'unknown') {
+      return {
+        ...aiResult,
+        method: 'Level 1: AI Context Query'
+      };
+    }
+  }
+
+  // Level 2: Positional Analysis
+  const positionResult = analyzeCharacterPosition(chapterTexts, characterName, language);
+  if (positionResult.status !== 'unknown') {
+    return {
+      ...positionResult,
+      method: 'Level 2: Positional Analysis'
+    };
+  }
+
+  // Level 3: Default - keep unknown
+  return {
+    status: 'unknown',
+    notes: '',
+    method: 'Level 3: Default (unknown)'
+  };
+}
+
+// ============================================================================
+// Feature #316: Smart AI-assisted event extraction fallback
+// Uses a dedicated AI call to extract events when main extraction yields < 3
+// Works for all genres: Fantasy, Sci-Fi, Romance, Thriller, Historical, Contemporary
+// ============================================================================
+
+/**
+ * Feature #316: AI-assisted event extraction
+ * Makes a dedicated AI call to extract plot events when main extraction returns insufficient events.
+ *
+ * @param chaptersContent - Combined content of all chapters
+ * @param provider - AI provider to use
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Promise with array of extracted events
+ */
+async function extractEventsWithAI(
+  chaptersContent: string,
+  provider: { chat: (messages: ChatMessage[], options?: any) => Promise<string> },
+  language: 'it' | 'en' = 'it'
+): Promise<Array<{ title: string; description: string; type: string }>> {
+  const isItalian = language === 'it';
+
+  const systemPrompt = isItalian
+    ? `Sei un esperto di analisi narrativa. Estrai 5-10 eventi chiave della trama da questa storia.
+
+Cerca eventi di qualsiasi tipo:
+- Conflitti e confrontazioni
+- Rivelazioni e scoperte
+- Cambiamenti di stato (matrimonio, morte, trasloco, licenziamento, etc.)
+- Decisioni importanti che cambiano la direzione
+- Incontri significativi tra personaggi
+- Separazioni e addii
+
+Per ogni evento fornisci:
+- title: titolo breve e descrittivo
+- description: 1-2 frasi che descrivono l'evento
+- type: uno tra plot, conflict, resolution, revelation, transformation, death, arrival, departure
+
+Rispondi SOLO con JSON array: [{"title": "...", "description": "...", "type": "..."}]`
+    : `You are an expert narrative analyst. Extract 5-10 key plot events from this story.
+
+Look for events of any type:
+- Conflicts and confrontations
+- Revelations and discoveries
+- State changes (marriage, death, moving, firing, etc.)
+- Important decisions that change direction
+- Significant meetings between characters
+- Separations and farewells
+
+For each event provide:
+- title: brief descriptive title
+- description: 1-2 sentences describing the event
+- type: one of plot, conflict, resolution, revelation, transformation, death, arrival, departure
+
+Reply ONLY with JSON array: [{"title": "...", "description": "...", "type": "..."}]`;
+
+  const userMessage = isItalian
+    ? `Analizza questa storia ed estrai gli eventi chiave:
+
+${chaptersContent.substring(0, 4000)}${chaptersContent.length > 4000 ? '...' : ''}
+
+Rispondi SOLO con l'array JSON.`
+    : `Analyze this story and extract key events:
+
+${chaptersContent.substring(0, 4000)}${chaptersContent.length > 4000 ? '...' : ''}
+
+Reply ONLY with the JSON array.`;
+
+  try {
+    console.log('[Feature #316] Querying AI for event extraction');
+    const response = await provider.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      { temperature: 0.3, max_tokens: 2000 }
+    );
+
+    if (response) {
+      // Parse JSON from response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        if (Array.isArray(parsed)) {
+          const events = parsed
+            .filter((e: any) => e.title && e.title.trim())
+            .map((e: any) => ({
+              title: e.title.trim().substring(0, 150),
+              description: (e.description || '').trim().substring(0, 500),
+              type: ['plot', 'conflict', 'resolution', 'revelation', 'transformation', 'death', 'arrival', 'departure'].includes(e.type)
+                ? e.type
+                : 'plot'
+            }));
+
+          console.log(`[Feature #316] AI extracted ${events.length} events`);
+          return events;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[Feature #316] AI event extraction failed:', error instanceof Error ? error.message : 'Unknown error');
+  }
+
+  return [];
+}
+
+// ============================================================================
 // POST /api/projects/:id/sequel/outline - Generate Sequel Outline (Feature #267)
 // Returns the chapter outline WITHOUT creating the project yet (for preview)
 // ============================================================================
@@ -7786,6 +8117,59 @@ ${chapterSummaries}`;
     }
 
     // ==========================================================================
+    // Feature #315: Smart AI-assisted character status extraction
+    // Apply 3-level strategy for remaining 'unknown' statuses
+    // ==========================================================================
+    const unknownCountBefore315 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+
+    if (unknownCountBefore315 > 0 && chaptersContent) {
+      console.log(`[Finalize] Feature #315: Smart AI-assisted extraction for ${unknownCountBefore315} remaining 'unknown' statuses`);
+
+      // Get provider for smart extraction (may be null if not configured)
+      const smartProvider = getProviderForUser(userId);
+      const chapterTexts = chapters.map(ch => ch.content || '');
+
+      // Limit to 5-10 characters in parallel for performance
+      const charactersToProcess = charactersData.filter(c => !c.status || c.status === 'unknown');
+      const maxParallel = 5;
+
+      for (let i = 0; i < charactersToProcess.length; i += maxParallel) {
+        const batch = charactersToProcess.slice(i, i + maxParallel);
+
+        // Process batch in parallel
+        const results = await Promise.all(
+          batch.map(async (charData) => {
+            const result = await smartCharacterStatusExtraction(
+              charData.name,
+              chaptersContent,
+              chapterTexts,
+              smartProvider,
+              language,
+              usedAI // Skip Level 1 if main extraction already used AI
+            );
+            return { charData, result };
+          })
+        );
+
+        // Apply results
+        for (const { charData, result } of results) {
+          if (result.status !== 'unknown') {
+            charData.status = result.status;
+            if (result.notes) {
+              charData.notes = charData.notes
+                ? `${charData.notes} (${result.notes})`
+                : result.notes;
+            }
+            console.log(`[Finalize] Feature #315: "${charData.name}" status resolved to '${charData.status}' via ${result.method}`);
+          }
+        }
+      }
+
+      const unknownCountAfter315 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+      console.log(`[Finalize] Feature #315: Smart extraction complete. Resolved ${unknownCountBefore315 - unknownCountAfter315} additional statuses`);
+    }
+
+    // ==========================================================================
     // Feature #311: Automatic event extraction fallback
     // ==========================================================================
     const minEvents = 3;
@@ -7806,6 +8190,36 @@ ${chapterSummaries}`;
         }
 
         console.log(`[Finalize] Feature #311: Extracted ${extractedEvents.length} additional events, total now: ${eventsData.length}`);
+      }
+    }
+
+    // ==========================================================================
+    // Feature #316: Smart AI-assisted event extraction fallback
+    // If still not enough events after regex-based extraction, use AI
+    // ==========================================================================
+    if (eventsData.length < minEvents && chaptersContent) {
+      console.log(`[Finalize] Feature #316: Only ${eventsData.length} events after regex, trying AI extraction`);
+
+      const smartProvider = getProviderForUser(userId);
+
+      if (smartProvider) {
+        const aiEvents = await extractEventsWithAI(chaptersContent, smartProvider, language);
+
+        if (aiEvents.length > 0) {
+          // Merge AI-extracted events with existing events, avoiding duplicates
+          const existingTitles = new Set(eventsData.map(e => e.title.toLowerCase()));
+
+          for (const event of aiEvents) {
+            if (!existingTitles.has(event.title.toLowerCase())) {
+              eventsData.push(event);
+              existingTitles.add(event.title.toLowerCase());
+            }
+          }
+
+          console.log(`[Finalize] Feature #316: AI extracted ${aiEvents.length} events, total now: ${eventsData.length}`);
+        }
+      } else {
+        console.log(`[Finalize] Feature #316: No AI provider available, skipping AI event extraction`);
       }
     }
 
