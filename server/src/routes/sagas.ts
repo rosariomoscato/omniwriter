@@ -157,9 +157,10 @@ router.get('/:id/projects', authenticateToken, requirePremium, (req: AuthRequest
     }
 
     // Feature #318: Include character_count and location_count for each project
+    // Feature #319: Exclude dead characters from character_count (they won't be imported to sequel)
     const projects = db.prepare(
       `SELECT p.*,
-        (SELECT COUNT(*) FROM characters WHERE project_id = p.id) as character_count,
+        (SELECT COUNT(*) FROM characters WHERE project_id = p.id AND (status_at_end IS NULL OR status_at_end != 'dead')) as character_count,
         (SELECT COUNT(*) FROM locations WHERE project_id = p.id) as location_count
        FROM projects p
        WHERE p.saga_id = ?
