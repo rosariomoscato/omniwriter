@@ -156,8 +156,14 @@ router.get('/:id/projects', authenticateToken, requirePremium, (req: AuthRequest
       return res.status(404).json({ message: 'Saga not found' });
     }
 
+    // Feature #318: Include character_count and location_count for each project
     const projects = db.prepare(
-      'SELECT * FROM projects WHERE saga_id = ? ORDER BY created_at DESC'
+      `SELECT p.*,
+        (SELECT COUNT(*) FROM characters WHERE project_id = p.id) as character_count,
+        (SELECT COUNT(*) FROM locations WHERE project_id = p.id) as location_count
+       FROM projects p
+       WHERE p.saga_id = ?
+       ORDER BY p.created_at DESC`
     ).all(id);
 
     res.json({ projects, count: projects.length });

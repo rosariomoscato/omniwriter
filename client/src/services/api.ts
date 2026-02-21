@@ -43,6 +43,9 @@ export interface Project {
   created_at: string;
   updated_at: string;
   tags: string[]; // Array of tag names
+  // Feature #318: Character and location counts for saga sequel modal
+  character_count?: number;
+  location_count?: number;
 }
 
 export interface CreateProjectData {
