@@ -4052,3 +4052,38 @@ All features have been successfully implemented and verified!
 
 **Status:** Feature marked as PASSING ✅
 
+
+
+---
+
+## Session: 2026-02-21 - Features #315 and #316 Verification
+
+### Completed Features: 313/316 (98.7%)
+
+### Feature #315: Smart AI-assisted character status extraction (all genres)
+
+**Status:** VERIFIED AND MARKED PASSING
+
+**Objective:** 3-level strategy to deduce character status when AI returns unknown:
+- Level 1: AI Context Query - focused AI query with character context
+- Level 2: Positional Analysis - checks if character appears in last 20% of text
+- Level 3: Default - returns unknown if neither level works
+
+**Implementation:** Functions deduceCharacterStatusWithAI, analyzeCharacterPosition, smartCharacterStatusExtraction
+
+---
+
+### Feature #316: Smart AI-assisted event extraction fallback (all genres)
+
+**Status:** VERIFIED AND MARKED PASSING
+
+**Objective:** When AI returns fewer than 3 events, make dedicated AI call with generic prompt for any genre.
+
+**Implementation:** Function extractEventsWithAI with genre-agnostic prompt
+
+---
+
+### Commit: 7524b17
+
+**Status: Features #315 and #316 MARKED PASSING**
+
