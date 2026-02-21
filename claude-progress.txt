@@ -1,5 +1,105 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-21 - Features #310 and #311 Implementation
+
+### Completed Features: 311/312 (99.7%)
+
+### Feature #310: Post-process AI character status extraction
+
+**Status:** ✅ COMPLETED
+
+**Objective:** When AI returns `status='unknown'` for a character, the backend must analyze chapter content to deduce the correct status using pattern matching.
+
+**Implementation:**
+
+#### 1. analyzeCharacterStatusInText() Function
+
+Created new helper function (lines 6246-6363) that:
+
+1. **Takes parameters:** characterName, chaptersContent, language ('it'|'en')
+2. **Searches for death patterns:**
+   - Italian: "muore", "è morto", "morì", "ucciso", "cadde", "sacrificò", "colpì a morte", "sangue...uscire", "morì tra le braccia"
+   - English: "dies", "died", "killed", "slain", "sacrificed", "mortal wound", "blood...flowing", "died in arms"
+   - Also: "X uccise Name" / "X killed Name" patterns for antagonists
+3. **Searches for injury patterns:**
+   - Italian: "ferito", "colpito", "sanguinando", "cadde a terra"
+   - English: "wounded", "injured", "bleeding", "fell to the ground"
+4. **Searches for alive patterns:**
+   - Italian: "sopravvive", "vivo", "celebrò", "vittoria"
+   - English: "survives", "alive", "celebrated", "victory"
+5. **Returns:** `{ status: 'dead'|'injured'|'alive'|'unknown', notes: string }`
+
+#### 2. Integration in finalize-episode Endpoint (lines 7755-7786)
+
+Added post-processing block after AI parsing:
+- Collects all chapter content into single string
+- Counts characters with `status='unknown'`
+- For each unknown character, calls `analyzeCharacterStatusInText()`
+- Updates status and appends notes if status deduced
+- Logs resolution statistics
+
+**Test Results:**
+- ✅ "Antonio" (it) → dead (matches "morì tra le braccia")
+- ✅ "Mordekai" (it) → dead (matches "uccise Mordekai")
+- ✅ "Antonio" (en) → dead (matches "died in the king's arms")
+- ✅ "Mordekai" (en) → dead (matches "killed Mordekai")
+- ✅ 7/7 test cases passed
+
+---
+
+### Feature #311: Automatic event extraction fallback
+
+**Status:** ✅ COMPLETED
+
+**Objective:** When AI returns empty or fewer than 3 events, automatically extract events from text using pattern matching.
+
+**Implementation:**
+
+#### 1. extractEventsFromText() Function (lines 6395-6550)
+
+Created comprehensive event extraction function with pattern categories:
+
+**Event Types and Patterns (Italian):**
+- **death:** "morte di X", "X muore", "X ucciso", "uccise X"
+- **conflict:** "battaglia di X", "guerra", "combattimento", "assalto", "assedio"
+- **revelation:** "rivelazione", "segreto rivelato", "scopre", "verità"
+- **transformation:** "trasformazione di X", "X si trasforma"
+- **arrival:** "arrivo di X", "X arriva", "partenza", "ritorno"
+- **resolution:** "vittoria", "sconfitta", "trionfo", "pace"
+- **plot:** "viaggio", "spedizione", "incontro"
+
+**Event Types and Patterns (English):**
+- Same categories with English patterns
+
+#### 2. Integration in finalize-episode Endpoint (lines 7788-7810)
+
+Added fallback block after character processing:
+- Checks if `eventsData.length < 3`
+- Calls `extractEventsFromText(chaptersContent, language)`
+- Merges extracted events avoiding duplicates
+- Logs extraction statistics
+
+**Test Results:**
+- ✅ Italian text: 4 events extracted (1 death, 2 conflict, 1 resolution)
+- ✅ English text: 5 events extracted (2 death, 2 conflict, 1 resolution)
+- ✅ Both have >= 3 events
+- ✅ Both have death events
+- ✅ Both have conflict events
+
+---
+
+### Files Modified
+
+- `server/src/routes/projects.ts`
+  - Added `analyzeCharacterStatusInText()` function (lines 6246-6363)
+  - Added `extractEventsFromText()` function (lines 6395-6550)
+  - Integrated Feature #310 post-processing (lines 7755-7786)
+  - Integrated Feature #311 event extraction (lines 7788-7810)
+
+### Commit: 8afefc4
+
+---
+
 ## Session: 2026-02-21 - Feature #309 Implementation
 
 ### Completed Features: 309/309 (100%)
