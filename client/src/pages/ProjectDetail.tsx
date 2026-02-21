@@ -11,7 +11,7 @@ import RelationshipMap from '../components/RelationshipMap';
 import TableOfContents from '../components/TableOfContents';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
-import CreateSequelWithOutlineModal from '../components/CreateSequelWithOutlineModal';
+// Feature #321: CreateSequelWithOutlineModal removed - sequel creation now only in Sagas page
 import AssignToSagaModal from '../components/AssignToSagaModal';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -70,8 +70,7 @@ export default function ProjectDetail() {
   const [showOutlineConfirmDialog, setShowOutlineConfirmDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
-  // Feature #255: Create Sequel
-  const [showSequelModal, setShowSequelModal] = useState(false);
+  // Feature #321: Create Sequel modal removed - now handled in Sagas page only
   // Feature #254: Assign to Saga
   const [showAssignSagaModal, setShowAssignSagaModal] = useState(false);
   const [projectSagaId, setProjectSagaId] = useState<string | null>(null);
@@ -1761,16 +1760,7 @@ export default function ProjectDetail() {
                   </>
                 )}
               </button>
-              {/* Feature #255, #267: Create Sequel - Only for romanziere projects */}
-              {project?.area === 'romanziere' && (
-                <button
-                  onClick={() => setShowSequelModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Layers className="w-4 h-4" />
-                  {t('projectPage.sequel.button', 'Create Sequel')}
-                </button>
-              )}
+              {/* Feature #321: Create Sequel button removed - now use Sagas page for unified sequel flow */}
               {/* Feature #254: Assign to Saga */}
               <button
                 onClick={() => setShowAssignSagaModal(true)}
@@ -1809,22 +1799,7 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* Feature #267: Create Sequel with Outline Preview Modal */}
-      {project && (
-        <CreateSequelWithOutlineModal
-          isOpen={showSequelModal}
-          onClose={() => setShowSequelModal(false)}
-          project={{ id: project.id, title: project.title, area: project.area }}
-          language={i18n.language === 'en' ? 'en' : 'it'}
-          onSuccess={(newProjectId) => {
-            toast.success(t('projectPage.sequel.success', 'Sequel created successfully!'));
-            navigate(`/projects/${newProjectId}`);
-          }}
-          onError={(error) => {
-            toast.error(error);
-          }}
-        />
-      )}
+      {/* Feature #321: Create Sequel modal removed - now handled in Sagas page only */}
 
       {/* Feature #254: Assign to Saga Modal */}
       {project && (

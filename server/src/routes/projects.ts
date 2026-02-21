@@ -3080,8 +3080,20 @@ IMPORTANTE:
 - I nomi dei personaggi devono essere coerenti (usa lo stesso nome per lo stesso personaggio)
 - Per ogni personaggio, estrai le relazioni con altri personaggi menzionate nel testo
 - I tipi di relazione devono essere: family, friend, enemy, romantic, mentor, ally
-- Per ogni personaggio, deduci lo stato finale alla fine del romanzo basandosi sul testo (alive, dead, injured, missing, unknown)
+
+⚠️ STATO FINALE DEI PERSONAGGI (status_at_end):
+- Deduci lo stato finale basandoti SOLO sull'ULTIMA menzione del personaggio
+- Valori possibili: alive, dead, injured, missing, unknown
+- ⚠️ ERRORI COMUNI DA EVITARE:
+  * "emerge più forte" / "emergono più forti" → alive (NON dead!)
+  * "indebolito dal rituale" → alive o injured (NON dead!)
+  * "fugge nelle montagne" / "scappa" → missing (NON dead!)
+  * "scompare nella nebbia" → missing (NON dead!)
+- alive = vivo alla fine (anche se ferito/indebolito)
+- dead = ESPLICITAMENTE morto
+- missing = fuggito/scomparso, sorte incerta
 - Se non è chiaro lo stato finale, usa 'unknown'
+
 - Se non trovi entità di un tipo, restituisci un array vuoto per quel tipo`
     };
   }
@@ -3141,8 +3153,20 @@ IMPORTANT:
 - Character names should be consistent (use the same name for the same character)
 - For each character, extract relationships with other characters mentioned in the text
 - Relationship types should be: family, friend, enemy, romantic, mentor, ally
-- For each character, deduce their final state at the end of the novel based on the text (alive, dead, injured, missing, unknown)
+
+⚠️ CHARACTER FINAL STATE (status_at_end):
+- Deduce the final state based ONLY on the LAST mention of the character
+- Possible values: alive, dead, injured, missing, unknown
+- ⚠️ COMMON MISTAKES TO AVOID:
+  * "emerges stronger" / "they emerge stronger" → alive (NOT dead!)
+  * "weakened by ritual" → alive or injured (NOT dead!)
+  * "escapes to mountains" / "flees" → missing (NOT dead!)
+  * "disappears into mist" → missing (NOT dead!)
+- alive = alive at the end (even if injured/weakened)
+- dead = EXPLICITLY dead
+- missing = escaped/disappeared, uncertain fate
 - If the final state is unclear, use 'unknown'
+
 - If you find no entities of a type, return an empty array for that type`
   };
 }
@@ -3532,8 +3556,22 @@ Per ciascun personaggio, determina:
 - "status_at_end": uno tra "alive" (vivo alla fine), "dead" (morto durante la storia), "injured" (ferito/menomato alla fine), "missing" (scomparso/disperso), "unknown" (non è chiaro dal testo)
 - "status_notes": una breve nota in italiano che spiega lo stato (es: "Muore nella battaglia finale", "Sopravvive ma perde un braccio", "Scompare nel capitolo 8 e non viene più menzionato")
 
+⚠️ CONCENTRATI SULLO STATO FINALE ALLA FINE DELLA STORIA!
+
+🔴 ATTENZIONE A QUESTI ERRORI COMUNI:
+❌ "emerge più forte" / "emergono più forti" → status: "alive" (NON dead!)
+❌ "indebolito dal rituale" / "esausto" → status: "alive" o "injured" (NON dead!)
+❌ "fugge nelle montagne" / "scappa" → status: "missing" (NON dead!)
+❌ "scompare nella nebbia" → status: "missing" (NON dead!)
+
+Regole precise:
+- "alive": vivo alla fine (anche se ferito, indebolito, o ha partecipato a rituali)
+- "dead": ESPLICITAMENTE morto (ha smesso di respirare, corpo senza vita)
+- "injured": ferito/menomato ma VIVO
+- "missing": fuggito, scomparso, sorte incerta (NON confermato morto)
+
 IMPORTANTE:
-- Analizza ATTENTAMENTE la sinossi per capire cosa succede a ogni personaggio
+- Analizza ATTENTAMENTE la sinossi per capire cosa succede a ogni personaggio ALLA FINE
 - Se un personaggio muore, ferito gravemente o scompare, è fondamentale indicarlo
 - Se dalla sinossi non emerge chiaramente cosa succede al personaggio, usa "alive" se sembra partecipare attivamente alla fine, oppure "unknown" se non viene più menzionato
 - Preferisci "alive" a "unknown" quando il personaggio è attivo nelle scene finali
@@ -3557,8 +3595,22 @@ For each character, determine:
 - "status_at_end": one of "alive" (alive at the end), "dead" (dies during the story), "injured" (injured/maimed at the end), "missing" (disappeared/missing), "unknown" (unclear from the text)
 - "status_notes": a brief note explaining the status (e.g., "Dies in the final battle", "Survives but loses an arm", "Disappears in chapter 8 and is never mentioned again")
 
+⚠️ FOCUS ON THE FINAL STATE AT THE END OF THE STORY!
+
+🔴 WATCH OUT FOR THESE COMMON MISTAKES:
+❌ "emerges stronger" / "they emerge stronger" → status: "alive" (NOT dead!)
+❌ "weakened by ritual" / "exhausted" → status: "alive" or "injured" (NOT dead!)
+❌ "escapes to mountains" / "flees" → status: "missing" (NOT dead!)
+❌ "disappears into mist" → status: "missing" (NOT dead!)
+
+Precise rules:
+- "alive": alive at the end (even if injured, weakened, or participated in rituals)
+- "dead": EXPLICITLY dead (has stopped breathing, lifeless body)
+- "injured": wounded/maimed but ALIVE
+- "missing": escaped, disappeared, uncertain fate (NOT confirmed dead)
+
 IMPORTANT:
-- Carefully analyze the synopsis to understand what happens to each character
+- Carefully analyze the synopsis to understand what happens to each character AT THE END
 - If a character dies, is seriously injured, or disappears, it is crucial to indicate this
 - If the synopsis does not clearly show what happens to the character, use "alive" if they seem active at the end, or "unknown" if they are not mentioned again
 - Prefer "alive" over "unknown" when the character is active in the final scenes
@@ -6732,47 +6784,118 @@ async function deduceCharacterStatusWithAI(
   const isItalian = language === 'it';
 
   const systemPrompt = isItalian
-    ? `Sei un esperto di analisi letteraria. Il tuo compito è determinare lo stato finale di un personaggio basandoti sul testo fornito.
+    ? `Sei un esperto di analisi letteraria. Il tuo compito è determinare lo stato FINALE di un personaggio basandoti sull'ULTIMA sua menzione nel testo.
+
+⚠️ REGOLA FONDAMENTALE: Concentrati SOLO sullo stato FINALE del personaggio ALLA FINE della storia. NON confondere eventi intermedi con lo stato finale!
 
 Rispondi SOLO con uno di questi stati:
-- "alive" se il personaggio è vivo alla fine
-- "dead" se il personaggio muore durante la storia
-- "injured" se il personaggio è ferito ma vivo
-- "missing" se il personaggio scompare o non si sa se è vivo o morto
-- "transformed" se il personaggio subisce una trasformazione (diventa un'altra entità, viene trasformato in qualcos'altro)
+- "alive" - il personaggio è VIVO alla fine (anche se ferito, indebolito, o ha partecipato a rituali)
+- "dead" - il personaggio è ESPLICITAMENTE MORTO (ha smesso di respirare, corpo senza vita)
+- "injured" - il personaggio è ferito/menomato ma VIVO alla fine
+- "missing" - il personaggio è FUGGIUTO, SCOMPARSO, o la sua sorte è incerta (NON è morto!)
+- "transformed" - il personaggio è stato trasformato in un'altra entità
 
-Rispondi in formato JSON: { "status": "...", "reason": "breve spiegazione" }`
-    : `You are an expert literary analyst. Your task is to determine the final status of a character based on the provided text.
+🔴 ATTENZIONE A QUESTI ERRORI COMUNI:
+
+❌ SBAGLIATO → ✓ CORRETTO:
+- "emerge più forte" / "emergono più forti" → alive (NON dead!)
+- "indebolito dal rituale" / "esausto dopo la battaglia" → alive (NON dead!)
+- "fugge nelle montagne" / "scappa nella foresta" → missing (NON dead!)
+- "scompare nella nebbia" / "si allontana" → missing (NON dead!)
+- "partecipa al sacrificio" ma sopravvive → alive (NON dead!)
+- "ferito gravemente" ma è ancora cosciente → alive o injured (NON dead!)
+
+🟢 INDICATORI DI "alive" (vivo):
+- "emerge", "emergono", "si rialza", "si riprende"
+- "insieme", "abbracciati", "uniti"
+- "nuova era", "nuovo inizio", "futuro"
+- "sopravvive", "respira ancora", "può farcela"
+- Ferito ma COSCIENTE e PRESENTE nel finale
+
+🔴 INDICATORI DI "dead" (morto):
+- "muore", "morte", "ultimo respiro"
+- "corpo senza vita", "cadavere", "esalare l'ultimo respiro"
+- "nessun battito", "occhi vitrei"
+- ESPLICITAMENTE descritto come morto
+
+🟡 INDICATORI DI "missing" (scomparso/fuggito):
+- "fugge", "scappa", "si dilegua"
+- "scompare", "non si vede più"
+- "si perde", "svanisce"
+- Sorte incerta, non confermato morto
+
+📌 IMPORTANTE: Cerca l'ULTIMA menzione del personaggio nel testo. Se l'ultima menzione lo mostra vivo (anche se ferito/indebolito), lo stato è "alive".
+
+Rispondi in formato JSON: { "status": "...", "reason": "breve spiegazione", "final_mention": "la frase esatta che descrive lo stato finale" }`
+    : `You are an expert literary analyst. Your task is to determine the FINAL status of a character based on their LAST mention in the text.
+
+⚠️ FUNDAMENTAL RULE: Focus ONLY on the FINAL state of the character at the END of the story. DO NOT confuse intermediate events with the final state!
 
 Reply ONLY with one of these statuses:
-- "alive" if the character is alive at the end
-- "dead" if the character dies during the story
-- "injured" if the character is wounded but alive
-- "missing" if the character disappears or it's unknown if they're alive or dead
-- "transformed" if the character undergoes a transformation (becomes another entity, is transformed into something else)
+- "alive" - character is ALIVE at the end (even if injured, weakened, or participated in rituals)
+- "dead" - character is EXPLICITLY DEAD (has stopped breathing, lifeless body)
+- "injured" - character is wounded/maimed but ALIVE at the end
+- "missing" - character ESCAPED, DISAPPEARED, or their fate is uncertain (NOT dead!)
+- "transformed" - character was transformed into another entity
 
-Reply in JSON format: { "status": "...", "reason": "brief explanation" }`;
+🔴 WATCH OUT FOR THESE COMMON MISTAKES:
+
+❌ WRONG → ✓ CORRECT:
+- "emerges stronger" / "they emerge stronger" → alive (NOT dead!)
+- "weakened by ritual" / "exhausted after battle" → alive (NOT dead!)
+- "escapes to mountains" / "flees into forest" → missing (NOT dead!)
+- "disappears into mist" / "walks away" → missing (NOT dead!)
+- "participates in sacrifice" but survives → alive (NOT dead!)
+- "gravely wounded" but still conscious → alive or injured (NOT dead!)
+
+🟢 INDICATORS OF "alive":
+- "emerges", "rise again", "recovers"
+- "together", "united", "embrace"
+- "new era", "new beginning", "future"
+- "survives", "still breathing", "can make it"
+- Injured but CONSCIOUS and PRESENT in the finale
+
+🔴 INDICATORS OF "dead":
+- "dies", "death", "last breath"
+- "lifeless body", "corpse", "breathes last"
+- "no pulse", "glassy eyes"
+- EXPLICITLY described as dead
+
+🟡 INDICATORS OF "missing":
+- "escapes", "flees", "slips away"
+- "disappears", "vanishes", "lost track"
+- Fate uncertain, not confirmed dead
+
+📌 IMPORTANT: Look for the LAST mention of the character in the text. If the last mention shows them alive (even if injured/weakened), the status is "alive".
+
+Reply in JSON format: { "status": "...", "reason": "brief explanation", "final_mention": "the exact sentence describing the final state" }`;
 
   const userMessage = isItalian
-    ? `Determina lo stato finale del personaggio "${name}" basandoti su questo estratto della storia:
+    ? `Determina lo stato FINALE del personaggio "${name}" basandoti su questo estratto della storia.
 
-${relevantText.substring(0, 2000)}${relevantText.length > 2000 ? '...' : ''}
+⚠️ CERCA L'ULTIMA MENZIONE del personaggio nel testo. Lo stato finale deve basarsi SOLO su cosa succede ALLA FINE, non agli eventi intermedi.
+
+Estratto della storia:
+${relevantText.substring(0, 2500)}${relevantText.length > 2500 ? '...' : ''}
 
 Rispondi SOLO con il JSON.`
-    : `Determine the final status of character "${name}" based on this story excerpt:
+    : `Determine the FINAL status of character "${name}" based on this story excerpt.
 
-${relevantText.substring(0, 2000)}${relevantText.length > 2000 ? '...' : ''}
+⚠️ LOOK FOR THE LAST MENTION of the character in the text. The final status must be based ONLY on what happens at the END, not intermediate events.
+
+Story excerpt:
+${relevantText.substring(0, 2500)}${relevantText.length > 2500 ? '...' : ''}
 
 Reply ONLY with the JSON.`;
 
   try {
-    console.log(`[Feature #313] Level 1: Querying AI for status of "${name}"`);
+    console.log(`[Feature #322] Level 1: Querying AI for status of "${name}"`);
     const response = await provider.chat(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
       ],
-      { temperature: 0.1, max_tokens: 150 }
+      { temperature: 0.1, max_tokens: 200 }
     );
 
     if (response) {
@@ -6783,18 +6906,25 @@ Reply ONLY with the JSON.`;
         const validStatuses = ['alive', 'dead', 'injured', 'missing', 'transformed'];
 
         if (parsed.status && validStatuses.includes(parsed.status.toLowerCase())) {
-          console.log(`[Feature #313] Level 1: AI determined "${name}" status as "${parsed.status}"`);
+          console.log(`[Feature #322] Level 1: AI determined "${name}" status as "${parsed.status}"`);
+          // Include the final_mention in notes for verification if available
+          let notes = parsed.reason || (isItalian
+            ? 'Status determinato dall\'AI'
+            : 'Status determined by AI');
+          if (parsed.final_mention) {
+            notes += isItalian
+              ? ` [Cita: "${parsed.final_mention.substring(0, 100)}${parsed.final_mention.length > 100 ? '...' : ''}"]`
+              : ` [Quote: "${parsed.final_mention.substring(0, 100)}${parsed.final_mention.length > 100 ? '...' : ''}"]`;
+          }
           return {
             status: parsed.status.toLowerCase(),
-            notes: parsed.reason || (isItalian
-              ? 'Status determinato dall\'AI'
-              : 'Status determined by AI')
+            notes
           };
         }
       }
     }
   } catch (error) {
-    console.warn(`[Feature #313] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
+    console.warn(`[Feature #322] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
   }
 
   return null;
@@ -7849,9 +7979,20 @@ B) NON OMETTERE NESSUN PERSONAGGIO:
 C) ESTRZIONE DELLO STATUS (OBBLIGATORIO):
    - status DEVE essere dedotto dal testo: "alive", "dead", "injured", "missing", "transformed"
    - NON usare MAI "unknown" - deduci sempre dal contesto
-   - Se un personaggio muore nel testo → status: "dead"
-   - Se non si sa se è vivo o morto → status: "missing"
-   - Se viene ferito gravemente → status: "injured"
+   - ⚠️ CONCENTRATI SULLO STATO FINALE ALLA FINE DELLA STORIA, non sugli eventi intermedi!
+
+   🔴 ATTENZIONE A QUESTI ERRORI COMUNI:
+   ❌ "emerge più forte" / "emergono più forti" → status: "alive" (NON dead!)
+   ❌ "indebolito dal rituale" / "esausto" → status: "alive" o "injured" (NON dead!)
+   ❌ "fugge nelle montagne" / "scappa" → status: "missing" (NON dead!)
+   ❌ "scompare nella nebbia" → status: "missing" (NON dead!)
+
+   Regole precise:
+   - "alive": vivo alla fine (anche se ferito, indebolito, o ha partecipato a rituali)
+   - "dead": ESPLICITAMENTE morto (ha smesso di respirare, corpo senza vita)
+   - "injured": ferito/menomato ma VIVO
+   - "missing": fuggito, scomparso, sorte incerta (NON confermato morto)
+   - "transformed": trasformato in altra entità
 
 D) RUOLI SPECIFICI:
    - role: titolo/posizione SPECIFICO (es. "Re di Valoria", "Nemico Giurato", "Mentore Caduto")
@@ -7914,9 +8055,20 @@ B) DO NOT OMIT ANY CHARACTER:
 C) STATUS EXTRACTION (MANDATORY):
    - status MUST be inferred from the text: "alive", "dead", "injured", "missing", "transformed"
    - NEVER use "unknown" - always infer from context
-   - If a character dies in the text → status: "dead"
-   - If it's unknown whether they're alive or dead → status: "missing"
-   - If gravely wounded → status: "injured"
+   - ⚠️ FOCUS ON THE FINAL STATE AT THE END OF THE STORY, not intermediate events!
+
+   🔴 WATCH OUT FOR THESE COMMON MISTAKES:
+   ❌ "emerges stronger" / "they emerge stronger" → status: "alive" (NOT dead!)
+   ❌ "weakened by ritual" / "exhausted" → status: "alive" or "injured" (NOT dead!)
+   ❌ "escapes to mountains" / "flees" → status: "missing" (NOT dead!)
+   ❌ "disappears into mist" → status: "missing" (NOT dead!)
+
+   Precise rules:
+   - "alive": alive at the end (even if injured, weakened, or participated in rituals)
+   - "dead": EXPLICITLY dead (has stopped breathing, lifeless body)
+   - "injured": wounded/maimed but ALIVE
+   - "missing": escaped, disappeared, uncertain fate (NOT confirmed dead)
+   - "transformed": transformed into another entity
 
 D) SPECIFIC ROLES:
    - role: SPECIFIC title/position (e.g., "King of Valoria", "Sworn Enemy", "Fallen Mentor")

@@ -203,7 +203,7 @@ export default function SagaTimeline({ sagaId }: SagaTimelineProps) {
                       <div className="mb-4">
                         <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                           <User className="w-4 h-4" />
-                          {t('projectPage.characters', 'Characters')}
+                          {t('projectPage.characters.title', 'Personaggi')}
                         </h5>
                         <div className="flex flex-wrap gap-2">
                           {episode.characters.map((char, charIdx) => (
