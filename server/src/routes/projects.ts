@@ -8278,9 +8278,10 @@ ${chapterSummaries}`;
       );
     }
 
-    // Also update character status_at_end based on AI analysis if available
-    // Feature #307: Also add NEW characters found by AI
+    // Also update character status_at_end based on analysis (AI or algorithmic + post-processing)
+    // Feature #307: Also add NEW characters found
     // Feature #309: Check if character exists in ANY project of the saga before adding
+    // Feature #317: Always update characters table with post-processed data (regardless of usedAI)
     const newCharactersAdded: Array<{ id: string; name: string; role: string; status: string }> = [];
 
     // Feature #309: Get ALL characters from the saga (not just current project)
@@ -8288,7 +8289,12 @@ ${chapterSummaries}`;
       'SELECT id, project_id, name, description, role_in_story, status_at_end FROM characters WHERE saga_id = ?'
     ).all(project.saga_id) as Array<{ id: string; project_id: string; name: string; description: string; role_in_story: string; status_at_end: string }>;
 
-    if (usedAI && charactersData.length > 0) {
+    // Feature #317: Always process charactersData (post-processing already applied regardless of usedAI)
+    console.log(`[Finalize] Feature #317: Processing ${charactersData.length} characters for database update (usedAI: ${usedAI})`);
+    if (charactersData.length > 0) {
+      // Log all character statuses before processing
+      console.log('[Finalize] Feature #317: Characters to update:', charactersData.map(c => `${c.name}=${c.status}`).join(', '));
+
       for (const charData of charactersData) {
         // Feature #309: Check if character exists ANYWHERE in the saga
         const existingSagaChar = sagaCharacters.find(c =>
@@ -8351,10 +8357,11 @@ ${chapterSummaries}`;
       }
     }
 
-    // Feature #307: Add NEW locations found by AI
+    // Feature #307: Add NEW locations found
+    // Feature #317: Always process locationsData (regardless of usedAI)
     const newLocationsAdded: Array<{ id: string; name: string; description: string }> = [];
 
-    if (usedAI && locationsData.length > 0) {
+    if (locationsData.length > 0) {
       for (const locData of locationsData) {
         if (!locData.name || !locData.name.trim()) continue;
 
@@ -8383,10 +8390,15 @@ ${chapterSummaries}`;
       }
     }
 
-    // Feature #307: Add NEW plot events found by AI
+    // Feature #307: Add NEW plot events found
+    // Feature #317: Always process eventsData (post-processing already applied regardless of usedAI)
     const newEventsAdded: Array<{ id: string; title: string; description: string; type: string }> = [];
 
-    if (usedAI && eventsData.length > 0) {
+    console.log(`[Finalize] Feature #317: Processing ${eventsData.length} events for database update (usedAI: ${usedAI})`);
+    if (eventsData.length > 0) {
+      // Log events before processing
+      console.log('[Finalize] Feature #317: Events to add:', eventsData.map(e => e.title).join(', '));
+
       // Get max order_index for new events
       const maxOrderResult = db.prepare(
         'SELECT COALESCE(MAX(order_index), 0) as max_order FROM plot_events WHERE project_id = ?'
