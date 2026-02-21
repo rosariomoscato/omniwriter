@@ -4292,7 +4292,61 @@ Events also correctly added to plot_events table (4 events extracted).
 
 ---
 
-## MILESTONE ACHIEVED: 317/317 Features Passing (100%)
+## Session: 2026-02-21 - Feature #318 Implementation
+
+### Completed Features: 318/318 (100%)
+
+### Feature #318: Fix character and location count in Create Sequel modal
+
+**Objective:** Il modal "Crea Sequel" mostra sempre "0 personaggi verranno importati" e "0 luoghi verranno importati" anche quando i progetti hanno personaggi e luoghi.
+
+**Root Cause:**
+1. The `CreateSagaSequelModal` component tries to access `selectedProject.character_count` and `selectedProject.location_count`
+2. But the `Project` interface in `api.ts` did NOT include these fields
+3. The backend `/api/sagas/:id/projects` endpoint was returning projects without these counts
+4. So the modal always showed 0
+
+**Solution:**
+1. Added `character_count?: number` and `location_count?: number` to the `Project` interface in `api.ts`
+2. Modified the backend `GET /api/sagas/:id/projects` endpoint to include character and location counts via subqueries
+
+**Implementation:**
+
+1. **Frontend** (`client/src/services/api.ts`):
+   - Added optional fields `character_count` and `location_count` to the `Project` interface
+
+2. **Backend** (`server/src/routes/sagas.ts`):
+   - Changed the SQL query from `SELECT * FROM projects WHERE saga_id = ?` to:
+   ```sql
+   SELECT p.*,
+     (SELECT COUNT(*) FROM characters WHERE project_id = p.id) as character_count,
+     (SELECT COUNT(*) FROM locations WHERE project_id = p.id) as location_count
+    FROM projects p
+    WHERE p.saga_id = ?
+    ORDER BY p.created_at DESC
+   ```
+
+**Verification:**
+
+Tested with "Il Regno di Valoria" saga:
+- API response now includes `character_count: 4` and `location_count: 2`
+- Create Sequel modal correctly shows:
+  - "4 personaggi verranno importati (esclusi i morti)"
+  - "2 luoghi verranno importati"
+
+Browser automation test confirmed the modal displays correct counts.
+
+**Files Modified:**
+- `client/src/services/api.ts`
+- `server/src/routes/sagas.ts`
+
+### Commit: a64c9bb
+
+**Status: Feature #318 MARKED PASSING**
+
+---
+
+## MILESTONE ACHIEVED: 318/318 Features Passing (100%)
 
 All features have been successfully implemented and verified!
 
