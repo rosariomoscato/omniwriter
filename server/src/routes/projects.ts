@@ -6702,7 +6702,7 @@ function extractEventsFromText(
 }
 
 // ============================================================================
-// Feature #315: Smart AI-assisted character status extraction
+// Feature #313: Smart AI-assisted character status extraction
 // 3-level strategy: AI Context Query > Positional Analysis > Default
 // Works for all genres: Fantasy, Sci-Fi, Romance, Thriller, Historical, Contemporary
 // ============================================================================
@@ -6766,7 +6766,7 @@ ${relevantText.substring(0, 2000)}${relevantText.length > 2000 ? '...' : ''}
 Reply ONLY with the JSON.`;
 
   try {
-    console.log(`[Feature #315] Level 1: Querying AI for status of "${name}"`);
+    console.log(`[Feature #313] Level 1: Querying AI for status of "${name}"`);
     const response = await provider.chat(
       [
         { role: 'system', content: systemPrompt },
@@ -6783,7 +6783,7 @@ Reply ONLY with the JSON.`;
         const validStatuses = ['alive', 'dead', 'injured', 'missing', 'transformed'];
 
         if (parsed.status && validStatuses.includes(parsed.status.toLowerCase())) {
-          console.log(`[Feature #315] Level 1: AI determined "${name}" status as "${parsed.status}"`);
+          console.log(`[Feature #313] Level 1: AI determined "${name}" status as "${parsed.status}"`);
           return {
             status: parsed.status.toLowerCase(),
             notes: parsed.reason || (isItalian
@@ -6794,7 +6794,7 @@ Reply ONLY with the JSON.`;
       }
     }
   } catch (error) {
-    console.warn(`[Feature #315] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
+    console.warn(`[Feature #313] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
   }
 
   return null;
@@ -6842,7 +6842,7 @@ function analyzeCharacterPosition(
 
   // If character appears in the last 20% of the text, they're likely alive
   if (lastMentionPosition >= 0.8) {
-    console.log(`[Feature #315] Level 2: "${characterName}" appears in final chapters (${lastMentionChapter + 1}/${totalChapters}), likely alive`);
+    console.log(`[Feature #313] Level 2: "${characterName}" appears in final chapters (${lastMentionChapter + 1}/${totalChapters}), likely alive`);
     return {
       status: 'alive',
       notes: isItalian
@@ -6854,7 +6854,7 @@ function analyzeCharacterPosition(
   // If character disappears and there are many chapters after last mention
   const chaptersAfterLastMention = totalChapters - lastMentionChapter - 1;
   if (chaptersAfterLastMention >= 2 && lastMentionPosition < 0.5) {
-    console.log(`[Feature #315] Level 2: "${characterName}" disappears early (${lastMentionChapter + 1}/${totalChapters}), possibly missing`);
+    console.log(`[Feature #313] Level 2: "${characterName}" disappears early (${lastMentionChapter + 1}/${totalChapters}), possibly missing`);
     return {
       status: 'missing',
       notes: isItalian
@@ -6868,7 +6868,7 @@ function analyzeCharacterPosition(
 }
 
 /**
- * Feature #315: Smart AI-assisted character status extraction
+ * Feature #313: Smart AI-assisted character status extraction
  * Applies the 3-level strategy to determine character status.
  *
  * @param characterName - Name of the character
@@ -8117,13 +8117,13 @@ ${chapterSummaries}`;
     }
 
     // ==========================================================================
-    // Feature #315: Smart AI-assisted character status extraction
+    // Feature #313: Smart AI-assisted character status extraction
     // Apply 3-level strategy for remaining 'unknown' statuses
     // ==========================================================================
-    const unknownCountBefore315 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+    const unknownCountBefore313 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
 
-    if (unknownCountBefore315 > 0 && chaptersContent) {
-      console.log(`[Finalize] Feature #315: Smart AI-assisted extraction for ${unknownCountBefore315} remaining 'unknown' statuses`);
+    if (unknownCountBefore313 > 0 && chaptersContent) {
+      console.log(`[Finalize] Feature #313: Smart AI-assisted extraction for ${unknownCountBefore313} remaining 'unknown' statuses`);
 
       // Get provider for smart extraction (may be null if not configured)
       const smartProvider = getProviderForUser(userId);
@@ -8160,13 +8160,13 @@ ${chapterSummaries}`;
                 ? `${charData.notes} (${result.notes})`
                 : result.notes;
             }
-            console.log(`[Finalize] Feature #315: "${charData.name}" status resolved to '${charData.status}' via ${result.method}`);
+            console.log(`[Finalize] Feature #313: "${charData.name}" status resolved to '${charData.status}' via ${result.method}`);
           }
         }
       }
 
-      const unknownCountAfter315 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
-      console.log(`[Finalize] Feature #315: Smart extraction complete. Resolved ${unknownCountBefore315 - unknownCountAfter315} additional statuses`);
+      const unknownCountAfter313 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+      console.log(`[Finalize] Feature #313: Smart extraction complete. Resolved ${unknownCountBefore313 - unknownCountAfter313} additional statuses`);
     }
 
     // ==========================================================================
