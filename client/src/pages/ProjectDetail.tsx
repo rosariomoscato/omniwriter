@@ -942,36 +942,27 @@ export default function ProjectDetail() {
       setEditedCharacters(result.continuity.characters || []);
       setContinuityEdited(false);
 
-      // Feature #307: Show new elements count and refresh data
-      const newElements = result.newElements;
-      if (newElements) {
-        const totalNew = (newElements.characters?.length || 0) +
-                        (newElements.locations?.length || 0) +
-                        (newElements.events?.length || 0);
+      // Feature #312: Always show summary with totals and method
+      const continuity = result.continuity;
+      const totalCharacters = continuity.characters?.length || 0;
+      const totalEvents = continuity.events?.length || 0;
+      const totalLocations = continuity.locations?.length || 0;
+      const method = continuity.method === 'ai' || continuity.method === 'AI'
+        ? t('projectPage.finalizeEpisode.methodAI', 'AI Analysis')
+        : t('projectPage.finalizeEpisode.methodAlgorithmic', 'Algorithmic Analysis');
 
-        if (totalNew > 0) {
-          const parts: string[] = [];
-          if (newElements.characters?.length) {
-            parts.push(t('projectPage.finalizeEpisode.newCharacters', '{{count}} characters', { count: newElements.characters.length }));
-          }
-          if (newElements.locations?.length) {
-            parts.push(t('projectPage.finalizeEpisode.newLocations', '{{count}} locations', { count: newElements.locations.length }));
-          }
-          if (newElements.events?.length) {
-            parts.push(t('projectPage.finalizeEpisode.newEvents', '{{count}} events', { count: newElements.events.length }));
-          }
-          toast.success(t('projectPage.finalizeEpisode.successWithNew', 'Episode finalized! Discovered: {{items}}', { items: parts.join(', ') }));
-        } else {
-          toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
-        }
+      // Show summary with totals (not just new elements)
+      toast.success(t('projectPage.finalizeEpisode.successSummary', 'Episode finalized! {{characters}} characters, {{events}} events, {{locations}} locations ({{method}})', {
+        characters: totalCharacters,
+        events: totalEvents,
+        locations: totalLocations,
+        method
+      }));
 
-        // Refresh project data to show new elements
-        await loadCharacters();
-        await loadLocations();
-        await loadPlotEvents();
-      } else {
-        toast.success(t('projectPage.finalizeEpisode.success', 'Episode finalized successfully!'));
-      }
+      // Refresh project data to show new elements
+      await loadCharacters();
+      await loadLocations();
+      await loadPlotEvents();
     } catch (err: any) {
       console.error('[FinalizeEpisode] Error:', err);
       toast.error(err.message || t('projectPage.finalizeEpisode.error', 'Error during episode finalization'));

@@ -682,7 +682,8 @@
       "newCharacters": "{{count}} characters",
       "newLocations": "{{count}} locations",
       "newEvents": "{{count}} events",
-      "successWithNew": "Episode finalized! Discovered: {{items}}"
+      "successWithNew": "Episode finalized! Discovered: {{items}}",
+      "successSummary": "Episode finalized! {{characters}} characters, {{events}} events, {{locations}} locations ({{method}})"
     },
     "sagaContinuity": {
       "title": "Saga Continuity",

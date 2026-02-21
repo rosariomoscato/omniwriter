@@ -682,7 +682,8 @@
       "newCharacters": "{{count}} personaggi",
       "newLocations": "{{count}} luoghi",
       "newEvents": "{{count}} eventi",
-      "successWithNew": "Episodio finalizzato! Scoperti: {{items}}"
+      "successWithNew": "Episodio finalizzato! Scoperti: {{items}}",
+      "successSummary": "Episodio finalizzato! {{characters}} personaggi, {{events}} eventi, {{locations}} luoghi ({{method}})"
     },
     "sagaContinuity": {
       "title": "Continuity della Saga",
