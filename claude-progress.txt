@@ -4350,3 +4350,57 @@ Browser automation test confirmed the modal displays correct counts.
 
 All features have been successfully implemented and verified!
 
+
+---
+
+## Session: 2026-02-21 - Feature #319 Implementation
+
+### Completed Features: 319/319 (100%)
+
+### Feature #319: Exclude dead characters from sequel import count
+
+**Objective:** Il conteggio dei personaggi nel popup "Crea Seguito" non esclude i personaggi morti.
+
+**Root Cause:**
+The SQL query in `GET /api/sagas/:id/projects` endpoint counted ALL characters without filtering out dead ones:
+```sql
+SELECT COUNT(*) FROM characters WHERE project_id = p.id
+```
+
+**Solution:**
+Modified the SQL query to exclude characters with `status_at_end = 'dead'`:
+```sql
+SELECT COUNT(*) FROM characters WHERE project_id = p.id AND (status_at_end IS NULL OR status_at_end != 'dead')
+```
+
+**Implementation:**
+
+Modified `/server/src/routes/sagas.ts`:
+- Changed the character_count subquery to exclude dead characters
+- Added comment referencing Feature #319
+
+**Verification:**
+
+Tested with "Il Regno di Valoria" saga:
+- Total characters: 4 (Marco, Elena, Antonio, Mordekai)
+- Dead characters: 1 (Antonio)
+- Previous behavior: Modal showed "4 personaggi verranno importati"
+- After fix: Modal shows "3 personaggi verranno importati (esclusi i morti)"
+
+Browser automation test confirmed the modal displays correct count.
+
+**Feature Test Steps Verified:**
+1. ✅ "Modificare la query SQL in sagas.ts riga 162 per escludere status_at_end = 'dead'" - Query modified
+2. ✅ "Verificare che il conteggio sia corretto" - Verified 3 instead of 4
+3. ✅ "Testare con 'Il Regno di Valoria' - deve mostrare 3 personaggi, non 4" - Tested and confirmed
+
+### Commit: 0de11ed
+
+**Status: Feature #319 MARKED PASSING**
+
+---
+
+## MILESTONE ACHIEVED: 319/319 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
