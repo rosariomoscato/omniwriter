@@ -1,5 +1,81 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-21 - Features #313 and #314 Implementation
+
+### Completed Features: 314/314 (100%)
+
+### Feature #313: Smart AI-assisted character status extraction
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Implement a smart, genre-agnostic 3-level strategy to deduce character status when the AI returns status='unknown':
+
+**3-Level Strategy:**
+1. **Level 1 - AI Context Query (High Priority):** For each character with status='unknown', make a focused AI query with the character name + relevant text excerpts. The AI understands generic context (fantasy, historical, romance, thriller) without predefined patterns.
+
+2. **Level 2 - Positional Analysis:** If AI doesn't respond or returns 'unknown':
+   - If character appears in the last 20% of text → status='alive'
+   - If character disappears after a critical point → status='missing'
+
+3. **Level 3 - Default:** If no method works → keep 'unknown'
+
+**Implementation:**
+
+1. **deduceCharacterStatusWithAI()** - Level 1 AI Context Query:
+   - Takes character name, relevant text excerpts, AI provider, and language
+   - Sends a focused prompt asking the AI to determine the character's final status
+   - Returns one of: alive, dead, injured, missing, transformed
+   - Uses bilingual prompts (Italian/English)
+
+2. **analyzeCharacterPosition()** - Level 2 Positional Analysis:
+   - Analyzes which chapters mention the character
+   - If character appears in last 20% of chapters → likely 'alive'
+   - If character disappears early and many chapters follow → possibly 'missing'
+
+3. **smartCharacterStatusExtraction()** - Orchestrates the 3-level strategy:
+   - First tries AI Context Query (if provider available and main extraction didn't use AI)
+   - Falls back to Positional Analysis
+   - Returns status, notes, and method used
+
+4. **Integration in finalize-episode:**
+   - Runs after Feature #310's regex-based approach
+   - Processes up to 5 characters in parallel for performance
+   - Logs which level determined the status for each character
+
+**Files Modified:**
+- `server/src/routes/projects.ts`
+
+**Commit:** 17dfdab
+
+---
+
+### Feature #314: Smart AI-assisted event extraction fallback
+
+**Status:** ✅ COMPLETED
+
+**Objective:** When the main AI returns fewer than 3 events, make a second dedicated AI call specifically for event extraction. This approach works for ANY genre.
+
+**Implementation:**
+
+1. **extractEventsWithAI()** - Dedicated AI event extraction:
+   - Takes chapters content, AI provider, and language
+   - Sends a genre-agnostic prompt asking to extract 5-10 key events
+   - Looks for all types of events: conflicts, revelations, state changes, decisions, meetings, separations
+   - Returns array of events with title, description, and type
+
+2. **Integration in finalize-episode:**
+   - Runs after Feature #311's regex-based extraction
+   - Only triggers if fewer than 3 events after regex extraction
+   - Merges AI-extracted events with existing events, avoiding duplicates
+   - Logs how many events were extracted via AI
+
+**Files Modified:**
+- `server/src/routes/projects.ts`
+
+**Commit:** 17dfdab
+
+---
+
 ## Session: 2026-02-21 - Feature #312 Implementation
 
 ### Completed Features: 312/312 (100%)
