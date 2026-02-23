@@ -15,6 +15,150 @@ import { fetchContinuityForProject } from './projects'; // Feature #304 - Import
 
 const router = express.Router();
 
+// Feature #328: Area-specific prompt builders
+interface AreaPromptParams {
+  projectTitle: string;
+  genre: string | null;
+  tone: string | null;
+  targetAudience: string | null;
+  chapterTitle: string;
+  chapterOrder: number;
+  chapterSummary: string | null;
+  isRegenerate?: boolean;
+}
+
+/**
+ * Build prompt for Romanziere (novel writing) area
+ * Focus: Creative narrative, characters, dialogues, settings, plot
+ */
+function buildNovelistPrompt(params: AreaPromptParams, isItalian: boolean): string {
+  const { projectTitle, genre, tone, targetAudience, chapterTitle, chapterOrder, chapterSummary, isRegenerate } = params;
+  const action = isRegenerate ? 'rigenerare' : 'creare';
+
+  if (isItalian) {
+    return `Sei uno scrittore professionista che aiuta a ${action} capitoli di romanzi.
+
+PROGETTO: "${projectTitle}"
+GENERE: ${genre || 'Narrativa'}
+TONO: ${tone || 'Neutro'}
+PUBBLICO: ${targetAudience || 'Adulti'}
+
+CAPITOLO ${isRegenerate ? 'DA RIGENERARE' : 'CORRENTE'}: "${chapterTitle}" (Capitolo ${chapterOrder + 1})${chapterSummary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapterSummary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi. Il contenuto generato deve espandere tutti gli elementi narrativi descritti nella sinossi mantenendo coerenza con la trama prevista.` : ''}${isRegenerate ? '\n\nNOTA: Questo è un capitolo esistente che deve essere rigenerato con nuovo contenuto.' : ''}`;
+  } else {
+    return `You are a professional writer helping ${isRegenerate ? 'regenerate' : 'create'} novel chapters.
+
+PROJECT: "${projectTitle}"
+GENRE: ${genre || 'Fiction'}
+TONE: ${tone || 'Neutral'}
+AUDIENCE: ${targetAudience || 'Adults'}
+
+CURRENT CHAPTER: "${chapterTitle}" (Chapter ${chapterOrder + 1})${chapterSummary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapterSummary}\n\nIMPORTANT: You must faithfully follow this synopsis. The generated content must expand all narrative elements described in the synopsis while maintaining coherence with the planned plot.` : ''}${isRegenerate ? '\n\nNOTE: This is an existing chapter that needs to be regenerated with fresh content.' : ''}`;
+  }
+}
+
+/**
+ * Build prompt for Saggista (essay/non-fiction) area
+ * Focus: Academic/essayistic style, argumentative, uses sources and citations, fact-based
+ */
+function buildEssayistPrompt(params: AreaPromptParams, isItalian: boolean): string {
+  const { projectTitle, genre, tone, targetAudience, chapterTitle, chapterOrder, chapterSummary, isRegenerate } = params;
+  const action = isRegenerate ? 'riscrivere' : 'scrivere';
+
+  if (isItalian) {
+    return `Sei uno studioso e saggista professionista che aiuta a ${action} capitoli di saggi e opere saggistiche.
+
+PROGETTO: "${projectTitle}"
+ARGOMENTO: ${genre || 'Saggistica'}
+STILE: ${tone || 'Accademico'}
+PUBBLICO: ${targetAudience || 'Adulti'}
+
+SEZIONE ${isRegenerate ? 'DA RISCRIVERE' : 'CORRENTE'}: "${chapterTitle}" (Sezione ${chapterOrder + 1})${chapterSummary ? `\n\nSINOSSI DELLA SEZIONE:\n${chapterSummary}\n\nIMPORTANTE: Segui questa struttura tematica. Il contenuto deve sviluppare gli argomenti indicati con rigore logico e supporto dalle fonti disponibili.` : ''}
+
+STILE DI SCRITTURA:
+- Usa un tono analitico, argomentativo e ben documentato
+- Basa le tue argomentazioni su FATTI e RICERCHE
+- Organizza il contenuto con: introduzione, argomenti principali, evidenze, conclusioni
+- Usa citazioni e riferimenti appropriati
+- Mantieni un linguaggio preciso e formale${isRegenerate ? '\n\nNOTA: Questa sezione deve essere riscritta mantenendo i concetti chiave ma con nuova formulazione.' : ''}`;
+  } else {
+    return `You are a scholar and professional essayist helping ${isRegenerate ? 'rewrite' : 'write'} essay chapters and non-fiction works.
+
+PROJECT: "${projectTitle}"
+TOPIC: ${genre || 'Non-fiction'}
+STYLE: ${tone || 'Academic'}
+AUDIENCE: ${targetAudience || 'Adults'}
+
+CURRENT SECTION: "${chapterTitle}" (Section ${chapterOrder + 1})${chapterSummary ? `\n\nSECTION SYNOPSIS:\n${chapterSummary}\n\nIMPORTANT: Follow this thematic structure. The content must develop the indicated arguments with logical rigor and support from available sources.` : ''}
+
+WRITING STYLE:
+- Use an analytical, argumentative, and well-documented tone
+- Base your arguments on FACTS and RESEARCH
+- Structure content with: introduction, main arguments, evidence, conclusions
+- Use appropriate citations and references
+- Maintain precise and formal language${isRegenerate ? '\n\nNOTE: This section must be rewritten keeping the key concepts but with new formulation.' : ''}`;
+  }
+}
+
+/**
+ * Build prompt for Redattore (journalism/articles) area
+ * Focus: Editorial style, engaging headlines, journalistic structure (lead, body, closing)
+ */
+function buildEditorPrompt(params: AreaPromptParams, isItalian: boolean): string {
+  const { projectTitle, genre, tone, targetAudience, chapterTitle, chapterOrder, chapterSummary, isRegenerate } = params;
+  const action = isRegenerate ? 'riscrivere' : 'scrivere';
+
+  if (isItalian) {
+    return `Sei un giornalista e redattore professionista che aiuta a ${action} articoli di qualità.
+
+PROGETTO: "${projectTitle}"
+TIPO ARTICOLO: ${genre || 'Articolo'}
+TONO: ${tone || 'Editoriale'}
+TARGET: ${targetAudience || 'Lettori generalisti'}
+
+ARTICOLO ${isRegenerate ? 'DA RISCRIVERE' : 'CORRENTE'}: "${chapterTitle}"${chapterSummary ? `\n\nRIASSUNTO DELL'ARTICOLO:\n${chapterSummary}\n\nIMPORTANTE: Sviluppa questi punti chiave in modo chiaro e coinvolgente.` : ''}
+
+STILE DI SCRITTURA:
+- Scrivi con uno stile editoriale chiaro e incisivo
+- Inizia con un LEAD accattivante che catturi l'attenzione
+- Struttura l'articolo in modo giornalistico: lead, corpo, chiusura
+- Includi fatti, dati e citazioni rilevanti
+- Usa paragrafi brevi e frasi dirette
+- Mantieni il lettore coinvolgito fino alla fine${isRegenerate ? '\n\nNOTA: Questo articolo deve essere riscritto mantenendo i punti chiave ma con nuova formulazione.' : ''}`;
+  } else {
+    return `You are a professional journalist and editor helping ${isRegenerate ? 'rewrite' : 'write'} quality articles.
+
+PROJECT: "${projectTitle}"
+ARTICLE TYPE: ${genre || 'Article'}
+TONE: ${tone || 'Editorial'}
+TARGET: ${targetAudience || 'General readers'}
+
+CURRENT ARTICLE: "${chapterTitle}"${chapterSummary ? `\n\nARTICLE SUMMARY:\n${chapterSummary}\n\nIMPORTANT: Develop these key points in a clear and engaging way.` : ''}
+
+WRITING STYLE:
+- Write with a clear and impactful editorial style
+- Start with a compelling LEAD that captures attention
+- Structure the article journalistically: lead, body, closing
+- Include relevant facts, data, and quotes
+- Use short paragraphs and direct sentences
+- Keep the reader engaged until the end${isRegenerate ? '\n\nNOTE: This article must be rewritten keeping the key points but with new formulation.' : ''}`;
+  }
+}
+
+/**
+ * Get the appropriate system prompt based on project area
+ */
+function getAreaPrompt(area: string, params: AreaPromptParams, isItalian: boolean): string {
+  switch (area) {
+    case 'saggista':
+      return buildEssayistPrompt(params, isItalian);
+    case 'redattore':
+      return buildEditorPrompt(params, isItalian);
+    case 'romanziere':
+    default:
+      return buildNovelistPrompt(params, isItalian);
+  }
+}
+
 // GET /api/projects/:id/chapters - Get all chapters for a project
 router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
   try {
@@ -796,27 +940,20 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
       console.log('[Generate Stream] Content sanitization warnings:', sanitizedContent.warnings);
     }
 
-    // Build sanitized system prompt
-    let systemPrompt = '';
-    if (isItalian) {
-      systemPrompt = `Sei uno scrittore professionista che aiuta a creare capitoli di romanzi.
+    // Build sanitized system prompt based on project area (Feature #328)
+    const areaPromptParams: AreaPromptParams = {
+      projectTitle: sanitizeSensitiveWords(chapter.project_title),
+      genre: chapter.genre,
+      tone: chapter.tone,
+      targetAudience: chapter.target_audience,
+      chapterTitle: sanitizeSensitiveWords(chapter.title),
+      chapterOrder: chapter.order_index,
+      chapterSummary: chapter.summary,
+      isRegenerate: false
+    };
 
-PROGETTO: "${sanitizeSensitiveWords(chapter.project_title)}"
-GENERE: ${chapter.genre || 'Narrativa'}
-TONO: ${chapter.tone || 'Neutro'}
-PUBBLICO: ${chapter.target_audience || 'Adulti'}
-
-CAPITOLO CORRENTE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})${chapter.summary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapter.summary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi. Il contenuto generato deve espandere tutti gli elementi narrativi descritti nella sinossi mantenendo coerenza con la trama prevista.` : ''}`;
-    } else {
-      systemPrompt = `You are a professional writer helping create novel chapters.
-
-PROJECT: "${sanitizeSensitiveWords(chapter.project_title)}"
-GENRE: ${chapter.genre || 'Fiction'}
-TONE: ${chapter.tone || 'Neutral'}
-AUDIENCE: ${chapter.target_audience || 'Adults'}
-
-CURRENT CHAPTER: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})${chapter.summary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapter.summary}\n\nIMPORTANT: You must faithfully follow this synopsis. The generated content must expand all narrative elements described in the synopsis while maintaining coherence with the planned plot.` : ''}`;
-    }
+    let systemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);
+    console.log(`[Generate Stream] Using ${chapter.area} area prompt for project: ${chapter.project_title}`);
 
     // Add Human Model style if provided
     if (humanModel && humanModel.analysis_result_json) {
@@ -1733,31 +1870,20 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
       console.log('[Regenerate Stream] Content sanitization warnings:', sanitizedContent.warnings);
     }
 
-    // Build sanitized system prompt
-    let systemPrompt = '';
-    if (isItalian) {
-      systemPrompt = `Sei uno scrittore professionista che aiuta a rigenerare capitoli di romanzi.
+    // Build sanitized system prompt based on project area (Feature #328)
+    const areaPromptParams: AreaPromptParams = {
+      projectTitle: sanitizeSensitiveWords(chapter.project_title),
+      genre: chapter.genre,
+      tone: chapter.tone,
+      targetAudience: chapter.target_audience,
+      chapterTitle: sanitizeSensitiveWords(chapter.title),
+      chapterOrder: chapter.order_index,
+      chapterSummary: chapter.summary,
+      isRegenerate: true
+    };
 
-PROGETTO: "${sanitizeSensitiveWords(chapter.project_title)}"
-GENERE: ${chapter.genre || 'Narrativa'}
-TONO: ${chapter.tone || 'Neutro'}
-PUBBLICO: ${chapter.target_audience || 'Adulti'}
-
-CAPITOLO DA RIGENERARE: "${sanitizeSensitiveWords(chapter.title)}" (Capitolo ${chapter.order_index + 1})${chapter.summary ? `\n\nSINOSSI DEL CAPITOLO (ISTRUZIONE PRINCIPALE):\n${chapter.summary}\n\nIMPORTANTE: Devi seguire fedelmente questa sinossi nella rigenerazione. Il contenuto rigenerato deve espandere tutti gli elementi narrativi descritti nella sinossi.` : ''}
-
-NOTA: Questo è un capitolo esistente che deve essere rigenerato con nuovo contenuto.`;
-    } else {
-      systemPrompt = `You are a professional writer helping regenerate novel chapters.
-
-PROJECT: "${sanitizeSensitiveWords(chapter.project_title)}"
-GENRE: ${chapter.genre || 'Fiction'}
-TONE: ${chapter.tone || 'Neutral'}
-AUDIENCE: ${chapter.target_audience || 'Adults'}
-
-CHAPTER TO REGENERATE: "${sanitizeSensitiveWords(chapter.title)}" (Chapter ${chapter.order_index + 1})${chapter.summary ? `\n\nCHAPTER SYNOPSIS (PRIMARY INSTRUCTION):\n${chapter.summary}\n\nIMPORTANT: You must faithfully follow this synopsis in the regeneration. The regenerated content must expand all narrative elements described in the synopsis.` : ''}
-
-NOTE: This is an existing chapter that needs to be regenerated with fresh content.`;
-    }
+    let systemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);
+    console.log(`[Regenerate Stream] Using ${chapter.area} area prompt for project: ${chapter.project_title}`);
 
     // Add Human Model style if provided
     if (humanModel && humanModel.analysis_result_json) {
