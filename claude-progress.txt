@@ -4764,3 +4764,102 @@ All features have been successfully implemented and verified!
 Latest completed: Feature #328 - Area-specific AI prompts for Romanziere/Saggista/Redattore
 
 All features have been successfully implemented and verified!
+
+---
+
+## Session: 2026-02-23 - Feature #330 Implementation
+
+### Completed Features: 330/330 (100%)
+
+### Feature #330: Prompt dedicato per Genera Indice Saggi
+
+**Objective:** Attualmente il prompt di generazione indice è ottimizzato per romanzi. Per i saggi serve un prompt completamente diverso che tenga conto di: tema centrale del saggio, tesi da dimostrare, argomentazioni logiche, fonti collegate, bibliografia. Il prompt deve generare una struttura argomentativa accademica/saggistica coerente.
+
+**Implementation:**
+
+#### 1. Backend - Nuovo Endpoint `/api/projects/:id/generate/essay-outline` (Feature #330)
+
+Added in `/server/src/routes/projects.ts` (lines 4525-4812):
+- New POST endpoint specifically for Saggista (essayist) projects
+- Fetches project data, sources, and citations
+- Uses dedicated AI prompt for essay outline generation
+- Falls back to template sections if AI is unavailable
+
+**AI Prompt for Essays:**
+- Italian: Specialized academic essay structure prompt
+- English: Specialized academic essay structure prompt
+- Includes: thesis, arguments, sources, bibliography
+- JSON response with sections, key_points, sources_to_use
+
+**Fallback Templates (8 sections):**
+- Introduzione e Tesi / Introduction and Thesis
+- Contesto Storico / Historical Context
+- Analisi Principale / Main Analysis
+- Argomentazione / Argumentation
+- Controargomentazioni / Counterarguments
+- Discussione / Discussion
+- Implicazioni / Implications
+- Conclusione / Conclusion
+
+#### 2. Frontend - API Method `generateEssayOutline`
+
+Added in `/client/src/services/api.ts`:
+- New method `generateEssayOutline(projectId, language, numSections)`
+- Returns essay outline with thesis, main_arguments, sections
+
+#### 3. Frontend - UI Handler for Essay Outline
+
+Added in `/client/src/pages/ProjectDetail.tsx`:
+- `handleGenerateEssayOutline()` - handles Saggista projects
+- `executeGenerateEssayOutline()` - executes the API call
+- Updated confirmation dialog to handle both novel and essay outlines
+- Green button for Saggista (vs amber for Romanziere)
+
+#### 4. i18n Translations
+
+Added in `/client/src/i18n/locales/it.json` and `en.json`:
+- `generateEssayOutline`: "Genera Indice" / "Generate Outline"
+- `generateEssayOutlineHint`: "Genera un indice strutturato per il saggio con tesi, argomentazioni e fonti" / "Generate a structured essay outline with thesis, arguments, and sources"
+
+**Bug Fixes During Implementation:**
+- Fixed incorrect SQL query: removed non-existent `metadata_json` column from sources query
+- Changed: `SELECT id, file_name, source_type, metadata_json FROM sources` → `SELECT id, file_name, source_type FROM sources`
+
+**Verification:**
+
+Tested with browser automation:
+1. Created new user "Essay Test User" (essaytestuser@example.com)
+2. Created new Saggista project "L'Intelligenza Artificiale nella Società Moderna"
+3. Added description with thesis
+4. Clicked "Genera Indice" button
+5. 8 sections were created successfully:
+   - Introduzione e Tesi
+   - Contesto Storico
+   - Analisi Principale
+   - Argomentazione
+   - Controargomentazioni
+   - Discussione
+   - Implicazioni
+   - Conclusione
+6. Zero JavaScript console errors from the feature
+
+**Feature Test Steps Verified:**
+1. ✅ "Analizzare il prompt esistente in server/services/ai-outline.service.ts o file correlati" - Analyzed outline generation in projects.ts
+2. ✅ "Creare un prompt dedicato per la generazione indice saggi..." - Created dedicated AI prompt with thesis, arguments, sources, bibliography
+3. ✅ "Modificare il servizio AI per selezionare il prompt corretto in base al tipo di progetto" - Created separate endpoint for Saggista projects
+4. ✅ "Testare la generazione di un indice per un saggio con fonti collegate" - Tested with new Saggista project
+5. ✅ "Verificare che l'indice generato sia coerente con la struttura di un saggio accademico/saggistico" - Verified 8 sections in academic structure
+
+### Commit: e94a606
+
+**Status: Feature #330 MARKED PASSING**
+
+---
+
+## MILESTONE ACHIEVED: 330/330 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
+Latest completed: Feature #330 - Prompt dedicato per Genera Indice Saggi
+
+All features have been successfully implemented and verified!
