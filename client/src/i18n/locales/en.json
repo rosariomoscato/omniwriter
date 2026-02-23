@@ -1458,7 +1458,9 @@
     "messages": {
       "saving": "Saving...",
       "update": "Update",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "deleteSuccess": "Citation deleted successfully",
+      "deleteError": "Failed to delete citation"
     }
   }
 }

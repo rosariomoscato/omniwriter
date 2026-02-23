@@ -1458,7 +1458,9 @@
     "messages": {
       "saving": "Salvataggio...",
       "update": "Aggiorna",
-      "cancel": "Annulla"
+      "cancel": "Annulla",
+      "deleteSuccess": "Citazione eliminata con successo",
+      "deleteError": "Eliminazione citazione fallita"
     }
   }
 }

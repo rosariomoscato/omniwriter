@@ -153,8 +153,9 @@ export default function Citations({ projectId }: CitationsProps) {
       await apiService.deleteCitation(deleteConfirm.citationId);
       setCitations(citations.filter(c => c.id !== deleteConfirm.citationId));
       setDeleteConfirm({ isOpen: false, citationId: null, citationTitle: '' });
+      toast.success(t('citations.messages.deleteSuccess'));
     } catch (err: any) {
-      setError(err.message || 'Failed to delete citation');
+      toast.error(err.message || t('citations.messages.deleteError'));
     }
   };
 
