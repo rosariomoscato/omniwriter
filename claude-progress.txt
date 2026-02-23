@@ -1,5 +1,59 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #327 Implementation
+
+### Completed Features: 326/326 (100%)
+
+### Feature #327: Fix eliminazione citazione non funzionante
+
+**Status:** ✅ COMPLETED
+
+**Objective:** When clicking "Elimina" (Delete) in the confirmation dialog, the citation was not being deleted properly. The `confirmDelete` function was missing user feedback (toast notifications).
+
+**Root Cause:**
+The `confirmDelete` function in `Citations.tsx` did not provide any user feedback:
+- No success notification after successful deletion
+- No error notification if deletion failed
+- Dialog closed immediately without confirming the operation succeeded
+
+**Solution:**
+1. Added `toast.success()` after successful deletion with translated message
+2. Added `toast.error()` in catch block for failed deletions
+3. Added translation keys `deleteSuccess` and `deleteError` in both locale files
+
+**Implementation:**
+
+1. **Citations.tsx (lines 149-160):**
+   - Added `toast.success(t('citations.messages.deleteSuccess'))` after successful API call
+   - Added `toast.error(err.message || t('citations.messages.deleteError'))` in catch block
+   - Dialog now only closes after successful deletion
+
+2. **en.json (citations.messages):**
+   - Added `deleteSuccess: "Citation deleted successfully"`
+   - Added `deleteError: "Failed to delete citation"`
+
+3. **it.json (citations.messages):**
+   - Added `deleteSuccess: "Citazione eliminata con successo"`
+   - Added `deleteError: "Eliminazione citazione fallita"`
+
+**Verification:**
+- Created test user "Citation Delete Test"
+- Created Saggista project "Test Citation Delete Essay"
+- Added citation "The Art of Testing Citations"
+- Clicked delete button, confirmed deletion in dialog
+- Verified citation was removed from list (count: 0)
+- Verified toast notification appeared (success message)
+- Zero console errors during test
+
+**Files Modified:**
+- `client/src/components/Citations.tsx` - Added toast notifications
+- `client/src/i18n/locales/en.json` - Added deleteSuccess/deleteError translations
+- `client/src/i18n/locales/it.json` - Added deleteSuccess/deleteError translations
+
+**Commit:** 256b88b
+
+---
+
 ## Session: 2026-02-23 - Feature #326 Implementation
 
 ### Completed Features: 325/325 (100%)
