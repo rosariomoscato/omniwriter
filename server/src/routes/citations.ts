@@ -89,9 +89,9 @@ router.post('/projects/:projectId/citations', authenticateToken, (req, res) => {
     // Get the next order index
     const maxOrder = getDatabase().prepare(
       'SELECT MAX(order_index) as max_order FROM citations WHERE project_id = ?'
-    ).get(projectId) as { max_order: number } | { max_order: null };
+    ).get(projectId) as { max_order: number | null } | undefined;
 
-    const nextOrderIndex = (maxOrder || 0) + 1;
+    const nextOrderIndex = (maxOrder?.max_order ?? 0) + 1;
 
     const citationId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
@@ -99,7 +99,7 @@ router.post('/projects/:projectId/citations', authenticateToken, (req, res) => {
       INSERT INTO citations (
         id, project_id, chapter_id, title, authors, publication_year,
         publisher, url, page_numbers, citation_type, notes, order_index
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
