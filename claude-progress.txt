@@ -4404,3 +4404,123 @@ Browser automation test confirmed the modal displays correct count.
 
 All features have been successfully implemented and verified!
 
+
+---
+
+## Session: 2026-02-23 - Feature #323 Implementation
+
+### Completed Features: 322/322 (100%)
+
+### Feature #323: Fix creazione citazione fallita su saggio vuoto
+
+**Objective:** Quando si clicca "Aggiungi Citazione" in un saggio senza citazioni esistenti, si ottiene l'errore "Failed to create citation". Il problema era nel calcolo di order_index e nel numero di placeholder nell'INSERT.
+
+**Root Causes:**
+1. La query `MAX(order_index)` restituisce null quando la tabella è vuota
+2. Il codice originale `const nextOrderIndex = (maxOrder || 0) + 1` non accedeva a `maxOrder.max_order`, quindi sommava 1 all'oggetto invece che al valore
+3. L'istruzione INSERT aveva 12 colonne ma solo 11 placeholder `?`
+
+**Solution:**
+1. Corretto il calcolo di order_index: `const nextOrderIndex = (maxOrder?.max_order ?? 0) + 1`
+2. Aggiunto il placeholder mancante nella INSERT (da 11 a 12)
+
+**Implementation:**
+
+Modified `/server/src/routes/citations.ts`:
+1. Linea 92: Cambiato tipo da `{ max_order: number } | { max_order: null }` a `{ max_order: number | null } | undefined`
+2. Linea 94: Cambiato `(maxOrder || 0) + 1` in `(maxOrder?.max_order ?? 0) + 1`
+3. Linea 102: Aggiunto un `?` placeholder mancante nella clausola VALUES
+
+**Verification:**
+
+Testato con browser automation:
+1. Creato nuovo utente "Citation Tester"
+2. Creato nuovo progetto Saggista "Test Citation Essay"
+3. Cliccato "Aggiungi Citazione" in un progetto senza citazioni
+4. Riempito il form con titolo e autore
+5. Prima del fix: Errore 500 "SqliteError: 11 values for 12 columns"
+6. Dopo il fix: Citazione creata con successo
+7. Aggiunta seconda citazione per verificare l'ordinamento corretto
+8. Entrambe le citazioni mostrate correttamente (#1 e #2)
+
+**Feature Test Steps Verified:**
+1. ✅ "Aprire il file server/routes/citations.ts" - Aperto e analizzato
+2. ✅ "Localizzare le righe 90-94 dove viene calcolato order_index" - Trovato e corretto
+3. ✅ "Sostituire: const orderIndex = parseInt(String(maxOrder?.max_order || 0)) + 1;" - Corretto con `(maxOrder?.max_order ?? 0) + 1`
+4. ✅ "Con: const orderIndex = (maxOrder?.max_order ?? 0) + 1;" - Implementato
+5. ✅ "Testare: creare un nuovo saggio, aggiungere una citazione, verificare che funzioni" - Testato con successo
+6. ✅ "Testare: aggiungere una seconda citazione e verificare l'ordinamento corretto" - Verificato: #1 e #2
+
+### Commit: 48b2967
+
+**Status: Feature #323 MARKED PASSING**
+
+---
+
+## Session: 2026-02-23 - Feature #324 Implementation
+
+### Completed Features: 323/323 (100%)
+
+### Feature #324: Fix Genera Bibliografia non funzionante
+
+**Objective:** Il pulsante "Genera Bibliografia" non funziona perché loadBibliography() in Citations.tsx usa fetch diretto con URL hardcoded invece di usare apiService. Mancava il metodo getBibliography() in apiService.
+
+**Root Cause:**
+1. La funzione `loadBibliography` usava `fetch` diretto con URL hardcoded
+2. Non esisteva il metodo `getBibliography` in apiService
+3. Incoerente con tutte le altre chiamate API del componente Citations
+
+**Solution:**
+1. Aggiunto metodo `getBibliography(projectId)` in apiService (dopo deleteCitation)
+2. Aggiornata la funzione `loadBibliography` in Citations.tsx per usare apiService.getBibliography
+
+**Implementation:**
+
+Modified `/client/src/services/api.ts`:
+- Linea 826-828: Aggiunto nuovo metodo:
+  ```typescript
+  async getBibliography(projectId: string): Promise<{ project_title: string; citations: string[]; total: number }> {
+    return this.request<{ project_title: string; citations: string[]; total: number }>(`/projects/${projectId}/bibliography`);
+  }
+  ```
+
+Modified `/client/src/components/Citations.tsx`:
+- Linee 71-79: Sostituita la funzione loadBibliography con:
+  ```typescript
+  const loadBibliography = async () => {
+    try {
+      const data = await apiService.getBibliography(projectId);
+      setBibliography(data.citations);
+      setShowBibliography(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate bibliography');
+    }
+  };
+  ```
+
+**Verification:**
+
+Testato con browser automation:
+1. Creato nuovo utente "Bibliography Test" (bibtest@example.com)
+2. Creato nuovo progetto Saggista "Test Bibliography Essay"
+3. Aggiunta citazione: "The Art of Programming" di Smith, John (2023)
+4. Cliccato "Genera Bibliografia"
+5. Modal aperto con bibliografia formattata: "Smith, John (2023). The Art of Programming. Tech Books Publishing."
+6. Zero errori console
+
+**Feature Test Steps Verified:**
+1. ✅ "Aprire client/src/services/api.ts" - Aperto e aggiunto metodo
+2. ✅ "Aggiungere dopo la riga 821 (dopo deleteCitation)..." - Implementato
+3. ✅ "Aprire client/src/components/Citations.tsx" - Aperto e modificato
+4. ✅ "Sostituire la funzione loadBibliography..." - Implementato
+5. ✅ "Testare: creare un saggio, aggiungere una citazione, cliccare 'Genera Bibliografia'" - Testato con successo
+
+### Commit: b5fae6a
+
+**Status: Feature #324 MARKED PASSING**
+
+---
+
+## MILESTONE ACHIEVED: 323/323 Features Passing (100%)
+
+All features have been successfully implemented and verified!
