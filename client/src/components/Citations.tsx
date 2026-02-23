@@ -3,6 +3,7 @@ import { Quote, Plus, Trash2, Edit2, FileText, BookOpen } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useToastNotification } from './Toast';
 import { useFocusTrapSimple } from '../hooks/useFocusTrap';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
 
 interface Citation {
   id: string;
@@ -40,6 +41,11 @@ export default function Citations({ projectId }: CitationsProps) {
   const [bibliography, setBibliography] = useState<string[]>([]);
   const [showBibliography, setShowBibliography] = useState(false);
   const bibliographyModalRef = useFocusTrapSimple(showBibliography);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; citationId: string | null; citationTitle: string }>({
+    isOpen: false,
+    citationId: null,
+    citationTitle: ''
+  });
 
   const [formData, setFormData] = useState({
     title: '',
@@ -131,17 +137,24 @@ export default function Citations({ projectId }: CitationsProps) {
     setShowAddForm(true);
   };
 
-  const handleDelete = async (citationId: string) => {
-    if (!confirm('Are you sure you want to delete this citation?')) {
-      return;
-    }
+  const handleDelete = (citationId: string, citationTitle: string) => {
+    setDeleteConfirm({ isOpen: true, citationId, citationTitle });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.citationId) return;
 
     try {
-      await apiService.deleteCitation(citationId);
-      setCitations(citations.filter(c => c.id !== citationId));
+      await apiService.deleteCitation(deleteConfirm.citationId);
+      setCitations(citations.filter(c => c.id !== deleteConfirm.citationId));
+      setDeleteConfirm({ isOpen: false, citationId: null, citationTitle: '' });
     } catch (err: any) {
       setError(err.message || 'Failed to delete citation');
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm({ isOpen: false, citationId: null, citationTitle: '' });
   };
 
   const handleCancel = () => {
@@ -495,7 +508,7 @@ export default function Citations({ projectId }: CitationsProps) {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(citation.id)}
+                    onClick={() => handleDelete(citation.id, citation.title)}
                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                     title="Elimina citazione"
                   >
@@ -507,6 +520,18 @@ export default function Citations({ projectId }: CitationsProps) {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Conferma eliminazione"
+        message="Sei sicuro di voler eliminare questa citazione?"
+        itemName={deleteConfirm.citationTitle}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        confirmText="Elimina"
+        cancelText="Annulla"
+      />
     </div>
   );
 }
