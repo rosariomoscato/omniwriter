@@ -587,6 +587,10 @@
       "cancel": "Annulla",
       "export": "Esporta"
     },
+    "exportMetadata": {
+      "title": "Metadati Export",
+      "description": "Inserisci il nome dell'autore che apparirà nel file esportato."
+    },
     "epub": {
       "title": "Metadati EPUB",
       "description": "Aggiungi metadati e immagine di copertina per il tuo eBook. Queste informazioni saranno incorporate nel file EPUB.",

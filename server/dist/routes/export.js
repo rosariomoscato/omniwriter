@@ -56,10 +56,10 @@ async function getDriveClient(user) {
 // Helper function to export project as buffer
 async function exportProjectAsBuffer(projectId, format) {
     const db = (0, database_1.getDatabase)();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    const project = db.prepare('SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ?').get(projectId);
     const chapters = db.prepare('SELECT id, title, content FROM chapters WHERE project_id = ? ORDER BY order_index ASC').all(projectId);
     if (format === 'docx') {
-        return await generateDocx(project.title, project.description || '', chapters);
+        return await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
     }
     else if (format === 'epub') {
         return await generateEpub(project.title, project.description || '', chapters);
@@ -71,9 +71,26 @@ async function exportProjectAsBuffer(projectId, format) {
 const router = express_1.default.Router();
 // Premium export formats: epub, pdf, rtf
 const PREMIUM_FORMATS = ['epub', 'pdf', 'rtf'];
-// Configure multer for cover image uploads
+// Configure multer for cover image uploads with custom storage
+// Feature #331: Use absolute path and preserve file extension
+const coversDir = path_1.default.resolve(__dirname, '../../../uploads/covers');
+// Ensure covers directory exists
+if (!fs_1.default.existsSync(coversDir)) {
+    fs_1.default.mkdirSync(coversDir, { recursive: true });
+}
+const coverStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, coversDir);
+    },
+    filename: (req, file, cb) => {
+        // Preserve the original file extension
+        const ext = path_1.default.extname(file.originalname).toLowerCase();
+        const uniqueName = `${(0, uuid_1.v4)()}${ext}`;
+        cb(null, uniqueName);
+    }
+});
 const upload = (0, multer_1.default)({
-    dest: 'uploads/covers/',
+    storage: coverStorage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|webp/;
@@ -95,6 +112,10 @@ function escapeXml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
+}
+// Helper function to escape regex special characters (Feature #335)
+function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 // Helper function to escape HTML content
 function escapeHtml(text) {
@@ -151,12 +172,26 @@ async function generateEpub(title, description, chapters, metadata, coverImagePa
     // Handle cover image
     let hasCover = false;
     let coverMediaType = 'image/jpeg';
+    let coverFileName = 'cover.jpg';
     if (coverImagePath && fs_1.default.existsSync(coverImagePath)) {
         const ext = path_1.default.extname(coverImagePath).toLowerCase();
-        coverMediaType = ext === '.png' ? 'image/png' : 'image/jpeg';
+        // Feature #331: Properly detect media type from extension
+        if (ext === '.png') {
+            coverMediaType = 'image/png';
+            coverFileName = 'cover.png';
+        }
+        else if (ext === '.webp') {
+            coverMediaType = 'image/webp';
+            coverFileName = 'cover.webp';
+        }
+        else {
+            coverMediaType = 'image/jpeg';
+            coverFileName = 'cover.jpg';
+        }
         const imageBuffer = fs_1.default.readFileSync(coverImagePath);
-        oebps?.file('images/cover.jpg', imageBuffer);
+        oebps?.file(`images/${coverFileName}`, imageBuffer);
         hasCover = true;
+        console.log(`[Export] Cover image included: ${coverFileName}, media type: ${coverMediaType}`);
     }
     // CSS stylesheet
     const cssContent = `body {
@@ -236,7 +271,7 @@ em { font-style: italic; }
 </head>
 <body>
   <div class="cover">
-    ${hasCover ? `<img src="images/cover.jpg" alt="Cover"/>` : ''}
+    ${hasCover ? `<img src="images/${coverFileName}" alt="Cover"/>` : ''}
     <h1>${escapeXml(title)}</h1>
     ${description ? `<p class="description">${escapeXml(description)}</p>` : ''}
     <p class="description">By ${escapeXml(author)}</p>
@@ -268,7 +303,15 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
     // Chapter XHTML files
     chapters.forEach((chapter, index) => {
         const chapterTitle = escapeXml(chapter.title || `Chapter ${index + 1}`);
-        const chapterContent = markdownToXhtml(chapter.content || '');
+        // Feature #335: Remove duplicate title from chapter content
+        let rawContent = chapter.content || '';
+        // Check if content starts with the chapter title (with or without number/markdown heading)
+        // Escape special regex characters in the title to prevent regex injection
+        const rawTitle = chapter.title || 'Untitled';
+        const escapedTitle = escapeRegex(rawTitle);
+        const titlePattern = new RegExp(`^(#{1,3}\\s*)?(${escapedTitle}|${index + 1}\\.\\s*${escapedTitle})[\\s\\n]*`, 'i');
+        rawContent = rawContent.replace(titlePattern, '');
+        const chapterContent = markdownToXhtml(rawContent);
         const chapterXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">
@@ -292,7 +335,7 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
         ...chapters.map((_, i) => `<item id="chapter-${i + 1}" href="chapter_${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
     ];
     if (hasCover) {
-        manifestItems.unshift(`<item id="cover-image" href="images/cover.jpg" media-type="${coverMediaType}" properties="cover-image"/>`);
+        manifestItems.unshift(`<item id="cover-image" href="images/${coverFileName}" media-type="${coverMediaType}" properties="cover-image"/>`);
     }
     const spineItems = [
         `<itemref idref="cover-xhtml"/>`,
@@ -375,7 +418,7 @@ function escapeXmlDocx(text) {
         .replace(/'/g, '&apos;');
 }
 // Helper function to generate a proper DOCX file using docx library
-async function generateDocx(title, description, chapters, area) {
+async function generateDocx(title, description, chapters, area, authorName) {
     console.log('[Export] Generating DOCX file with docx library');
     const children = [];
     // Add title
@@ -383,8 +426,22 @@ async function generateDocx(title, description, chapters, area) {
         text: title,
         heading: docx_1.HeadingLevel.TITLE,
         alignment: docx_1.AlignmentType.CENTER,
-        spacing: { after: 400 }
+        spacing: { after: 200 }
     }));
+    // Add author name (if available)
+    if (authorName && authorName.trim()) {
+        children.push(new docx_1.Paragraph({
+            children: [
+                new docx_1.TextRun({
+                    text: authorName.trim(),
+                    italics: true,
+                    size: 24
+                })
+            ],
+            alignment: docx_1.AlignmentType.CENTER,
+            spacing: { after: 400 }
+        }));
+    }
     // Add description if present
     if (description) {
         children.push(new docx_1.Paragraph({
@@ -399,6 +456,30 @@ async function generateDocx(title, description, chapters, area) {
             spacing: { after: 600 }
         }));
     }
+    // Add table of contents for Saggista projects
+    if (area === 'saggista' && chapters.length > 0) {
+        children.push(new docx_1.Paragraph({
+            text: 'INDICE',
+            heading: docx_1.HeadingLevel.HEADING_1,
+            alignment: docx_1.AlignmentType.CENTER,
+            spacing: { before: 200, after: 300 }
+        }));
+        chapters.forEach((chapter, index) => {
+            children.push(new docx_1.Paragraph({
+                children: [
+                    new docx_1.TextRun({
+                        text: `${index + 1}. ${chapter.title || 'Untitled'}`,
+                        size: 24
+                    })
+                ],
+                spacing: { after: 100 }
+            }));
+        });
+        // Page break before content
+        children.push(new docx_1.Paragraph({
+            children: [new docx_1.PageBreak()]
+        }));
+    }
     // Add chapters
     chapters.forEach((chapter, index) => {
         // Chapter heading
@@ -407,8 +488,12 @@ async function generateDocx(title, description, chapters, area) {
             heading: docx_1.HeadingLevel.HEADING_1,
             spacing: { before: 400, after: 200 }
         }));
+        // Clean content: remove leading title if it duplicates the chapter title
+        let rawContent = chapter.content || '';
+        const titlePattern = new RegExp(`^(${chapter.title || 'Untitled'}|${index + 1}\\.\\s*${chapter.title || 'Untitled'})[\\s\\n]*`, 'i');
+        rawContent = rawContent.replace(titlePattern, '');
         // Chapter content - split by paragraphs and newlines
-        const paragraphs = (chapter.content || '').split('\n').filter(p => p.trim());
+        const paragraphs = rawContent.split('\n').filter(p => p.trim());
         paragraphs.forEach(para => {
             children.push(new docx_1.Paragraph({
                 children: [
@@ -438,19 +523,29 @@ async function generateDocx(title, description, chapters, area) {
     return buffer;
 }
 // Helper function to generate TXT file
-function generateTxt(title, description, chapters, area) {
+function generateTxt(title, description, chapters, area, authorName) {
+    // Header: Title
     let content = `${title}\n${'='.repeat(title.length)}\n\n`;
+    // Author name (if available)
+    if (authorName && authorName.trim()) {
+        content += `${authorName.trim()}\n\n`;
+    }
     // Add table of contents for Saggista projects
     if (area === 'saggista' && chapters.length > 0) {
         content += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
         content += `${'='.repeat(60)}\n\n`;
     }
     content += description ? description + '\n\n' : '';
-    // Add chapters
+    // Add chapters - avoid duplicating chapter title in content
     content += chapters.map((ch, i) => {
         const chapterTitle = `${i + 1}. ${ch.title || 'Untitled'}`;
         const separator = '-'.repeat(chapterTitle.length);
-        return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
+        // Clean content: remove leading title if it duplicates the chapter title
+        let chapterContent = ch.content || '';
+        // Check if content starts with the chapter title (with or without number)
+        const titlePattern = new RegExp(`^(${ch.title || 'Untitled'}|${i + 1}\\.\\s*${ch.title || 'Untitled'})[\\s\\n]*`, 'i');
+        chapterContent = chapterContent.replace(titlePattern, '');
+        return `\n\n${chapterTitle}\n${separator}\n\n${chapterContent.trim()}`;
     }).join('\n\n');
     return Buffer.from(content, 'utf-8');
 }
@@ -473,8 +568,8 @@ router.post('/projects/:id/export', auth_1.authenticateToken, async (req, res) =
                 });
             }
         }
-        // Verify project belongs to user
-        const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
+        // Verify project belongs to user and get author name
+        const project = db.prepare('SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.user_id = ?').get(projectId, userId);
         if (!project) {
             return res.status(404).json({ message: 'Project not found' });
         }
@@ -506,13 +601,13 @@ router.post('/projects/:id/export', auth_1.authenticateToken, async (req, res) =
             mimeType = 'application/epub+zip';
         }
         else if (format === 'docx') {
-            content = await generateDocx(project.title, project.description || '', chapters, project.area);
+            content = await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.docx`;
             mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }
         else {
             // Default to TXT
-            content = generateTxt(project.title, project.description || '', chapters, project.area);
+            content = generateTxt(project.title, project.description || '', chapters, project.area, project.author_name);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
             mimeType = 'text/plain';
         }
@@ -623,8 +718,8 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
         const userRole = req.user?.role;
         const db = (0, database_1.getDatabase)();
         console.log('[Batch Export] Exporting chapters:', chapterIds, 'as format:', format, 'combined:', combined);
-        // Verify project belongs to user
-        const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
+        // Verify project belongs to user and get author name
+        const project = db.prepare('SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.user_id = ?').get(projectId, userId);
         if (!project) {
             return res.status(404).json({ message: 'Project not found' });
         }
@@ -674,7 +769,7 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
         }
         else if (format === 'docx') {
             // Use proper DOCX generator
-            content = await generateDocx(project.title, project.description || '', chapters, project.area);
+            content = await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
             filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.docx`;
             mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         }

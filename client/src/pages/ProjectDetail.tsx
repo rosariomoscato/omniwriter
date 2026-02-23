@@ -86,8 +86,9 @@ export default function ProjectDetail() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
-  const [showEpubMetadata, setShowEpubMetadata] = useState(false);
-  const [epubMetadata, setEpubMetadata] = useState({
+  const [showExportMetadata, setShowExportMetadata] = useState(false);
+  const [exportFormatForMetadata, setExportFormatForMetadata] = useState<'txt' | 'docx' | 'epub'>('txt');
+  const [exportMetadata, setExportMetadata] = useState({
     author: '',
     publisher: '',
     isbn: '',
@@ -1360,9 +1361,10 @@ export default function ProjectDetail() {
       setExporting(true);
       setError('');
 
-      // If EPUB format and no metadata entered yet, show metadata form
-      if (format === 'epub' && !showEpubMetadata) {
-        setShowEpubMetadata(true);
+      // If format requires metadata and metadata dialog not shown yet, show it first
+      if (!showExportMetadata) {
+        setExportFormatForMetadata(format);
+        setShowExportMetadata(true);
         setExporting(false);
         return;
       }
@@ -1370,9 +1372,12 @@ export default function ProjectDetail() {
       // Prepare export options
       const exportOptions: any = { format };
 
-      // Add metadata for EPUB exports
+      // Add metadata for all exports (author is used by all formats, other fields by EPUB only)
+      exportOptions.metadata = { author: exportMetadata.author };
       if (format === 'epub') {
-        exportOptions.metadata = epubMetadata;
+        exportOptions.metadata = {
+          ...exportMetadata,
+        };
         exportOptions.coverImageId = coverImageId;
       }
 
@@ -1389,7 +1394,9 @@ export default function ProjectDetail() {
       document.body.removeChild(a);
 
       setShowExportDialog(false);
-      setShowEpubMetadata(false);
+      setShowExportMetadata(false);
+      // Reset metadata state
+      setExportMetadata({ author: '', publisher: '', isbn: '', language: 'en' });
     } catch (err: any) {
       if (err.code === 'PREMIUM_REQUIRED') {
         setError('EPUB export requires a Premium subscription. Upgrade to access this feature.');
@@ -1471,7 +1478,7 @@ export default function ProjectDetail() {
 
       // Add metadata for EPUB batch exports
       if (batchExportFormat === 'epub') {
-        exportOptions.metadata = epubMetadata;
+        exportOptions.metadata = exportMetadata;
         exportOptions.coverImageId = coverImageId;
       }
 
@@ -2115,7 +2122,7 @@ export default function ProjectDetail() {
       )}
 
       {/* Export Dialog */}
-      {showExportDialog && !showEpubMetadata && (
+      {showExportDialog && !showExportMetadata && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
@@ -2218,147 +2225,155 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* EPUB Metadata Dialog */}
-      {showEpubMetadata && (
+      {/* Export Metadata Dialog */}
+      {showExportMetadata && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                {t('projectPage.epub.title')}
+                {exportFormatForMetadata === 'epub' ? t('projectPage.epub.title') : t('projectPage.exportMetadata.title')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                {t('projectPage.epub.description')}
+                {exportFormatForMetadata === 'epub' ? t('projectPage.epub.description') : t('projectPage.exportMetadata.description')}
               </p>
 
               <div className="space-y-4">
-                {/* Cover Image Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('projectPage.epub.coverImage')}
-                  </label>
-                  <div className="space-y-3">
-                    {coverImagePreview ? (
-                      // Show image preview
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50 dark:bg-gray-700/30">
-                          <img
-                            src={coverImagePreview}
-                            alt="Cover preview"
-                            className="max-w-full max-h-64 object-contain rounded shadow-md"
-                          />
-                        </div>
-                        <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
-                          <ImageIcon className="w-8 h-8 text-blue-600" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {coverImageFile?.name || t('projectPage.epub.coverImage')}
-                          </span>
-                          <button
-                            onClick={() => {
-                              setCoverImageFile(null);
-                              setCoverImageId(null);
-                              setCoverImagePreview(null);
-                            }}
-                            className="ml-auto text-red-600 hover:text-red-700 dark:text-red-400"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // Show upload area
-                      <label className="block">
-                        <div className="flex items-center justify-center px-6 py-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/jpg,image/png,image/webp"
-                            onChange={handleCoverImageUpload}
-                            disabled={uploadingCover}
-                            className="hidden"
-                          />
-                          <div className="text-center">
-                            {uploadingCover ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-sm text-gray-600 dark:text-gray-400">{t('projectPage.epub.uploading')}</span>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-2">
-                                <ImageIcon className="w-10 h-10 text-gray-400" />
-                                <div>
-                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {t('projectPage.epub.coverImageDesc')}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {t('projectPage.epub.coverImageHint')}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
+                {/* Cover Image Upload - Only for EPUB */}
+                {exportFormatForMetadata === 'epub' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('projectPage.epub.coverImage')}
+                    </label>
+                    <div className="space-y-3">
+                      {coverImagePreview ? (
+                        // Show image preview
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50 dark:bg-gray-700/30">
+                            <img
+                              src={coverImagePreview}
+                              alt="Cover preview"
+                              className="max-w-full max-h-64 object-contain rounded shadow-md"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20 border-blue-500">
+                            <ImageIcon className="w-8 h-8 text-blue-600" />
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {coverImageFile?.name || t('projectPage.epub.coverImage')}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setCoverImageFile(null);
+                                setCoverImageId(null);
+                                setCoverImagePreview(null);
+                              }}
+                              className="ml-auto text-red-600 hover:text-red-700 dark:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                      </label>
-                    )}
+                      ) : (
+                        // Show upload area
+                        <label className="block">
+                          <div className="flex items-center justify-center px-6 py-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/webp"
+                              onChange={handleCoverImageUpload}
+                              disabled={uploadingCover}
+                              className="hidden"
+                            />
+                            <div className="text-center">
+                              {uploadingCover ? (
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('projectPage.epub.uploading')}</span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-2">
+                                  <ImageIcon className="w-10 h-10 text-gray-400" />
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      {t('projectPage.epub.coverImageDesc')}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {t('projectPage.epub.coverImageHint')}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      )}
+                    </div>
                   </div>
+                )}
+
+                {/* Author Field - Always shown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('projectPage.epub.author')}
+                  </label>
+                  <input
+                    type="text"
+                    value={exportMetadata.author}
+                    onChange={(e) => setExportMetadata({ ...exportMetadata, author: e.target.value })}
+                    placeholder={t('projectPage.epub.authorPlaceholder')}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                  />
                 </div>
 
-                {/* Metadata Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('projectPage.epub.author')}
-                    </label>
-                    <input
-                      type="text"
-                      value={epubMetadata.author}
-                      onChange={(e) => setEpubMetadata({ ...epubMetadata, author: e.target.value })}
-                      placeholder={t('projectPage.epub.authorPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('projectPage.epub.publisher')}
-                    </label>
-                    <input
-                      type="text"
-                      value={epubMetadata.publisher}
-                      onChange={(e) => setEpubMetadata({ ...epubMetadata, publisher: e.target.value })}
-                      placeholder={t('projectPage.epub.publisherPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('projectPage.epub.isbn')}
-                    </label>
-                    <input
-                      type="text"
-                      value={epubMetadata.isbn}
-                      onChange={(e) => setEpubMetadata({ ...epubMetadata, isbn: e.target.value })}
-                      placeholder="978-0-00-000000-0"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('projectPage.epub.language')}
-                    </label>
-                    <select
-                      value={epubMetadata.language}
-                      onChange={(e) => setEpubMetadata({ ...epubMetadata, language: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-                    >
-                      <option value="en">English</option>
-                      <option value="it">Italiano</option>
-                      <option value="es">Español</option>
-                      <option value="fr">Français</option>
-                      <option value="de">Deutsch</option>
-                      <option value="pt">Português</option>
-                      <option value="zh">中文</option>
-                      <option value="ja">日本語</option>
-                    </select>
-                  </div>
-                </div>
+                {/* Additional Fields - Only for EPUB */}
+                {exportFormatForMetadata === 'epub' && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {t('projectPage.epub.publisher')}
+                        </label>
+                        <input
+                          type="text"
+                          value={exportMetadata.publisher}
+                          onChange={(e) => setExportMetadata({ ...exportMetadata, publisher: e.target.value })}
+                          placeholder={t('projectPage.epub.publisherPlaceholder')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {t('projectPage.epub.isbn')}
+                        </label>
+                        <input
+                          type="text"
+                          value={exportMetadata.isbn}
+                          onChange={(e) => setExportMetadata({ ...exportMetadata, isbn: e.target.value })}
+                          placeholder="978-0-00-000000-0"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {t('projectPage.epub.language')}
+                        </label>
+                        <select
+                          value={exportMetadata.language}
+                          onChange={(e) => setExportMetadata({ ...exportMetadata, language: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
+                        >
+                          <option value="en">English</option>
+                          <option value="it">Italiano</option>
+                          <option value="es">Español</option>
+                          <option value="fr">Français</option>
+                          <option value="de">Deutsch</option>
+                          <option value="pt">Português</option>
+                          <option value="zh">中文</option>
+                          <option value="ja">日本語</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                   {t('projectPage.epub.optionalFields')}
@@ -2368,7 +2383,7 @@ export default function ProjectDetail() {
               <div className="flex justify-end gap-2 mt-6">
                 <button
                   onClick={() => {
-                    setShowEpubMetadata(false);
+                    setShowExportMetadata(false);
                     setShowExportDialog(false);
                     setError('');
                     // Clean up preview URL
@@ -2376,6 +2391,8 @@ export default function ProjectDetail() {
                       URL.revokeObjectURL(coverImagePreview);
                       setCoverImagePreview(null);
                     }
+                    // Reset metadata state
+                    setExportMetadata({ author: '', publisher: '', isbn: '', language: 'en' });
                   }}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
                   disabled={exporting}
@@ -2383,7 +2400,7 @@ export default function ProjectDetail() {
                   {t('common.back')}
                 </button>
                 <button
-                  onClick={() => handleExport('epub')}
+                  onClick={() => handleExport(exportFormatForMetadata)}
                   disabled={exporting}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
@@ -2395,7 +2412,7 @@ export default function ProjectDetail() {
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      {t('projectPage.epub.generate')}
+                      {exportFormatForMetadata === 'epub' ? t('projectPage.epub.generate') : t('projectPage.exportDialog.export')}
                     </>
                   )}
                 </button>

@@ -689,12 +689,16 @@ router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, 
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
-      content = await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
+      // Feature #336: Use author from metadata if provided, otherwise fall back to user name
+      const authorName = metadata?.author || project.author_name;
+      content = await generateDocx(project.title, project.description || '', chapters, project.area, authorName);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.docx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
       // Default to TXT
-      content = generateTxt(project.title, project.description || '', chapters, project.area, project.author_name);
+      // Feature #336: Use author from metadata if provided, otherwise fall back to user name
+      const authorName = metadata?.author || project.author_name;
+      content = generateTxt(project.title, project.description || '', chapters, project.area, authorName);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
       mimeType = 'text/plain';
     }

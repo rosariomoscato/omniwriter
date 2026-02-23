@@ -5045,3 +5045,87 @@ All features have been successfully implemented and verified!
 Latest completed: Feature #330 - Prompt dedicato per Genera Indice Saggi
 
 All features have been successfully implemented and verified!
+
+---
+
+## Session: 2026-02-23 - Features #333 and #334 Implementation
+
+### Completed Features: 333/334 (99.7%)
+
+### Feature #333: Standardizza export TXT - struttura uniforme
+
+**Objective:** Modificare generateTxt() in export.ts per:
+1. Mostrare titolo
+2. Mostrare nome autore
+3. Mantenere indice (già presente)
+4. Rimuovere duplicazione titoli capitoli
+
+**Implementation:**
+
+Modified `/server/src/routes/export.ts`:
+
+1. **Author Name Parameter** (Line 539):
+   - Changed function signature to accept `authorName?: string`
+   - Added author name display after title (Lines 543-546)
+
+2. **SQL Query Update** (Line 595):
+   - Changed project query to JOIN with users table
+   - Added `u.name as author_name` to fetch author name
+
+3. **Chapter Title Deduplication** (Lines 560-564):
+   - Added regex pattern to detect duplicate chapter titles in content
+   - Pattern matches both plain title and numbered format (e.g., "1. Title")
+   - Removes duplicate title from chapter content
+
+4. **Call Site Update** (Line 642):
+   - Updated generateTxt call to pass `project.author_name`
+
+**Verification:**
+- Created test script to verify all changes
+- Tested with mock data to verify:
+  - Author name appears after title
+  - Table of contents for Saggista projects
+  - Duplicate chapter titles removed from content
+
+### Feature #334: Standardizza export DOCX - struttura uniforme
+
+**Objective:** Modificare generateDocx() in export.ts per:
+1. Mostrare titolo
+2. Mostrare nome autore
+3. Aggiungere indice dei capitoli
+4. Rimuovere duplicazione titoli capitoli
+
+**Implementation:**
+
+Modified `/server/src/routes/export.ts`:
+
+1. **Author Name in DOCX** (Lines 472-487):
+   - Added `authorName?: string` parameter
+   - Added author name paragraph after title (centered, italic)
+
+2. **Table of Contents for Saggista** (Lines 506-537):
+   - Added "INDICE" heading
+   - List all chapters with numbers
+   - Page break before content
+
+3. **Chapter Title Deduplication** (Lines 550-553):
+   - Same regex pattern as TXT export
+   - Removes duplicate title from chapter content
+
+4. **Updated All Call Sites**:
+   - `exportProjectAsBuffer()` (Line 64)
+   - Main export endpoint (Line 692)
+   - Batch export endpoint (Line 906)
+   - All now pass `project.author_name`
+
+**Files Modified:**
+- `server/src/routes/export.ts`
+
+### Commit: 24e8467
+
+**Status: Features #333 and #334 MARKED PASSING**
+
+---
+
+## MILESTONE: 333/334 Features Passing (99.7%)
+
