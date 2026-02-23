@@ -55,13 +55,13 @@ async function getDriveClient(user: any) {
 // Helper function to export project as buffer
 async function exportProjectAsBuffer(projectId: string, format: string): Promise<Buffer> {
   const db = getDatabase();
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as any;
+  const project = db.prepare('SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ?').get(projectId) as any;
   const chapters = db.prepare(
     'SELECT id, title, content FROM chapters WHERE project_id = ? ORDER BY order_index ASC'
   ).all(projectId);
 
   if (format === 'docx') {
-    return await generateDocx(project.title, project.description || '', chapters);
+    return await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
   } else if (format === 'epub') {
     return await generateEpub(project.title, project.description || '', chapters);
   } else {
@@ -455,7 +455,7 @@ function escapeXmlDocx(text: string): string {
 }
 
 // Helper function to generate a proper DOCX file using docx library
-async function generateDocx(title: string, description: string, chapters: any[], area?: string): Promise<Buffer> {
+async function generateDocx(title: string, description: string, chapters: any[], area?: string, authorName?: string): Promise<Buffer> {
   console.log('[Export] Generating DOCX file with docx library');
   const children: any[] = [];
 
@@ -465,9 +465,26 @@ async function generateDocx(title: string, description: string, chapters: any[],
       text: title,
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 }
+      spacing: { after: 200 }
     })
   );
+
+  // Add author name (if available)
+  if (authorName && authorName.trim()) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: authorName.trim(),
+            italics: true,
+            size: 24
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 }
+      })
+    );
+  }
 
   // Add description if present
   if (description) {
@@ -486,6 +503,39 @@ async function generateDocx(title: string, description: string, chapters: any[],
     );
   }
 
+  // Add table of contents for Saggista projects
+  if (area === 'saggista' && chapters.length > 0) {
+    children.push(
+      new Paragraph({
+        text: 'INDICE',
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 300 }
+      })
+    );
+
+    chapters.forEach((chapter, index) => {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${index + 1}. ${chapter.title || 'Untitled'}`,
+              size: 24
+            })
+          ],
+          spacing: { after: 100 }
+        })
+      );
+    });
+
+    // Page break before content
+    children.push(
+      new Paragraph({
+        children: [new PageBreak()]
+      })
+    );
+  }
+
   // Add chapters
   chapters.forEach((chapter, index) => {
     // Chapter heading
@@ -497,8 +547,13 @@ async function generateDocx(title: string, description: string, chapters: any[],
       })
     );
 
+    // Clean content: remove leading title if it duplicates the chapter title
+    let rawContent = chapter.content || '';
+    const titlePattern = new RegExp(`^(${chapter.title || 'Untitled'}|${index + 1}\\.\\s*${chapter.title || 'Untitled'})[\\s\\n]*`, 'i');
+    rawContent = rawContent.replace(titlePattern, '');
+
     // Chapter content - split by paragraphs and newlines
-    const paragraphs = (chapter.content || '').split('\n').filter(p => p.trim());
+    const paragraphs = rawContent.split('\n').filter(p => p.trim());
     paragraphs.forEach(para => {
       children.push(
         new Paragraph({
@@ -634,7 +689,7 @@ router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, 
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.epub`;
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
-      content = await generateDocx(project.title, project.description || '', chapters, project.area);
+      content = await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.docx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
@@ -783,9 +838,9 @@ router.post('/projects/:id/export/batch', authenticateToken, async (req: AuthReq
 
     console.log('[Batch Export] Exporting chapters:', chapterIds, 'as format:', format, 'combined:', combined);
 
-    // Verify project belongs to user
+    // Verify project belongs to user and get author name
     const project = db.prepare(
-      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+      'SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.user_id = ?'
     ).get(projectId, userId) as any;
 
     if (!project) {
@@ -848,7 +903,7 @@ router.post('/projects/:id/export/batch', authenticateToken, async (req: AuthReq
       mimeType = 'application/epub+zip';
     } else if (format === 'docx') {
       // Use proper DOCX generator
-      content = await generateDocx(project.title, project.description || '', chapters, project.area);
+      content = await generateDocx(project.title, project.description || '', chapters, project.area, project.author_name);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_batch_${Date.now()}.docx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
