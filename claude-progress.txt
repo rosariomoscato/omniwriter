@@ -1,5 +1,63 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #336 Implementation
+
+### Completed Features: 336/336 (100%)
+
+### Feature #336: Estendi dialog metadati export a DOCX e TXT
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** Attualmente il dialog per inserire i metadati (autore, editore, ecc.) veniva mostrato solo per l'export EPUB. Per coerenza, il campo 'autore' deve essere mostrato anche per i formati DOCX e TXT.
+
+**Solution:**
+
+1. **Frontend** (`client/src/pages/ProjectDetail.tsx`):
+   - Renamed `showEpubMetadata` → `showExportMetadata`
+   - Renamed `epubMetadata` → `exportMetadata`
+   - Added `exportFormatForMetadata` state to track which format is being exported
+   - Modified `handleExport()` to show metadata dialog for ALL formats (not just EPUB)
+   - Modified metadata dialog to show different fields based on format:
+     - **TXT/DOCX**: Only author field with description "Inserisci il nome dell'autore che apparirà nel file esportato."
+     - **EPUB**: All fields (cover image, author, publisher, ISBN, language)
+   - Added reset of metadata state after successful export
+
+2. **Backend** (`server/src/routes/export.ts`):
+   - Modified DOCX export to use `metadata?.author` if provided, otherwise fall back to `project.author_name`
+   - Modified TXT export to use `metadata?.author` if provided, otherwise fall back to `project.author_name`
+
+3. **i18n Translations**:
+   - Added `exportMetadata.title` and `exportMetadata.description` keys in both Italian and English
+
+**Verification (Browser Automation):**
+
+Tested with new user "Export Test User" and project "Test Export Novel":
+
+1. **TXT Export**: ✅
+   - Shows metadata dialog with title "Metadati Export"
+   - Shows only author field
+   - Entered "Custom Author Name"
+   - Downloaded file shows author name correctly
+
+2. **DOCX Export**: ✅
+   - Shows metadata dialog with title "Metadati Export"
+   - Shows only author field
+   - Entered "DOCX Author Test"
+   - Downloaded successfully
+
+3. **EPUB Export**: ✅
+   - Shows metadata dialog with title "Metadati EPUB"
+   - Shows all fields: Cover Image, Author, Publisher, ISBN, Language
+   - Works as before (backward compatible)
+
+**Zero JavaScript Console Errors**
+
+### Commit: 849e9bf
+
+**Status: Feature #336 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-23 - Feature #335 Implementation
 
 ### Completed Features: 335/335 (100%)
