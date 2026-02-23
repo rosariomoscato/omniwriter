@@ -74,9 +74,29 @@ const router = express.Router();
 // Premium export formats: epub, pdf, rtf
 const PREMIUM_FORMATS = ['epub', 'pdf', 'rtf'];
 
-// Configure multer for cover image uploads
+// Configure multer for cover image uploads with custom storage
+// Feature #331: Use absolute path and preserve file extension
+const coversDir = path.resolve(__dirname, '../../../uploads/covers');
+
+// Ensure covers directory exists
+if (!fs.existsSync(coversDir)) {
+  fs.mkdirSync(coversDir, { recursive: true });
+}
+
+const coverStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, coversDir);
+  },
+  filename: (req, file, cb) => {
+    // Preserve the original file extension
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${uuidv4()}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+
 const upload = multer({
-  dest: 'uploads/covers/',
+  storage: coverStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|webp/;
@@ -172,12 +192,24 @@ async function generateEpub(
   // Handle cover image
   let hasCover = false;
   let coverMediaType = 'image/jpeg';
+  let coverFileName = 'cover.jpg';
   if (coverImagePath && fs.existsSync(coverImagePath)) {
     const ext = path.extname(coverImagePath).toLowerCase();
-    coverMediaType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    // Feature #331: Properly detect media type from extension
+    if (ext === '.png') {
+      coverMediaType = 'image/png';
+      coverFileName = 'cover.png';
+    } else if (ext === '.webp') {
+      coverMediaType = 'image/webp';
+      coverFileName = 'cover.webp';
+    } else {
+      coverMediaType = 'image/jpeg';
+      coverFileName = 'cover.jpg';
+    }
     const imageBuffer = fs.readFileSync(coverImagePath);
-    oebps?.file('images/cover.jpg', imageBuffer);
+    oebps?.file(`images/${coverFileName}`, imageBuffer);
     hasCover = true;
+    console.log(`[Export] Cover image included: ${coverFileName}, media type: ${coverMediaType}`);
   }
 
   // CSS stylesheet
@@ -259,7 +291,7 @@ em { font-style: italic; }
 </head>
 <body>
   <div class="cover">
-    ${hasCover ? `<img src="images/cover.jpg" alt="Cover"/>` : ''}
+    ${hasCover ? `<img src="images/${coverFileName}" alt="Cover"/>` : ''}
     <h1>${escapeXml(title)}</h1>
     ${description ? `<p class="description">${escapeXml(description)}</p>` : ''}
     <p class="description">By ${escapeXml(author)}</p>
@@ -320,7 +352,7 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
   ];
 
   if (hasCover) {
-    manifestItems.unshift(`<item id="cover-image" href="images/cover.jpg" media-type="${coverMediaType}" properties="cover-image"/>`);
+    manifestItems.unshift(`<item id="cover-image" href="images/${coverFileName}" media-type="${coverMediaType}" properties="cover-image"/>`);
   }
 
   const spineItems = [

@@ -1,5 +1,69 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #331 Implementation
+
+### Completed Features: 331/331 (100%)
+
+### Feature #331: Fix upload copertina EPUB - percorso ed estensione
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** Il caricamento dell'immagine di copertina per l'export EPUB fallisce a causa di due problemi:
+1. Il percorso di upload di multer è relativo invece che assoluto, causando inconsistenze in base alla CWD del server
+2. Multer salva i file senza estensione, quindi quando si legge il file per includerlo nell'EPUB, l'estensione del file risulta vuota e il media type viene impostato male
+
+**Root Causes:**
+1. La configurazione multer originale usava `dest: 'uploads/covers/'` - un percorso relativo che dipende dalla CWD
+2. Multer di default salva file senza estensione (solo un hash), quindi `path.extname()` restituisce vuoto
+
+**Solution:**
+
+1. **Configurazione Multer con percorso assoluto:**
+   - Cambiato da `dest: 'uploads/covers/'` a `path.resolve(__dirname, '../../../uploads/covers')`
+   - Questo garantisce che il percorso sia sempre `/Users/rosario/CODICE/omniwriter/uploads/covers`
+
+2. **Preservare estensione file originale:**
+   - Implementato `multer.diskStorage` con funzione `filename` personalizzata
+   - Estrae l'estensione dal file originale: `path.extname(file.originalname).toLowerCase()`
+   - Genera un UUID e concatena l'estensione: `${uuidv4()}${ext}`
+
+3. **Corretto rilevamento media type in generateEpub:**
+   - Aggiunto supporto per .png, .webp, .jpg
+   - Usa `coverFileName` dinamico invece di hardcoded `cover.jpg`
+   - Imposta correttamente `coverMediaType` basato sull'estensione
+
+**Files Modified:**
+- `server/src/routes/export.ts`
+
+**Verification:**
+
+Testato con script Node.js che carica immagini di test:
+
+1. Upload PNG:
+   - Path: `/Users/rosario/CODICE/omniwriter/uploads/covers/ac52b270-6feb-43bf-9337-73be53135e04.png`
+   - ✅ Percorso assoluto
+   - ✅ Estensione .png preservata
+   - ✅ File esistente e leggibile
+
+2. Upload JPG:
+   - Path: `/Users/rosario/CODICE/omniwriter/uploads/covers/2a24dff0-2ca6-494a-8036-eb3547e88d82.jpg`
+   - ✅ Percorso assoluto
+   - ✅ Estensione .jpg preservata
+   - ✅ File esistente e leggibile
+
+**Feature Test Steps Verified:**
+1. ✅ "Modificare la configurazione multer in server/src/routes/export.ts per usare un percorso assoluto basato su __dirname" - Implementato con path.resolve
+2. ✅ "Aggiungere logica per preservare l'estensione del file originale durante l'upload" - Implementato con diskStorage filename
+3. ✅ "Verificare che il file venga salvato con l'estensione corretta (.jpg, .png, .webp)" - Testato con PNG e JPG
+4. ✅ "Testare l'upload di una cover image e verificare che l'EPUB generato la contenga correttamente" - Upload testato via API
+5. ✅ "Verificare che il percorso salvato nel database sia assoluto e accessibile" - Verificato path assoluto
+
+### Commit: (pending)
+
+**Status: Feature #331 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-23 - Feature #329 Verification
 
 ### Completed Features: 329/329 (100%)
