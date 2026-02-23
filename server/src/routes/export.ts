@@ -120,6 +120,11 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
+// Helper function to escape regex special characters (Feature #335)
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Helper function to escape HTML content
 function escapeHtml(text: string): string {
   return text
@@ -325,7 +330,15 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
   // Chapter XHTML files
   chapters.forEach((chapter, index) => {
     const chapterTitle = escapeXml(chapter.title || `Chapter ${index + 1}`);
-    const chapterContent = markdownToXhtml(chapter.content || '');
+    // Feature #335: Remove duplicate title from chapter content
+    let rawContent = chapter.content || '';
+    // Check if content starts with the chapter title (with or without number/markdown heading)
+    // Escape special regex characters in the title to prevent regex injection
+    const rawTitle = chapter.title || 'Untitled';
+    const escapedTitle = escapeRegex(rawTitle);
+    const titlePattern = new RegExp(`^(#{1,3}\\s*)?(${escapedTitle}|${index + 1}\\.\\s*${escapedTitle})[\\s\\n]*`, 'i');
+    rawContent = rawContent.replace(titlePattern, '');
+    const chapterContent = markdownToXhtml(rawContent);
 
     const chapterXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -523,8 +536,14 @@ async function generateDocx(title: string, description: string, chapters: any[],
 }
 
 // Helper function to generate TXT file
-function generateTxt(title: string, description: string, chapters: any[], area?: string): Buffer {
+function generateTxt(title: string, description: string, chapters: any[], area?: string, authorName?: string): Buffer {
+  // Header: Title
   let content = `${title}\n${'='.repeat(title.length)}\n\n`;
+
+  // Author name (if available)
+  if (authorName && authorName.trim()) {
+    content += `${authorName.trim()}\n\n`;
+  }
 
   // Add table of contents for Saggista projects
   if (area === 'saggista' && chapters.length > 0) {
@@ -534,11 +553,16 @@ function generateTxt(title: string, description: string, chapters: any[], area?:
 
   content += description ? description + '\n\n' : '';
 
-  // Add chapters
+  // Add chapters - avoid duplicating chapter title in content
   content += chapters.map((ch, i) => {
     const chapterTitle = `${i + 1}. ${ch.title || 'Untitled'}`;
     const separator = '-'.repeat(chapterTitle.length);
-    return `\n\n${chapterTitle}\n${separator}\n\n${ch.content || ''}`;
+    // Clean content: remove leading title if it duplicates the chapter title
+    let chapterContent = ch.content || '';
+    // Check if content starts with the chapter title (with or without number)
+    const titlePattern = new RegExp(`^(${ch.title || 'Untitled'}|${i + 1}\\.\\s*${ch.title || 'Untitled'})[\\s\\n]*`, 'i');
+    chapterContent = chapterContent.replace(titlePattern, '');
+    return `\n\n${chapterTitle}\n${separator}\n\n${chapterContent.trim()}`;
   }).join('\n\n');
 
   return Buffer.from(content, 'utf-8');
@@ -566,9 +590,9 @@ router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, 
       }
     }
 
-    // Verify project belongs to user
+    // Verify project belongs to user and get author name
     const project = db.prepare(
-      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+      'SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.user_id = ?'
     ).get(projectId, userId) as any;
 
     if (!project) {
@@ -615,7 +639,7 @@ router.post('/projects/:id/export', authenticateToken, async (req: AuthRequest, 
       mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     } else {
       // Default to TXT
-      content = generateTxt(project.title, project.description || '', chapters, project.area);
+      content = generateTxt(project.title, project.description || '', chapters, project.area, project.author_name);
       filename = `${project.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
       mimeType = 'text/plain';
     }
