@@ -58,7 +58,7 @@ Testato con script Node.js che carica immagini di test:
 4. ✅ "Testare l'upload di una cover image e verificare che l'EPUB generato la contenga correttamente" - Upload testato via API
 5. ✅ "Verificare che il percorso salvato nel database sia assoluto e accessibile" - Verificato path assoluto
 
-### Commit: (pending)
+### Commit: e9c345a
 
 **Status: Feature #331 MARKED PASSING**
 
