@@ -1429,7 +1429,7 @@ export default function ProjectDetail() {
       const formData = new FormData();
       formData.append('cover', file);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/projects/${id}/export/cover`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/projects/${id}/export/cover`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
