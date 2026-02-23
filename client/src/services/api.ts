@@ -823,6 +823,10 @@ class ApiService {
     });
   }
 
+  async getBibliography(projectId: string): Promise<{ project_title: string; citations: string[]; total: number }> {
+    return this.request<{ project_title: string; citations: string[]; total: number }>(`/projects/${projectId}/bibliography`);
+  }
+
   async importProject(file: File, options: {
     area: 'romanziere' | 'saggista' | 'redattore';
     genre?: string;

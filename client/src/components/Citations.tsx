@@ -70,15 +70,7 @@ export default function Citations({ projectId }: CitationsProps) {
 
   const loadBibliography = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/projects/${projectId}/bibliography`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to generate bibliography');
-      }
-      const data = await response.json();
+      const data = await apiService.getBibliography(projectId);
       setBibliography(data.citations);
       setShowBibliography(true);
     } catch (err: any) {
