@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Quote, Plus, Trash2, Edit2, FileText, BookOpen } from 'lucide-react';
+import { Quote, Plus, Trash2, Edit2, FileText, BookOpen, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import { useToastNotification } from './Toast';
 import { useFocusTrapSimple } from '../hooks/useFocusTrap';
@@ -22,15 +23,8 @@ interface CitationsProps {
   projectId: string;
 }
 
-const CITATION_TYPES = [
-  { value: 'book', label: 'Libro' },
-  { value: 'journal', label: 'Rivista' },
-  { value: 'website', label: 'Sito web' },
-  { value: 'report', label: 'Rapporto' },
-  { value: 'other', label: 'Altro' },
-];
-
 export default function Citations({ projectId }: CitationsProps) {
+  const { t } = useTranslation();
   const toast = useToastNotification();
   const [citations, setCitations] = useState<Citation[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,6 +51,17 @@ export default function Citations({ projectId }: CitationsProps) {
     citation_type: 'book' as 'book' | 'journal' | 'website' | 'report' | 'other',
     notes: '',
   });
+
+  // Get citation types with translations
+  const getCitationTypes = () => [
+    { value: 'book', label: t('citations.types.book') },
+    { value: 'journal', label: t('citations.types.journal') },
+    { value: 'website', label: t('citations.types.website') },
+    { value: 'report', label: t('citations.types.report') },
+    { value: 'other', label: t('citations.types.other') },
+  ];
+
+  const CITATION_TYPES = getCitationTypes();
 
   useEffect(() => {
     loadCitations();
@@ -179,7 +184,7 @@ export default function Citations({ projectId }: CitationsProps) {
         <div className="flex items-center gap-2">
           <Quote className="w-5 h-5 text-teal-600 dark:text-teal-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Citazioni
+            {t('citations.title')}
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400">
             ({citations.length})
@@ -191,14 +196,14 @@ export default function Citations({ projectId }: CitationsProps) {
             className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <FileText className="w-4 h-4" />
-            Genera Bibliografia
+            {t('citations.generateBibliography')}
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
-            {editingCitation ? 'Modifica' : 'Aggiungi'} Citazione
+            {editingCitation ? t('citations.editCitation') : t('citations.addCitation')}
           </button>
         </div>
       </div>
@@ -218,13 +223,13 @@ export default function Citations({ projectId }: CitationsProps) {
                 id="bibliography-title"
                 className="text-xl font-bold text-gray-900 dark:text-gray-100"
               >
-                Bibliografia Generata
+                {t('citations.bibliographyTitle')}
               </h3>
               <button
                 onClick={() => setShowBibliography(false)}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <Trash2 className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
@@ -239,8 +244,8 @@ export default function Citations({ projectId }: CitationsProps) {
               ) : (
                 <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                   <FileText className="w-12 h-12 mx-auto mb-3" />
-                  <p className="text-lg font-medium mb-1">Nessuna citazione</p>
-                  <p className="text-sm">Aggiungi citazioni per generare la bibliografia</p>
+                  <p className="text-lg font-medium mb-1">{t('citations.noBibliographyCitations')}</p>
+                  <p className="text-sm">{t('citations.addCitationsForBibliography')}</p>
                 </div>
               )}
             </div>
@@ -248,17 +253,17 @@ export default function Citations({ projectId }: CitationsProps) {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(bibliography.map((c, i) => `${i + 1}. ${c}`).join('\n'));
-                  toast.success('Bibliografia copiata negli appunti!');
+                  toast.success(t('citations.bibliographyCopied'));
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                Copia negli appunti
+                {t('citations.copyToClipboard')}
               </button>
               <button
                 onClick={() => setShowBibliography(false)}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
               >
-                Chiudi
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -279,7 +284,7 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Title */}
               <div>
                 <label htmlFor="title" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Titolo *
+                  {t('citations.fields.title')} *
                 </label>
                 <input
                   id="title"
@@ -287,7 +292,7 @@ export default function Citations({ projectId }: CitationsProps) {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
-                  placeholder="Titolo dell'opera"
+                  placeholder={t('citations.fields.titlePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   disabled={saving}
                 />
@@ -296,14 +301,14 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Authors */}
               <div>
                 <label htmlFor="authors" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Autori
+                  {t('citations.fields.authors')}
                 </label>
                 <input
                   id="authors"
                   type="text"
                   value={formData.authors}
                   onChange={(e) => setFormData({ ...formData, authors: e.target.value })}
-                  placeholder="Cognome, Nome"
+                  placeholder={t('citations.fields.authorsPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   disabled={saving}
                 />
@@ -312,7 +317,7 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Citation Type */}
               <div>
                 <label htmlFor="citation_type" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Tipo di citazione
+                  {t('citations.fields.citationType')}
                 </label>
                 <select
                   id="citation_type"
@@ -330,7 +335,7 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Publication Year */}
               <div>
                 <label htmlFor="publication_year" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Anno di pubblicazione
+                  {t('citations.fields.publicationYear')}
                 </label>
                 <input
                   id="publication_year"
@@ -346,14 +351,14 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Publisher */}
               <div>
                 <label htmlFor="publisher" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Editore / Rivista
+                  {t('citations.fields.publisher')}
                 </label>
                 <input
                   id="publisher"
                   type="text"
                   value={formData.publisher}
                   onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
-                  placeholder="Nome dell'editore"
+                  placeholder={t('citations.fields.publisherPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   disabled={saving}
                 />
@@ -363,14 +368,14 @@ export default function Citations({ projectId }: CitationsProps) {
               {formData.citation_type === 'website' && (
                 <div>
                   <label htmlFor="url" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    URL
+                    {t('citations.fields.url')}
                   </label>
                   <input
                     id="url"
                     type="url"
                     value={formData.url}
                     onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                    placeholder="https://example.com"
+                    placeholder={t('citations.fields.urlPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                     disabled={saving}
                   />
@@ -380,14 +385,14 @@ export default function Citations({ projectId }: CitationsProps) {
               {/* Page Numbers */}
               <div>
                 <label htmlFor="page_numbers" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Numeri di pagina
+                  {t('citations.fields.pageNumbers')}
                 </label>
                 <input
                   id="page_numbers"
                   type="text"
                   value={formData.page_numbers}
                   onChange={(e) => setFormData({ ...formData, page_numbers: e.target.value })}
-                  placeholder="pp. 123-145"
+                  placeholder={t('citations.fields.pageNumbersPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   disabled={saving}
                 />
@@ -397,13 +402,13 @@ export default function Citations({ projectId }: CitationsProps) {
             {/* Notes */}
             <div>
               <label htmlFor="notes" className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Note
+                {t('citations.fields.notes')}
               </label>
               <textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Note aggiuntive su questa citazione..."
+                placeholder={t('citations.fields.notesPlaceholder')}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                 disabled={saving}
@@ -418,7 +423,7 @@ export default function Citations({ projectId }: CitationsProps) {
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium"
                 disabled={saving}
               >
-                Annulla
+                {t('citations.messages.cancel')}
               </button>
               <button
                 type="submit"
@@ -428,12 +433,12 @@ export default function Citations({ projectId }: CitationsProps) {
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Salvataggio...
+                    {t('citations.messages.saving')}
                   </>
                 ) : (
                   <>
                     <BookOpen className="w-4 h-4" />
-                    {editingCitation ? 'Aggiorna' : 'Aggiungi'} Citazione
+                    {editingCitation ? t('citations.messages.update') : t('citations.addCitation')}
                   </>
                 )}
               </button>
@@ -446,13 +451,13 @@ export default function Citations({ projectId }: CitationsProps) {
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         {loading ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            Caricamento citazioni...
+            {t('citations.loading')}
           </div>
         ) : citations.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             <Quote className="w-12 h-12 mx-auto mb-3" />
-            <p className="text-lg font-medium mb-1">Nessuna citazione</p>
-            <p className="text-sm">Aggiungi citazioni per tracciare le fonti del tuo saggio</p>
+            <p className="text-lg font-medium mb-1">{t('citations.noCitations')}</p>
+            <p className="text-sm">{t('citations.addCitationsHint')}</p>
           </div>
         ) : (
           citations.map((citation, index) => (
@@ -469,7 +474,7 @@ export default function Citations({ projectId }: CitationsProps) {
                       citation.citation_type === 'website' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' :
                       'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                     }`}>
-                      {CITATION_TYPES.find(t => t.value === citation.citation_type)?.label || 'Altro'}
+                      {CITATION_TYPES.find(type => type.value === citation.citation_type)?.label || t('citations.types.other')}
                     </span>
                   </div>
                   <h3 className="text-gray-900 dark:text-gray-100 font-semibold mb-1">
@@ -477,24 +482,24 @@ export default function Citations({ projectId }: CitationsProps) {
                   </h3>
                   {citation.authors && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      <span className="font-medium">Autori:</span> {citation.authors}
+                      <span className="font-medium">{t('citations.labels.authors')}</span> {citation.authors}
                     </p>
                   )}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
                     {citation.publication_year && (
-                      <span><span className="font-medium">Anno:</span> {citation.publication_year}</span>
+                      <span><span className="font-medium">{t('citations.labels.year')}</span> {citation.publication_year}</span>
                     )}
                     {citation.publisher && (
-                      <span><span className="font-medium">Editore:</span> {citation.publisher}</span>
+                      <span><span className="font-medium">{t('citations.labels.publisher')}</span> {citation.publisher}</span>
                     )}
                     {citation.page_numbers && (
-                      <span><span className="font-medium">Pagine:</span> {citation.page_numbers}</span>
+                      <span><span className="font-medium">{t('citations.labels.pages')}</span> {citation.page_numbers}</span>
                     )}
                   </div>
                   {citation.notes && (
                     <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
                       <p className="text-xs text-gray-700 dark:text-gray-300">
-                        <span className="font-semibold">Note:</span> {citation.notes}
+                        <span className="font-semibold">{t('citations.labels.notes')}</span> {citation.notes}
                       </p>
                     </div>
                   )}
@@ -503,14 +508,14 @@ export default function Citations({ projectId }: CitationsProps) {
                   <button
                     onClick={() => handleEdit(citation)}
                     className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                    title="Modifica citazione"
+                    title={t('citations.buttons.editHint')}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(citation.id, citation.title)}
                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    title="Elimina citazione"
+                    title={t('citations.buttons.deleteHint')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -524,13 +529,13 @@ export default function Citations({ projectId }: CitationsProps) {
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Conferma eliminazione"
-        message="Sei sicuro di voler eliminare questa citazione?"
+        title={t('citations.deleteConfirm.title')}
+        message={t('citations.deleteConfirm.message')}
         itemName={deleteConfirm.citationTitle}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
-        confirmText="Elimina"
-        cancelText="Annulla"
+        confirmText={t('citations.deleteConfirm.confirm')}
+        cancelText={t('citations.deleteConfirm.cancel')}
       />
     </div>
   );

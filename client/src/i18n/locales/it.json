@@ -1401,5 +1401,64 @@
     "romanziere": "Romanziere",
     "saggista": "Saggista",
     "redattore": "Redattore"
+  },
+  "citations": {
+    "title": "Citazioni",
+    "addCitation": "Aggiungi Citazione",
+    "editCitation": "Modifica Citazione",
+    "generateBibliography": "Genera Bibliografia",
+    "bibliographyTitle": "Bibliografia Generata",
+    "copyToClipboard": "Copia negli appunti",
+    "bibliographyCopied": "Bibliografia copiata negli appunti!",
+    "noCitations": "Nessuna citazione",
+    "addCitationsHint": "Aggiungi citazioni per tracciare le fonti del tuo saggio",
+    "noBibliographyCitations": "Nessuna citazione",
+    "addCitationsForBibliography": "Aggiungi citazioni per generare la bibliografia",
+    "loading": "Caricamento citazioni...",
+    "deleteConfirm": {
+      "title": "Conferma eliminazione",
+      "message": "Sei sicuro di voler eliminare questa citazione?",
+      "confirm": "Elimina",
+      "cancel": "Annulla"
+    },
+    "fields": {
+      "title": "Titolo",
+      "titlePlaceholder": "Titolo dell'opera",
+      "authors": "Autori",
+      "authorsPlaceholder": "Cognome, Nome",
+      "publicationYear": "Anno di pubblicazione",
+      "publisher": "Editore / Rivista",
+      "publisherPlaceholder": "Nome dell'editore",
+      "url": "URL",
+      "urlPlaceholder": "https://example.com",
+      "pageNumbers": "Numeri di pagina",
+      "pageNumbersPlaceholder": "pp. 123-145",
+      "citationType": "Tipo di citazione",
+      "notes": "Note",
+      "notesPlaceholder": "Note aggiuntive su questa citazione..."
+    },
+    "types": {
+      "book": "Libro",
+      "journal": "Rivista",
+      "website": "Sito web",
+      "report": "Rapporto",
+      "other": "Altro"
+    },
+    "labels": {
+      "authors": "Autori:",
+      "year": "Anno:",
+      "publisher": "Editore:",
+      "pages": "Pagine:",
+      "notes": "Note:"
+    },
+    "buttons": {
+      "editHint": "Modifica citazione",
+      "deleteHint": "Elimina citazione"
+    },
+    "messages": {
+      "saving": "Salvataggio...",
+      "update": "Aggiorna",
+      "cancel": "Annulla"
+    }
   }
 }

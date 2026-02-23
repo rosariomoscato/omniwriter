@@ -1401,5 +1401,64 @@
     "romanziere": "Novelist",
     "saggista": "Essayist",
     "redattore": "Editor"
+  },
+  "citations": {
+    "title": "Citations",
+    "addCitation": "Add Citation",
+    "editCitation": "Edit Citation",
+    "generateBibliography": "Generate Bibliography",
+    "bibliographyTitle": "Generated Bibliography",
+    "copyToClipboard": "Copy to clipboard",
+    "bibliographyCopied": "Bibliography copied to clipboard!",
+    "noCitations": "No citations",
+    "addCitationsHint": "Add citations to track sources for your essay",
+    "noBibliographyCitations": "No citations",
+    "addCitationsForBibliography": "Add citations to generate the bibliography",
+    "loading": "Loading citations...",
+    "deleteConfirm": {
+      "title": "Confirm Deletion",
+      "message": "Are you sure you want to delete this citation?",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "Title of the work",
+      "authors": "Authors",
+      "authorsPlaceholder": "Last name, First name",
+      "publicationYear": "Publication Year",
+      "publisher": "Publisher/Journal",
+      "publisherPlaceholder": "Publisher name",
+      "url": "URL",
+      "urlPlaceholder": "https://example.com",
+      "pageNumbers": "Page Numbers",
+      "pageNumbersPlaceholder": "pp. 123-145",
+      "citationType": "Citation Type",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional notes about this citation..."
+    },
+    "types": {
+      "book": "Book",
+      "journal": "Journal",
+      "website": "Website",
+      "report": "Report",
+      "other": "Other"
+    },
+    "labels": {
+      "authors": "Authors:",
+      "year": "Year:",
+      "publisher": "Publisher:",
+      "pages": "Pages:",
+      "notes": "Notes:"
+    },
+    "buttons": {
+      "editHint": "Edit citation",
+      "deleteHint": "Delete citation"
+    },
+    "messages": {
+      "saving": "Saving...",
+      "update": "Update",
+      "cancel": "Cancel"
+    }
   }
 }
