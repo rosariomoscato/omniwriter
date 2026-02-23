@@ -1,5 +1,53 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #332 Implementation
+
+### Completed Features: 332/332 (100%)
+
+### Feature #332: Fix URL upload cover hardcoded su porta sbagliata
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** In ProjectDetail.tsx riga 1432, l'URL per l'upload della cover image aveva un fallback hardcoded a 'http://localhost:3001/api' invece di '/api'. Questo causava un errore 'Failed to fetch' quando il server gira su una porta diversa (5001).
+
+**Solution:**
+- Cambiato il fallback in ProjectDetail.tsx da `'http://localhost:3001/api'` a `'/api'`
+- Questo permette di usare correttamente il proxy Vite configurato
+
+**Implementation:**
+
+Modified `/client/src/pages/ProjectDetail.tsx`:
+- Linea 1432: Cambiato da:
+  ```typescript
+  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/projects/${id}/export/cover`, {
+  ```
+  a:
+  ```typescript
+  const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/projects/${id}/export/cover`, {
+  ```
+
+**Verification:**
+
+Testato con browser automation:
+1. Effettuato login come utente premium (testcoverupload@test.com)
+2. Aperto il progetto "Test EPUB Cover Novel"
+3. Cliccato su "Esporta" e selezionato formato EPUB
+4. Caricata un'immagine di copertina JPG (2a24dff0-2ca6-494a-8036-eb3547e88d82.jpg)
+5. Upload completato con successo - l'immagine viene mostrata come preview
+6. Zero errori console
+
+Network log ha confermato:
+- `[POST] http://localhost:3000/api/projects/3e80903c-79b8-495d-a4c1-8e8922adb13a/export/cover => [200] OK`
+
+**Files Modified:**
+- `client/src/pages/ProjectDetail.tsx`
+
+### Commit: f4a782c
+
+**Status: Feature #332 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-23 - Feature #331 Implementation
 
 ### Completed Features: 331/331 (100%)
