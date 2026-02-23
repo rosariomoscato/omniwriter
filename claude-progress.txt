@@ -1,5 +1,64 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #328 Implementation
+
+### Completed Features: 327/327 (100%)
+
+### Feature #328: Prompt specifici per area (Saggista/Romanziere/Redattore)
+
+**Status:** ✅ COMPLETED
+
+**Objective:** Attualmente il prompt di generazione capitoli era hardcoded per romanzi. Le tre aree (Romanziere, Saggista, Redattore) richiedono prompt completamente diversi:
+- SAGGISTA: Stile accademico/saggistico, argomentativo, con riferimenti bibliografici e fonti
+- ROMANZIERE: Narrazione creativa, personaggi, dialoghi, ambientazioni, trama
+- REDATTORE: Giornalismo, articoli, stile editoriale, titoli accattivanti, struttura giornalistica
+
+**Implementation:**
+
+Added three area-specific prompt builder functions in `server/src/routes/chapters.ts`:
+
+1. **buildNovelistPrompt()** (lines 34-57)
+   - Focus on creative narrative, characters, dialogues, settings, plot
+   - Includes project title, genre, tone, target audience
+   - Chapter synopsis support
+   - Italian and English versions
+
+2. **buildEssayistPrompt()** (lines 63-100)
+   - Focus on academic/essayistic style, argumentative writing
+   - Emphasizes facts, research, citations, and references
+   - Structure: introduction, main arguments, evidence, conclusions
+   - Italian and English versions
+
+3. **buildEditorPrompt()** (lines 106-145)
+   - Focus on editorial style, engaging headlines
+   - Journalistic structure: lead, body, closing
+   - Short paragraphs, direct sentences
+   - Italian and English versions
+
+4. **getAreaPrompt()** (lines 150-160)
+   - Router function that selects the correct prompt based on project area
+   - Cases: 'saggista', 'redattore', 'romanziere' (default)
+
+**Usage:**
+- Line 955: `let systemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);`
+- Line 1885: Same pattern for regenerate endpoint
+- Log message: `[Generate Stream] Using ${chapter.area} area prompt for project: ${chapter.project_title}`
+
+**Verification:**
+- Created test user "Feature328 Test"
+- Created Saggista project "Test Saggio AI Prompts"
+- Successfully created chapter "Introduzione all'AI"
+- Verified Saggista-specific UI elements (Indice del Saggio, Citazioni)
+- Zero console errors during test
+- Chapter count updated correctly (0 → 1)
+
+**Files Modified:**
+- `server/src/routes/chapters.ts` - Added 4 new functions for area-specific prompts
+
+**Commit:** f213325
+
+---
+
 ## Session: 2026-02-23 - Feature #327 Implementation
 
 ### Completed Features: 326/326 (100%)
@@ -4636,6 +4695,10 @@ Testato con browser automation:
 
 ---
 
-## MILESTONE ACHIEVED: 323/323 Features Passing (100%)
+## MILESTONE ACHIEVED: 327/327 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
+Latest completed: Feature #328 - Area-specific AI prompts for Romanziere/Saggista/Redattore
 
 All features have been successfully implemented and verified!
