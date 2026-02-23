@@ -1,5 +1,66 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #326 Implementation
+
+### Completed Features: 325/325 (100%)
+
+### Feature #326: Add i18n to Citations component
+
+**Status:** ✅ COMPLETED
+
+**Objective:** The Citations component was showing Italian text even when English was selected. The component did not use react-i18next's useTranslation hook. All text strings needed to be internationalized.
+
+**Implementation:**
+
+1. **Added useTranslation hook:**
+   - Imported `useTranslation` from 'react-i18next'
+   - Added `const { t } = useTranslation()` at the beginning of the component
+   - Replaced hardcoded CITATION_TYPES array with a function that uses translated labels
+
+2. **Added complete 'citations' translation section to i18n files:**
+
+   **English (en.json):**
+   - title: "Citations"
+   - addCitation: "Add Citation"
+   - editCitation: "Edit Citation"
+   - generateBibliography: "Generate Bibliography"
+   - bibliographyTitle: "Generated Bibliography"
+   - deleteConfirm.title: "Confirm Deletion"
+   - deleteConfirm.message: "Are you sure you want to delete this citation?"
+   - And 30+ more keys for fields, types, labels, buttons, and messages
+
+   **Italian (it.json):**
+   - title: "Citazioni"
+   - addCitation: "Aggiungi Citazione"
+   - editCitation: "Modifica Citazione"
+   - generateBibliography: "Genera Bibliografia"
+   - bibliographyTitle: "Bibliografia Generata"
+   - deleteConfirm.title: "Conferma eliminazione"
+   - deleteConfirm.message: "Sei sicuro di voler eliminare questa citazione?"
+   - And matching Italian translations for all other keys
+
+3. **Replaced all hardcoded strings:**
+   - Component title and section headers
+   - Form labels and placeholders
+   - Citation type labels (Book, Journal, Website, Report, Other)
+   - Button text (Add, Edit, Update, Cancel)
+   - Delete confirmation dialog text
+   - Empty state messages
+   - Loading messages
+   - Bibliography modal text
+
+4. **Fixed close button in bibliography modal:**
+   - Changed from Trash2 icon to X icon for the close button (more appropriate UX)
+
+**Files Modified:**
+- `client/src/components/Citations.tsx` - Added i18n support
+- `client/src/i18n/locales/en.json` - Added citations translation section
+- `client/src/i18n/locales/it.json` - Added citations translation section
+
+**Commit:** e236c75
+
+---
+
 ## Session: 2026-02-21 - Features #313 and #314 Implementation
 
 ### Completed Features: 314/314 (100%)
