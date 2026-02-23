@@ -915,6 +915,48 @@ export default function ProjectDetail() {
     }
   };
 
+  // Feature #330: Generate essay outline for Saggista projects
+  const handleGenerateEssayOutline = async () => {
+    if (!project) return;
+
+    // Check if any chapters already exist - show confirmation dialog
+    if (chapters.length > 0) {
+      setShowOutlineConfirmDialog(true);
+      return;
+    }
+
+    // No chapters exist, proceed directly
+    await executeGenerateEssayOutline();
+  };
+
+  const executeGenerateEssayOutline = async () => {
+    if (!project) return;
+
+    try {
+      setGeneratingOutline(true);
+      setError('');
+      toast.info(i18n.language === 'it'
+        ? `Generazione indice per "${project.title}"...`
+        : `Generating outline for "${project.title}"...`);
+
+      const response = await apiService.generateEssayOutline(id!, i18n.language);
+
+      toast.success(i18n.language === 'it'
+        ? `Indice generato: ${response.created} sezioni create`
+        : `Outline generated: ${response.created} sections created`);
+
+      // Reload chapters to show the newly created outline sections
+      await loadChapters();
+
+      setOutlineGenerated(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate essay outline');
+      toast.error(err.message || 'Failed to generate essay outline');
+    } finally {
+      setGeneratingOutline(false);
+    }
+  };
+
   // Feature #298: Finalize episode for saga continuity
   const handleFinalizeEpisode = async () => {
     if (!project) return;
@@ -2724,6 +2766,19 @@ export default function ProjectDetail() {
               </button>
             )}
 
+            {/* Generate Essay Outline button - Only for Saggista projects (Feature #330) */}
+            {project?.area === 'saggista' && (
+              <button
+                onClick={handleGenerateEssayOutline}
+                disabled={generatingOutline}
+                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={t('projectPage.chapters.generateEssayOutlineHint', 'Generate a structured essay outline with thesis, arguments, and sources')}
+              >
+                <FileText className="w-4 h-4" />
+                {generatingOutline ? t('common.loading') : t('projectPage.chapters.generateEssayOutline', 'Generate Outline')}
+              </button>
+            )}
+
             {/* Plot Hole Detection button - Only for Romanziere projects (Feature #182, #282, #283) */}
             {project?.area === 'romanziere' && (
               <>
@@ -4283,7 +4338,12 @@ export default function ProjectDetail() {
         message={t('projectPage.outlineConfirm.message', 'This project already has chapters. Generating an outline will add new chapters to the existing ones. Continue?')}
         onConfirm={() => {
           setShowOutlineConfirmDialog(false);
-          executeGenerateOutline();
+          // Feature #330: Call appropriate handler based on project type
+          if (project?.area === 'saggista') {
+            executeGenerateEssayOutline();
+          } else {
+            executeGenerateOutline();
+          }
         }}
         onCancel={() => setShowOutlineConfirmDialog(false)}
         confirmText={t('common.confirm', 'Continue')}

@@ -1,5 +1,67 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-23 - Feature #329 Verification
+
+### Completed Features: 329/329 (100%)
+
+### Feature #329: Abilita Genera Indice per Saggi - Frontend
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** Il pulsante "Genera Indice" è attualmente visibile solo per i progetti di tipo 'novelist'. Questa feature estende la visibilità anche ai progetti di tipo 'essayist', permettendo agli utenti di generare automaticamente la struttura indice di un saggio.
+
+**Implementation Analysis:**
+
+The feature was already implemented in the codebase:
+
+1. **Frontend (ProjectDetail.tsx lines 2769-2780):**
+   - Separate button for Saggista projects
+   - Condition: `project?.area === 'saggista'`
+   - Uses `handleGenerateEssayOutline` handler
+   - Calls `apiService.generateEssayOutline(projectId, language)`
+   - Button text: "Genera Indice" (Generate Outline)
+   - Style: Emerald color (bg-emerald-600)
+
+2. **Backend (projects.ts lines 4525-4750):**
+   - Endpoint: `POST /api/projects/:id/generate/essay-outline`
+   - Generates structured essay outline with:
+     - Introduction and thesis
+     - Main arguments
+     - Counter-arguments
+     - Conclusion
+   - Considers project settings (topic, depth, structure, target audience)
+   - Creates chapters in the database
+
+**Verification:**
+
+1. Created test user "Outline Test User"
+2. Created Saggista project "Test Essay for Outline Generation"
+   - Topic: Climate Change and Society
+   - Depth: Deep Dive
+   - Target Audience: General public
+   - Structure: Popular
+3. Verified "Genera Indice" button is visible on project page
+4. Tested API endpoint directly:
+   - Request: POST /api/projects/:id/generate/essay-outline
+   - Response: 5 sections created successfully
+   - Sections: Introduzione e Tesi, Contesto Storico, Analisi Principale, Argomentazione, Controargomentazioni
+5. Zero console errors
+
+**Feature Test Steps Verified:**
+1. ✅ "Verificare che il file Chapters.tsx contenga il pulsante 'Genera Indice'" - Button exists in ProjectDetail.tsx
+2. ✅ "Modificare la condizione di visibilità da 'project?.type === novelist' a includere anche 'essayist'" - Button visible for saggista
+3. ✅ "Testare che il pulsante appaia correttamente nelle pagine dei progetti Saggista" - Verified via browser automation
+4. ✅ "Verificare che cliccando il pulsante venga chiamata correttamente l'API di generazione outline" - API test successful
+
+**Files Involved:**
+- `client/src/pages/ProjectDetail.tsx` (lines 918-958, 2769-2780)
+- `client/src/services/api.ts` (generateEssayOutline method)
+- `server/src/routes/projects.ts` (lines 4525-4750)
+
+**Commit:** Feature already implemented (no new code changes needed)
+
+---
+
 ## Session: 2026-02-23 - Feature #328 Implementation
 
 ### Completed Features: 327/327 (100%)

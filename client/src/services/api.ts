@@ -1631,6 +1631,38 @@ class ApiService {
     });
   }
 
+  // Generate essay outline (Feature #330 - dedicated prompt for Saggista projects)
+  async generateEssayOutline(projectId: string, language: string = 'it', numSections?: number): Promise<{
+    message: string;
+    outline: {
+      title: string;
+      thesis: string;
+      main_arguments: string[];
+      conclusion_summary: string;
+      total_sections: number;
+      sections: Array<{ id: string; title: string; summary: string }>;
+    };
+    created: number;
+    aiGenerated: boolean;
+  }> {
+    return this.request<{
+      message: string;
+      outline: {
+        title: string;
+        thesis: string;
+        main_arguments: string[];
+        conclusion_summary: string;
+        total_sections: number;
+        sections: Array<{ id: string; title: string; summary: string }>;
+      };
+      created: number;
+      aiGenerated: boolean;
+    }>(`/projects/${projectId}/generate/essay-outline`, {
+      method: 'POST',
+      body: JSON.stringify({ language, numSections }),
+    });
+  }
+
   // Plot hole detection (Feature #182, #282 - added signal support for timeout handling)
   async detectPlotHoles(projectId: string, language: string = 'it', signal?: AbortSignal): Promise<{
     message: string;

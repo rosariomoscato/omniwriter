@@ -4522,6 +4522,321 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
 });
 
 // ============================================================================
+// POST /api/projects/:id/generate/essay-outline - Generate Essay Outline (Feature #330)
+// Generates a structured outline for essayist (saggista) projects
+// Takes into account: theme, thesis, arguments, sources, and bibliography
+// ============================================================================
+
+interface EssayOutlineRequestBody {
+  language?: 'it' | 'en';
+  numSections?: number;
+}
+
+// @ts-expect-error - AuthRequest type compatibility with router
+router.post('/:id/generate/essay-outline', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const db = getDatabase();
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+    const { language = 'it', numSections = 8 } = req.body as EssayOutlineRequestBody;
+
+    console.log('[Projects] Generating essay outline for project:', projectId);
+
+    // Verify project belongs to user and is a Saggista project
+    const project = db.prepare(`
+      SELECT p.id, p.title, p.area, p.description, p.word_count_target, p.settings_json,
+             u.preferred_language
+      FROM projects p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = ? AND p.user_id = ?
+    `).get(projectId, userId) as {
+      id: string;
+      title: string;
+      area: string;
+      description: string;
+      word_count_target: number;
+      settings_json: string;
+      preferred_language: string;
+    } | undefined;
+
+    if (!project) {
+      res.status(404).json({ message: 'Project not found' });
+      return;
+    }
+
+    if (project.area !== 'saggista') {
+      res.status(400).json({ message: 'Essay outline generation is only available for Saggista projects' });
+      return;
+    }
+
+    // Get sources linked to the project
+    const sources = db.prepare(
+      'SELECT id, file_name, source_type FROM sources WHERE project_id = ?'
+    ).all(projectId) as Array<{
+      id: string;
+      file_name: string;
+      source_type: string;
+    }>;
+
+    // Get citations linked to the project
+    const citations = db.prepare(
+      'SELECT id, title, authors, publication_year, publisher, citation_type FROM citations WHERE project_id = ? ORDER BY order_index ASC'
+    ).all(projectId) as Array<{
+      id: string;
+      title: string;
+      authors: string;
+      publication_year: string;
+      publisher: string;
+      citation_type: string;
+    }>;
+
+    // Parse settings for any additional essay metadata
+    let settings: { thesis?: string; theme?: string; essayType?: string } = {};
+    try {
+      settings = project.settings_json ? JSON.parse(project.settings_json) : {};
+    } catch (e) {
+      console.warn('[Projects] Failed to parse settings_json:', e);
+    }
+
+    const userLang = project.preferred_language || language;
+
+    // Determine number of sections based on word count
+    const wordCountTarget = project.word_count_target || 10000;
+    const avgSectionWords = 1500;
+    const numSectionsToGenerate = numSections || Math.max(5, Math.min(15, Math.ceil(wordCountTarget / avgSectionWords)));
+
+    // Build context for AI
+    const sourcesContext = sources.length > 0
+      ? sources.map(s => `- ${s.file_name} (${s.source_type})`).join('\n')
+      : 'No sources uploaded yet';
+
+    const citationsContext = citations.length > 0
+      ? citations.map(c => {
+          const authors = c.authors ? ` by ${c.authors}` : '';
+          const year = c.publication_year ? ` (${c.publication_year})` : '';
+          return `- "${c.title}"${authors}${year}`;
+        }).join('\n')
+      : 'No citations added yet';
+
+    // AI prompt for essay outline generation
+    const isItalian = userLang === 'it';
+
+    const systemPrompt = isItalian
+      ? `Sei un esperto accademico e consulente editoriale specializzato nella stesura di saggi.
+Il tuo compito è creare un outline strutturato per un saggio accademico/divulgativo.
+Devi creare sezioni argomentative coerenti che sviluppino una tesi centrale.
+Rispondi SOLO con JSON valido, senza testo aggiuntivo.
+Ogni sezione deve avere un titolo contestuale (non generico) e un riassunto che colleghi alla tesi centrale.`
+      : `You are an academic expert and editorial consultant specializing in essay writing.
+Your task is to create a structured outline for an academic/non-fiction essay.
+You must create coherent argumentative sections that develop a central thesis.
+Respond ONLY with valid JSON, without additional text.
+Each section must have a contextual title (not generic) and a summary that links to the central thesis.`;
+
+    const userPrompt = isItalian
+      ? `Crea un outline per il seguente saggio.
+
+TITOLO DEL SAGGIO: "${project.title}"
+${project.description ? `DESCRIZIONE/TESI:\n${project.description}\n` : ''}
+${settings.thesis ? `TESI CENTRALE: ${settings.thesis}\n` : ''}
+${settings.theme ? `TEMA PRINCIPALE: ${settings.theme}\n` : ''}
+
+FONTI DISPONIBIBILI:
+${sourcesContext}
+
+BIBLIOGRAFIA ESISTENTE:
+${citationsContext}
+
+Genera un outline con ${numSectionsToGenerate} sezioni nel seguente formato JSON:
+{
+  "sections": [
+    {
+      "title": "Titolo della sezione (contestuale, non generico come 'Introduzione')",
+      "summary": "Riassunto dettagliato (100-200 parole) di cosa tratterà questa sezione, come si collega alla tesi e quali argomentazioni svilupperà",
+      "key_points": ["Punto chiave 1", "Punto chiave 2", "Punto chiave 3"],
+      "sources_to_use": ["Fonte suggerita 1", "Fonte suggerita 2"]
+    }
+  ],
+  "thesis_statement": "La tesi centrale del saggio",
+  "main_arguments": ["Argomentazione principale 1", "Argomentazione principale 2"],
+  "conclusion_summary": "Sintesi della conclusione"
+}
+
+IMPORTANTE:
+- L'outline deve seguire una struttura logica accademica: introduzione con tesi, argomentazioni, conclusione
+- Ogni sezione deve collegarsi alla tesi centrale
+- Suggerisci quali fonti usare per ogni sezione
+- Includi citazioni della bibliografia dove appropriato
+- I titoli devono essere specifici e descrittivi, non generici`
+      : `Create an outline for the following essay.
+
+ESSAY TITLE: "${project.title}"
+${project.description ? `DESCRIPTION/THESIS:\n${project.description}\n` : ''}
+${settings.thesis ? `CENTRAL THESIS: ${settings.thesis}\n` : ''}
+${settings.theme ? `MAIN THEME: ${settings.theme}\n` : ''}
+
+AVAILABLE SOURCES:
+${sourcesContext}
+
+EXISTING BIBLIOGRAPHY:
+${citationsContext}
+
+Generate an outline with ${numSectionsToGenerate} sections in the following JSON format:
+{
+  "sections": [
+    {
+      "title": "Section title (contextual, not generic like 'Introduction')",
+      "summary": "Detailed summary (100-200 words) of what this section will cover, how it relates to the thesis, and what arguments it will develop",
+      "key_points": ["Key point 1", "Key point 2", "Key point 3"],
+      "sources_to_use": ["Suggested source 1", "Suggested source 2"]
+    }
+  ],
+  "thesis_statement": "The central thesis of the essay",
+  "main_arguments": ["Main argument 1", "Main argument 2"],
+  "conclusion_summary": "Summary of the conclusion"
+}
+
+IMPORTANT:
+- The outline must follow a logical academic structure: introduction with thesis, arguments, conclusion
+- Each section must connect to the central thesis
+- Suggest which sources to use for each section
+- Include bibliography citations where appropriate
+- Titles must be specific and descriptive, not generic`;
+
+    // Get AI provider
+    const provider = await getProviderForUser(userId);
+    let generatedOutline: any = null;
+
+    if (provider) {
+      try {
+        console.log('[Projects] Calling AI for essay outline generation...');
+        const response = await provider.chat(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          { temperature: 0.7 }
+        );
+
+        // Parse JSON response
+        let jsonStr = response.content || '';
+        // Try to extract JSON from markdown code blocks
+        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+        }
+
+        generatedOutline = JSON.parse(jsonStr);
+        console.log('[Projects] AI generated essay outline successfully');
+      } catch (aiErr) {
+        console.error('[Projects] AI essay outline generation failed:', aiErr);
+        // Fall back to template generation
+      }
+    }
+
+    // Create sections based on generated outline or fallback template
+    const createdSections: Array<{ id: string; title: string; summary: string }> = [];
+
+    if (generatedOutline?.sections && Array.isArray(generatedOutline.sections)) {
+      // Create sections from AI-generated outline
+      for (let i = 0; i < generatedOutline.sections.length; i++) {
+        const section = generatedOutline.sections[i];
+        const sectionId = uuidv4();
+        const orderIndex = i;
+
+        // Build section content
+        const keyPoints = section.key_points?.length > 0
+          ? section.key_points.map((p: string) => `- ${p}`).join('\n')
+          : '';
+        const sourcesToUse = section.sources_to_use?.length > 0
+          ? section.sources_to_use.map((s: string) => `- ${s}`).join('\n')
+          : '';
+
+        const sectionContent = `# ${section.title}\n\n**${isItalian ? 'Riassunto' : 'Summary'}:**\n${section.summary || ''}\n\n${keyPoints ? `**${isItalian ? 'Punti Chiave' : 'Key Points'}:**\n${keyPoints}\n` : ''}${sourcesToUse ? `\n**${isItalian ? 'Fonti Suggerite' : 'Suggested Sources'}:**\n${sourcesToUse}\n` : ''}`;
+
+        try {
+          db.prepare(
+            `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+          ).run(
+            sectionId,
+            projectId,
+            section.title,
+            sectionContent,
+            section.summary || '',
+            orderIndex
+          );
+
+          createdSections.push({ id: sectionId, title: section.title, summary: section.summary || '' });
+          console.log('[Projects] Created essay section:', section.title);
+        } catch (err) {
+          console.warn('[Projects] Failed to create section:', section.title, err);
+        }
+      }
+    } else {
+      // Fallback template generation
+      const fallbackTitles = isItalian
+        ? ['Introduzione e Tesi', 'Contesto Storico', 'Analisi Principale', 'Argomentazione', 'Controargomentazioni', 'Discussione', 'Implicazioni', 'Conclusione']
+        : ['Introduction and Thesis', 'Historical Context', 'Main Analysis', 'Argumentation', 'Counterarguments', 'Discussion', 'Implications', 'Conclusion'];
+
+      const templatesCount = Math.min(numSectionsToGenerate, fallbackTitles.length);
+
+      for (let i = 0; i < templatesCount; i++) {
+        const sectionId = uuidv4();
+        const title = fallbackTitles[i] || `${isItalian ? 'Sezione' : 'Section'} ${i + 1}`;
+        const summary = isItalian
+          ? `Contenuto della sezione ${i + 1}. Da sviluppare in base alla tesi del saggio.`
+          : `Content for section ${i + 1}. To be developed based on the essay's thesis.`;
+
+        const sectionContent = `# ${title}\n\n**${isItalian ? 'Riassunto' : 'Summary'}:**\n${summary}`;
+
+        try {
+          db.prepare(
+            `INSERT INTO chapters (id, project_id, title, content, summary, order_index, status, word_count, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'draft', 0, datetime('now'), datetime('now'))`
+          ).run(
+            sectionId,
+            projectId,
+            title,
+            sectionContent,
+            summary,
+            i
+          );
+
+          createdSections.push({ id: sectionId, title, summary });
+          console.log('[Projects] Created fallback section:', title);
+        } catch (err) {
+          console.warn('[Projects] Failed to create fallback section:', title, err);
+        }
+      }
+    }
+
+    console.log('[Projects] Essay outline generation completed:', {
+      projectId,
+      totalSections: createdSections.length,
+      aiGenerated: !!generatedOutline
+    });
+
+    res.json({
+      message: 'Essay outline generated successfully',
+      outline: {
+        title: project.title,
+        thesis: generatedOutline?.thesis_statement || project.description || '',
+        main_arguments: generatedOutline?.main_arguments || [],
+        conclusion_summary: generatedOutline?.conclusion_summary || '',
+        total_sections: createdSections.length,
+        sections: createdSections
+      },
+      created: createdSections.length,
+      aiGenerated: !!generatedOutline
+    });
+  } catch (error) {
+    console.error('[Projects] Generate essay outline error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Failed to generate essay outline' });
+  }
+});
+
+// ============================================================================
 // POST /api/projects/:id/generate/sequel-outline - Generate Sequel Outline (Feature #260)
 // Generates chapters for a sequel project based on the previous novel in the saga
 // ============================================================================
