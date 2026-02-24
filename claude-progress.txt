@@ -1,5 +1,85 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #346 Implementation
+
+### Completed Features: 345/345 (100%)
+
+### Feature #346: Bug: Dashboard Personalizza settings not applied
+
+**Objective:** The Dashboard "Personalizza" button opens a settings modal that allows users to customize: viewMode (grid/list/compact), cardSize (small/medium/large), and toggles for showMetadata, showWordCount, showLastModified. However, these settings were saved to the database but NEVER actually applied to the project list rendering. The grid layout was hardcoded and the toggle options didn't affect what's displayed.
+
+**Root Cause:**
+In `Dashboard.tsx`, the `dashboardLayout` state was correctly loaded from the database via `apiService.getUserPreferences()` (lines 158-171), but the project list rendering (lines 1086-1234) was hardcoded to always use `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3` and always showed all information regardless of the toggle settings.
+
+**Solution:**
+
+1. **Apply viewMode setting:**
+   - `'grid'`: Uses the standard card layout with responsive grid columns
+   - `'list'`: Full-width horizontal cards with condensed information
+   - `'compact'`: Dense single-line rows showing only essential info
+
+2. **Apply cardSize setting (only when viewMode='grid'):**
+   - `'small'`: 4 columns on large screens (`lg:grid-cols-4`)
+   - `'medium'`: 3 columns on large screens (`lg:grid-cols-3`)
+   - `'large'`: 2 columns on large screens (`md:grid-cols-2`)
+
+3. **Apply showMetadata toggle:**
+   - In grid view: conditionally render genre info
+   - In list view: conditionally render genre info
+   - In compact view: conditionally render genre info (hidden on small screens)
+
+4. **Apply showWordCount toggle:**
+   - Conditionally render word count in all view modes
+
+5. **Apply showLastModified toggle:**
+   - Conditionally render last modified date in all view modes
+
+**Implementation Details:**
+
+Modified `/client/src/pages/Dashboard.tsx`:
+
+- **Lines 1088-1100**: Dynamic container className based on viewMode and cardSize
+  ```tsx
+  <div className={
+    dashboardLayout.viewMode === 'compact'
+      ? 'flex flex-col gap-2'
+      : dashboardLayout.viewMode === 'list'
+        ? 'flex flex-col gap-4'
+        : `grid gap-6 ${
+            dashboardLayout.cardSize === 'small'
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+              : dashboardLayout.cardSize === 'large'
+                ? 'grid-cols-1 md:grid-cols-2'
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          }`
+  }>
+  ```
+
+- **Lines 1109-1115**: Dynamic Link className for different view modes
+- **Lines 1117-1164**: Compact view rendering with conditional toggles
+- **Lines 1165-1242**: List view rendering with conditional toggles
+- **Lines 1243-1382**: Grid view rendering (default) with conditional toggles
+
+**Files Modified:**
+- `client/src/pages/Dashboard.tsx` (+258 lines, -107 lines)
+
+**Verification Steps:**
+1. Login to the application
+2. Go to Dashboard
+3. Click "Personalizza" button to open settings modal
+4. Change viewMode between Grid/List/Compact - verify layout changes
+5. Change cardSize (in grid mode) - verify column count changes
+6. Toggle showMetadata - verify genre appears/disappears
+7. Toggle showWordCount - verify word count appears/disappears
+8. Toggle showLastModified - verify date appears/disappears
+9. Reload page - verify settings persist from database
+
+### Commit: 1f6c9b1
+
+**Status: Feature #346 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-24 - Feature #345 Implementation
 
 ### Completed Features: 344/344 (100%)
