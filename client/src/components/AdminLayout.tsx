@@ -5,7 +5,6 @@ import {
   Users,
   FolderOpen,
   Activity,
-  Settings,
   LogOut,
   Shield,
   Menu,
@@ -47,12 +46,6 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Attività',
     path: '/admin/activity',
     icon: Activity
-  },
-  {
-    id: 'settings',
-    label: 'Impostazioni',
-    path: '/admin/settings',
-    icon: Settings
   }
 ];
 
