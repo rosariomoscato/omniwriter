@@ -5527,3 +5527,81 @@ Testato con browser automation:
 
 All features have been successfully implemented and verified!
 
+
+---
+
+## Session: 2026-02-24 - Feature #343 Implementation
+
+### Completed Features: 341/343 (99.4%)
+
+### Feature #343: Bug: Numero capitoli sequel non rispettato
+
+**Objective:** Quando si crea un seguito (sequel) di un romanzo in una saga, l'utente può impostare il numero di capitoli desiderato (es. 20), ma l'AI spesso ne genera un numero diverso (es. 1, 3, o un altro numero casuale).
+
+**Root Cause:**
+The backend route `/api/projects/:id/sequel/outline` had no validation to check if the AI-generated chapter count matched the requested `numChapters`. The AI could generate any number of chapters, and they would be accepted without verification.
+
+**Solution:**
+1. **Backend Validation:** Added validation to check if `generatedOutline.chapters.length === numChapters`
+2. **Retry Mechanism:** Implemented retry logic (max 3 attempts) if the chapter count doesn't match
+3. **Strengthened Prompt:** Added explicit warning in the AI prompt about the exact chapter count requirement
+4. **User Warning:** Added warning message in frontend if after retries the count still differs
+
+**Implementation:**
+
+#### 1. Backend - Retry Mechanism with Validation (server/src/routes/projects.ts)
+
+Added retry loop with chapter count validation:
+- MAX_RETRIES = 3
+- On retry, add extra emphasis message to AI about exact chapter count
+- Lower temperature on retries (0.3 instead of 0.5) for more deterministic output
+- Scale maxTokens based on chapter count: `Math.max(8000, numChapters * 400)`
+
+#### 2. Backend - Strengthened AI Prompt
+
+Added explicit warning at the end of the prompt:
+```
+⚠️ WARNING: You MUST generate EXACTLY ${numChapters} chapters. Not ${numChapters - 1}, not ${numChapters + 1}, but EXACTLY ${numChapters} chapters. This is a CRITICAL requirement. If you generate any other number of chapters, your response will be REJECTED.
+```
+
+#### 3. Backend - Warning Response
+
+If after 3 retries the chapter count still doesn't match:
+- Accept the generated outline anyway
+- Include a warning message in the response
+- Include metadata showing requested vs generated chapters and number of attempts
+
+#### 4. Frontend - Warning Display (client/src/components/CreateSagaSequelModal.tsx)
+
+- Added `outlineWarning` and `outlineMeta` state variables
+- Display amber warning box when `response.warning` is present
+- Show requested chapters, generated chapters, and attempts count
+
+#### 5. Frontend - API Type Update (client/src/services/api.ts)
+
+Added new response fields:
+- `warning?: string` - Warning message if chapter count doesn't match
+- `meta?: { requestedChapters, generatedChapters, attempts }` - Metadata about the generation
+
+**Files Modified:**
+- `server/src/routes/projects.ts` (lines 7874-7984)
+- `client/src/components/CreateSagaSequelModal.tsx` (added warning state and UI)
+- `client/src/services/api.ts` (added warning and meta types)
+
+**Feature Test Steps Verified:**
+1. ✅ "Analizzare la route /api/projects/:id/sequel/outline in projects.ts" - Analyzed
+2. ✅ "Aggiungere validazione dopo la chiamata AI" - Added validation in retry loop
+3. ✅ "Rafforzare il prompt AI con vincoli più espliciti" - Added WARNING section
+4. ✅ "Aggiungere un meccanismo di retry (max 3)" - Implemented with MAX_RETRIES = 3
+5. ✅ "Se dopo i retry il numero è ancora diverso, mostrare warning nel frontend" - Implemented warning display
+
+### Commit: 2cf097e
+
+**Status: Feature #343 MARKED PASSING**
+
+---
+
+## MILESTONE: 341/342 Features Passing (99.7%)
+
+Latest completed: Feature #343 - Retry mechanism for sequel chapter count validation
+
