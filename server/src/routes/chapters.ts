@@ -2018,11 +2018,6 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     const outputCost = (outputTokens / 1000) * 0.06;
     const estimatedCost = inputCost + outputCost;
 
-    // Calculate cost (GPT-4 pricing: $0.03/1K input tokens, $0.06/1K output tokens)
-    const inputCost = (inputTokens / 1000) * 0.03;
-    const outputCost = (outputTokens / 1000) * 0.06;
-    const estimatedCost = inputCost + outputCost;
-
     // Update only this chapter's content
     const now = new Date().toISOString();
     const newWordCount = newContent.split(/\s+/).filter(w => w.length > 0).length;

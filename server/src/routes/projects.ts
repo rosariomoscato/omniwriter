@@ -573,12 +573,15 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     const totalProjects = totalResult.total;
 
     // Fetch paginated projects with tags in a single query (fixes N+1 problem)
+    // Feature #347: Include calculated word_count from chapters
     const projectsQuery = `
       SELECT
         p.*,
-        GROUP_CONCAT(pt.tag_name, ',') as tags
+        GROUP_CONCAT(pt.tag_name, ',') as tags,
+        COALESCE(SUM(c.word_count), 0) as calculated_word_count
       FROM (${query}) as p
       LEFT JOIN project_tags pt ON p.id = pt.project_id
+      LEFT JOIN chapters c ON p.id = c.project_id
       GROUP BY p.id
       ORDER BY p.updated_at DESC
     `;
@@ -586,9 +589,11 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     const projects = db.prepare(projectsQuery).all(...params);
 
     // Parse the comma-separated tags
+    // Feature #347: Use calculated_word_count from chapters instead of stored word_count
     const projectsWithTags = (projects as any[]).map(project => ({
       ...project,
-      tags: project.tags ? project.tags.split(',').filter((t: string) => t) : []
+      tags: project.tags ? project.tags.split(',').filter((t: string) => t) : [],
+      word_count: project.calculated_word_count || 0
     }));
 
     const totalPages = Math.ceil(totalProjects / limitNum);
