@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useToastNotification } from '../components/Toast';
+import { apiService } from '../services/api';
 
 interface ActivityItem {
   id: string;
@@ -71,38 +72,13 @@ const AdminActivityPage = () => {
   const fetchActivities = async (page: number) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const url = new URL('http://localhost:3001/api/admin/activity');
-      url.searchParams.append('page', page.toString());
-      url.searchParams.append('limit', '50');
-      if (actionType) {
-        url.searchParams.append('actionType', actionType);
-      }
-      if (startDate) {
-        url.searchParams.append('startDate', startDate);
-      }
-      if (endDate) {
-        url.searchParams.append('endDate', endDate);
-      }
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const data = await apiService.getAdminActivity({
+        page,
+        limit: 50,
+        actionType: actionType || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
-
-      if (response.status === 403) {
-        setError('Accesso negato. Privilegi admin richiesti.');
-        setActivities([]);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Impossibile caricare le attività');
-      }
-
-      const data: ActivityResponse = await response.json();
       setActivities(data.activities);
       setPagination(data.pagination);
       setError('');
@@ -218,7 +194,8 @@ const AdminActivityPage = () => {
         return activity.action;
 
       case 'generation':
-        return `Fase: ${details.phase || '?'}, Modello: ${details.model || 'N/A'}${details.tokens ? `, Token: ${details.tokens}` : ''}`;
+        const totalTokens = (details.tokens_input || 0) + (details.tokens_output || 0);
+        return `Fase: ${details.phase || '?'}, Modello: ${details.model || 'N/A'}${totalTokens > 0 ? `, Token: ${totalTokens}` : ''}`;
 
       case 'export':
         return `Formato: ${details.format?.toUpperCase() || '?'}`;

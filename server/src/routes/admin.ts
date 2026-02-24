@@ -815,7 +815,7 @@ router.get(
             u.email as user_email,
             NULL as target_user_id,
             NULL as target_user_email,
-            json_object('project_id', gl.project_id, 'chapter_id', gl.chapter_id, 'model', gl.model_used, 'phase', gl.phase, 'tokens', gl.tokens_used) as details,
+            '{"project_id":"' || COALESCE(gl.project_id, '') || '","chapter_id":"' || COALESCE(gl.chapter_id, '') || '","model":"' || COALESCE(gl.model_used, '') || '","phase":"' || COALESCE(gl.phase, '') || '","tokens_input":' || COALESCE(gl.tokens_input, 0) || ',"tokens_output":' || COALESCE(gl.tokens_output, 0) || '}' as details,
             gl.created_at
           FROM generation_logs gl
           LEFT JOIN projects p ON gl.project_id = p.id
@@ -844,7 +844,7 @@ router.get(
             u.email as user_email,
             NULL as target_user_id,
             NULL as target_user_email,
-            json_object('project_id', eh.project_id, 'format', eh.format) as details,
+            '{"project_id":"' || COALESCE(eh.project_id, '') || '","format":"' || COALESCE(eh.format, '') || '"}' as details,
             eh.created_at
           FROM export_history eh
           LEFT JOIN projects p ON eh.project_id = p.id
@@ -873,7 +873,7 @@ router.get(
             u.email as user_email,
             NULL as target_user_id,
             NULL as target_user_email,
-            json_object('title', p.title, 'area', p.area) as details,
+            '{"title":"' || COALESCE(p.title, '') || '","area":"' || COALESCE(p.area, '') || '"}' as details,
             p.created_at
           FROM projects p
           LEFT JOIN users u ON p.user_id = u.id
