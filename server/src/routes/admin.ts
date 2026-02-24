@@ -679,6 +679,53 @@ router.get(
 );
 
 /**
+ * GET /api/admin/stats/registrations
+ * Get daily registration counts for last 30 days (admin only)
+ *
+ * Returns:
+ * - registrationsByDate: array of { date, count } for last 30 days
+ */
+router.get(
+  '/stats/registrations',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const db = (req as any).db as Database;
+
+      // Get daily registration counts for last 30 days
+      const registrationsByDate = db.prepare(`
+        SELECT
+          DATE(created_at) as date,
+          COUNT(*) as count
+        FROM users
+        WHERE created_at >= DATE('now', '-30 days')
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `).all() as { date: string; count: number }[];
+
+      // Generate all dates for last 30 days (fill in missing dates with 0)
+      const result = [];
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const found = registrationsByDate.find(r => r.date === dateStr);
+        result.push({
+          date: dateStr,
+          count: found ? found.count : 0
+        });
+      }
+
+      res.json({ registrationsByDate: result });
+    } catch (error) {
+      console.error('[Admin] Error fetching registration stats:', error);
+      res.status(500).json({ message: 'Failed to fetch registration statistics' });
+    }
+  }
+);
+
+/**
  * GET /api/admin/logs
  * Get admin audit logs with pagination (admin only)
  */

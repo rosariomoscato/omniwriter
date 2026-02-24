@@ -72,25 +72,40 @@ const AdminDashboard = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch('http://localhost:3001/api/admin/stats', {
+      // Fetch main stats
+      const statsResponse = await fetch('http://localhost:3001/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.status === 403) {
+      if (statsResponse.status === 403) {
         setError('Accesso negato. Privilegi admin richiesti.');
         setStats(null);
         return;
       }
 
-      if (!response.ok) {
+      if (!statsResponse.ok) {
         throw new Error('Failed to fetch statistics');
       }
 
-      const data: StatsResponse = await response.json();
+      const data: StatsResponse = await statsResponse.json();
       setStats(data);
+
+      // Fetch registration trend data
+      const registrationsResponse = await fetch('http://localhost:3001/api/admin/stats/registrations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (registrationsResponse.ok) {
+        const registrationsData = await registrationsResponse.json();
+        setRegistrationsByDate(registrationsData.registrationsByDate);
+      }
+
       setError('');
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -161,21 +176,8 @@ const AdminDashboard = () => {
     redattore: totalAreas > 0 ? (stats.projectsByArea.redattore / totalAreas) * 100 : 0
   };
 
-  // Generate mock data for registration trend (last 30 days)
-  const generateMockTrend = () => {
-    const trend = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      trend.push({
-        date: date.toISOString().split('T')[0],
-        count: Math.floor(Math.random() * 5)
-      });
-    }
-    return trend;
-  };
-
-  const registrationTrend = generateMockTrend();
+  // Use real registration data from API (fallback to empty array if not loaded)
+  const registrationTrend = registrationsByDate.length > 0 ? registrationsByDate : [];
   const maxRegistrations = Math.max(...registrationTrend.map(r => r.count), 1);
 
   return (
