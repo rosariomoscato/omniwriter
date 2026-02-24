@@ -1408,6 +1408,10 @@
     "saggista": "Saggista",
     "redattore": "Redattore"
   },
+  "footer": {
+    "builtWith": "Built with ❤️ by",
+    "allRightsReserved": "- 2026 - All Rights Reserved"
+  },
   "citations": {
     "title": "Citazioni",
     "addCitation": "Aggiungi Citazione",

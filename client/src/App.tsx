@@ -6,6 +6,7 @@ import { GenerationProgressProvider } from './contexts/GenerationProgressContext
 import { ToastProvider } from './contexts/ToastContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import GenerationProgress from './components/GenerationProgress';
 import SessionExpiredBanner from './components/SessionExpiredBanner';
 import PreferencesSync from './components/PreferencesSync';
@@ -132,10 +133,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <div className="flex-1">
+                        <Dashboard />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -154,10 +159,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <Dashboard />
+                      <div className="flex-1">
+                        <Dashboard />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -176,10 +185,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <HumanModelPage />
+                      <div className="flex-1">
+                        <HumanModelPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -198,10 +211,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <SourcesPage />
+                      <div className="flex-1">
+                        <SourcesPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -220,10 +237,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <SagasPage />
+                      <div className="flex-1">
+                        <SagasPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -242,10 +263,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <SettingsPage />
+                      <div className="flex-1">
+                        <SettingsPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -264,10 +289,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <ProfilePage />
+                      <div className="flex-1">
+                        <ProfilePage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -286,10 +315,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <AdminUsersPage />
+                      <div className="flex-1">
+                        <AdminUsersPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -308,10 +341,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <AdminStatsPage />
+                      <div className="flex-1">
+                        <AdminStatsPage />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -330,10 +367,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <NewProject />
+                      <div className="flex-1">
+                        <NewProject />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -352,10 +393,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <ProjectDetail />
+                      <div className="flex-1">
+                        <ProjectDetail />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -374,10 +419,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <ChapterEditor />
+                      <div className="flex-1">
+                        <ChapterEditor />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
@@ -397,10 +446,14 @@ function AppContent() {
                       className={`
                         fixed top-16 right-0 bottom-0 overflow-y-auto
                         transition-all duration-300 bg-white dark:bg-dark-bg
+                        flex flex-col
                         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
                       `}
                     >
-                      <NotFoundPage isInLayout={true} />
+                      <div className="flex-1">
+                        <NotFoundPage isInLayout={true} />
+                      </div>
+                      <Footer />
                     </main>
                   </>
                 }
