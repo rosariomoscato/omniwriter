@@ -722,69 +722,216 @@ router.post('/chapters/:id/generate-social-snippets', authenticateToken, generat
       return res.status(400).json({ message: 'Social snippet generation is only available for Redattore articles' });
     }
 
-    // Generate social media snippets (simulated AI response for now)
+    // Generate social media snippets using AI (Feature #342)
     const contentToAnalyze = chapter.content || chapter.title || '';
     const articleTitle = chapter.title || 'Articolo';
 
-    // Extract key points from content (simplified)
-    const excerpt = contentToAnalyze.length > 200
-      ? contentToAnalyze.substring(0, 200) + '...'
+    // Truncate content for the prompt to avoid token limits
+    const contentForPrompt = contentToAnalyze.length > 3000
+      ? contentToAnalyze.substring(0, 3000) + '...'
       : contentToAnalyze;
 
-    const socialSnippets = {
-      twitter: [
-        {
-          id: 'tw1',
-          text: `${articleTitle}\n\n🔗 Leggi tutto sull'articolo\n\n${excerpt.substring(0, 100)}...`,
-          characterCount: `${articleTitle}\n\n🔗 Leggi tutto sull'articolo\n\n${excerpt.substring(0, 100)}...`.length,
-          hashtags: ['#journalism', '#article', '#news']
-        },
-        {
-          id: 'tw2',
-          text: `🚀 Novità: ${articleTitle}\n\n${excerpt.substring(0, 80)}...`,
-          characterCount: `🚀 Novità: ${articleTitle}\n\n${excerpt.substring(0, 80)}...`.length,
-          hashtags: ['#breaking', '#update']
-        }
-      ],
-      linkedin: [
-        {
-          id: 'li1',
-          text: `${articleTitle}\n\nPubblichiamo regolarmente contenuti su questo argomento. Seguici per restare aggiornato!\n\n${excerpt.substring(0, 150)}...`,
-          characterCount: `${articleTitle}\n\nPubblichiamo regolarmente contenuti su questo argomento. Seguici per restare aggiornato!\n\n${excerpt.substring(0, 150)}...`.length
-        }
-      ],
-      facebook: [
-        {
-          id: 'fb1',
-          text: `${articleTitle}\n\n${excerpt}\n\n👍 Metti like se ti piace questo contenuto!\n💬 Commenta e condividi la tua opinione`,
-          characterCount: `${articleTitle}\n\n${excerpt}\n\n👍 Metti like se ti piace questo contenuto!\n💬 Commenta e condividi la tua opinione`.length
-        }
-      ],
-      instagram: [
-        {
-          id: 'ig1',
-          text: `${articleTitle}\n\n${excerpt.substring(0, 50)}...\n\nLink in bio 👆`,
-          characterCount: `${articleTitle}\n\n${excerpt.substring(0, 50)}...\n\nLink in bio 👆`.length,
-          hashtags: ['#content', '#creator', '#writing']
-        }
-      ]
-    };
+    // Try to get AI provider for the user
+    const { getProviderForUser } = require('../services/ai-service');
+    const provider = getProviderForUser(userId);
 
-    // Calculate token usage (Feature #156)
-    const inputTokens = Math.ceil((chapter.title + (chapter.content || '')).length / 4);
-    const outputTokens = Math.ceil(JSON.stringify(socialSnippets).length / 4);
-    const totalTokens = inputTokens + outputTokens;
-    const estimatedCost = ((inputTokens / 1000) * 0.03) + ((outputTokens / 1000) * 0.06);
+    let socialSnippets: any;
+    let tokenUsage: { tokens_input: number; tokens_output: number; total_tokens: number; estimated_cost: number };
 
-    console.log(`[Redattore] Generated social snippets for chapter ${id} - Tokens: ${inputTokens} in, ${outputTokens} out`);
-    res.json({
-      snippets: socialSnippets,
-      token_usage: {
+    if (provider) {
+      // Use real AI generation
+      console.log(`[Redattore] Using AI provider for social snippets generation for chapter ${id}`);
+
+      const systemPrompt = `Sei un esperto di social media marketing e copywriting. Il tuo compito è generare snippet ottimizzati per diverse piattaforme social a partire da un articolo giornalistico.
+
+REGOLE IMPORTANTI:
+- Genera testo COMPLETO e coinvolgente, mai troncato
+- Rispetta rigorosamente i limiti di carattere di ogni piattaforma
+- Includi hashtag pertinenti per Twitter e Instagram
+- Il tono deve essere professionale ma coinvolgente
+- Adatta lo stile alla piattaforma (formale per LinkedIn, conciso per Twitter, visuale per Instagram)
+
+LIMITI DI CARATTERE:
+- Twitter: massimo 280 caratteri (inclusi hashtag)
+- LinkedIn: massimo 3000 caratteri
+- Facebook: massimo 63206 caratteri
+- Instagram: massimo 2200 caratteri (inclusi hashtag)
+
+Rispondi SOLO con un JSON valido con questa struttura esatta:
+{
+  "twitter": [
+    { "text": "testo del tweet 1", "hashtags": ["#tag1", "#tag2"] },
+    { "text": "testo del tweet 2", "hashtags": ["#tag1", "#tag2"] }
+  ],
+  "linkedin": [
+    { "text": "testo del post LinkedIn" }
+  ],
+  "facebook": [
+    { "text": "testo del post Facebook" }
+  ],
+  "instagram": [
+    { "text": "testo del post Instagram con hashtag", "hashtags": ["#tag1", "#tag2", "#tag3"] }
+  ]
+}`;
+
+      const userPrompt = `Genera snippet per i social media basati su questo articolo:
+
+TITOLO: ${articleTitle}
+
+CONTENUTO:
+${contentForPrompt}
+
+Genera 2 varianti per Twitter e 1 per ciascuna delle altre piattaforme (LinkedIn, Facebook, Instagram). Assicurati che ogni snippet sia completo, coinvolgente, e rispetti i limiti di carattere della piattaforma.`;
+
+      try {
+        const response = await provider.chat(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          {
+            temperature: 0.8,
+            maxTokens: 2000
+          }
+        );
+
+        // Parse the AI response
+        let parsedSnippets;
+        try {
+          // Try to extract JSON from the response (handle markdown code blocks)
+          let jsonContent = response.content.trim();
+          const jsonMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (jsonMatch) {
+            jsonContent = jsonMatch[1].trim();
+          }
+          parsedSnippets = JSON.parse(jsonContent);
+        } catch (parseError) {
+          console.error('[Redattore] Failed to parse AI response for social snippets:', parseError);
+          console.error('[Redattore] Raw AI response:', response.content);
+          // Fall through to fallback generation below
+          parsedSnippets = null;
+        }
+
+        if (parsedSnippets) {
+          // Format the AI-generated snippets into the expected structure
+          socialSnippets = {
+            twitter: (parsedSnippets.twitter || []).map((s: any, i: number) => {
+              const fullText = String(s.text || '');
+              return {
+                id: `tw${i + 1}`,
+                text: fullText,
+                characterCount: fullText.length,
+                hashtags: Array.isArray(s.hashtags) ? s.hashtags : []
+              };
+            }),
+            linkedin: (parsedSnippets.linkedin || []).map((s: any, i: number) => {
+              const fullText = String(s.text || '');
+              return {
+                id: `li${i + 1}`,
+                text: fullText,
+                characterCount: fullText.length
+              };
+            }),
+            facebook: (parsedSnippets.facebook || []).map((s: any, i: number) => {
+              const fullText = String(s.text || '');
+              return {
+                id: `fb${i + 1}`,
+                text: fullText,
+                characterCount: fullText.length
+              };
+            }),
+            instagram: (parsedSnippets.instagram || []).map((s: any, i: number) => {
+              const fullText = String(s.text || '');
+              return {
+                id: `ig${i + 1}`,
+                text: fullText,
+                characterCount: fullText.length,
+                hashtags: Array.isArray(s.hashtags) ? s.hashtags : []
+              };
+            })
+          };
+
+          // Use real token usage from AI response if available
+          const realUsage = response.usage;
+          tokenUsage = {
+            tokens_input: realUsage?.promptTokens || Math.ceil(contentForPrompt.length / 4),
+            tokens_output: realUsage?.completionTokens || Math.ceil(response.content.length / 4),
+            total_tokens: realUsage?.totalTokens || Math.ceil((contentForPrompt.length + response.content.length) / 4),
+            estimated_cost: realUsage
+              ? ((realUsage.promptTokens / 1000) * 0.03) + ((realUsage.completionTokens / 1000) * 0.06)
+              : ((Math.ceil(contentForPrompt.length / 4) / 1000) * 0.03) + ((Math.ceil(response.content.length / 4) / 1000) * 0.06)
+          };
+
+          console.log(`[Redattore] AI-generated social snippets for chapter ${id} - Tokens: ${tokenUsage.tokens_input} in, ${tokenUsage.tokens_output} out`);
+        }
+      } catch (aiError) {
+        console.error('[Redattore] AI generation failed for social snippets, using fallback:', aiError);
+        // socialSnippets remains undefined, will use fallback below
+      }
+    } else {
+      console.log(`[Redattore] No AI provider configured for user ${userId}, using fallback social snippets`);
+    }
+
+    // Fallback: template-based generation if AI is not available or failed
+    if (!socialSnippets) {
+      const excerpt = contentToAnalyze.length > 200
+        ? contentToAnalyze.substring(0, 200) + '...'
+        : contentToAnalyze;
+
+      socialSnippets = {
+        twitter: [
+          {
+            id: 'tw1',
+            text: `${articleTitle}\n\n${excerpt.substring(0, 200)}`,
+            characterCount: `${articleTitle}\n\n${excerpt.substring(0, 200)}`.length,
+            hashtags: ['#journalism', '#article', '#news']
+          },
+          {
+            id: 'tw2',
+            text: `Da leggere: ${articleTitle}\n\n${excerpt.substring(0, 180)}`,
+            characterCount: `Da leggere: ${articleTitle}\n\n${excerpt.substring(0, 180)}`.length,
+            hashtags: ['#breaking', '#update']
+          }
+        ],
+        linkedin: [
+          {
+            id: 'li1',
+            text: `${articleTitle}\n\n${excerpt}\n\nSeguici per restare aggiornato su questo argomento.`,
+            characterCount: `${articleTitle}\n\n${excerpt}\n\nSeguici per restare aggiornato su questo argomento.`.length
+          }
+        ],
+        facebook: [
+          {
+            id: 'fb1',
+            text: `${articleTitle}\n\n${excerpt}\n\nCondividi la tua opinione nei commenti!`,
+            characterCount: `${articleTitle}\n\n${excerpt}\n\nCondividi la tua opinione nei commenti!`.length
+          }
+        ],
+        instagram: [
+          {
+            id: 'ig1',
+            text: `${articleTitle}\n\n${excerpt.substring(0, 150)}\n\nLink in bio`,
+            characterCount: `${articleTitle}\n\n${excerpt.substring(0, 150)}\n\nLink in bio`.length,
+            hashtags: ['#content', '#creator', '#writing']
+          }
+        ]
+      };
+
+      const inputTokens = Math.ceil((chapter.title + (chapter.content || '')).length / 4);
+      const outputTokens = Math.ceil(JSON.stringify(socialSnippets).length / 4);
+      tokenUsage = {
         tokens_input: inputTokens,
         tokens_output: outputTokens,
-        total_tokens: totalTokens,
-        estimated_cost: estimatedCost
-      }
+        total_tokens: inputTokens + outputTokens,
+        estimated_cost: ((inputTokens / 1000) * 0.03) + ((outputTokens / 1000) * 0.06)
+      };
+
+      console.log(`[Redattore] Generated fallback social snippets for chapter ${id} - Tokens: ${tokenUsage.tokens_input} in, ${tokenUsage.tokens_output} out`);
+    }
+
+    res.json({
+      snippets: socialSnippets,
+      token_usage: tokenUsage
     });
   } catch (error) {
     console.error('[Redattore] Error generating social snippets:', error);
