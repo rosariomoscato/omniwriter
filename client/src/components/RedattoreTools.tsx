@@ -309,8 +309,8 @@ export default function RedattoreTools({ chapter, projectArea, onTitleChange }: 
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Platform selector tabs */}
-                <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
+                {/* Platform selector tabs - Feature #338: 2x2 grid layout */}
+                <div className="grid grid-cols-2 gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
                   <button
                     onClick={() => setSelectedPlatform('twitter')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
