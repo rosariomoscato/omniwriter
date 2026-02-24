@@ -276,11 +276,11 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     // Verify chapter exists and belongs to user's project
     const existingChapter = db.prepare(`
-      SELECT c.id, c.content, c.title, c.updated_at
+      SELECT c.id, c.project_id, c.content, c.title, c.updated_at
       FROM chapters c
       JOIN projects p ON c.project_id = p.id
       WHERE c.id = ? AND p.user_id = ?
-    `).get(id, userId) as { id: string; content: string; title: string; updated_at: string } | undefined;
+    `).get(id, userId) as { id: string; project_id: string; content: string; title: string; updated_at: string } | undefined;
 
     if (!existingChapter) {
       return res.status(404).json({ message: 'Chapter not found' });
@@ -367,6 +367,11 @@ router.put('/chapters/:id', authenticateToken, (req, res) => {
 
     const stmt = db.prepare(`UPDATE chapters SET ${updates.join(', ')} WHERE id = ?`);
     stmt.run(...values);
+
+    // Feature #347: Update project's updated_at when a chapter is saved
+    db.prepare(`
+      UPDATE projects SET updated_at = datetime('now') WHERE id = ?
+    `).run(existingChapter.project_id);
 
     // Fetch updated chapter
     const chapter = db.prepare(`
@@ -1733,9 +1738,10 @@ ${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate co
   }
 });
 
-// Helper function to generate template content for AI generation
+// Helper function to generate template content as fallback when AI is unavailable
 // Feature #177: Added sources parameter to use uploaded sources in generation
-// TODO: This is a placeholder. Replace with actual AI API integration (OpenAI/Anthropic)
+// Note: This is a FALLBACK used when AI provider is not available or fails.
+// Primary generation uses actual AI via provider.chat() calls.
 function generateTemplateContent(title: string, area: string, context: string, humanModel: any, sources?: any[]): string {
   let baseContent = `Questo è un contenuto generato per "${title}" nell'area ${area}.`;
 
@@ -1908,15 +1914,109 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
       ORDER BY order_index ASC
     `).all(chapter.project_id) as { id: string; title: string; content: string; order_index: number }[];
 
-    // Track token usage (Feature #156)
-    const sourceTokens = projectSources ? projectSources.reduce((acc, s) => acc + (s.content_text?.length || 0), 0) : 0;
-    const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
+    // Get user's preferred language
+    const userPrefs = db.prepare(`
+      SELECT preferred_language FROM users WHERE id = ?
+    `).get(userId) as { preferred_language: string } | undefined;
+    const isItalian = (userPrefs?.preferred_language || 'it') === 'it';
 
-    // Feature #177: Pass sources to generation function
-    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
-    const newContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
-    const outputTokens = Math.ceil(newContent.length / 4);
+    // Get project settings for prompt building
+    const projectSettings = chapter.settings_json ? JSON.parse(chapter.settings_json) : {};
+
+    // Build area-specific prompt params
+    const areaPromptParams: AreaPromptParams = {
+      projectTitle: chapter.project_title,
+      genre: projectSettings.genre || null,
+      tone: projectSettings.tone || null,
+      targetAudience: projectSettings.targetAudience || null,
+      chapterTitle: chapter.title,
+      chapterOrder: chapter.order_index,
+      chapterSummary: prompt_context || '',
+      isRegenerate: true
+    };
+
+    // Get AI provider
+    const { getProviderForUser } = require('../services/ai-service');
+    const provider = getProviderForUser(userId);
+
+    let newContent: string;
+    let usedAI = false;
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    const sourceTokens = projectSources ? projectSources.reduce((acc, s) => acc + (s.content_text?.length || 0), 0) : 0;
+
+    if (provider) {
+      try {
+        // Build system prompt using area-specific prompt builder
+        const systemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);
+
+        // Add Human Model style if provided
+        let finalSystemPrompt = systemPrompt;
+        if (humanModel) {
+          const analysis = humanModel.analysis_result_json as any;
+          if (isItalian) {
+            finalSystemPrompt += `
+
+PROFILO STILISTICO PERSONALE (${humanModel.name}):
+- Tono: ${analysis.tone || 'Non specificato'}
+- Struttura frasi: ${analysis.sentence_structure || 'Non specificata'}
+- Vocabolario: ${analysis.vocabulary || 'Non specificato'}
+- Pattern di scrittura: ${(analysis.patterns || []).join(', ') || 'Non specificati'}
+
+IMPORTANTE: Scrivi con lo stile personale dell'autore come definito sopra.`;
+          } else {
+            finalSystemPrompt += `
+
+PERSONAL STYLE PROFILE (${humanModel.name}):
+- Tone: ${analysis.tone || 'Not specified'}
+- Sentence structure: ${analysis.sentence_structure || 'Not specified'}
+- Vocabulary: ${analysis.vocabulary || 'Not specified'}
+- Writing patterns: ${(analysis.patterns || []).join(', ') || 'Not specified'}
+
+IMPORTANT: Write in the author's personal style as defined above.`;
+          }
+        }
+
+        // Build user prompt
+        const userPrompt = isItalian
+          ? `Rigenera il contenuto per il capitolo "${chapter.title}".${prompt_context ? `\n\nCONTESTO AGGIUNTIVO:\n${prompt_context}` : ''}\n\nGenera un testo narrativo completo di almeno 300 parole. Inizia direttamente con il testo.`
+          : `Regenerate the content for chapter "${chapter.title}".${prompt_context ? `\n\nADDITIONAL CONTEXT:\n${prompt_context}` : ''}\n\nGenerate complete narrative text of at least 300 words. Start directly with the text.`;
+
+        inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens + userPrompt.length) / 4);
+
+        const response = await provider.chat(
+          [
+            { role: 'system', content: finalSystemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          { temperature: 0.7, maxTokens: 1500 }
+        );
+
+        newContent = response.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+        usedAI = true;
+        outputTokens = Math.ceil(newContent.length / 4);
+        console.log(`[Regenerate] AI generation successful for chapter ${id}`);
+      } catch (aiError: any) {
+        console.error('[Regenerate] AI generation error:', aiError);
+        newContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+        inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
+        outputTokens = Math.ceil(newContent.length / 4);
+      }
+    } else {
+      // No AI provider available - use template fallback
+      console.log('[Regenerate] No AI provider available, using template fallback');
+      newContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+      inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
+      outputTokens = Math.ceil(newContent.length / 4);
+    }
+
     const totalTokens = inputTokens + outputTokens;
+
+    // Calculate cost (GPT-4 pricing: $0.03/1K input tokens, $0.06/1K output tokens)
+    const inputCost = (inputTokens / 1000) * 0.03;
+    const outputCost = (outputTokens / 1000) * 0.06;
+    const estimatedCost = inputCost + outputCost;
 
     // Calculate cost (GPT-4 pricing: $0.03/1K input tokens, $0.06/1K output tokens)
     const inputCost = (inputTokens / 1000) * 0.03;
@@ -1942,16 +2042,16 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
       logId,
       chapter.project_id,
       id,
-      humanModel ? `${humanModel.name} (GPT-4)` : 'GPT-4',
+      usedAI ? (humanModel ? `${humanModel.name} (AI)` : 'AI') : 'Template',
       'regeneration',
       inputTokens,
       outputTokens,
-      500, // Simulated duration
-      'completed',
+      500,
+      usedAI ? 'completed' : 'completed_fallback',
       now
     );
 
-    console.log(`[Regenerate] Regenerated chapter "${chapter.title}" (order ${chapter.order_index}) in project "${chapter.project_title}"`);
+    console.log(`[Regenerate] Regenerated chapter "${chapter.title}" (order ${chapter.order_index}) in project "${chapter.project_title}" - AI: ${usedAI}`);
 
     // Return the updated chapter and confirm other chapters are unchanged
     const updatedChapter = db.prepare(`
@@ -1964,6 +2064,7 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
       chapter: updatedChapter,
       message: `Chapter "${chapter.title}" regenerated successfully. Other ${allChapters.length - 1} chapters unchanged.`,
       regenerated_chapter_id: id,
+      ai_generated: usedAI,
       other_chapters_unchanged: allChapters
         .filter((ch, idx) => allChapters[idx].id !== id)
         .map(ch => ({ id: ch.id, title: ch.title, order_index: ch.order_index })),
