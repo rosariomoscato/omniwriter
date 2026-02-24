@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Edit3, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Edit3 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -641,16 +641,6 @@ export default function Dashboard() {
           <Upload size={20} />
           {t('dashboard.importProject')}
         </button>
-        {!isAreaPage && (
-          <button
-            onClick={() => setShowAnalyzeNovelModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-            title={t('nav.analyzeNovel')}
-          >
-            <Sparkles size={20} />
-            {t('nav.analyzeNovel')}
-          </button>
-        )}
         {!isAreaPage && (
           <button
             onClick={() => setShowLayoutSettings(true)}
