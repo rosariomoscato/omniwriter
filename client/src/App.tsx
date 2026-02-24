@@ -70,6 +70,17 @@ function ProtectedRouteGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Check if admin user trying to access regular user routes (except projects)
+  const isUserRoute = location.pathname === '/dashboard' ||
+    location.pathname === '/human-model' ||
+    location.pathname === '/sources' ||
+    location.pathname === '/sagas' ||
+    location.pathname === '/settings' ||
+    location.pathname === '/profile';
+  if (isUserRoute && user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <>{children}</>;
 }
 

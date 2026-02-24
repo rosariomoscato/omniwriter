@@ -10,6 +10,21 @@ import { authRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
+// Passport serialization for session support
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id: string, done) => {
+  try {
+    const db = getDatabase();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    done(null, user || null);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
 // Apply rate limiting to auth endpoints
 router.use(authRateLimit);
 

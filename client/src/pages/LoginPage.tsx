@@ -82,7 +82,7 @@ function LoginPage() {
 
     try {
       // Use AuthContext login method which handles state and localStorage
-      await login(formData.email, formData.password, formData.rememberMe);
+      const loggedInUser = await login(formData.email, formData.password, formData.rememberMe);
 
       // Clear form data to prevent resubmission on back navigation
       setFormData({
@@ -100,8 +100,14 @@ function LoginPage() {
         // Redirect to originally requested page
         navigate(redirectPath, { replace: true });
       } else {
-        // Default to dashboard if no stored redirect
-        navigate('/dashboard', { replace: true });
+        // Check user role for appropriate redirect
+        if (loggedInUser.role === 'admin') {
+          // Redirect admin users to admin dashboard
+          navigate('/admin', { replace: true });
+        } else {
+          // Default to dashboard for non-admin users
+          navigate('/dashboard', { replace: true });
+        }
       }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : (t('auth.loginError') || 'Email o password non validi'));

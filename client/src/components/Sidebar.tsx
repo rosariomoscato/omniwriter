@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, Shield, BarChart3, FolderOpen, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, BookOpen, FileText, Edit3, Settings, User, Clock, FolderOpen, Sparkles, Activity, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Project {
@@ -38,9 +38,12 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
     { id: 'settings', label: t('nav.settings'), icon: Settings, path: '/settings' },
   ];
 
+  // Admin-only menu - simplified, no user content
   const adminNav = [
-    { id: 'admin-users', label: 'Gestione Utenti', icon: Shield, path: '/admin/users' },
-    { id: 'admin-stats', label: 'Statistiche', icon: BarChart3, path: '/admin/stats' },
+    { id: 'admin-dashboard', label: 'Dashboard Admin', icon: LayoutDashboard, path: '/admin' },
+    { id: 'admin-users', label: 'Utenti', icon: User, path: '/admin/users' },
+    { id: 'admin-projects', label: 'Progetti', icon: FolderOpen, path: '/admin/projects' },
+    { id: 'admin-activity', label: 'Attività', icon: Activity, path: '/admin/activity' },
   ];
 
   return (
@@ -71,179 +74,187 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-6" aria-label="Main navigation">
-        {/* Main Navigation */}
-        <div>
-          {!isCollapsed && (
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
-              {t('nav.dashboard')}
-            </p>
-          )}
-          <ul className="space-y-1">
-            {mainNav.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => {
-                    if (item.isAction && item.id === 'analyze-novel') {
-                      // Dispatch custom event to open analyze novel modal
-                      window.dispatchEvent(new CustomEvent('open-analyze-novel-modal'));
-                    } else if (!item.isAction) {
-                      navigate(item.path);
-                    }
-                  }}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                    ${item.id === 'analyze-novel'
-                      ? 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
-                    transition-colors duration-200
-                    ${isCollapsed ? 'justify-center' : ''}
-                  `}
-                  aria-label={isCollapsed ? item.label : undefined}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon size={20} className={`${item.id === 'analyze-novel' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-300'} flex-shrink-0`} />
-                  {!isCollapsed && (
-                    <span className={`text-sm font-medium ${item.id === 'analyze-novel' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-200'}`}>
-                      {item.label}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Admin Section - Only for admin users */}
-        {isAdmin && (
-          <div>
-            {!isCollapsed && (
-              <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 px-2">
-                Admin
-              </p>
-            )}
-            <ul className="space-y-1">
-              {adminNav.map((item) => (
-                <li key={item.id}>
-                  <button
-                    onClick={() => navigate(item.path)}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                      hover:bg-purple-50 dark:hover:bg-purple-900/20
-                      transition-colors duration-200
-                      ${isCollapsed ? 'justify-center' : ''}
-                    `}
-                    aria-label={isCollapsed ? item.label : undefined}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <item.icon size={20} className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                        {item.label}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Area Sections */}
-        <div>
-          {!isCollapsed && (
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
-              Aree
-            </p>
-          )}
-          <ul className="space-y-1">
-            {areas.map((area) => (
-              <li key={area.id}>
-                <button
-                  onClick={() => navigate(`/projects?area=${area.id}`)}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                    hover:bg-gray-100 dark:hover:bg-gray-700
-                    transition-colors duration-200
-                    ${isCollapsed ? 'justify-center' : ''}
-                  `}
-                  aria-label={isCollapsed ? area.label : undefined}
-                  title={isCollapsed ? area.label : undefined}
-                >
-                  <area.icon size={20} className={`${area.color} flex-shrink-0`} />
-                  {!isCollapsed && (
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                      {area.label}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Recent Projects */}
-        {recentProjects.length > 0 && (
-          <div>
-            {!isCollapsed && (
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2 flex items-center gap-2">
-                <Clock size={14} />
-                {t('dashboard.recentProjects')}
-              </p>
-            )}
-            <ul className="space-y-1">
-              {recentProjects.slice(0, isCollapsed ? 0 : 5).map((project) => (
-                <li key={project.id}>
-                  <button
-                    onClick={() => navigate(`/projects/${project.id}`)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    aria-label={isCollapsed ? project.title : undefined}
-                    title={isCollapsed ? project.title : undefined}
-                  >
-                    {!isCollapsed && (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            project.area === 'romanziere'
-                              ? 'bg-romanziere'
-                              : project.area === 'saggista'
-                              ? 'bg-saggista'
-                              : 'bg-redattore'
-                          }`}
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
-                          {project.title}
+        {isAdmin ? (
+          // Admin-only menu - simplified
+          <>
+            {/* Admin Navigation */}
+            <div>
+              {!isCollapsed && (
+                <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 px-2">
+                  Admin Panel
+                </p>
+              )}
+              <ul className="space-y-1">
+                {adminNav.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      onClick={() => navigate(item.path)}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                        hover:bg-purple-50 dark:hover:bg-purple-900/20
+                        transition-colors duration-200
+                        ${isCollapsed ? 'justify-center' : ''}
+                      `}
+                      aria-label={isCollapsed ? item.label : undefined}
+                      title={isCollapsed ? item.label : undefined}
+                    >
+                      <item.icon size={20} className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      {!isCollapsed && (
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {item.label}
                         </span>
-                      </div>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        ) : (
+          // Regular user menu
+          <>
+            {/* Main Navigation */}
+            <div>
+              {!isCollapsed && (
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
+                  {t('nav.dashboard')}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {mainNav.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      onClick={() => {
+                        if (item.isAction && item.id === 'analyze-novel') {
+                          // Dispatch custom event to open analyze novel modal
+                          window.dispatchEvent(new CustomEvent('open-analyze-novel-modal'));
+                        } else if (!item.isAction) {
+                          navigate(item.path);
+                        }
+                      }}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                        ${item.id === 'analyze-novel'
+                          ? 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
+                        transition-colors duration-200
+                        ${isCollapsed ? 'justify-center' : ''}
+                      `}
+                      aria-label={isCollapsed ? item.label : undefined}
+                      title={isCollapsed ? item.label : undefined}
+                    >
+                      <item.icon size={20} className={`${item.id === 'analyze-novel' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-300'} flex-shrink-0`} />
+                      {!isCollapsed && (
+                        <span className={`text-sm font-medium ${item.id === 'analyze-novel' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {item.label}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Area Sections */}
+            <div>
+              {!isCollapsed && (
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
+                  Aree
+                </p>
+              )}
+              <ul className="space-y-1">
+                {areas.map((area) => (
+                  <li key={area.id}>
+                    <button
+                      onClick={() => navigate(`/projects?area=${area.id}`)}
+                      className={`
+                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                        hover:bg-gray-100 dark:hover:bg-gray-700
+                        transition-colors duration-200
+                        ${isCollapsed ? 'justify-center' : ''}
+                      `}
+                      aria-label={isCollapsed ? area.label : undefined}
+                      title={isCollapsed ? area.label : undefined}
+                    >
+                      <area.icon size={20} className={`${area.color} flex-shrink-0`} />
+                      {!isCollapsed && (
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {area.label}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Recent Projects */}
+            {recentProjects.length > 0 && (
+              <div>
+                {!isCollapsed && (
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2 flex items-center gap-2">
+                    <Clock size={14} />
+                    {t('dashboard.recentProjects')}
+                  </p>
+                )}
+                <ul className="space-y-1">
+                  {recentProjects.slice(0, isCollapsed ? 0 : 5).map((project) => (
+                    <li key={project.id}>
+                      <button
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        aria-label={isCollapsed ? project.title : undefined}
+                        title={isCollapsed ? project.title : undefined}
+                      >
+                        {!isCollapsed && (
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                project.area === 'romanziere'
+                                  ? 'bg-romanziere'
+                                  : project.area === 'saggista'
+                                  ? 'bg-saggista'
+                                  : 'bg-redattore'
+                              }`}
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
+                              {project.title}
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </nav>
 
-      {/* Profile Section */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={() => navigate('/profile')}
-          className={`
-            w-full flex items-center gap-3 px-3 py-2 rounded-lg
-            hover:bg-gray-100 dark:hover:bg-gray-700
-            transition-colors duration-200
-            ${isCollapsed ? 'justify-center' : ''}
-          `}
-          aria-label={isCollapsed ? t('nav.profile') : undefined}
-          title={isCollapsed ? t('nav.profile') : undefined}
-        >
-          <User size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
-          {!isCollapsed && (
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              {t('nav.profile')}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Profile Section - Only for non-admin users */}
+      {!isAdmin && (
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => navigate('/profile')}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2 rounded-lg
+              hover:bg-gray-100 dark:hover:bg-gray-700
+              transition-colors duration-200
+              ${isCollapsed ? 'justify-center' : ''}
+            `}
+            aria-label={isCollapsed ? t('nav.profile') : undefined}
+            title={isCollapsed ? t('nav.profile') : undefined}
+          >
+            <User size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                {t('nav.profile')}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
