@@ -2481,6 +2481,46 @@ class ApiService {
     return this.request<any>(`/admin/logs${queryString ? `?${queryString}` : ''}`);
   }
 
+  // Get admin activity log (Feature #358)
+  async getAdminActivity(params?: {
+    page?: number;
+    limit?: number;
+    actionType?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    activities: Array<{
+      id: string;
+      action_type: string;
+      action: string;
+      user_id: string | null;
+      user_name: string | null;
+      user_email: string | null;
+      target_user_id: string | null;
+      target_user_email: string | null;
+      details: string;
+      created_at: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.actionType) queryParams.append('actionType', params.actionType);
+    if (params?.userId) queryParams.append('userId', params.userId);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+    const queryString = queryParams.toString();
+    return this.request<any>(`/admin/activity${queryString ? `?${queryString}` : ''}`);
+  }
+
   // Helper to store auth data
   static setAuth(user: AuthResponse['user'], token: string) {
     localStorage.setItem('user', JSON.stringify(user));

@@ -722,4 +722,241 @@ router.get(
   }
 );
 
+/**
+ * GET /api/admin/activity
+ * Get platform activity log with pagination and filters (admin only)
+ *
+ * Feature #358: Comprehensive activity log
+ * Combines data from:
+ * - admin_logs (admin actions)
+ * - generation_logs (AI generations)
+ * - export_history (exports)
+ * - projects (project creation)
+ * - users (login activity)
+ *
+ * Query params:
+ *   page (number, default 1)
+ *   limit (number, default 50)
+ *   actionType (string) - filter by action: admin, generation, export, project, login
+ *   userId (string) - filter by user id
+ *   startDate (string) - filter from date (YYYY-MM-DD)
+ *   endDate (string) - filter to date (YYYY-MM-DD)
+ */
+router.get(
+  '/activity',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const db = (req as any).db as Database;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+      const actionType = req.query.actionType as string || '';
+      const userId = req.query.userId as string || '';
+      const startDate = req.query.startDate as string || '';
+      const endDate = req.query.endDate as string || '';
+
+      // Build the combined activity query
+      // We'll use UNION to combine different activity sources
+      let unionQueries: string[] = [];
+      let params: any[] = [];
+      let countParams: any[] = [];
+
+      // Helper to add date filters
+      const addDateFilter = (baseQuery: string, dateColumn: string = 'created_at'): string => {
+        let query = baseQuery;
+        if (startDate) {
+          query += ` AND DATE(${dateColumn}) >= ?`;
+        }
+        if (endDate) {
+          query += ` AND DATE(${dateColumn}) <= ?`;
+        }
+        return query;
+      };
+
+      // Admin actions (role change, suspend, delete)
+      if (!actionType || actionType === 'admin') {
+        let adminQuery = `
+          SELECT
+            al.id,
+            'admin' as action_type,
+            al.action,
+            al.admin_id as user_id,
+            u_admin.name as user_name,
+            u_admin.email as user_email,
+            al.target_user_id,
+            al.target_user_email,
+            al.details,
+            al.created_at
+          FROM admin_logs al
+          LEFT JOIN users u_admin ON al.admin_id = u_admin.id
+          WHERE 1=1
+        `;
+        if (userId) {
+          adminQuery += ` AND al.admin_id = ?`;
+        }
+        adminQuery = addDateFilter(adminQuery, 'al.created_at');
+        unionQueries.push(adminQuery);
+        if (userId) params.push(userId);
+        if (startDate) params.push(startDate);
+        if (endDate) params.push(endDate);
+      }
+
+      // AI Generations
+      if (!actionType || actionType === 'generation') {
+        let genQuery = `
+          SELECT
+            gl.id,
+            'generation' as action_type,
+            'AI Generation' as action,
+            p.user_id,
+            u.name as user_name,
+            u.email as user_email,
+            NULL as target_user_id,
+            NULL as target_user_email,
+            json_object('project_id', gl.project_id, 'chapter_id', gl.chapter_id, 'model', gl.model_used, 'phase', gl.phase, 'tokens', gl.tokens_used) as details,
+            gl.created_at
+          FROM generation_logs gl
+          LEFT JOIN projects p ON gl.project_id = p.id
+          LEFT JOIN users u ON p.user_id = u.id
+          WHERE 1=1
+        `;
+        if (userId) {
+          genQuery += ` AND p.user_id = ?`;
+        }
+        genQuery = addDateFilter(genQuery, 'gl.created_at');
+        unionQueries.push(genQuery);
+        if (userId) params.push(userId);
+        if (startDate) params.push(startDate);
+        if (endDate) params.push(endDate);
+      }
+
+      // Exports
+      if (!actionType || actionType === 'export') {
+        let exportQuery = `
+          SELECT
+            eh.id,
+            'export' as action_type,
+            'Export' as action,
+            p.user_id,
+            u.name as user_name,
+            u.email as user_email,
+            NULL as target_user_id,
+            NULL as target_user_email,
+            json_object('project_id', eh.project_id, 'format', eh.format) as details,
+            eh.created_at
+          FROM export_history eh
+          LEFT JOIN projects p ON eh.project_id = p.id
+          LEFT JOIN users u ON p.user_id = u.id
+          WHERE 1=1
+        `;
+        if (userId) {
+          exportQuery += ` AND p.user_id = ?`;
+        }
+        exportQuery = addDateFilter(exportQuery, 'eh.created_at');
+        unionQueries.push(exportQuery);
+        if (userId) params.push(userId);
+        if (startDate) params.push(startDate);
+        if (endDate) params.push(endDate);
+      }
+
+      // Project creation
+      if (!actionType || actionType === 'project') {
+        let projectQuery = `
+          SELECT
+            p.id,
+            'project' as action_type,
+            'Project Created' as action,
+            p.user_id,
+            u.name as user_name,
+            u.email as user_email,
+            NULL as target_user_id,
+            NULL as target_user_email,
+            json_object('title', p.title, 'area', p.area) as details,
+            p.created_at
+          FROM projects p
+          LEFT JOIN users u ON p.user_id = u.id
+          WHERE 1=1
+        `;
+        if (userId) {
+          projectQuery += ` AND p.user_id = ?`;
+        }
+        projectQuery = addDateFilter(projectQuery, 'p.created_at');
+        unionQueries.push(projectQuery);
+        if (userId) params.push(userId);
+        if (startDate) params.push(startDate);
+        if (endDate) params.push(endDate);
+      }
+
+      // User logins (based on last_login_at updates - we track when users logged in)
+      // Note: We don't have individual login records, just last_login_at
+      // For a proper login log, we'd need a separate table. For now, we'll skip this
+      // or show recent logins based on last_login_at
+      if (!actionType || actionType === 'login') {
+        let loginQuery = `
+          SELECT
+            'login_' || u.id || '_' || DATE(u.last_login_at) as id,
+            'login' as action_type,
+            'Login' as action,
+            u.id as user_id,
+            u.name as user_name,
+            u.email as user_email,
+            NULL as target_user_id,
+            NULL as target_user_email,
+            '{}' as details,
+            u.last_login_at as created_at
+          FROM users u
+          WHERE u.last_login_at IS NOT NULL
+        `;
+        if (userId) {
+          loginQuery += ` AND u.id = ?`;
+        }
+        loginQuery = addDateFilter(loginQuery, 'u.last_login_at');
+        unionQueries.push(loginQuery);
+        if (userId) params.push(userId);
+        if (startDate) params.push(startDate);
+        if (endDate) params.push(endDate);
+      }
+
+      if (unionQueries.length === 0) {
+        return res.json({
+          activities: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
+
+      // Combine all queries with UNION
+      const combinedQuery = unionQueries.join(' UNION ALL ');
+
+      // Get total count
+      const countQuery = `SELECT COUNT(*) as total FROM (${combinedQuery}) as combined`;
+      const countResult = db.prepare(countQuery).get(...params) as { total: number };
+      const total = countResult.total;
+
+      // Get paginated results
+      const paginatedQuery = `${combinedQuery} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      const activities = db.prepare(paginatedQuery).all(...params, limit, offset);
+
+      res.json({
+        activities,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('[Admin] Error fetching activity log:', error);
+      res.status(500).json({ message: 'Failed to fetch activity log' });
+    }
+  }
+);
+
 export default router;
