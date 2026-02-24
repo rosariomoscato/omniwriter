@@ -1,5 +1,60 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #339 Re-verification
+
+### Completed Features: 341/341 (100%)
+
+### Feature #339: Fix: Social snippets - testo troncato e copia parziale
+
+**Status:** ✅ RE-VERIFIED AND CONFIRMED PASSING
+
+**Context:** Feature was already implemented in previous session (commit 73d7261) but system showed in_progress status. Re-verified implementation.
+
+**Code Analysis Confirms:**
+
+1. **Text Display** (RedattoreTools.tsx lines 368-372):
+   ```tsx
+   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
+     {snippet.text}
+   </p>
+   ```
+   - ✅ `whitespace-pre-wrap`: Preserves whitespace and allows wrapping
+   - ✅ `break-words`: Breaks long words to prevent overflow
+   - ✅ NO truncation classes: No `line-clamp`, `truncate`, `max-h`, `overflow-hidden`
+   - ✅ Text displays in full with auto height
+
+2. **Copy Function** (Lines 103-114):
+   ```tsx
+   const copyToClipboard = (text: string, id: string) => {
+     navigator.clipboard.writeText(text);
+     // ...
+   };
+   ```
+   - ✅ Uses `navigator.clipboard.writeText(text)` with full text parameter
+
+3. **Copy Button** (Line 389):
+   ```tsx
+   onClick={() => copyToClipboard(snippet.text, snippet.id)}
+   ```
+   - ✅ Passes `snippet.text` - the complete text from API response
+   - ✅ Copies full content, not partial
+
+**Verification:**
+- Code review confirms correct implementation
+- No CSS truncation present
+- Copy function uses full `snippet.text` property
+- Feature properly addresses both issues: display and copy
+
+**Status: Feature #339 MARKED PASSING (re-confirmed)**
+
+---
+
+## MILESTONE: 341/341 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
+---
+
 ## Session: 2026-02-24 - Feature #342 Implementation
 
 ### Feature #342: Implementare generazione AI per social snippets

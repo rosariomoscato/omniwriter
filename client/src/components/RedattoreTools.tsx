@@ -357,32 +357,21 @@ export default function RedattoreTools({ chapter, projectArea, onTitleChange }: 
                   </button>
                 </div>
 
-                {/* Snippets for selected platform */}
+                {/* Snippets for selected platform - Feature #339: full text visible, complete copy */}
                 <div className="space-y-3">
                   {socialSnippets[selectedPlatform]?.map((snippet) => (
                     <div
                       key={snippet.id}
                       className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
                     >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-                            {snippet.text}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(snippet.text, snippet.id)}
-                          className="flex-shrink-0 p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                          title="Copy to clipboard"
-                        >
-                          {selectedSnippets[snippet.id] ? (
-                            <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <MessageCircle className="w-4 h-4" />
-                          )}
-                        </button>
+                      {/* Snippet text - full content visible with auto height */}
+                      <div className="mb-2">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words leading-relaxed">
+                          {snippet.text}
+                        </p>
                       </div>
-                      <div className="flex items-center justify-between text-xs">
+                      {/* Actions and metadata */}
+                      <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-3">
                           {/* Character count */}
                           <span className={getCharacterCountColor(snippet.characterCount, selectedPlatform === 'twitter' ? 280 : selectedPlatform === 'instagram' ? 2200 : selectedPlatform === 'linkedin' ? 3000 : 63206)}>
@@ -396,6 +385,17 @@ export default function RedattoreTools({ chapter, projectArea, onTitleChange }: 
                             </div>
                           )}
                         </div>
+                        <button
+                          onClick={() => copyToClipboard(snippet.text, snippet.id)}
+                          className="flex-shrink-0 p-1.5 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          title="Copia tutto il testo"
+                        >
+                          {selectedSnippets[snippet.id] ? (
+                            <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <MessageCircle className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   ))}
