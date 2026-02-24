@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 let db: Database.Database;
 
@@ -325,6 +327,17 @@ function runMigrations(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Feature #349: Admin audit logs
+    CREATE TABLE IF NOT EXISTS admin_logs (
+      id TEXT PRIMARY KEY,
+      admin_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      target_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      target_user_email TEXT DEFAULT '',
+      details TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Feature #297: Saga continuity state tracking
     CREATE TABLE IF NOT EXISTS saga_continuity (
       id TEXT PRIMARY KEY,
@@ -367,6 +380,10 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_llm_providers_is_active ON llm_providers(is_active);
     CREATE INDEX IF NOT EXISTS idx_plot_hole_analyses_project_id ON plot_hole_analyses(project_id);
     CREATE INDEX IF NOT EXISTS idx_consistency_checks_project_id ON consistency_checks(project_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_logs_admin_id ON admin_logs(admin_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_logs_target_user_id ON admin_logs(target_user_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at);
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_saga_id ON saga_continuity(saga_id);
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_source_project_id ON saga_continuity(source_project_id);
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_episode ON saga_continuity(saga_id, episode_number);
@@ -468,10 +485,48 @@ function runMigrations(db: Database.Database): void {
     } catch (migrationError) {
       console.log('[Database] export_history migration (may already be applied):', migrationError);
     }
+
+    // Feature #351: Add target_user_email column to admin_logs if missing
+    try {
+      const adminLogsInfo = db.prepare('PRAGMA table_info(admin_logs)').all() as { name: string }[];
+      const adminLogsColumns = adminLogsInfo.map(col => col.name);
+
+      if (!adminLogsColumns.includes('target_user_email')) {
+        console.log('[Database] Adding target_user_email column to admin_logs...');
+        db.exec("ALTER TABLE admin_logs ADD COLUMN target_user_email TEXT DEFAULT ''");
+      }
+    } catch (adminLogsMigrationError) {
+      console.log('[Database] admin_logs migration (may already be applied):', adminLogsMigrationError);
+    }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);
     throw error;
   }
 
+  // Seed default admin user if not exists
+  seedAdminUser(db);
+
   console.log('[Database] Migrations completed successfully');
+}
+
+function seedAdminUser(db: Database.Database): void {
+  const adminEmail = 'admin@omniwriter.com';
+  const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+
+  if (!existingAdmin) {
+    console.log('[Database] Creating default admin user...');
+    const adminId = uuidv4();
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync('Admin2026!', salt);
+
+    db.prepare(
+      `INSERT INTO users (id, email, password_hash, name, role, preferred_language, theme_preference, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'admin', 'it', 'light', datetime('now'), datetime('now'))`
+    ).run(adminId, adminEmail, passwordHash, 'Admin');
+
+    console.log('[Database] Default admin user created: admin@omniwriter.com');
+  } else {
+    // Ensure existing admin user has admin role
+    db.prepare("UPDATE users SET role = 'admin' WHERE email = ? AND role != 'admin'").run(adminEmail);
+  }
 }

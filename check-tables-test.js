@@ -1,27 +1,20 @@
-const Database = require('./server/node_modules/better-sqlite3');
-const db = new Database('./server/data/omniwriter.db');
+var Database = require('./server/node_modules/better-sqlite3');
+var db = new Database('./server/data/omniwriter.db');
 
-// List all tables
-const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
-console.log('Tables found:', tables.length);
-console.log('Table names:', tables.map(t => t.name).join(', '));
+var tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+console.log('Tables:', tables.map(function(t){return t.name}).join(', '));
 
-// Check key columns on users table
-console.log('\nUsers table columns:');
-const usersCols = db.prepare("PRAGMA table_info(users)").all();
-usersCols.forEach(col => console.log(`  ${col.name} (${col.type})`));
+var usersInfo = db.prepare('PRAGMA table_info(users)').all();
+console.log('\nUsers columns:');
+usersInfo.forEach(function(c) { console.log('  ' + c.name + ' (' + c.type + ')'); });
 
-// Check key columns on projects table
-console.log('\nProjects table columns:');
-const projectsCols = db.prepare("PRAGMA table_info(projects)").all();
-projectsCols.forEach(col => console.log(`  ${col.name} (${col.type})`));
+var hasAdminLogs = tables.some(function(t) { return t.name === 'admin_logs'; });
+console.log('\nadmin_logs table exists:', hasAdminLogs);
 
-// Check key columns on chapters table
-console.log('\nChapters table columns:');
-const chaptersCols = db.prepare("PRAGMA table_info(chapters)").all();
-chaptersCols.forEach(col => console.log(`  ${col.name} (${col.type})`));
+var admins = db.prepare("SELECT id, email, name, role FROM users WHERE role = 'admin' LIMIT 5").all();
+console.log('\nAdmin users:', JSON.stringify(admins));
 
-// Check foreign keys are enabled
-console.log('\nForeign keys enabled:', db.pragma('foreign_keys', { simple: true }));
+var count = db.prepare('SELECT COUNT(*) as c FROM users').get();
+console.log('Total users:', count.c);
 
 db.close();

@@ -2306,6 +2306,181 @@ class ApiService {
     });
   }
 
+  // ============ ADMIN API METHODS ============
+
+  // Feature #351: Get all users with pagination and filters
+  async getAdminUsers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    status?: string;
+  }): Promise<{
+    users: Array<{
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      subscription_status: string;
+      subscription_expires_at: string | null;
+      preferred_language: string;
+      theme_preference: string;
+      created_at: string;
+      last_login_at: string | null;
+      is_suspended: number;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.status) queryParams.append('status', params.status);
+
+    const queryString = queryParams.toString();
+    return this.request<any>(`/admin/users${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Feature #351: Update user role
+  async updateUserRole(userId: string, role: 'free' | 'premium' | 'lifetime' | 'admin'): Promise<{
+    message: string;
+    oldRole: string;
+    newRole: string;
+  }> {
+    return this.request<{ message: string; oldRole: string; newRole: string }>(`/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  // Feature #351: Suspend or reactivate user
+  async suspendUser(userId: string, suspended: boolean): Promise<{
+    message: string;
+    is_suspended: boolean;
+  }> {
+    return this.request<{ message: string; is_suspended: boolean }>(`/admin/users/${userId}/suspend`, {
+      method: 'PATCH',
+      body: JSON.stringify({ suspended }),
+    });
+  }
+
+  // Feature #351: Delete user
+  async deleteUser(userId: string): Promise<{
+    message: string;
+    deletedUser: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      projectsDeleted: number;
+      humanModelsDeleted: number;
+    };
+  }> {
+    return this.request<any>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Feature #350: Get platform stats
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    usersByRole: { free: number; premium: number; lifetime: number; admin: number };
+    totalProjects: number;
+    projectsByArea: { romanziere: number; saggista: number; redattore: number };
+    totalWordsGenerated: number;
+    activeUsersLast30Days: number;
+    newUsersLast30Days: number;
+    totalChapters: number;
+  }> {
+    return this.request<any>('/admin/stats');
+  }
+
+  // Feature #352: Get project statistics
+  async getAdminProjectStats(): Promise<{
+    projectsPerMonth: Array<{ year: string; month: string; count: number }>;
+    projectsByArea: { romanziere: number; saggista: number; redattore: number };
+    top10LongestProjects: Array<{
+      id: string;
+      title: string;
+      area: string;
+      word_count: number;
+      author_name: string;
+    }>;
+    avgChaptersPerProject: number;
+  }> {
+    return this.request<any>('/admin/stats/projects');
+  }
+
+  // Feature #352: Get usage statistics
+  async getAdminUsageStats(): Promise<{
+    totalAiGenerations: number;
+    totalSourcesUploaded: number;
+    totalHumanModelsCreated: number;
+    exportsByFormat: { docx: number; epub: number; rtf: number; pdf: number; txt: number };
+  }> {
+    return this.request<any>('/admin/stats/usage');
+  }
+
+  // Feature #352: Get activity statistics
+  async getAdminActivityStats(): Promise<{
+    activityLast7Days: Array<{
+      date: string;
+      logins: number;
+      projectCreations: number;
+      generations: number;
+    }>;
+    peakUsageHours: Array<{ hour: number; count: number }>;
+  }> {
+    return this.request<any>('/admin/stats/activity');
+  }
+
+  // Get admin health info
+  async getAdminHealth(): Promise<{
+    status: string;
+    database: {
+      connected: boolean;
+      size: string;
+      activeSessions: number;
+    };
+    uptime: number;
+    memory: {
+      rss: number;
+      heapTotal: number;
+      heapUsed: number;
+      external: number;
+      arrayBuffers: number;
+    };
+  }> {
+    return this.request<any>('/admin/health');
+  }
+
+  // Get admin logs
+  async getAdminLogs(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    logs: Array<any>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return this.request<any>(`/admin/logs${queryString ? `?${queryString}` : ''}`);
+  }
+
   // Helper to store auth data
   static setAuth(user: AuthResponse['user'], token: string) {
     localStorage.setItem('user', JSON.stringify(user));

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, Mail } from 'lucide-react';
 import api from '../services/api';
+import Footer from '../components/Footer';
 
 function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -38,7 +39,8 @@ function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+        <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-dark-surface p-8 rounded-lg shadow text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -65,12 +67,15 @@ function ForgotPasswordPage() {
             </Link>
           </div>
         </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <Mail className="w-12 h-12 text-primary-600 mx-auto" />
@@ -126,6 +131,8 @@ function ForgotPasswordPage() {
           </div>
         </form>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }

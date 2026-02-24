@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import Footer from '../components/Footer';
 
 function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -84,7 +85,8 @@ function ResetPasswordPage() {
 
   if (!tokenValid) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+        <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-dark-surface p-8 rounded-lg shadow text-center">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -102,13 +104,16 @@ function ResetPasswordPage() {
             </Link>
           </div>
         </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+        <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white dark:bg-dark-surface p-8 rounded-lg shadow text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -120,12 +125,15 @@ function ResetPasswordPage() {
             </p>
           </div>
         </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white">
@@ -230,6 +238,8 @@ function ResetPasswordPage() {
           </div>
         </form>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }

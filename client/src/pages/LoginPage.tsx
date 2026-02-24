@@ -5,6 +5,7 @@ import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFormValidation, ValidationRules } from '../hooks/useFormValidation';
 import { FormInput } from '../components/FormField';
+import Footer from '../components/Footer';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id';
 
@@ -111,7 +112,8 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col">
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 dark:text-white">
@@ -279,6 +281,8 @@ function LoginPage() {
           </div>
         </form>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }

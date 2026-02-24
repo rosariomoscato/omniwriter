@@ -26,6 +26,8 @@ import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminStatsPage from './pages/AdminStatsPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminLayout from './components/AdminLayout';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import SourcesPage from './pages/SourcesPage';
@@ -301,58 +303,12 @@ function AppContent() {
                   </>
                 }
               />
-              <Route
-                path="/admin/users"
-                element={
-                  <>
-                    <Sidebar
-                      isCollapsed={isSidebarCollapsed}
-                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      recentProjects={recentProjects}
-                    />
-                    <Header isSidebarCollapsed={isSidebarCollapsed} />
-                    <main
-                      className={`
-                        fixed top-16 right-0 bottom-0 overflow-y-auto
-                        transition-all duration-300 bg-white dark:bg-dark-bg
-                        flex flex-col
-                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
-                      `}
-                    >
-                      <div className="flex-1">
-                        <AdminUsersPage />
-                      </div>
-                      <Footer />
-                    </main>
-                  </>
-                }
-              />
-              <Route
-                path="/admin/stats"
-                element={
-                  <>
-                    <Sidebar
-                      isCollapsed={isSidebarCollapsed}
-                      onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      recentProjects={recentProjects}
-                    />
-                    <Header isSidebarCollapsed={isSidebarCollapsed} />
-                    <main
-                      className={`
-                        fixed top-16 right-0 bottom-0 overflow-y-auto
-                        transition-all duration-300 bg-white dark:bg-dark-bg
-                        flex flex-col
-                        ${isSidebarCollapsed ? 'left-16' : 'left-64'}
-                      `}
-                    >
-                      <div className="flex-1">
-                        <AdminStatsPage />
-                      </div>
-                      <Footer />
-                    </main>
-                  </>
-                }
-              />
+              {/* Admin Routes - With AdminLayout */}
+              <Route element={<AdminLayout />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/admin/stats" element={<AdminStatsPage />} />
+              </Route>
               <Route
                 path="/projects/new"
                 element={

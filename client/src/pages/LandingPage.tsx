@@ -267,6 +267,16 @@ export default function LandingPage() {
             <p className="text-sm">
               {t('landing.footer.copyright')}
             </p>
+            <p className="text-sm mt-4">
+              {t('footer.builtWith')}{' '}
+              <a
+                href="mailto:ros.moscato@gmail.com"
+                className="hover:text-primary-400 transition-colors"
+              >
+                RoMoS
+              </a>{' '}
+              {t('footer.allRightsReserved')}
+            </p>
           </div>
         </div>
       </footer>

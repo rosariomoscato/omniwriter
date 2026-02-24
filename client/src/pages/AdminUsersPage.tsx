@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Search, Shield, UserCheck, UserX, Mail, Calendar, Crown, User } from 'lucide-react';
+import { Search, Shield, UserCheck, UserX, Mail, Calendar, Crown, User, Trash2, AlertTriangle } from 'lucide-react';
 import { useToastNotification } from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface User {
   id: string;
@@ -28,6 +29,7 @@ interface UsersResponse {
 
 const AdminUsersPage = () => {
   const toast = useToastNotification();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -37,10 +39,13 @@ const AdminUsersPage = () => {
   });
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
-  const fetchUsers = async (page: number, searchQuery: string) => {
+  const fetchUsers = async (page: number, searchQuery: string, role: string, status: string) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -49,6 +54,12 @@ const AdminUsersPage = () => {
       url.searchParams.append('limit', '20');
       if (searchQuery) {
         url.searchParams.append('search', searchQuery);
+      }
+      if (role) {
+        url.searchParams.append('role', role);
+      }
+      if (status) {
+        url.searchParams.append('status', status);
       }
 
       const response = await fetch(url.toString(), {
@@ -82,13 +93,62 @@ const AdminUsersPage = () => {
   };
 
   useEffect(() => {
-    fetchUsers(pagination.page, search);
-  }, [pagination.page, search]);
+    fetchUsers(pagination.page, search, roleFilter, statusFilter);
+  }, [pagination.page, search, roleFilter, statusFilter]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearch(searchInput);
     setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleRoleFilterChange = (newRole: string) => {
+    setRoleFilter(newRole);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleStatusFilterChange = (newStatus: string) => {
+    setStatusFilter(newStatus);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setRoleFilter('');
+    setStatusFilter('');
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (error.message?.includes('Cannot delete your own account')) {
+          toast.error('Non puoi eliminare il tuo account');
+          return;
+        }
+        throw new Error('Failed to delete user');
+      }
+
+      // Remove user from local state
+      setUsers(users.filter(u => u.id !== userId));
+      setPagination(prev => ({ ...prev, total: prev.total - 1 }));
+      setDeleteConfirm(null);
+      toast.success('Utente eliminato con successo');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      toast.error('Errore durante l\'eliminazione dell\'utente');
+    }
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
@@ -201,7 +261,7 @@ const AdminUsersPage = () => {
       </div>
 
       {/* Search Bar */}
-      <form onSubmit={handleSearch} className="mb-6">
+      <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -219,6 +279,50 @@ const AdminUsersPage = () => {
           </button>
         </div>
       </form>
+
+      {/* Filters */}
+      <div className="mb-6 flex flex-wrap gap-4 items-center">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Ruolo:
+          </label>
+          <select
+            value={roleFilter}
+            onChange={(e) => handleRoleFilterChange(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-surface text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tutti</option>
+            <option value="free">Free</option>
+            <option value="premium">Premium</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Stato:
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-surface text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tutti</option>
+            <option value="active">Attivo</option>
+            <option value="suspended">Sospeso</option>
+          </select>
+        </div>
+
+        {(search || roleFilter || statusFilter) && (
+          <button
+            onClick={clearFilters}
+            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            Cancella filtri
+          </button>
+        )}
+      </div>
 
       {/* Results Info */}
       {pagination.total > 0 && (
@@ -347,6 +451,17 @@ const AdminUsersPage = () => {
                               <UserX className="w-4 h-4" />
                             )}
                           </button>
+
+                          {/* Delete Button */}
+                          {user.id !== currentUser?.id && (
+                            <button
+                              onClick={() => setDeleteConfirm({ id: user.id, name: user.name })}
+                              className="p-1.5 rounded bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-200 transition-colors"
+                              title="Elimina utente"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -379,6 +494,45 @@ const AdminUsersPage = () => {
             >
               Successiva
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Conferma Eliminazione
+              </h3>
+            </div>
+
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Sei sicuro di voler eliminare l'utente <strong>{deleteConfirm.name}</strong>?
+              <br />
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Questa azione eliminerà anche tutti i progetti, capitoli e dati associati all'utente. Questa azione non può essere annullata.
+              </span>
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md text-sm font-medium transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => handleDeleteUser(deleteConfirm.id)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
+              >
+                Elimina Utente
+              </button>
+            </div>
           </div>
         </div>
       )}
