@@ -25,6 +25,7 @@ import NewProject from './pages/NewProject';
 import HumanModelPage from './pages/HumanModelPage';
 import ChapterEditor from './pages/ChapterEditor';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminProjectsPage from './pages/AdminProjectsPage';
 import AdminStatsPage from './pages/AdminStatsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminLayout from './components/AdminLayout';
@@ -307,6 +308,7 @@ function AppContent() {
               <Route element={<AdminLayout />}>
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/admin/projects" element={<AdminProjectsPage />} />
                 <Route path="/admin/stats" element={<AdminStatsPage />} />
               </Route>
               <Route
