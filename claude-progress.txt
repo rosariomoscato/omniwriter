@@ -6385,3 +6385,89 @@ Uses existing endpoint:
 
 The OmniWriter platform is now feature-complete with all planned functionality implemented and verified!
 
+
+---
+
+## Session: 2026-02-24 - Features #361 and #362 Implementation
+
+### Completed Features: 362/362 (100%)
+
+### Feature #361: Menu semplificato per admin - solo Admin Panel
+
+**Objective:** Quando l'utente ha ruolo 'admin', il menu deve mostrare SOLO le voci admin: Dashboard Admin, Utenti, Progetti, Attività.
+
+**Implementation:**
+
+#### 1. Sidebar.tsx - Admin Navigation
+
+Modified `client/src/components/Sidebar.tsx`:
+
+- Added new imports: `Activity`, `LayoutDashboard` from lucide-react
+- Updated `adminNav` array with new admin-only menu:
+  - Dashboard Admin (`/admin`) - LayoutDashboard icon
+  - Utenti (`/admin/users`) - User icon
+  - Progetti (`/admin/projects`) - FolderOpen icon
+  - Attività (`/admin/activity`) - Activity icon
+- Added conditional rendering: `{isAdmin ? ... : ...}`
+- Admin users see only admin menu
+- Regular users see full menu (Dashboard, Human Model, Sources, Sagas, Settings, Areas, Recent Projects)
+- Profile section hidden for admin users
+
+**Files Modified:**
+- `client/src/components/Sidebar.tsx`
+
+### Feature #362: Admin landing page - redirect automatico
+
+**Objective:** Quando un admin fa login, deve essere reindirizzato automaticamente alla Dashboard Admin. Se admin prova ad accedere a /dashboard, redirect a /admin.
+
+**Implementation:**
+
+#### 1. AuthContext.tsx - Return User from Login
+
+Modified `client/src/contexts/AuthContext.tsx`:
+- Changed `login` function to return `Promise<User>` instead of `Promise<void>`
+- Returns `response.user` after successful login
+
+#### 2. LoginPage.tsx - Role-Based Redirect
+
+Modified `client/src/pages/LoginPage.tsx`:
+- Uses returned `loggedInUser` from login function
+- Checks `loggedInUser.role === 'admin'`
+- Admin users redirect to `/admin`
+- Regular users redirect to `/dashboard`
+
+#### 3. App.tsx - Route Protection
+
+Modified `client/src/App.tsx` ProtectedRouteGuard:
+- Added `isUserRoute` check for user-only routes
+- Admin users accessing `/dashboard`, `/profile`, `/settings`, etc. redirect to `/admin`
+- Regular users accessing `/admin` redirect to `/dashboard`
+
+**Files Modified:**
+- `client/src/contexts/AuthContext.tsx`
+- `client/src/pages/LoginPage.tsx`
+- `client/src/App.tsx`
+
+### Verification Summary
+
+**Feature #361 Verification:**
+- ✅ Admin menu shows only: Dashboard Admin, Utenti, Progetti, Attività
+- ✅ Regular user menu items hidden for admin
+- ✅ Profile section hidden for admin
+- ✅ Regular users see full menu unchanged
+
+**Feature #362 Verification:**
+- ✅ Admin login redirects to /admin
+- ✅ Regular user login redirects to /dashboard
+- ✅ Admin accessing /dashboard redirects to /admin
+- ✅ Regular user accessing /admin redirects to /dashboard
+
+### Commit: 2386fcd (included in feature #360 commit)
+
+**Status: Features #361 and #362 MARKED PASSING**
+
+---
+
+## MILESTONE: 362/362 Features Passing (100%)
+
+All admin UI and navigation features are now complete!
