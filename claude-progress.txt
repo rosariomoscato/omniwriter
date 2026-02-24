@@ -5300,7 +5300,46 @@ Testato con browser automation:
 
 ---
 
-## MILESTONE: 337/337 Features Passing (100%)
+## Feature #340: Fix: Readability Analysis - tema e localizzazione
+**Date:** 2026-02-24
+**Status:** COMPLETED
+
+**Issue:** The Readability Analysis component in the ChapterEditor for Redattore area had two problems:
+1. Theme Issue: Light background didn't adapt to dark mode
+2. Localization Issue: Text was hardcoded in English/Italian instead of using i18n
+
+**Solution:**
+1. Added dark mode Tailwind classes to the Readability Analysis button active state:
+   - `dark:bg-blue-900/30` for active background
+   - `dark:border-blue-400` for active border
+
+2. Replaced all hardcoded strings with i18n keys:
+   - `chapterEditor.readabilityAnalysis` - Button title and panel heading
+   - `chapterEditor.readabilityPlaceholder` - Empty state text
+   - `chapterEditor.readabilityNotes` - Notes section heading
+   - `chapterEditor.readabilitySuggestions` - Suggestions section heading
+
+3. Added translation keys to both locale files:
+   - `client/src/i18n/locales/en.json`
+   - `client/src/i18n/locales/it.json`
+
+**Files Modified:**
+- `client/src/pages/ChapterEditor.tsx`
+- `client/src/i18n/locales/en.json`
+- `client/src/i18n/locales/it.json`
+
+**Verification:**
+- Tested with browser automation in Italian locale
+- Confirmed button shows "Analisi Leggibilità"
+- Confirmed placeholder text shows Italian translation
+- Verified dark mode styling with screenshot analysis
+- All translation keys properly defined in both languages
+
+**Status: Feature #340 MARKED PASSING**
+
+---
+
+## MILESTONE: 340/340 Features Passing (100%)
 
 All features have been successfully implemented and verified!
 

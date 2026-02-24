@@ -1231,11 +1231,11 @@ export default function ChapterEditor() {
                   onClick={() => setShowReadabilityPanel(!showReadabilityPanel)}
                   className={`p-2 rounded-lg border transition-colors ${
                     showReadabilityPanel || readabilityScore
-                      ? 'bg-blue-50 border-blue-500'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400'
                       : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
-                  aria-label="Readability Analysis"
-                  title="Readability Analysis"
+                  aria-label={t('chapterEditor.readabilityAnalysis')}
+                  title={t('chapterEditor.readabilityAnalysis')}
                 >
                   <Sparkles className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                 </button>
@@ -1420,7 +1420,7 @@ export default function ChapterEditor() {
               {!readabilityScore ? (
                 <div className="text-center py-6">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Scrivi qualcosa nell'editor per vedere l'analisi di leggibilità in tempo reale.
+                    {t('chapterEditor.readabilityPlaceholder')}
                   </p>
                 </div>
               ) : (
@@ -1453,7 +1453,7 @@ export default function ChapterEditor() {
               {/* Notes */}
               {readabilityScore.notes.length > 0 && (
                 <div className="mb-3">
-                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">NOTE:</h5>
+                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('chapterEditor.readabilityNotes')}:</h5>
                   <ul className="space-y-1">
                     {readabilityScore.notes.map((note, idx) => (
                       <li key={idx} className="text-xs text-gray-600 dark:text-gray-400 flex items-start gap-1">
@@ -1470,7 +1470,7 @@ export default function ChapterEditor() {
                 <div>
                   <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
                     <Lightbulb className="w-3 h-3 text-yellow-500" />
-                    SUGGERIMENTI PER MIGLIORARE:
+                    {t('chapterEditor.readabilitySuggestions')}:
                   </h5>
                   <ul className="space-y-2">
                     {readabilityScore.suggestions.map((suggestion, idx) => (
