@@ -265,9 +265,6 @@ export default function LandingPage() {
           <div className="text-center text-gray-400">
             <p className="text-2xl font-bold text-white mb-4">{t('app.name')}</p>
             <p className="text-sm">
-              {t('landing.footer.copyright')}
-            </p>
-            <p className="text-sm mt-4">
               {t('footer.builtWith')}{' '}
               <a
                 href="mailto:ros.moscato@gmail.com"
