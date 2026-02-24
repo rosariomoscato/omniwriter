@@ -1,5 +1,86 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-25 - Feature #364 Implementation
+
+### Completed Features: 363/363 (100%)
+
+### Feature #364: Rimuovere riga copyright duplicata dal footer landing page
+
+**Objective:** Remove the duplicate copyright line from the landing page footer. The footer had two copyright lines: "© 2025 OmniWriter. Tutti i diritti riservati." and "Costruito con ❤️ da RoMoS - 2026 - Tutti i diritti riservati". Keep only the second one for consistency with the rest of the app.
+
+**Implementation:**
+
+1. **Modified `client/src/pages/LandingPage.tsx`**
+   - Removed lines 267-269 that contained `{t('landing.footer.copyright')}` paragraph
+   - Kept only the "Costruito con ❤️ da RoMoS - 2026" paragraph
+   - Footer now shows: App name + RoMoS credit line
+
+**Files Modified:**
+- `client/src/pages/LandingPage.tsx` (removed duplicate copyright)
+
+**Verification:**
+- ✅ Landing page footer shows only "Costruito con ❤️ da RoMoS - 2026 - Tutti i diritti riservati"
+- ✅ No duplicate copyright lines
+- ✅ Footer is consistent with the rest of the application
+- ✅ No JavaScript console errors
+
+### Commit: 629748c
+
+**Status: Feature #364 MARKED PASSING**
+
+---
+
+## MILESTONE: 363/363 Features Passing (100%)
+
+All features are now complete!
+
+---
+
+## Session: 2026-02-25 - Feature #363 Implementation
+
+### Completed Features: 362/362 (100%)
+
+### Feature #363: Rimuovere "Analizza Romanzo" dalla dashboard (tenere solo nel menu)
+
+**Objective:** Remove the "Analizza Romanzo" button from the main dashboard because it's redundant with the menu item. The functionality should remain accessible from the sidebar menu.
+
+**Implementation:**
+
+1. **Removed the "Analizza Romanzo" button from Dashboard.tsx**
+   - The button was located at lines 644-653 (before the "Personalizza" button)
+   - Button showed purple button with Sparkles icon and text "Analizza Romanzo"
+   - Was only visible on main dashboard (not area pages)
+
+2. **Removed unused Sparkles import**
+   - Removed `Sparkles` from lucide-react imports since it was only used for the button
+
+3. **Preserved functionality**
+   - AnalyzeNovelModal component still exists and works
+   - Event listener for 'open-analyze-novel-modal' still active
+   - Sidebar menu item "Analizza Romanzo" still present and functional
+   - Clicking sidebar menu dispatches event to open the modal
+
+**Files Modified:**
+- `client/src/pages/Dashboard.tsx` (removed button and import)
+
+**Verification:**
+- ✅ Dashboard no longer shows "Analizza Romanzo" button
+- ✅ Dashboard still shows: "Crea Progetto", "Importa Progetto", "Personalizza"
+- ✅ Sidebar menu still has "Analizza Romanzo" entry
+- ✅ AnalyzeNovelModal still accessible via sidebar
+
+### Commit: 3c2b3be
+
+**Status: Feature #363 MARKED PASSING**
+
+---
+
+## MILESTONE: 362/362 Features Passing (100%)
+
+All features are now complete!
+
+---
+
 ## Session: 2026-02-24 - Feature #3 Verification
 
 ### Completed Features: 359/361 (99.4%)
