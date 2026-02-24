@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Share2, Edit3, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, X, BookOpen, FileText, Newspaper, Upload, FileUp, Tag as TagIcon, Settings, Edit3, Sparkles } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { apiService, Project } from '../services/api';
 import { useToastNotification } from '../components/Toast';
@@ -196,7 +196,6 @@ export default function Dashboard() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Calculate if filters are active
   const hasActiveFilters = useMemo(
@@ -389,19 +388,6 @@ export default function Dashboard() {
     };
     setFilters(defaultFilters);
     setSearchParams({});
-  };
-
-  // Copy URL to clipboard
-  const handleCopyUrl = async () => {
-    try {
-      const url = window.location.href;
-      await navigator.clipboard.writeText(url);
-      setCopiedUrl(true);
-      toast.success(t('dashboard.urlCopied'));
-      setTimeout(() => setCopiedUrl(false), 2000);
-    } catch (err) {
-      toast.error(t('common.error'));
-    }
   };
 
   // Import handlers
@@ -855,20 +841,6 @@ export default function Dashboard() {
               {t('dashboard.clearFilters')}
             </button>
           )}
-
-          {/* Copy URL Button - always visible to share current view */}
-          <button
-            onClick={handleCopyUrl}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              copiedUrl
-                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
-            title={copiedUrl ? t('dashboard.urlCopied') : t('dashboard.copyUrlWithFilters')}
-          >
-            <Share2 size={18} />
-            {copiedUrl ? t('dashboard.urlCopied') : t('dashboard.copyUrl')}
-          </button>
 
           {/* Sort */}
           <select
