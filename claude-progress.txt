@@ -1,5 +1,52 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #344 Implementation
+
+### Completed Features: 343/343 (100%)
+
+### Feature #344: Aggiungere indice ai romanzi esportati (TXT, DOCX, EPUB)
+
+**Objective:** Attualmente l'indice/table of contents viene generato solo per i progetti "saggista". L'utente vuole che venga incluso anche per i romanzi (romanziere). Per EPUB l'indice esiste già (toc.xhtml) ma è in inglese; per TXT e DOCX non viene incluso.
+
+**Implementation:**
+
+1. **TXT Export (`generateTxt()`)** - Modified condition from `area === 'saggista'` to `(area === 'saggista' || area === 'romanziere')`
+
+2. **DOCX Export (`generateDocx()`)** - Modified condition from `area === 'saggista'` to `(area === 'saggista' || area === 'romanziere')`
+
+3. **EPUB Export Localization (`generateEpub()`)**:
+   - Added localized TOC title: Italian "Indice", English "Table of Contents"
+   - Added localized chapter label: Italian "Capitolo", English "Chapter"
+   - Added localized cover label for NCX: Italian "Copertina", English "Cover"
+   - Updated toc.xhtml and toc.ncx to use localized labels
+
+4. **Batch Export** - Modified condition for TXT batch export
+
+**Verification:**
+- Created new Romanziere project "Il Romanzo di Test" with 2 chapters
+- Exported as TXT - verified file contains INDICE with chapter list:
+  ```
+  INDICE
+  ======
+
+  1. Capitolo 1: L'Inizio
+  2. Capitolo 2: La Scoperta
+  ```
+- Exported as DOCX - file downloaded successfully
+- Zero JavaScript console errors
+
+**Commit:** 44bd147
+
+**Status: Feature #344 MARKED PASSING**
+
+---
+
+## MILESTONE: 343/343 Features Passing (100%)
+
+All features have been successfully implemented and verified!
+
+---
+
 ## Session: 2026-02-24 - Feature #339 Re-verification
 
 ### Completed Features: 341/341 (100%)
