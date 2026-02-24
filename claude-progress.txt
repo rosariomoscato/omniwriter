@@ -1,5 +1,75 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #3 Verification
+
+### Completed Features: 359/361 (99.4%)
+
+### Feature #3: Data persists across server restart
+
+**Objective:** Verify data created via the API survives a complete server stop and restart.
+
+**Test Steps Completed:**
+
+1. ✅ **Start the development server**
+   - Server started on port 3001 (node server/dist/index.js)
+   - Client started on port 3000 (vite)
+
+2. ✅ **Create a test user via POST /api/auth/register**
+   - Email: persist_test_feature3@omniwriter.test
+   - Password: TestPass123
+   - Name: Persistence Test User
+   - Response: User registered successfully with ID d8e83d61-f3f6-4b01-908c-05196ddb0009
+
+3. ✅ **Verify user appears via API**
+   - Login with same credentials: SUCCESS
+   - Token received, user data confirmed
+
+4. ✅ **STOP the server**
+   - Killed server process
+   - Verified with curl that server is not responding
+
+5. ✅ **Verify server is stopped**
+   - curl http://localhost:3001/api/health returned "Server confirmed stopped"
+
+6. ✅ **RESTART the server**
+   - Started node server/dist/index.js again
+   - Server health check returned: {"status":"healthy",...}
+
+7. ✅ **Login with same credentials - verify success**
+   - Login with persist_test_feature3@omniwriter.test: SUCCESS
+   - Token received, user data matches original registration
+
+8. ✅ **Browser automation verification**
+   - Opened http://localhost:3000 with playwright-cli
+   - Navigated to login page
+   - Filled form with test user credentials
+   - Clicked login button
+   - Successfully redirected to admin dashboard
+   - User name displayed: "Persistence Test User"
+
+9. ✅ **Database verification**
+   - Confirmed test user exists in SQLite database at server/data/omniwriter.db
+   - Database uses better-sqlite3 for persistent storage
+
+**Mock Data Check (Step 5.6):**
+- Grep for mock patterns in server/src: No files found
+- Grep for mock patterns in client/src: No files found
+- No globalThis.devStore, mockDb, mockData, or similar patterns
+
+**Database Technology:**
+- SQLite via better-sqlite3
+- Database path: server/data/omniwriter.db
+- Data persists to file system, not in-memory storage
+
+**Files Modified:**
+- None (verification only)
+
+### Commit: 729520f
+
+**Status: Feature #3 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-24 - Features #357 and #358 Implementation
 
 ### Completed Features: 358/358 (100%)
