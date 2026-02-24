@@ -1,5 +1,55 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #341 Implementation
+
+### Completed Features: 339/340 (99.7%)
+
+### Feature #341: Rimozione pulsante Copia URL dalla dashboard
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** Rimuovere il pulsante "Copia URL" dalla dashboard in quanto poco utile. Il pulsante copia l'URL della dashboard con i filtri attivi negli appunti, ma questa funzionalità ha scarso valore perché:
+1. Ogni utente vede solo i propri progetti
+2. L'utente deve comunque essere loggato per accedere
+3. I browser moderni permettono già di copiare l'URL dalla barra degli indirizzi
+
+**Implementation:**
+
+Modified `/client/src/pages/Dashboard.tsx`:
+1. **Removed Share2 icon import** (Line 4): Removed `Share2` from lucide-react imports
+2. **Removed copiedUrl state** (Line 199): Removed `const [copiedUrl, setCopiedUrl] = useState(false);`
+3. **Removed handleCopyUrl function** (Lines 394-405): Removed the entire async function
+4. **Removed Copy URL button JSX** (Lines 859-871): Removed the entire button block
+
+Modified `/client/src/i18n/locales/it.json`:
+- Removed translations: `copyUrl`, `urlCopied`, `copyUrlWithFilters`
+
+Modified `/client/src/i18n/locales/en.json`:
+- Removed translations: `copyUrl`, `urlCopied`, `copyUrlWithFilters`
+
+**Verification (Browser Automation):**
+1. Started dev servers on port 3000
+2. Registered new user "Test User 341" (testuser341@example.com)
+3. Logged in and navigated to dashboard
+4. Verified the filter controls section contains only:
+   - "Filtri" (Filters) button
+   - Sort dropdown (Più recenti, Più vecchi, Alfabetico)
+   - Results count text
+5. **Confirmed: Copy URL button is NOT present in the dashboard**
+6. Verified zero JavaScript console errors
+7. Verified filters expand/collapse functionality still works
+
+**Files Modified:**
+- `client/src/pages/Dashboard.tsx`
+- `client/src/i18n/locales/it.json`
+- `client/src/i18n/locales/en.json`
+
+### Commit: b301f73
+
+**Status: Feature #341 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-24 - Features #338 and #339 Implementation
 
 ### Completed Features: 338/338 (100%)
