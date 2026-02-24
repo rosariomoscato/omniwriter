@@ -1082,10 +1082,22 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Projects Grid */}
+      {/* Projects Grid/List/Compact */}
       {!loading && projects.length > 0 && (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={
+          dashboardLayout.viewMode === 'compact'
+            ? 'flex flex-col gap-2'
+            : dashboardLayout.viewMode === 'list'
+              ? 'flex flex-col gap-4'
+              : `grid gap-6 ${
+                  dashboardLayout.cardSize === 'small'
+                    ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+                    : dashboardLayout.cardSize === 'large'
+                      ? 'grid-cols-1 md:grid-cols-2'
+                      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                }`
+        }>
           {projects.map((project) => (
             <Link
               key={project.id}
@@ -1094,52 +1106,106 @@ export default function Dashboard() {
                 // Store filters in sessionStorage before navigating
                 sessionStorage.setItem('dashboardFilters', JSON.stringify(filters));
               }}
-              className="group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-lg transition-all cursor-pointer"
+              className={`group bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-lg transition-all cursor-pointer ${
+                dashboardLayout.viewMode === 'compact'
+                  ? 'flex items-center py-2 px-3'
+                  : dashboardLayout.viewMode === 'list'
+                    ? 'flex items-center py-3 px-4'
+                    : ''
+              }`}
             >
-              <div className="p-5">
-                {/* Area Badge */}
-                <div className="flex items-start justify-between mb-3 gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getAreaColor(
-                      project.area
-                    )} flex-shrink-0`}
-                  >
-                    {getAreaIcon(project.area)}
-                    {getAreaLabel(project.area)}
-                  </span>
-                  <span
-                    className={`inline-flex px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                      project.status
-                    )} flex-shrink-0`}
-                  >
-                    {getStatusLabel(project.status)}
-                  </span>
-                </div>
+              {/* COMPACT VIEW - Single line */}
+              {dashboardLayout.viewMode === 'compact' ? (
+                <>
+                  {/* Area & Status Badges */}
+                  <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getAreaColor(
+                        project.area
+                      )}`}
+                    >
+                      {getAreaIcon(project.area)}
+                      <span className="hidden sm:inline">{getAreaLabel(project.area)}</span>
+                    </span>
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(
+                        project.status
+                      )}`}
+                    >
+                      {getStatusLabel(project.status)}
+                    </span>
+                  </div>
 
-                {/* Title */}
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
-                  {project.title}
-                </h3>
+                  {/* Title */}
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate mx-3 flex-1 min-w-0">
+                    {project.title}
+                  </h3>
 
-                {/* Description */}
-                {project.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                    {project.description}
-                  </p>
-                )}
+                  {/* Metadata (optional) */}
+                  {dashboardLayout.showMetadata && project.genre && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-32 hidden lg:block">
+                      {project.genre}
+                    </span>
+                  )}
 
-                {/* Genre */}
-                {project.genre && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-3 truncate" title={project.genre}>
-                    <span className="font-medium">{t('project.genre')}:</span> {project.genre}
-                  </p>
-                )}
+                  {/* Word count (optional) */}
+                  {dashboardLayout.showWordCount && project.word_count > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 hidden md:inline ml-2">
+                      {project.word_count.toLocaleString()} {t('dashboard.words')}
+                    </span>
+                  )}
 
-                {/* Tags */}
-                <div className="mb-3">
+                  {/* Last modified (optional) */}
+                  {dashboardLayout.showLastModified && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 hidden sm:inline ml-2">
+                      {formatDate(project.updated_at)}
+                    </span>
+                  )}
+                </>
+              ) : dashboardLayout.viewMode === 'list' ? (
+                /* LIST VIEW - Horizontal card */
+                <>
+                  {/* Area & Status Badges */}
+                  <div className="flex flex-col gap-1 min-w-0 flex-shrink-0 w-28">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getAreaColor(
+                        project.area
+                      )}`}
+                    >
+                      {getAreaIcon(project.area)}
+                      {getAreaLabel(project.area)}
+                    </span>
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(
+                        project.status
+                      )} w-fit`}
+                    >
+                      {getStatusLabel(project.status)}
+                    </span>
+                  </div>
+
+                  {/* Title and Description */}
+                  <div className="flex-1 min-w-0 mx-4">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
+                      {project.title}
+                    </h3>
+                    {project.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        {project.description}
+                      </p>
+                    )}
+                    {/* Metadata (optional) */}
+                    {dashboardLayout.showMetadata && project.genre && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {t('project.genre')}: {project.genre}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Tags (condensed) */}
                   {project.tags && project.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {project.tags.slice(0, 3).map((tag) => (
+                    <div className="flex flex-wrap gap-1 max-w-40 hidden lg:flex">
+                      {project.tags.slice(0, 2).map((tag) => (
                         <span
                           key={tag}
                           onClick={(e) => {
@@ -1147,88 +1213,173 @@ export default function Dashboard() {
                             e.stopPropagation();
                             handleTagFilterClick(tag);
                           }}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors group"
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors"
                         >
-                          <TagIcon size={10} />
                           {tag}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleRemoveTag(project.id, tag, e);
-                            }}
-                            className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-opacity"
-                            title={t('dashboard.removeTag')}
-                          >
-                            <X size={10} />
-                          </button>
                         </span>
                       ))}
-                      {project.tags.length > 3 && (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                          +{project.tags.length - 3}
+                      {project.tags.length > 2 && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          +{project.tags.length - 2}
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* Add Tag Input */}
-                  {tagInputProjectId === project.id ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder={t('dashboard.newTag')}
-                        value={newTagInput}
-                        onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newTagInput.trim()) {
-                            handleAddTag(project.id, newTagInput);
-                            setNewTagInput('');
+                  {/* Stats column */}
+                  <div className="flex flex-col items-end gap-1 min-w-24 flex-shrink-0">
+                    {dashboardLayout.showWordCount && project.word_count > 0 && (
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {project.word_count.toLocaleString()} {t('dashboard.words')}
+                      </span>
+                    )}
+                    {dashboardLayout.showLastModified && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(project.updated_at)}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* GRID VIEW - Card layout (default) */
+                <div className="p-5">
+                  {/* Area Badge */}
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getAreaColor(
+                        project.area
+                      )} flex-shrink-0`}
+                    >
+                      {getAreaIcon(project.area)}
+                      {getAreaLabel(project.area)}
+                    </span>
+                    <span
+                      className={`inline-flex px-2 py-1 rounded text-xs font-medium ${getStatusColor(
+                        project.status
+                      )} flex-shrink-0`}
+                    >
+                      {getStatusLabel(project.status)}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
+                    {project.title}
+                  </h3>
+
+                  {/* Description */}
+                  {project.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                      {project.description}
+                    </p>
+                  )}
+
+                  {/* Genre - conditional based on showMetadata */}
+                  {dashboardLayout.showMetadata && project.genre && (
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-3 truncate" title={project.genre}>
+                      <span className="font-medium">{t('project.genre')}:</span> {project.genre}
+                    </p>
+                  )}
+
+                  {/* Tags */}
+                  <div className="mb-3">
+                    {project.tags && project.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {project.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleTagFilterClick(tag);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900 cursor-pointer transition-colors group"
+                          >
+                            <TagIcon size={10} />
+                            {tag}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveTag(project.id, tag, e);
+                              }}
+                              className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-opacity"
+                              title={t('dashboard.removeTag')}
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                        {project.tags.length > 3 && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                            +{project.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Add Tag Input */}
+                    {tagInputProjectId === project.id ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder={t('dashboard.newTag')}
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newTagInput.trim()) {
+                              handleAddTag(project.id, newTagInput);
+                              setNewTagInput('');
+                              setTagInputProjectId(null);
+                            } else if (e.key === 'Escape') {
+                              setTagInputProjectId(null);
+                              setNewTagInput('');
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          autoFocus
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setTagInputProjectId(null);
-                          } else if (e.key === 'Escape') {
-                            setTagInputProjectId(null);
                             setNewTagInput('');
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        autoFocus
-                      />
+                          }}
+                          className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          setTagInputProjectId(null);
+                          setTagInputProjectId(project.id);
                           setNewTagInput('');
                         }}
-                        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                        className="flex items-center gap-1 px-3 py-1 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                       >
-                        {t('common.cancel')}
+                        <TagIcon size={12} />
+                        {t('dashboard.addTag')}
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setTagInputProjectId(project.id);
-                        setNewTagInput('');
-                      }}
-                      className="flex items-center gap-1 px-3 py-1 text-sm border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-                    >
-                      <TagIcon size={12} />
-                      {t('dashboard.addTag')}
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <span>{t('dashboard.updated', { date: formatDate(project.updated_at) })}</span>
-                  {project.word_count > 0 && (
-                    <span>{project.word_count.toLocaleString()} {t('dashboard.words')}</span>
-                  )}
+                  {/* Footer - conditional based on showWordCount and showLastModified */}
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    {dashboardLayout.showLastModified ? (
+                      <span>{t('dashboard.updated', { date: formatDate(project.updated_at) })}</span>
+                    ) : (
+                      <span></span>
+                    )}
+                    {dashboardLayout.showWordCount && project.word_count > 0 && (
+                      <span>{project.word_count.toLocaleString()} {t('dashboard.words')}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </Link>
           ))}
         </div>
