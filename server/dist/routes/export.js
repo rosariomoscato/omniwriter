@@ -279,30 +279,34 @@ em { font-style: italic; }
 </body>
 </html>`;
     oebps?.file('cover.xhtml', coverXhtml);
-    // Table of Contents page
+    // Table of Contents page (Feature #344: localized heading)
+    const tocTitle = lang === 'it' ? 'Indice' : 'Table of Contents';
+    const chapterLabel = lang === 'it' ? 'Capitolo' : 'Chapter';
     const tocXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">
 <head>
   <meta charset="UTF-8"/>
-  <title>Table of Contents</title>
+  <title>${tocTitle}</title>
   <link rel="stylesheet" type="text/css" href="styles/style.css"/>
 </head>
 <body>
   <div class="toc">
-    <h2>Table of Contents</h2>
+    <h2>${tocTitle}</h2>
     <nav epub:type="toc">
       <ol>
-${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escapeXml(ch.title || `Chapter ${i + 1}`)}</a></li>`).join('\n')}
+${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escapeXml(ch.title || `${chapterLabel} ${i + 1}`)}</a></li>`).join('\n')}
       </ol>
     </nav>
   </div>
 </body>
 </html>`;
     oebps?.file('toc.xhtml', tocXhtml);
+    // Localized chapter label for fallback titles
+    const chapterLabelLocal = lang === 'it' ? 'Capitolo' : 'Chapter';
     // Chapter XHTML files
     chapters.forEach((chapter, index) => {
-        const chapterTitle = escapeXml(chapter.title || `Chapter ${index + 1}`);
+        const chapterTitle = escapeXml(chapter.title || `${chapterLabelLocal} ${index + 1}`);
         // Feature #335: Remove duplicate title from chapter content
         let rawContent = chapter.content || '';
         // Check if content starts with the chapter title (with or without number/markdown heading)
@@ -364,9 +368,11 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
 </package>`;
     oebps?.file('content.opf', contentOpf);
     // toc.ncx - Navigation Control file (for backward compatibility)
+    // Feature #344: Localized labels
+    const coverLabel = lang === 'it' ? 'Copertina' : 'Cover';
     const navPoints = chapters.map((ch, i) => `
     <navPoint id="chapter-${i + 1}" playOrder="${i + 3}">
-      <navLabel><text>${escapeXml(ch.title || `Chapter ${i + 1}`)}</text></navLabel>
+      <navLabel><text>${escapeXml(ch.title || `${chapterLabelLocal} ${i + 1}`)}</text></navLabel>
       <content src="chapter_${i + 1}.xhtml"/>
     </navPoint>`).join('');
     const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
@@ -380,11 +386,11 @@ ${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escape
   <docTitle><text>${escapeXml(title)}</text></docTitle>
   <navMap>
     <navPoint id="cover" playOrder="1">
-      <navLabel><text>Cover</text></navLabel>
+      <navLabel><text>${coverLabel}</text></navLabel>
       <content src="cover.xhtml"/>
     </navPoint>
     <navPoint id="toc" playOrder="2">
-      <navLabel><text>Table of Contents</text></navLabel>
+      <navLabel><text>${tocTitle}</text></navLabel>
       <content src="toc.xhtml"/>
     </navPoint>${navPoints}
   </navMap>
@@ -456,8 +462,8 @@ async function generateDocx(title, description, chapters, area, authorName) {
             spacing: { after: 600 }
         }));
     }
-    // Add table of contents for Saggista projects
-    if (area === 'saggista' && chapters.length > 0) {
+    // Add table of contents for Saggista and Romanziere projects (Feature #344)
+    if ((area === 'saggista' || area === 'romanziere') && chapters.length > 0) {
         children.push(new docx_1.Paragraph({
             text: 'INDICE',
             heading: docx_1.HeadingLevel.HEADING_1,
@@ -530,8 +536,8 @@ function generateTxt(title, description, chapters, area, authorName) {
     if (authorName && authorName.trim()) {
         content += `${authorName.trim()}\n\n`;
     }
-    // Add table of contents for Saggista projects
-    if (area === 'saggista' && chapters.length > 0) {
+    // Add table of contents for Saggista and Romanziere projects (Feature #344)
+    if ((area === 'saggista' || area === 'romanziere') && chapters.length > 0) {
         content += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
         content += `${'='.repeat(60)}\n\n`;
     }
@@ -780,8 +786,8 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
         else {
             // TXT - combine all chapters
             let textContent = `${project.title}\n${'='.repeat(project.title.length)}\n\n`;
-            // Add table of contents for Saggista projects
-            if (project.area === 'saggista' && chapters.length > 0) {
+            // Add table of contents for Saggista and Romanziere projects (Feature #344)
+            if ((project.area === 'saggista' || project.area === 'romanziere') && chapters.length > 0) {
                 textContent += `INDICE\n${'='.repeat('INDICE'.length)}\n\n${generateTableOfContents(chapters)}\n\n`;
                 textContent += `${'='.repeat(60)}\n\n`;
             }

@@ -1503,6 +1503,7 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 });
 
 // POST /api/chapters/:id/generate-with-comparison - Generate content with and without Human Model for comparison
+// Feature #345: Now uses real AI generation instead of templates
 router.post('/chapters/:id/generate-with-comparison', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1512,15 +1513,24 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
 
     // Verify chapter exists and belongs to user's project
     const chapter = db.prepare(`
-      SELECT c.id, c.title, c.content, c.project_id, p.area, p.settings_json
+      SELECT c.id, c.title, c.content, c.project_id, p.area, p.settings_json, p.title as project_title
       FROM chapters c
       JOIN projects p ON c.project_id = p.id
       WHERE c.id = ? AND p.user_id = ?
-    `).get(id, userId) as { id: string; title: string; content: string; project_id: string; area: string; settings_json: string } | undefined;
+    `).get(id, userId) as { id: string; title: string; content: string; project_id: string; area: string; settings_json: string; project_title: string } | undefined;
 
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
     }
+
+    // Parse project settings for language
+    let projectSettings: any = {};
+    try {
+      projectSettings = chapter.settings_json ? JSON.parse(chapter.settings_json) : {};
+    } catch {
+      projectSettings = {};
+    }
+    const isItalian = (projectSettings.language || 'it') === 'it';
 
     // If human_model_id is provided, verify it exists and belongs to user
     let humanModel = null;
@@ -1550,24 +1560,131 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
       ORDER BY created_at DESC
     `).all(chapter.project_id) as { id: string; file_name: string; content_text: string; file_type: string; source_type: string; url: string }[] | undefined;
 
-    // Track token usage (Feature #156)
-    // Simulate token counts for generation
+    // Feature #345: Try to get AI provider for real generation
+    const { getProviderForUser } = require('../services/ai-service');
+    const provider = getProviderForUser(userId);
+
+    let baselineContent: string;
+    let styledContent: string;
+    let usedAI = false;
+
+    if (provider) {
+      // Use real AI generation
+      console.log(`[Comparison] Using AI provider for comparison generation for chapter ${id}`);
+      usedAI = true;
+
+      // Build area prompt params
+      const areaPromptParams: AreaPromptParams = {
+        projectTitle: chapter.project_title,
+        genre: projectSettings.genre,
+        tone: projectSettings.tone,
+        targetAudience: projectSettings.targetAudience,
+        chapterTitle: chapter.title,
+        chapterOrder: 0,
+        chapterSummary: prompt_context || '',
+        isRegenerate: false
+      };
+
+      // Generate BASELINE content (WITHOUT Human Model style)
+      let baselineSystemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);
+
+      // Build user prompt for baseline
+      let baselineUserPrompt: string;
+      if (isItalian) {
+        baselineUserPrompt = `Scrivi il contenuto per il capitolo "${chapter.title}".
+
+${prompt_context ? `CONTESTO AGGIUNTIVO:\n${prompt_context}\n\n` : ''}Genera un testo narrativo completo e coinvolgente di almeno 300 parole. Non aggiungere titoli o intestazioni - inizia direttamente con il testo.`;
+      } else {
+        baselineUserPrompt = `Write the content for chapter "${chapter.title}".
+
+${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate complete and engaging narrative text of at least 300 words. Do not add titles or headers - start directly with the text.`;
+      }
+
+      try {
+        // Call AI for baseline
+        const baselineResponse = await provider.chat(
+          [
+            { role: 'system', content: baselineSystemPrompt },
+            { role: 'user', content: baselineUserPrompt }
+          ],
+          { temperature: 0.7, maxTokens: 1500 }
+        );
+        baselineContent = baselineResponse.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
+      } catch (baselineError: any) {
+        console.error('[Comparison] Baseline generation error:', baselineError);
+        baselineContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
+      }
+
+      // Generate STYLED content (WITH Human Model style) if Human Model provided
+      if (humanModel) {
+        let styledSystemPrompt = getAreaPrompt(chapter.area, areaPromptParams, isItalian);
+
+        // Add Human Model style instructions
+        const analysis = humanModel.analysis_result_json as any;
+        if (isItalian) {
+          styledSystemPrompt += `
+
+PROFILO STILISTICO PERSONALE (${humanModel.name}):
+- Tono: ${analysis.tone || 'Non specificato'}
+- Struttura frasi: ${analysis.sentence_structure || 'Non specificata'}
+- Vocabolario: ${analysis.vocabulary || 'Non specificato'}
+- Pattern di scrittura: ${(analysis.patterns || []).join(', ') || 'Non specificati'}
+
+IMPORTANTE: Scrivi con lo stile personale dell'autore come definito sopra. Il testo deve riflettere fedelmente queste caratteristiche stilistiche.`;
+        } else {
+          styledSystemPrompt += `
+
+PERSONAL STYLE PROFILE (${humanModel.name}):
+- Tone: ${analysis.tone || 'Not specified'}
+- Sentence structure: ${analysis.sentence_structure || 'Not specified'}
+- Vocabulary: ${analysis.vocabulary || 'Not specified'}
+- Writing patterns: ${(analysis.patterns || []).join(', ') || 'Not specified'}
+
+IMPORTANT: Write in the author's personal style as defined above. The text must faithfully reflect these stylistic characteristics.`;
+        }
+
+        let styledUserPrompt: string;
+        if (isItalian) {
+          styledUserPrompt = `Scrivi il contenuto per il capitolo "${chapter.title}" APPLICANDO LO STILE PERSONALE definito nel profilo.
+
+${prompt_context ? `CONTESTO AGGIUNTIVO:\n${prompt_context}\n\n` : ''}Genera un testo narrativo completo e coinvolgente di almeno 300 parole, seguendo rigorosamente lo stile personale dell'autore. Non aggiungere titoli o intestazioni - inizia direttamente con il testo.`;
+        } else {
+          styledUserPrompt = `Write the content for chapter "${chapter.title}" APPLYING THE PERSONAL STYLE defined in the profile.
+
+${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate complete and engaging narrative text of at least 300 words, rigorously following the author's personal style. Do not add titles or headers - start directly with the text.`;
+        }
+
+        try {
+          // Call AI for styled version
+          const styledResponse = await provider.chat(
+            [
+              { role: 'system', content: styledSystemPrompt },
+              { role: 'user', content: styledUserPrompt }
+            ],
+            { temperature: 0.7, maxTokens: 1500 }
+          );
+          styledContent = styledResponse.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+        } catch (styledError: any) {
+          console.error('[Comparison] Styled generation error:', styledError);
+          styledContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
+        }
+      } else {
+        styledContent = baselineContent;
+      }
+    } else {
+      // No AI provider available - use template fallback with clear warning
+      console.log('[Comparison] No AI provider available, using template fallback');
+      baselineContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
+      styledContent = humanModel
+        ? generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources)
+        : baselineContent;
+    }
+
+    // Track token usage
     const sourceTokens = projectSources ? projectSources.reduce((acc, s) => acc + (s.content_text?.length || 0), 0) : 0;
     const inputTokens = Math.ceil((chapter.title.length + (prompt_context?.length || 0) + sourceTokens) / 4);
-    const estimatedOutputTokens = Math.ceil(chapter.title.length * 15); // Rough estimate for chapter content
-
-    // Feature #177: Generate baseline content (without Human Model)
-    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
-    const baselineContent = generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
     const baselineTokens = Math.ceil(baselineContent.length / 4);
-
-    // Feature #177: Generate styled content (with Human Model, if provided)
-    // TODO: Replace with actual AI API call (OpenAI/Anthropic)
-    const styledContent = humanModel
-      ? generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources)
-      : baselineContent;
     const styledTokens = humanModel ? Math.ceil(styledContent.length / 4) : 0;
-
     const totalOutputTokens = baselineTokens + styledTokens;
     const totalTokens = inputTokens + totalOutputTokens;
 
@@ -1579,7 +1696,7 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
     // Calculate style differences
     const differences = calculateStyleDifferences(baselineContent, styledContent, humanModel);
 
-    console.log(`[Comparison] Generated comparison for chapter ${id} - Tokens: ${inputTokens} in, ${totalOutputTokens} out, Cost: $${estimatedCost.toFixed(4)}`);
+    console.log(`[Comparison] Generated comparison for chapter ${id} - AI: ${usedAI}, Tokens: ${inputTokens} in, ${totalOutputTokens} out, Cost: $${estimatedCost.toFixed(4)}`);
 
     res.json({
       chapter_id: id,
@@ -1600,6 +1717,8 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
         generated_at: new Date().toISOString()
       } : null,
       differences,
+      // Feature #345: Indicate if AI was used
+      ai_generated: usedAI,
       // Feature #156: Token usage
       token_usage: {
         tokens_input: inputTokens,
