@@ -60,6 +60,12 @@ interface SequelContext {
   plotEventsCount: number;
 }
 
+interface OutlineMeta {
+  requestedChapters: number;
+  generatedChapters: number;
+  attempts: number;
+}
+
 type Phase = 'title' | 'proposals' | 'outline' | 'creating';
 
 export default function CreateSagaSequelModal({
@@ -96,6 +102,8 @@ export default function CreateSagaSequelModal({
   const [outline, setOutline] = useState<Outline | null>(null);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
   const [editingChapter, setEditingChapter] = useState<EditingChapter | null>(null);
+  const [outlineWarning, setOutlineWarning] = useState<string | null>(null);
+  const [outlineMeta, setOutlineMeta] = useState<OutlineMeta | null>(null);
 
   // Auto-select the most recent project if available
   useEffect(() => {
@@ -161,6 +169,8 @@ export default function CreateSagaSequelModal({
 
     setLoading(true);
     setOutline(null);
+    setOutlineWarning(null);
+    setOutlineMeta(null);
 
     try {
       const response = await apiService.generateSequelOutline(
@@ -174,6 +184,13 @@ export default function CreateSagaSequelModal({
       if (response.success && response.outline) {
         setOutline(response.outline);
         setExpandedChapters(new Set([0, 1, 2]));
+        // Feature #343: Handle warning if chapter count doesn't match
+        if (response.warning) {
+          setOutlineWarning(response.warning);
+        }
+        if (response.meta) {
+          setOutlineMeta(response.meta);
+        }
       } else {
         toast.error(response.message || (isItalian ? 'Errore nella generazione dell\'outline' : 'Failed to generate outline'));
       }
@@ -619,6 +636,22 @@ export default function CreateSagaSequelModal({
 
               {outline && (
                 <>
+                  {/* Feature #343: Warning if chapter count doesn't match */}
+                  {outlineWarning && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                      <p className="text-sm text-amber-800 dark:text-amber-300">
+                        ⚠️ {outlineWarning}
+                      </p>
+                      {outlineMeta && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          {isItalian
+                            ? `Richiesti: ${outlineMeta.requestedChapters}, Generati: ${outlineMeta.generatedChapters} (tentativi: ${outlineMeta.attempts})`
+                            : `Requested: ${outlineMeta.requestedChapters}, Generated: ${outlineMeta.generatedChapters} (attempts: ${outlineMeta.attempts})`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Selected plot summary */}
                   {selectedProposal && (
                     <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">

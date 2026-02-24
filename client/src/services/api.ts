@@ -732,6 +732,13 @@ class ApiService {
       plotEventsCount: number;
     };
     message?: string;
+    // Feature #343: Warning and metadata for chapter count validation
+    warning?: string;
+    meta?: {
+      requestedChapters: number;
+      generatedChapters: number;
+      attempts: number;
+    };
   }> {
     return this.request(`/projects/${projectId}/sequel/outline`, {
       method: 'POST',

@@ -7869,7 +7869,9 @@ RULES:
 - Summaries must be DETAILED (150-250 words), not vague
 - Each chapter must have DIFFERENT and appropriate characters
 - Dead characters must NOT appear alive
-- Distribute the narrative arc evenly across the ${numChapters} chapters`;
+- Distribute the narrative arc evenly across the ${numChapters} chapters
+
+⚠️ WARNING: You MUST generate EXACTLY ${numChapters} chapters. Not ${numChapters - 1}, not ${numChapters + 1}, but EXACTLY ${numChapters} chapters. This is a CRITICAL requirement. If you generate any other number of chapters, your response will be REJECTED.`;
 
     // Get AI provider
     const provider = await getProviderForUser(userId);
@@ -7879,30 +7881,84 @@ RULES:
       return;
     }
 
-    console.log('[Sequel-Outline] Calling AI for chapter outline...');
-    const aiMessages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ];
+    // Feature #343: Retry mechanism for chapter count validation
+    const MAX_RETRIES = 3;
+    let generatedOutline: any = null;
+    let attempts = 0;
+    let lastChapterCount = 0;
+    let warning: string | null = null;
 
-    const response = await provider.chat(aiMessages, {
-      temperature: 0.5,
-      maxTokens: 8000
-    });
+    while (attempts < MAX_RETRIES) {
+      attempts++;
+      console.log(`[Sequel-Outline] Calling AI for chapter outline (attempt ${attempts}/${MAX_RETRIES})...`);
 
-    const responseText = response.content || '';
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('AI response did not contain valid JSON');
+      const aiMessages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ];
+
+      // On retry, add extra emphasis
+      if (attempts > 1) {
+        aiMessages.push({
+          role: 'user',
+          content: isItalian
+            ? `ATTENZIONE: Hai generato ${lastChapterCount} capitoli, ma ne servono ESATTAMENTE ${numChapters}. Genera nuovamente l'outline con ESATTAMENTE ${numChapters} capitoli. Ogni capitolo in più o in meno causerà il RIFIUTO della risposta.`
+            : `ATTENTION: You generated ${lastChapterCount} chapters, but EXACTLY ${numChapters} are required. Generate the outline again with EXACTLY ${numChapters} chapters. Any more or fewer chapters will cause your response to be REJECTED.`
+        });
+      }
+
+      const response = await provider.chat(aiMessages, {
+        temperature: attempts > 1 ? 0.3 : 0.5, // Lower temperature on retries for more deterministic output
+        maxTokens: Math.max(8000, numChapters * 400) // Scale tokens based on chapter count
+      });
+
+      const responseText = response.content || '';
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        if (attempts >= MAX_RETRIES) {
+          throw new Error('AI response did not contain valid JSON after multiple attempts');
+        }
+        continue;
+      }
+
+      try {
+        generatedOutline = JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.error('[Sequel-Outline] JSON parse error:', parseError);
+        if (attempts >= MAX_RETRIES) {
+          throw new Error('Failed to parse AI response as JSON');
+        }
+        continue;
+      }
+
+      if (!generatedOutline.chapters || generatedOutline.chapters.length === 0) {
+        if (attempts >= MAX_RETRIES) {
+          throw new Error('AI did not generate any chapters');
+        }
+        continue;
+      }
+
+      lastChapterCount = generatedOutline.chapters.length;
+
+      // Feature #343: Validate chapter count
+      if (generatedOutline.chapters.length === numChapters) {
+        console.log(`[Sequel-Outline] Generated ${generatedOutline.chapters.length} chapters successfully (matches requested ${numChapters})`);
+        break; // Success! Exit the retry loop
+      } else {
+        console.log(`[Sequel-Outline] Chapter count mismatch: got ${generatedOutline.chapters.length}, expected ${numChapters}. Attempt ${attempts}/${MAX_RETRIES}`);
+        if (attempts >= MAX_RETRIES) {
+          // After max retries, accept what we have but include a warning
+          warning = isItalian
+            ? `Attenzione: Richiesti ${numChapters} capitoli, ma l'AI ne ha generati ${generatedOutline.chapters.length}. Puoi procedere o modificare manualmente.`
+            : `Warning: Requested ${numChapters} chapters, but AI generated ${generatedOutline.chapters.length}. You can proceed or edit manually.`;
+          console.log(`[Sequel-Outline] Max retries reached. Accepting ${generatedOutline.chapters.length} chapters with warning.`);
+        }
+      }
     }
 
-    const generatedOutline = JSON.parse(jsonMatch[0]);
-
-    if (!generatedOutline.chapters || generatedOutline.chapters.length === 0) {
-      throw new Error('AI did not generate any chapters');
+    if (!generatedOutline) {
+      throw new Error('Failed to generate outline after multiple attempts');
     }
-
-    console.log(`[Sequel-Outline] Generated ${generatedOutline.chapters.length} chapters successfully`);
 
     res.json({
       success: true,
@@ -7918,6 +7974,12 @@ RULES:
         deadCharactersCount: deadChars.length,
         locationsCount: locations.length,
         plotEventsCount: plotEvents.length
+      },
+      ...(warning ? { warning } : {}),
+      meta: {
+        requestedChapters: numChapters,
+        generatedChapters: generatedOutline.chapters.length,
+        attempts
       }
     });
 
