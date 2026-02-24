@@ -1,5 +1,39 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Feature #342 Implementation
+
+### Feature #342: Implementare generazione AI per social snippets
+
+**Objective:** Replace hardcoded social snippet generation with real AI-powered generation using the user's configured AI provider.
+
+**Changes Made:**
+- Modified `server/src/routes/chapters.ts` - the `POST /chapters/:id/generate-social-snippets` route
+- Uses `getProviderForUser(userId)` to get the user's configured AI provider
+- Sends a structured prompt asking for platform-optimized snippets:
+  - Twitter: max 280 chars with hashtags
+  - LinkedIn: max 3000 chars (professional tone)
+  - Facebook: max 63206 chars
+  - Instagram: max 2200 chars with hashtags
+- Parses AI JSON response (handles markdown code blocks)
+- Uses real token usage from AI response when available
+- Falls back to template-based generation when no AI provider is configured or AI fails
+
+**Verification:**
+- Tested through browser automation with fresh login
+- Created Redattore project and chapter with content
+- Generated social snippets successfully
+- Verified all 4 platform tabs (Twitter, LinkedIn, Facebook, Instagram) show correct snippets
+- Character counts displayed correctly for each platform
+- Token usage section shows correct values
+- Zero JavaScript console errors
+- Server logs confirm correct flow (AI provider check → fallback when no provider)
+
+**Commit:** d7ae39c
+
+**Status: Feature #342 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-24 - Feature #339 Verification
 
 ### Completed Features: 340/340 (100%)
