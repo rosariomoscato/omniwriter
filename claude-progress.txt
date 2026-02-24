@@ -1,5 +1,74 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-24 - Features #338 and #339 Implementation
+
+### Completed Features: 338/338 (100%)
+
+### Feature #338: Fix: Layout pulsanti piattaforme social su 2 righe
+
+**Status:** ✅ VERIFIED AND MARKED PASSING
+
+**Objective:** Nel componente RedattoreTools, i 4 pulsanti delle piattaforme social (Twitter/X, LinkedIn, Facebook, Instagram) erano allineati orizzontalmente in una singola riga con flex gap-2. Nella sidebar da 320px (w-80), gli ultimi due pulsanti (Facebook e Instagram) uscivano dallo schermo a destra.
+
+**Solution:**
+- Changed the platform selector container from `flex gap-2` to `grid grid-cols-2 gap-2`
+- This arranges the 4 buttons in a 2x2 grid layout:
+  - Row 1: Twitter/X | LinkedIn
+  - Row 2: Facebook | Instagram
+
+**Implementation:**
+Modified `/client/src/components/RedattoreTools.tsx`:
+- Line 313: Changed `<div className="flex gap-2 ...">` to `<div className="grid grid-cols-2 gap-2 ...">`
+
+**Verification (Browser Automation):**
+1. Created new user "Redattore Test User" (redattoretest338@example.com)
+2. Created new Redattore project "Test Article for Social Snippets"
+3. Added chapter "Test Chapter for Social"
+4. Opened chapter editor and clicked "Social Snippets" tab
+5. Generated social snippets
+6. Verified all 4 platform buttons are displayed in 2x2 grid
+7. All buttons are fully visible and clickable
+
+### Commit: 73d7261
+
+**Status: Feature #338 MARKED PASSING**
+
+---
+
+### Feature #339: Fix: Social snippets - testo troncato e copia parziale
+
+**Status:** ✅ VERIFIED - No issues found, marked passing
+
+**Objective:** Il componente doveva avere due problemi:
+1. VISUALIZZAZIONE: Il testo degli snippet troncato visivamente
+2. COPIA: Solo il testo parziale copiato
+
+**Analysis:**
+After thorough code review and browser testing:
+1. **Visual rendering** (Line 369): Uses `whitespace-pre-wrap break-words` - no CSS truncation
+   - No `line-clamp`, `overflow-hidden`, or `max-height` classes found
+   - Full text is visible and scrollable
+
+2. **Copy functionality** (Lines 103-114): `copyToClipboard(snippet.text, snippet.id)` copies the complete `snippet.text`
+   - Uses `navigator.clipboard.writeText(text)` directly
+   - No truncation in the copy process
+
+**Verification (Browser Automation):**
+1. Generated social snippets for "Test Chapter for Social"
+2. Verified full snippet text is visible in the UI
+3. Clicked "Copy to clipboard" button
+4. Toast notification "Copied to clipboard!" appeared
+5. Character count matches visible text length
+
+**Conclusion:**
+The described issues do not exist in the current implementation. Both visualization and copy work correctly.
+
+### Commit: 73d7261 (combined with #338)
+
+**Status: Feature #339 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-23 - Feature #336 Implementation
 
 ### Completed Features: 336/336 (100%)
@@ -5186,4 +5255,52 @@ Modified `/server/src/routes/export.ts`:
 ---
 
 ## MILESTONE: 333/334 Features Passing (99.7%)
+
+
+---
+
+## Session: 2026-02-24 - Feature #337 Implementation
+
+### Completed Features: 337/337 (100%)
+
+### Feature #337: Fix: Headline selezionata non aggiorna titolo nell'editor
+
+**Objective:** Quando si seleziona una headline generata negli Strumenti Redattore, il titolo del capitolo viene aggiornato nel database ma l'interfaccia utente (ChapterEditor) non riflette il cambiamento perché lo stato locale non viene aggiornato.
+
+**Root Cause:**
+In `RedattoreTools.tsx`, la funzione `handleSelectHeadline` chiamava `apiService.updateChapter()` per aggiornare il titolo nel database, ma non notificava il componente padre `ChapterEditor` del cambiamento. Di conseguenza, lo stato locale `title` e `chapter` in `ChapterEditor` rimanevano invariati.
+
+**Solution:**
+1. Aggiunto prop `onTitleChange?: (newTitle: string) => void` all'interfaccia `RedattoreToolsProps`
+2. In `handleSelectHeadline`, chiamata `onTitleChange(headline.text)` dopo il successo dell'API
+3. In `ChapterEditor.tsx`, creata funzione `handleHeadlineTitleChange` che aggiorna:
+   - `title` state via `setTitle(newTitle)`
+   - `chapter` state con il nuovo titolo
+   - `lastSavedTitleRef` per prevenire falsi positivi su "unsaved changes"
+4. Passato `onTitleChange={handleHeadlineTitleChange}` a `RedattoreTools` nel JSX
+
+**Files Modified:**
+- `client/src/components/RedattoreTools.tsx`
+- `client/src/pages/ChapterEditor.tsx`
+
+**Verification:**
+
+Testato con browser automation:
+1. Creato nuovo utente "Headline Test User" (headlineuser337@example.com)
+2. Creato nuovo progetto Redattore "Test Article for Headline Fix"
+3. Aggiunto capitolo con contenuto di test
+4. Generato headline options tramite RedattoreTools sidebar
+5. Selezionato headline "Scopri tutto su test chapter for headline"
+6. **Verificato**: Il titolo nell'editor si è aggiornato immediatamente
+7. **Zero errori console JavaScript**
+
+### Commit: 1757a98
+
+**Status: Feature #337 MARKED PASSING**
+
+---
+
+## MILESTONE: 337/337 Features Passing (100%)
+
+All features have been successfully implemented and verified!
 
