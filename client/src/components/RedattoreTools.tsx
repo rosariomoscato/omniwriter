@@ -6,6 +6,7 @@ import { useToastNotification } from './Toast';
 interface RedattoreToolsProps {
   chapter: Chapter;
   projectArea: string;
+  onTitleChange?: (newTitle: string) => void;
 }
 
 interface HeadlineOption {
@@ -28,7 +29,7 @@ interface SocialSnippets {
   instagram: SocialSnippet[];
 }
 
-export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsProps) {
+export default function RedattoreTools({ chapter, projectArea, onTitleChange }: RedattoreToolsProps) {
   const toast = useToastNotification();
   const [activeTab, setActiveTab] = useState<'headlines' | 'social'>('headlines');
   const [headlines, setHeadlines] = useState<HeadlineOption[]>([]);
@@ -89,6 +90,10 @@ export default function RedattoreTools({ chapter, projectArea }: RedattoreToolsP
     try {
       await apiService.updateChapter(chapter.id, { title: headline.text });
       setSelectedHeadline(headline.id);
+      // Notify parent component of title change (Feature #337)
+      if (onTitleChange) {
+        onTitleChange(headline.text);
+      }
       toast.success('Headline applied successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to apply headline');

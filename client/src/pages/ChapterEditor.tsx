@@ -943,6 +943,20 @@ export default function ChapterEditor() {
     });
   };
 
+  // Handle headline title change from RedattoreTools (Feature #337)
+  const handleHeadlineTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (chapter) {
+      setChapter({
+        ...chapter,
+        title: newTitle,
+        updated_at: new Date().toISOString()
+      });
+    }
+    // Update the last saved title ref to prevent false unsaved changes detection
+    lastSavedTitleRef.current = newTitle;
+  };
+
   const renderPreview = () => {
     // Simple markdown-to-html conversion for preview
     // Note: All elements include dark mode classes for proper visibility in dark theme
@@ -1542,7 +1556,7 @@ export default function ChapterEditor() {
         {/* Redattore Tools Sidebar - Only for Redattore projects */}
         {project?.area === 'redattore' && !isFullScreen && (
           <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-y-auto">
-            <RedattoreTools chapter={chapter} projectArea={project.area} />
+            <RedattoreTools chapter={chapter} projectArea={project.area} onTitleChange={handleHeadlineTitleChange} />
           </div>
         )}
       </div>
