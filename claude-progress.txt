@@ -1,5 +1,64 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-25 - Feature #379 Implementation
+
+### Completed Features: 378/384 (98.4%)
+
+### Feature #379: Integrate FeatureGate in Human Model UI
+
+**Objective:** Integrare FeatureGate nella UI Human Model: mostrare contatore 'X/Y profili' per free, disabilitare creazione nuovo profilo se limite raggiunto, bloccare 'Analisi Avanzata' per free con PremiumBadge, mostrare UpgradeModal quando si tenta azione premium.
+
+**Implementation:**
+
+1. **Modified `client/src/pages/HumanModelPage.tsx`**
+   - Added imports for useTierPermissions hook, PremiumBadge, and UpgradeModal components
+   - Added tier permissions hook usage with isPremium, getLimit, canAccess
+   - Added state for UpgradeModal (showUpgradeModal, upgradeModalFeature)
+   - Computed values: maxProfiles, canCreateProfile, hasFullAnalysis
+
+2. **Profile Counter (lines 478-487)**
+   - Shows "Profili: X/Y" for free users
+   - Displays "(Limite raggiunto)" warning when limit is reached
+   - Only visible to non-premium users
+
+3. **Create Button with Premium Blocking (lines 490-513)**
+   - Button shows grayed out with PremiumBadge when limit reached
+   - Clicking disabled button opens UpgradeModal with 'multipleProfiles' feature
+   - Premium users can always create profiles
+
+4. **Style Comparison Section (lines 819-1059)**
+   - Shows PremiumBadge in section header for free users
+   - Free users see locked UI with premium upgrade prompt
+   - Premium users see full comparison test interface
+   - Clicking upgrade button opens UpgradeModal with 'fullHumanAnalysis' feature
+
+5. **UpgradeModal Integration (lines 1368-1383)**
+   - Dynamic title/description based on feature type
+   - 'multipleProfiles': "Crea più profili di stile"
+   - 'fullHumanAnalysis': "Analisi Completa Stile"
+
+6. **Added i18n Translations**
+   - English (en.json): profileCounter, limitReached, comparisonPremium, comparisonPremiumDesc, upgradeNow, upgradeMultipleProfiles, upgradeMultipleProfilesDesc, upgradeFullAnalysis, upgradeFullAnalysisDesc
+   - Italian (it.json): Same keys with Italian translations
+
+**Files Modified:**
+- `client/src/pages/HumanModelPage.tsx` (tier-based UI integration)
+- `client/src/i18n/locales/en.json` (new translation keys)
+- `client/src/i18n/locales/it.json` (new translation keys)
+
+**Testing:**
+- ✅ Profile counter shows "Profili: 0/1" for free user
+- ✅ Create button grays out when limit reached
+- ✅ PremiumBadge appears on disabled button
+- ✅ UpgradeModal opens on premium action attempt
+- ✅ Style Comparison section shows premium lock
+- ✅ TypeScript compiles without errors
+- ✅ Vite dev server starts successfully
+
+**Status: Feature #379 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-25 - Features #369 and #370 Implementation
 
 ### Completed Features: 377/384 (98.2%)

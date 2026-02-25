@@ -5,6 +5,9 @@ import i18n from '../i18n/config';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import { useTierPermissions } from '../hooks/useTierPermissions';
+import PremiumBadge from '../components/PremiumBadge';
+import UpgradeModal from '../components/UpgradeModal';
 
 export default function HumanModelPage() {
   const { t } = useTranslation();
@@ -69,6 +72,18 @@ export default function HumanModelPage() {
     content_text: '',
     preview: '',
   });
+
+  // Tier permissions
+  const { isPremium, getLimit, canAccess } = useTierPermissions();
+
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeModalFeature, setUpgradeModalFeature] = useState<string>('');
+
+  // Get Human Model limits
+  const maxProfiles = getLimit('maxHumanModels');
+  const canCreateProfile = maxProfiles === -1 || models.length < maxProfiles;
+  const hasFullAnalysis = canAccess('fullHumanAnalysis');
 
   useEffect(() => {
     loadModels();
@@ -459,13 +474,44 @@ export default function HumanModelPage() {
           <p className="text-gray-600 dark:text-gray-400">
             {t('humanModel.description', 'Crea profili di stile personali caricando tuoi testi. L\'AI analizzerà il tuo stile di scrittura.')}
           </p>
+          {/* Profile counter for free users */}
+          {!isPremium && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {t('humanModel.profileCounter', 'Profili')}: {models.length}/{maxProfiles}
+              {!canCreateProfile && (
+                <span className="ml-2 text-amber-600 dark:text-amber-400">
+                  ({t('humanModel.limitReached', 'Limite raggiunto')})
+                </span>
+              )}
+            </p>
+          )}
         </div>
-        <button
-          onClick={() => setShowCreateDialog(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          {t('humanModel.createNew', 'Create New Profile')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (!canCreateProfile) {
+                setUpgradeModalFeature('multipleProfiles');
+                setShowUpgradeModal(true);
+              } else {
+                setShowCreateDialog(true);
+              }
+            }}
+            disabled={!canCreateProfile && isPremium}
+            className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
+              !canCreateProfile
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {t('humanModel.createNew', 'Create New Profile')}
+            {!canCreateProfile && !isPremium && (
+              <PremiumBadge size="sm" onClick={() => {
+                setUpgradeModalFeature('multipleProfiles');
+                setShowUpgradeModal(true);
+              }} />
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -773,12 +819,46 @@ export default function HumanModelPage() {
               {/* Style Comparison Test Section */}
               {selectedModel && selectedModel.training_status === 'ready' && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {t('humanModel.styleComparison', 'Style Comparison Test')}
                     </h3>
+                    {!hasFullAnalysis && (
+                      <PremiumBadge
+                        size="sm"
+                        onClick={() => {
+                          setUpgradeModalFeature('fullHumanAnalysis');
+                          setShowUpgradeModal(true);
+                        }}
+                      />
+                    )}
                   </div>
                   <div className="p-6">
+                    {!hasFullAnalysis ? (
+                      <div className="text-center py-8">
+                        <div className="mb-4">
+                          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400 font-medium mb-2">
+                          {t('humanModel.comparisonPremium', 'Confronto Stile Premium')}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
+                          {t('humanModel.comparisonPremiumDesc', 'Il confronto stile è una funzionalità Premium. Effettua l\'upgrade per testare come il tuo profilo di stile influenza i contenuti generati dall\'AI.')}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setUpgradeModalFeature('fullHumanAnalysis');
+                            setShowUpgradeModal(true);
+                          }}
+                          className="px-6 py-2 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 text-white rounded-lg hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 transition-all"
+                        >
+                          {t('humanModel.upgradeNow', 'Upgrade to Premium')}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                       {t('humanModel.comparisonDesc', 'Test how this style profile affects AI-generated content. Enter a chapter ID to see a side-by-side comparison.')}
                     </p>
@@ -972,6 +1052,8 @@ export default function HumanModelPage() {
                           </button>
                         </div>
                       </div>
+                    )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1281,6 +1363,23 @@ export default function HumanModelPage() {
         }}
         confirmText={t('common.delete', 'Delete')}
         cancelText={t('common.cancel', 'Cancel')}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          setUpgradeModalFeature('');
+        }}
+        title={upgradeModalFeature === 'multipleProfiles'
+          ? t('humanModel.upgradeMultipleProfiles', 'Crea più profili di stile')
+          : t('humanModel.upgradeFullAnalysis', 'Analisi Completa Stile')
+        }
+        description={upgradeModalFeature === 'multipleProfiles'
+          ? t('humanModel.upgradeMultipleProfilesDesc', 'Con Premium puoi creare profili di stile illimitati per ogni tipo di scrittura.')
+          : t('humanModel.upgradeFullAnalysisDesc', 'Con Premium puoi testare come il tuo profilo di stile influenza i contenuti generati dall\'AI.')
+        }
       />
     </div>
   );
