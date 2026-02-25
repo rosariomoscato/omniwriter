@@ -1132,7 +1132,15 @@
     "deleteTagSuccess": "Tag \"{{tag}}\" deleted successfully from {{count}} sources",
     "noTags": "No tags available",
     "tagCount_one": "{{count}} tag",
-    "tagCount_other": "{{count}} tags"
+    "tagCount_other": "{{count}} tags",
+    "sourceCounter": "Sources: {{used}}/{{limit}}",
+    "limitReached": "Limit reached",
+    "limitReachedButton": "Limit reached",
+    "nearLimit": "Near limit",
+    "upgradeModal": {
+      "title": "Source Limit Reached",
+      "description": "Upgrade to Premium to upload unlimited sources and unlock all features."
+    }
   },
   "settings": {
     "title": "Settings",

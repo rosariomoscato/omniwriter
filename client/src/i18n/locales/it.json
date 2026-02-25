@@ -1132,7 +1132,15 @@
     "deleteTagSuccess": "Tag \"{{tag}}\" eliminato con successo da {{count}} fonti",
     "noTags": "Nessun tag disponibile",
     "tagCount_one": "{{count}} tag",
-    "tagCount_other": "{{count}} tag"
+    "tagCount_other": "{{count}} tag",
+    "sourceCounter": "Fonti: {{used}}/{{limit}}",
+    "limitReached": "Limite raggiunto",
+    "limitReachedButton": "Limite raggiunto",
+    "nearLimit": "Quasi al limite",
+    "upgradeModal": {
+      "title": "Limite Fonti Raggiunto",
+      "description": "Passa a Premium per caricare fonti illimitate e sbloccare tutte le funzionalità."
+    }
   },
   "settings": {
     "title": "Impostazioni",
