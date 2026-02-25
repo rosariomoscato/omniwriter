@@ -1,5 +1,104 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-25 - Features #369 and #370 Implementation
+
+### Completed Features: 377/384 (98.2%)
+
+### Feature #369: Apply tier limits to human models routes
+
+**Objective:** Applicare i controlli tier alle route degli Human Model: limite numero profili per utenti free, tipo di analisi (basic vs advanced).
+
+**Implementation:**
+
+1. **Modified `server/src/routes/human-models.ts`**
+   - Added imports for checkHumanModelLimit middleware and TIER_LIMITS, UserRole from tier-permissions config
+   - Added checkHumanModelLimit() middleware to POST / (create profile route):
+     - Free users: 1 profile max
+     - Premium users: 10 profiles max
+   - Added romanziere_advanced model type restriction:
+     - Only premium users can create romanziere_advanced profiles
+     - Free users can only create saggista_basic and redattore_basic profiles
+     - Returns 403 with PREMIUM_REQUIRED code if free user tries to create advanced model
+
+**Error Response Examples:**
+```json
+// Profile limit reached
+{
+  "message": "Limite di 1 profili stile raggiunto. Passa a Premium per creare più profili.",
+  "code": "TIER_LIMIT_REACHED",
+  "limitType": "humanModel.maxProfiles",
+  "current": 1,
+  "max": 1
+}
+
+// Advanced model not allowed
+{
+  "message": "L'analisi stile approfondita (Romanziere Advanced) richiede un abbonamento Premium. Passa a Premium per sbloccare questa funzionalità.",
+  "code": "PREMIUM_REQUIRED",
+  "feature": "humanModel.canUseArticulatedAnalysis"
+}
+```
+
+**Files Modified:**
+- `server/src/routes/human-models.ts` (tier limit checks added)
+
+**Testing:**
+- ✅ Free user creating first profile (saggista_basic): Success
+- ✅ Free user creating second profile: 403 TIER_LIMIT_REACHED
+- ✅ Free user creating romanziere_advanced: 403 PREMIUM_REQUIRED
+- ✅ Premium user creating romanziere_advanced: Success
+- ✅ Premium user creating multiple profiles: Success
+
+**Commit:** 6d73ac8
+
+**Status: Feature #369 MARKED PASSING**
+
+---
+
+### Feature #370: Apply premium requirement to sagas routes
+
+**Objective:** Applicare requirePremium a tutte le route delle saghe: creazione saga, continuity, generazione sequel. Gli utenti free non devono poter creare saghe.
+
+**Implementation Status: ALREADY IMPLEMENTED**
+
+The `requirePremium` middleware from `server/src/middleware/roles.ts` was already correctly applied to all saga routes in `server/src/routes/sagas.ts`:
+
+- GET /api/sagas (list sagas)
+- POST /api/sagas (create saga)
+- GET /api/sagas/:id (get single saga)
+- PUT /api/sagas/:id (update saga)
+- DELETE /api/sagas/:id (delete saga)
+- GET /api/sagas/:id/projects (list projects in saga)
+- POST /api/sagas/:id/projects (create project in saga)
+- GET /api/sagas/:id/continuity (get continuity data)
+- POST /api/sagas/:id/create-sequel (create sequel with continuity)
+
+**Error Response:**
+```json
+{
+  "message": "This feature requires a Premium subscription",
+  "code": "PREMIUM_REQUIRED"
+}
+```
+
+**Testing:**
+- ✅ Free user creating saga: 403 PREMIUM_REQUIRED
+- ✅ Free user listing sagas: 403 PREMIUM_REQUIRED
+- ✅ Free user accessing continuity: 403 PREMIUM_REQUIRED
+- ✅ Free user creating sequel: 403 PREMIUM_REQUIRED
+
+**Files Modified:** None (already implemented)
+
+**Status: Feature #370 MARKED PASSING**
+
+---
+
+## MILESTONE: 377/384 Features Passing (98.2%)
+
+Latest completed: Features #369 & #370 - Tier limits for human models and saga routes
+
+---
+
 ## Session: 2026-02-25 - Features #367 and #368 Implementation
 
 ### Completed Features: 375/384 (97.7%)
