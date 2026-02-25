@@ -161,6 +161,24 @@ function getAreaPrompt(area: string, params: AreaPromptParams, isItalian: boolea
   }
 }
 
+/**
+ * Feature #371: Truncate content to max word limit for free users
+ * Returns the truncated content and a flag indicating if truncation occurred
+ */
+function truncateToWordLimit(content: string, maxWords: number): { content: string; wasTruncated: boolean } {
+  const words = content.split(/\s+/).filter(w => w.length > 0);
+  if (words.length <= maxWords) {
+    return { content, wasTruncated: false };
+  }
+
+  // Truncate to maxWords and add ellipsis
+  const truncatedWords = words.slice(0, maxWords);
+  return {
+    content: truncatedWords.join(' ') + '...',
+    wasTruncated: true
+  };
+}
+
 // GET /api/projects/:id/chapters - Get all chapters for a project
 router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
   try {
@@ -1425,6 +1443,17 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
               }
 
               if (retryContent) {
+                // Feature #371: Apply word limit truncation for free users
+                let retryTruncated = false;
+                if (maxWordsPerGeneration !== null) {
+                  const truncateResult = truncateToWordLimit(retryContent, maxWordsPerGeneration);
+                  if (truncateResult.wasTruncated) {
+                    console.log(`[Generate Stream] Retry content truncated to ${maxWordsPerGeneration} words for free user`);
+                    retryContent = truncateResult.content;
+                    retryTruncated = true;
+                  }
+                }
+
                 // Success with simplified prompt
                 const now = new Date().toISOString();
                 const wordCount = retryContent.split(/\s+/).filter(w => w.length > 0).length;
@@ -1435,12 +1464,19 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
                   WHERE id = ?
                 `).run(retryContent, wordCount, now, id);
 
-                sendEvent('done', {
+                const doneData: any = {
                   message: 'Chapter generated successfully (simplified mode)',
                   word_count: wordCount,
                   chapter_id: id,
                   note: 'Used simplified prompt due to content sensitivity'
-                });
+                };
+
+                if (retryTruncated) {
+                  doneData.truncated = true;
+                  doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+                }
+
+                sendEvent('done', doneData);
                 return res.end();
               }
             } catch (retryError: any) {
@@ -1458,6 +1494,17 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       // Send revision phase
       sendEvent('phase', { phase: 'revision', message: 'Reviewing generated content...' });
+
+      // Feature #371: Apply word limit truncation for free users
+      let wasTruncated = false;
+      if (maxWordsPerGeneration !== null) {
+        const truncateResult = truncateToWordLimit(fullContent, maxWordsPerGeneration);
+        if (truncateResult.wasTruncated) {
+          console.log(`[Generate Stream] Content truncated from ${fullContent.split(/\s+/).filter(w => w.length > 0).length} to ${maxWordsPerGeneration} words for free user`);
+          fullContent = truncateResult.content;
+          wasTruncated = true;
+        }
+      }
 
       // Update chapter in database
       const now = new Date().toISOString();
@@ -1489,11 +1536,19 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       console.log(`[Generate Stream] Generated chapter "${chapter.title}" with ${wordCount} words`);
 
-      sendEvent('done', {
+      const doneData: any = {
         message: 'Chapter generated successfully',
         word_count: wordCount,
         chapter_id: id
-      });
+      };
+
+      // Feature #371: Add truncation warning if content was truncated
+      if (wasTruncated) {
+        doneData.truncated = true;
+        doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+      }
+
+      sendEvent('done', doneData);
 
       return res.end();
 
@@ -1511,13 +1566,24 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       // Fallback to template generation on other errors
       sendEvent('phase', { phase: 'writing', message: 'Using fallback generation...' });
 
-      const fallbackContent = generateTemplateContent(
+      let fallbackContent = generateTemplateContent(
         chapter.title,
         chapter.area,
         prompt_context,
         humanModel,
         projectSources
       );
+
+      // Feature #371: Apply word limit truncation for free users
+      let fallbackTruncated = false;
+      if (maxWordsPerGeneration !== null) {
+        const truncateResult = truncateToWordLimit(fallbackContent, maxWordsPerGeneration);
+        if (truncateResult.wasTruncated) {
+          console.log(`[Generate Stream] Fallback content truncated to ${maxWordsPerGeneration} words for free user`);
+          fallbackContent = truncateResult.content;
+          fallbackTruncated = true;
+        }
+      }
 
       // Stream the fallback content
       const words = fallbackContent.split(' ');
@@ -1536,11 +1602,18 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         WHERE id = ?
       `).run(fallbackContent, wordCount, now, id);
 
-      sendEvent('done', {
+      const doneData: any = {
         message: 'Chapter generated (fallback mode)',
         word_count: wordCount,
         warning: aiError.message
-      });
+      };
+
+      if (fallbackTruncated) {
+        doneData.truncated = true;
+        doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+      }
+
+      sendEvent('done', doneData);
 
       return res.end();
     }
@@ -1581,7 +1654,7 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
 
     // Feature #367: Check tier limits for word generation
     const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
-    const { maxWordsPerProject } = tierLimits.generation;
+    const { maxWordsPerGeneration, maxWordsPerProject } = tierLimits.generation;
 
     // Get current project word count
     const projectWordCountResult = db.prepare(`
@@ -1778,9 +1851,26 @@ ${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate co
     // Calculate style differences
     const differences = calculateStyleDifferences(baselineContent, styledContent, humanModel);
 
+    // Feature #371: Apply word limit truncation for free users
+    let wasTruncated = false;
+    if (maxWordsPerGeneration !== null) {
+      const baselineTruncate = truncateToWordLimit(baselineContent, maxWordsPerGeneration);
+      if (baselineTruncate.wasTruncated) {
+        baselineContent = baselineTruncate.content;
+        wasTruncated = true;
+      }
+      if (humanModel && styledContent) {
+        const styledTruncate = truncateToWordLimit(styledContent, maxWordsPerGeneration);
+        if (styledTruncate.wasTruncated) {
+          styledContent = styledTruncate.content;
+          wasTruncated = true;
+        }
+      }
+    }
+
     console.log(`[Comparison] Generated comparison for chapter ${id} - AI: ${usedAI}, Tokens: ${inputTokens} in, ${totalOutputTokens} out, Cost: $${estimatedCost.toFixed(4)}`);
 
-    res.json({
+    const response: any = {
       chapter_id: id,
       human_model: humanModel ? {
         id: humanModel.id,
@@ -1808,7 +1898,15 @@ ${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate co
         total_tokens: totalTokens,
         estimated_cost: estimatedCost
       }
-    });
+    };
+
+    // Feature #371: Add truncation warning if content was truncated
+    if (wasTruncated) {
+      response.truncated = true;
+      response.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('[Comparison] Error generating comparison:', error);
     res.status(500).json({ message: 'Failed to generate comparison' });
@@ -1925,6 +2023,7 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
     const { id } = req.params;
     const { human_model_id, prompt_context } = req.body;
     const userId = (req as any).user.id;
+    const userRole = (req as any).user.role as UserRole;
     const db = getDatabase();
 
     // Verify chapter exists and belongs to user's project
@@ -1948,6 +2047,32 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
 
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Feature #371: Check tier limits for word generation
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const { maxWordsPerGeneration, maxWordsPerProject } = tierLimits.generation;
+
+    // Get current project word count (excluding current chapter for regeneration)
+    const projectWordCountResult = db.prepare(`
+      SELECT COALESCE(SUM(word_count), 0) as total_words
+      FROM chapters
+      WHERE project_id = ? AND id != ?
+    `).get(chapter.project_id, id) as { total_words: number };
+    const currentProjectWords = projectWordCountResult.total_words;
+
+    // Estimate words to be generated (typical chapter: ~3000 words)
+    const estimatedWords = 3000;
+
+    // Check per-project limit
+    if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
+      return res.status(403).json({
+        message: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto. Passa a Premium per progetti illimitati.`,
+        code: 'TIER_LIMIT_REACHED',
+        limitType: 'generation.maxWordsPerProject',
+        current: currentProjectWords,
+        max: maxWordsPerProject
+      });
     }
 
     // If human_model_id is provided, verify it exists and belongs to user
@@ -2095,6 +2220,17 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     const outputCost = (outputTokens / 1000) * 0.06;
     const estimatedCost = inputCost + outputCost;
 
+    // Feature #371: Apply word limit truncation for free users
+    let wasTruncated = false;
+    if (maxWordsPerGeneration !== null) {
+      const truncateResult = truncateToWordLimit(newContent, maxWordsPerGeneration);
+      if (truncateResult.wasTruncated) {
+        console.log(`[Regenerate] Content truncated from ${newContent.split(/\s+/).filter(w => w.length > 0).length} to ${maxWordsPerGeneration} words for free user`);
+        newContent = truncateResult.content;
+        wasTruncated = true;
+      }
+    }
+
     // Update only this chapter's content
     const now = new Date().toISOString();
     const newWordCount = newContent.split(/\s+/).filter(w => w.length > 0).length;
@@ -2132,7 +2268,7 @@ IMPORTANT: Write in the author's personal style as defined above.`;
       WHERE id = ?
     `).get(id);
 
-    res.json({
+    const response: any = {
       chapter: updatedChapter,
       message: `Chapter "${chapter.title}" regenerated successfully. Other ${allChapters.length - 1} chapters unchanged.`,
       regenerated_chapter_id: id,
@@ -2146,7 +2282,15 @@ IMPORTANT: Write in the author's personal style as defined above.`;
         total_tokens: totalTokens,
         estimated_cost: estimatedCost
       }
-    });
+    };
+
+    // Feature #371: Add truncation warning if content was truncated
+    if (wasTruncated) {
+      response.truncated = true;
+      response.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('[Regenerate] Error regenerating chapter:', error);
     res.status(500).json({ message: 'Failed to regenerate chapter' });
@@ -2195,7 +2339,7 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
 
     // Feature #367: Check tier limits for word generation
     const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
-    const { maxWordsPerProject } = tierLimits.generation;
+    const { maxWordsPerGeneration, maxWordsPerProject } = tierLimits.generation;
 
     // Get current project word count (excluding current chapter for regeneration)
     const projectWordCountResult = db.prepare(`

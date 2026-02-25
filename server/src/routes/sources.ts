@@ -3,6 +3,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requirePremium } from '../middleware/roles';
+import { checkSourceUploadLimit } from '../middleware/tierCheck'; // Feature #368 - Tier limits
+import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #368 - Tier configuration
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -174,16 +176,58 @@ router.get('/sources', authenticateToken, (req: any, res: any) => {
 });
 
 // POST /api/sources/upload - Upload standalone source file (not tied to project)
+// Feature #368: Added tier limit checks for source uploads
 router.post(
   '/sources/upload',
   authenticateToken,
   (req: Request, res: Response, next: NextFunction) => {
+    // Feature #368: Check tier limits before upload
+    const userRole = (req as any).user?.role as UserRole;
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const maxFileSizeMB = tierLimits.sources.maxFileSizeMB;
+    const maxTotalStorageMB = tierLimits.sources.maxTotalStorageMB;
+
+    // Create a dynamic multer with user's tier limit
+    const tierUpload = multer({
+      storage,
+      limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/msword',
+          'application/rtf',
+          'text/plain',
+        ];
+        const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+
+        const isValidMimeType = allowedTypes.includes(file.mimetype);
+        const isValidExtension = validExtensions.includes(fileExtension);
+
+        if (isValidMimeType || isValidExtension) {
+          cb(null, true);
+        } else {
+          const error = new Error('INVALID_FILE_TYPE');
+          (error as any).status = 400;
+          (error as any).code = 'LIMIT_FILE_TYPE';
+          (error as any).message = 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.';
+          cb(error as any, false);
+        }
+      },
+    });
+
     // Custom multer error handling
-    upload.single('file')(req, res, (err: any) => {
+    tierUpload.single('file')(req, res, (err: any) => {
       if (err) {
         // Handle multer errors
         if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ message: 'File too large. Maximum size is 25MB.' });
+          return res.status(403).json({
+            message: `File troppo grande. Limite: ${maxFileSizeMB}MB. Passa a Premium per file fino a 25MB.`,
+            code: 'TIER_LIMIT_REACHED',
+            limitType: 'sources.maxFileSizeMB',
+            max: maxFileSizeMB
+          });
         }
         if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
           return res.status(400).json({
@@ -198,6 +242,7 @@ router.post(
   async (req: any, res: any) => {
     const db = getDatabase();
     const userId = req.user?.id;
+    const userRole = req.user?.role as UserRole;
 
     if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -206,6 +251,33 @@ router.post(
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Feature #368: Check total storage limit
+      const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+      const maxTotalStorageMB = tierLimits.sources.maxTotalStorageMB;
+
+      if (maxTotalStorageMB !== null) {
+        const storageResult = db
+          .prepare('SELECT COALESCE(SUM(file_size), 0) as total FROM sources WHERE user_id = ?')
+          .get(userId) as { total: number };
+
+        const currentStorageMB = storageResult.total / (1024 * 1024);
+        const newFileSizeMB = req.file.size / (1024 * 1024);
+
+        if (currentStorageMB + newFileSizeMB > maxTotalStorageMB) {
+          // Clean up uploaded file
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+          return res.status(403).json({
+            message: `Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.`,
+            code: 'TIER_LIMIT_REACHED',
+            limitType: 'sources.maxTotalStorageMB',
+            current: Math.round(currentStorageMB * 100) / 100,
+            max: maxTotalStorageMB
+          });
+        }
       }
 
       // Extract text content
@@ -257,16 +329,57 @@ router.post(
 );
 
 // POST /api/projects/:id/sources/upload - Upload source file (optionally share with saga)
+// Feature #368: Added tier limit checks for source uploads
 router.post(
   '/projects/:id/sources/upload',
   authenticateToken,
   (req: Request, res: Response, next: NextFunction) => {
+    // Feature #368: Check tier limits before upload
+    const userRole = (req as any).user?.role as UserRole;
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const maxFileSizeMB = tierLimits.sources.maxFileSizeMB;
+
+    // Create a dynamic multer with user's tier limit
+    const tierUpload = multer({
+      storage,
+      limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/msword',
+          'application/rtf',
+          'text/plain',
+        ];
+        const validExtensions = ['.pdf', '.docx', '.doc', '.rtf', '.txt'];
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+
+        const isValidMimeType = allowedTypes.includes(file.mimetype);
+        const isValidExtension = validExtensions.includes(fileExtension);
+
+        if (isValidMimeType || isValidExtension) {
+          cb(null, true);
+        } else {
+          const error = new Error('INVALID_FILE_TYPE');
+          (error as any).status = 400;
+          (error as any).code = 'LIMIT_FILE_TYPE';
+          (error as any).message = 'Invalid file type. Only PDF, DOCX, DOC, RTF, and TXT files are allowed.';
+          cb(error as any, false);
+        }
+      },
+    });
+
     // Custom multer error handling
-    upload.single('file')(req, res, (err: any) => {
+    tierUpload.single('file')(req, res, (err: any) => {
       if (err) {
         // Handle multer errors
         if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ message: 'File too large. Maximum size is 25MB.' });
+          return res.status(403).json({
+            message: `File troppo grande. Limite: ${maxFileSizeMB}MB. Passa a Premium per file fino a 25MB.`,
+            code: 'TIER_LIMIT_REACHED',
+            limitType: 'sources.maxFileSizeMB',
+            max: maxFileSizeMB
+          });
         }
         if (err.code === 'LIMIT_FILE_TYPE' || err.message === 'INVALID_FILE_TYPE') {
           return res.status(400).json({
@@ -281,6 +394,7 @@ router.post(
   async (req: any, res: any) => {
     const db = getDatabase();
     const userId = req.user.id;
+    const userRole = req.user.role as UserRole;
     const projectId = req.params.id;
     const shareWithSaga = req.body?.shareWithSaga === 'true' || req.body?.shareWithSaga === true;
 
@@ -300,6 +414,55 @@ router.post(
 
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Feature #368: Check source count and storage limits
+      const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+      const { maxSourcesPerProject, maxTotalStorageMB } = tierLimits.sources;
+
+      // Check source count limit for project
+      if (maxSourcesPerProject !== null) {
+        const countResult = db
+          .prepare('SELECT COUNT(*) as count FROM sources WHERE project_id = ?')
+          .get(projectId) as { count: number };
+
+        if (countResult.count >= maxSourcesPerProject) {
+          // Clean up uploaded file
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+          return res.status(403).json({
+            message: `Limite di ${maxSourcesPerProject} fonti per progetto raggiunto. Passa a Premium per fonti illimitate.`,
+            code: 'TIER_LIMIT_REACHED',
+            limitType: 'sources.maxSourcesPerProject',
+            current: countResult.count,
+            max: maxSourcesPerProject
+          });
+        }
+      }
+
+      // Check total storage limit
+      if (maxTotalStorageMB !== null) {
+        const storageResult = db
+          .prepare('SELECT COALESCE(SUM(file_size), 0) as total FROM sources WHERE user_id = ?')
+          .get(userId) as { total: number };
+
+        const currentStorageMB = storageResult.total / (1024 * 1024);
+        const newFileSizeMB = req.file.size / (1024 * 1024);
+
+        if (currentStorageMB + newFileSizeMB > maxTotalStorageMB) {
+          // Clean up uploaded file
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+          return res.status(403).json({
+            message: `Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.`,
+            code: 'TIER_LIMIT_REACHED',
+            limitType: 'sources.maxTotalStorageMB',
+            current: Math.round(currentStorageMB * 100) / 100,
+            max: maxTotalStorageMB
+          });
+        }
       }
 
       // Extract text content
