@@ -1501,5 +1501,106 @@
       "sagaGrouping": "Saga/Series grouping with shared sources",
       "prioritySupport": "Priority support"
     }
+  },
+  "tier": {
+    "errors": {
+      "premiumRequired": "The \"{{feature}}\" feature requires a Premium subscription.",
+      "tierLimitReached": "You have reached the limit of {{limit}} for your plan.",
+      "upgradePrompt": "Upgrade to Premium to unlock this feature.",
+      "codes": {
+        "PREMIUM_REQUIRED": "Premium Feature",
+        "TIER_LIMIT_REACHED": "Plan Limit Reached",
+        "AUTH_REQUIRED": "Authentication Required"
+      }
+    },
+    "plans": {
+      "free": {
+        "name": "Free",
+        "description": "Basic plan to start exploring OmniWriter",
+        "price": "€0",
+        "period": "forever"
+      },
+      "premium": {
+        "name": "Premium",
+        "description": "Full access to all features",
+        "price": "€19",
+        "period": "/month"
+      },
+      "lifetime": {
+        "name": "Lifetime",
+        "description": "Permanent access to all features",
+        "price": "€299",
+        "period": "one-time"
+      },
+      "admin": {
+        "name": "Administrator",
+        "description": "Full administrative access"
+      }
+    },
+    "limits": {
+      "generation": {
+        "maxWordsPerGeneration": "words per generation",
+        "maxChaptersPerProject": "chapters per project",
+        "maxWordsPerProject": "words per project",
+        "maxGenerationsPerDay": "generations per day"
+      },
+      "humanModel": {
+        "maxProfiles": "style profiles",
+        "minWordCountRomanziere": "minimum words for Novelist",
+        "minWordCountBasic": "minimum words for basic",
+        "maxUploadSizeMB": "MB per upload"
+      },
+      "sources": {
+        "maxSourcesPerProject": "sources per project",
+        "maxFileSizeMB": "MB per file",
+        "maxTotalStorageMB": "MB total storage",
+        "maxWebSearchesPerDay": "web searches per day"
+      },
+      "saga": {
+        "maxSagasPerUser": "sagas",
+        "maxProjectsPerSaga": "projects per saga"
+      }
+    },
+    "features": {
+      "sources": {
+        "canUseWebSearch": "Web Search",
+        "canSaveWebSearchResults": "Save search results"
+      },
+      "saga": {
+        "canCreateSagas": "Create Sagas/Series",
+        "canShareSources": "Share sources across sagas",
+        "canUseContinuityChecker": "Continuity checker",
+        "canAnalyzeNovels": "Analyze novels",
+        "canProposeSequel": "Propose sequel"
+      },
+      "integration": {
+        "canConnectGoogleDrive": "Google Drive integration",
+        "canSelectAiModel": "AI model selection",
+        "canAdjustQualitySetting": "Quality/speed setting",
+        "canUseSeoTools": "Advanced SEO tools"
+      },
+      "humanModel": {
+        "canUseArticulatedAnalysis": "In-depth style analysis",
+        "canAdjustStyleStrength": "Style strength adjustment"
+      },
+      "export": {
+        "canUploadEpubCover": "Custom EPUB cover",
+        "canEditEpubMetadata": "EPUB metadata",
+        "canBatchExport": "Batch export",
+        "canPreviewExport": "Export preview",
+        "canCustomizeFormatting": "Custom formatting"
+      },
+      "generation": {
+        "canGenerateFullContent": "Full content generation"
+      }
+    },
+    "upgrade": {
+      "title": "Upgrade to Premium",
+      "subtitle": "Unlock all features",
+      "currentPlan": "Current plan",
+      "upgradeTo": "Upgrade to {{plan}}",
+      "learnMore": "Learn more",
+      "contactSupport": "Contact support"
+    }
   }
 }
