@@ -2690,13 +2690,24 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         console.log('[Regenerate Stream] No AI provider, using fallback');
 
         // Simulate streaming with fallback content
-        const fallbackContent = generateTemplateContent(
+        let fallbackContent = generateTemplateContent(
           chapter.title,
           chapter.area,
           prompt_context,
           humanModel,
           projectSources
         );
+
+        // Feature #371: Apply word limit truncation for free users
+        let earlyFallbackTruncated = false;
+        if (maxWordsPerGeneration !== null) {
+          const truncateResult = truncateToWordLimit(fallbackContent, maxWordsPerGeneration);
+          if (truncateResult.wasTruncated) {
+            console.log(`[Regenerate Stream] Early fallback content truncated to ${maxWordsPerGeneration} words for free user`);
+            fallbackContent = truncateResult.content;
+            earlyFallbackTruncated = true;
+          }
+        }
 
         // Stream the fallback content word by word
         const words = fallbackContent.split(' ');
@@ -2718,14 +2729,21 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
           WHERE id = ?
         `).run(fallbackContent, wordCount, now, id);
 
-        sendEvent('done', {
+        const doneData: any = {
           message: 'Chapter regenerated successfully',
           word_count: wordCount,
           chapter_id: id,
           regenerated_chapter_id: id,
           other_chapters_unchanged: otherChapters,
           warning: 'No AI provider configured - used fallback generation'
-        });
+        };
+
+        if (earlyFallbackTruncated) {
+          doneData.truncated = true;
+          doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+        }
+
+        sendEvent('done', doneData);
         return res.end();
       }
 
@@ -2779,6 +2797,17 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
               }
 
               if (retryContent) {
+                // Feature #371: Apply word limit truncation for free users
+                let retryTruncated = false;
+                if (maxWordsPerGeneration !== null) {
+                  const truncateResult = truncateToWordLimit(retryContent, maxWordsPerGeneration);
+                  if (truncateResult.wasTruncated) {
+                    console.log(`[Regenerate Stream] Retry content truncated to ${maxWordsPerGeneration} words for free user`);
+                    retryContent = truncateResult.content;
+                    retryTruncated = true;
+                  }
+                }
+
                 // Success with simplified prompt
                 const now = new Date().toISOString();
                 const wordCount = retryContent.split(/\s+/).filter(w => w.length > 0).length;
@@ -2789,14 +2818,21 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
                   WHERE id = ?
                 `).run(retryContent, wordCount, now, id);
 
-                sendEvent('done', {
+                const doneData: any = {
                   message: 'Chapter regenerated successfully (simplified mode)',
                   word_count: wordCount,
                   chapter_id: id,
                   regenerated_chapter_id: id,
                   other_chapters_unchanged: otherChapters,
                   note: 'Used simplified prompt due to content sensitivity'
-                });
+                };
+
+                if (retryTruncated) {
+                  doneData.truncated = true;
+                  doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+                }
+
+                sendEvent('done', doneData);
                 return res.end();
               }
             } catch (retryError: any) {
@@ -2814,6 +2850,17 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       // Send revision phase
       sendEvent('phase', { phase: 'revision', message: 'Reviewing regenerated content...' });
+
+      // Feature #371: Apply word limit truncation for free users
+      let wasTruncated = false;
+      if (maxWordsPerGeneration !== null) {
+        const truncateResult = truncateToWordLimit(fullContent, maxWordsPerGeneration);
+        if (truncateResult.wasTruncated) {
+          console.log(`[Regenerate Stream] Content truncated from ${fullContent.split(/\s+/).filter(w => w.length > 0).length} to ${maxWordsPerGeneration} words for free user`);
+          fullContent = truncateResult.content;
+          wasTruncated = true;
+        }
+      }
 
       // Update chapter in database
       const now = new Date().toISOString();
@@ -2845,13 +2892,20 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       console.log(`[Regenerate Stream] Regenerated chapter "${chapter.title}" with ${wordCount} words`);
 
-      sendEvent('done', {
+      const doneData: any = {
         message: `Chapter "${chapter.title}" regenerated successfully. Other ${otherChapters.length} chapters unchanged.`,
         word_count: wordCount,
         chapter_id: id,
         regenerated_chapter_id: id,
         other_chapters_unchanged: otherChapters
-      });
+      };
+
+      if (wasTruncated) {
+        doneData.truncated = true;
+        doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+      }
+
+      sendEvent('done', doneData);
 
       return res.end();
 
@@ -2869,13 +2923,24 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       // Fallback to template generation on other errors
       sendEvent('phase', { phase: 'writing', message: 'Using fallback generation...' });
 
-      const fallbackContent = generateTemplateContent(
+      let fallbackContent = generateTemplateContent(
         chapter.title,
         chapter.area,
         prompt_context,
         humanModel,
         projectSources
       );
+
+      // Feature #371: Apply word limit truncation for free users
+      let fallbackTruncated = false;
+      if (maxWordsPerGeneration !== null) {
+        const truncateResult = truncateToWordLimit(fallbackContent, maxWordsPerGeneration);
+        if (truncateResult.wasTruncated) {
+          console.log(`[Regenerate Stream] Fallback content truncated to ${maxWordsPerGeneration} words for free user`);
+          fallbackContent = truncateResult.content;
+          fallbackTruncated = true;
+        }
+      }
 
       // Stream the fallback content
       const words = fallbackContent.split(' ');
@@ -2894,14 +2959,21 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         WHERE id = ?
       `).run(fallbackContent, wordCount, now, id);
 
-      sendEvent('done', {
+      const doneData: any = {
         message: 'Chapter regenerated (fallback mode)',
         word_count: wordCount,
         chapter_id: id,
         regenerated_chapter_id: id,
         other_chapters_unchanged: otherChapters,
         warning: 'AI service unavailable - used fallback generation'
-      });
+      };
+
+      if (fallbackTruncated) {
+        doneData.truncated = true;
+        doneData.truncationWarning = `Contenuto limitato a ${maxWordsPerGeneration} parole. Passa a Premium per generazioni illimitate.`;
+      }
+
+      sendEvent('done', doneData);
 
       return res.end();
     }
