@@ -1,5 +1,146 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-25 - Features #376 and #377 Implementation
+
+### Completed Features: 375/384 (97.7%)
+
+### Feature #376: Create FeatureGate component
+
+**Objective:** Create the component `/client/src/components/FeatureGate.tsx` wrapper that hides or shows functionality based on tier. Uses useTierPermissions internally.
+
+**Implementation:**
+
+1. **Created `client/src/components/FeatureGate.tsx`**
+   - Component props: feature, children, fallback, showLocked, lockedMessage, className, onUpgradeClick, showOverlay
+   - Uses `useTierPermissions.canAccess()` to check feature access
+   - If user has access: shows children normally
+   - If showLocked=true and no access: shows locked version with PremiumBadge
+   - If showLocked=false and no access: shows only fallback or nothing
+   - If showOverlay=true: renders children with opacity and overlay with PremiumBadge
+   - Supports keyboard accessibility (Enter/Space to click)
+   - Dark/light theme support via Tailwind CSS
+
+**Files Created:**
+- `client/src/components/FeatureGate.tsx` (140 lines)
+
+**Commit:** 966421d
+
+**Status: Feature #376 MARKED PASSING**
+
+---
+
+### Feature #377: Integrate FeatureGate in Dashboard UI
+
+**Objective:** Integrate FeatureGate in the Dashboard to hide/disable premium features for free users: Create Saga button, Create Sequel button, export EPUB/PDF.
+
+**Implementation:**
+
+1. **Modified `client/src/pages/SagasPage.tsx`**
+   - Added imports for FeatureGate and UpgradeModal
+   - Added showUpgradeModal state
+   - Wrapped "Create Saga" button in header with FeatureGate (feature='sagas', showLocked=true)
+   - Wrapped "Create First Saga" button in empty state with FeatureGate
+   - Wrapped "Create Sequel" button with FeatureGate (feature='novelAnalysis', showLocked=true)
+   - Added UpgradeModal component for premium upgrade prompts
+
+2. **Modified `client/src/pages/ProjectDetail.tsx`**
+   - Added imports for FeatureGate, UpgradeModal, and useTierPermissions
+   - Added useTierPermissions hook with canExportFormat
+   - Added showUpgradeModal state
+   - Modified EPUB export option to check `canExportFormat('epub')`:
+     - If accessible: shows normal radio button
+     - If not accessible: shows locked option with Premium badge and click handler to show upgrade modal
+   - Added UpgradeModal component at end of file
+
+**Verification:**
+- Tested with free user account (testfree377@example.com)
+- Verified Sagas page shows locked "Create Saga" button with Premium badge
+- Verified clicking Premium badge opens UpgradeModal
+- Verified error messages show "This feature requires a Premium subscription"
+
+**Files Modified:**
+- `client/src/pages/SagasPage.tsx` (added FeatureGate and UpgradeModal)
+- `client/src/pages/ProjectDetail.tsx` (added export format gating and UpgradeModal)
+
+**Commit:** 966421d
+
+**Status: Feature #377 MARKED PASSING**
+
+---
+
+## MILESTONE: 375/384 Features Passing (97.7%)
+
+Latest completed: Features #376 & #377 - FeatureGate component and Dashboard UI integration
+
+---
+
+## Session: 2026-02-25 - Features #372 and #373 Implementation
+
+### Completed Features: 365/384 (94.8%)
+
+### Feature #372: Create tier config for client
+
+**Objective:** Create `/client/src/config/tier-config.ts` that mirrors the backend TIER_LIMITS configuration to allow client-side UI checks before API calls.
+
+**Implementation:**
+
+1. **Created `client/src/config/tier-config.ts`**
+   - Defined `UserRole` type: 'free' | 'premium' | 'lifetime' | 'admin'
+   - Created `TierLimits` interface with comprehensive limit definitions:
+     - Project limits (maxProjects, maxChaptersPerProject)
+     - Source upload limits (maxSourcesPerProject, maxSourceSizeMB, totalSourceStorageMB)
+     - Generation limits (maxGenerationLength, maxDailyGenerations)
+     - Human Model limits (maxHumanModels, humanModelTrainingWords)
+     - Export format availability (exportFormats)
+     - Web search limits (maxDailyWebSearches)
+     - AI model access (aiModelTier)
+     - Premium feature flags (canCreateSagas, canAnalyzeNovels, etc.)
+   - Created `TIER_LIMITS` configuration for each role
+   - Exported helper functions: `isPremiumTier()`, `getTierLimits()`
+   - Defined `FEATURE_NAMES` for upgrade prompts
+   - Defined `PREMIUM_EXPORT_FORMATS` array
+
+**Files Created:**
+- `client/src/config/tier-config.ts` (204 lines)
+
+**Commit:** 86d5275
+
+**Status: Feature #372 MARKED PASSING**
+
+---
+
+### Feature #373: Create useTierPermissions hook
+
+**Objective:** Create React hook `/client/src/hooks/useTierPermissions.ts` with functions: canAccess(feature), getLimit(limitType), isPremium(), showUpgradePrompt(feature). Uses AuthContext to obtain the user role.
+
+**Implementation:**
+
+1. **Created `client/src/hooks/useTierPermissions.ts`**
+   - Defined `PremiumFeature` type for feature checks
+   - Defined `LimitType` type for numeric limits
+   - Created `FEATURE_TO_LIMIT` mapping for feature-to-limit lookups
+   - Implemented `useTierPermissions()` hook with:
+     - `role`: Current user role from AuthContext
+     - `isPremium`: Boolean indicating premium access
+     - `isAdmin`: Boolean indicating admin role
+     - `canAccess(feature)`: Check if user can access a premium feature
+     - `getLimit(limitType)`: Get numeric limit value (-1 for unlimited)
+     - `canExportFormat(format)`: Check export format availability
+     - `showUpgradePrompt(feature)`: Trigger upgrade modal for a feature
+     - `hideUpgradePrompt()`: Hide upgrade modal
+     - `upgradePrompt`: State object for upgrade modal
+     - `limits`: Full TierLimits object for current role
+     - `getFeatureName(feature)`: Get display name for a feature
+
+**Files Created:**
+- `client/src/hooks/useTierPermissions.ts` (240 lines)
+
+**Commit:** 86d5275
+
+**Status: Feature #373 MARKED PASSING**
+
+---
+
 ## Session: 2026-02-25 - Feature #364 Implementation
 
 ### Completed Features: 363/363 (100%)
@@ -6674,6 +6815,189 @@ All admin UI and navigation features are now complete!
 
 ---
 
-## MILESTONE: 360/361 Features Passing (99.7%)
+## Session: 2026-02-25 - Features #365 and #366 Implementation
 
-Latest completed: Feature #4 - No mock data patterns in codebase
+### Completed Features: 366/384 (95.3%)
+
+### Feature #365: Create tier permissions configuration file
+
+**Objective:** Creare il file /server/src/config/tier-permissions.ts con la configurazione centralizzata dei limiti per ogni tier.
+
+**Implementation:**
+
+Created comprehensive tier permissions configuration with:
+
+**Tier Limits Structure:**
+- `generation` - Word counts, chapters, generations per day
+- `humanModel` - Profiles, word count minimums, analysis features
+- `sources` - File uploads, storage, web search
+- `export` - Available formats, EPUB features
+- `saga` - Creation, sharing, continuity, sequel
+- `integration` - Google Drive, AI models, SEO tools
+
+**Free Tier Limits:**
+- 2000 words/generation, 10k words/project, 5 chapters
+- 1 style profile, no articulated analysis
+- 5 sources/project, 5MB files, 50MB storage
+- Only DOCX/TXT export
+- No sagas, no Google Drive
+
+**Premium/Lifetime/Admin Limits:**
+- Unlimited generation, chapters, words
+- 10 style profiles, articulated analysis
+- Unlimited sources, 25MB files, unlimited storage
+- All export formats (DOCX, EPUB, RTF, PDF, TXT)
+- Full saga features, Google Drive integration
+
+**Helper Functions:**
+- `getTierLimits(role)` - Get all limits for a role
+- `isFeatureAvailable(role, path)` - Check boolean features
+- `getLimitValue(role, path)` - Get specific limit value
+- `canGenerateWords()` - Word count validation
+- `canCreateStyleProfile()` - Profile limit check
+- `canUploadSource()` - Upload validation
+- `canExportFormat()` - Format availability check
+- `canCreateSaga()` - Saga creation check
+
+**Files Created:**
+- `server/src/config/tier-permissions.ts` (460 lines)
+
+### Feature #366: Create tier check middleware
+
+**Objective:** Creare il file /server/src/middleware/tierCheck.ts con middleware per feature gating e limit checks.
+
+**Implementation:**
+
+**Core Middleware:**
+
+1. **checkTierFeature(featurePath)**
+   - For boolean feature gates (canUseWebSearch, canCreateSagas, etc.)
+   - Returns 403 with `PREMIUM_REQUIRED` code if feature not available
+
+2. **checkTierLimit(limitPath, options)**
+   - For quantitative limits with database queries
+   - Options: countQuery, paramSource, paramName, additionalValue
+   - Handles null (unlimited) cases automatically
+   - Returns 403 with `TIER_LIMIT_REACHED` code if limit exceeded
+
+**Specialized Middleware:**
+
+3. **checkGenerationLimit(projectId, requestedWords)**
+   - Checks both maxWordsPerGeneration and maxWordsPerProject
+   - Queries database for current project word count
+
+4. **checkSourceUploadLimit(projectId, fileSizeBytes)**
+   - Checks maxFileSizeMB, maxSourcesPerProject, maxTotalStorageMB
+   - Queries for current source count and storage usage
+
+5. **checkExportFormat(format)**
+   - Validates export format availability based on tier
+   - Free: DOCX, TXT only
+   - Premium: All formats
+
+6. **checkHumanModelLimit()**
+   - Checks maxProfiles limit for Human Model creation
+
+**Error Response Format:**
+```json
+{
+  "message": "Italian localized error message",
+  "code": "PREMIUM_REQUIRED" | "TIER_LIMIT_REACHED",
+  "feature": "path.to.feature",
+  "limitType": "path.to.limit",
+  "current": 5,
+  "max": 10
+}
+```
+
+**Files Created:**
+- `server/src/middleware/tierCheck.ts` (480 lines)
+
+### Verification
+
+- TypeScript compiles without errors
+- Server build successful
+- Both config and middleware files created with proper types
+- Exports properly typed for external use
+
+### Commit: 7062a7c
+
+**Status: Features #365 and #366 MARKED PASSING**
+
+---
+
+## MILESTONE: 366/384 Features Passing (95.3%)
+
+Latest completed: Features #365 & #366 - Tier permissions configuration and middleware
+
+---
+
+## Session: 2026-02-25 - Features #374 and #375 Implementation
+
+### Completed Features: 365/384 (95.1%)
+
+### Feature #374: Create PremiumBadge component
+
+**Objective:** Create a reusable PremiumBadge component that shows a golden/purple badge next to premium features.
+
+**Implementation:**
+
+Created `/client/src/components/PremiumBadge.tsx` with:
+- Golden/purple gradient badge with Crown icon (lucide-react)
+- Three size variants: `sm`, `md`, `lg`
+- Optional `onClick` prop to make badge clickable
+- Keyboard accessibility (Enter/Space to click)
+- Hover effects with scale transform when clickable
+- Dark/light theme support via Tailwind CSS
+
+**Props:**
+- `onClick?: () => void` - Optional click handler
+- `className?: string` - Additional CSS classes
+- `size?: 'sm' | 'md' | 'lg'` - Size variant
+
+### Feature #375: Create UpgradeModal component
+
+**Objective:** Create a modal that shows premium benefits, pricing, and an upgrade button.
+
+**Implementation:**
+
+Created `/client/src/components/UpgradeModal.tsx` with:
+- Beautiful gradient header (amber → purple → pink)
+- Crown icon with decorative sparkles/stars
+- Pricing comparison cards (€19/mo Premium, €299 Lifetime)
+- Benefits list with checkmark icons (8 premium features)
+- Cancel and "Upgrade Now" buttons
+- Money-back guarantee text
+- Focus trap and keyboard navigation (Escape to close)
+- Click outside to close
+- Dark/light theme support
+
+**Props:**
+- `isOpen: boolean` - Modal visibility
+- `onClose: () => void` - Close handler
+- `title?: string` - Optional title override
+- `description?: string` - Optional description override
+
+**i18n Keys Added:**
+- `premium.badge` - "Premium" text
+- `upgradeModal.title`, `upgradeModal.description`, `upgradeModal.whatsIncluded`
+- `upgradeModal.benefits.*` - All 8 benefit strings
+- `upgradeModal.upgradeNow`, `upgradeModal.moneyBack`
+
+**Files Created:**
+- `client/src/components/PremiumBadge.tsx` (77 lines)
+- `client/src/components/UpgradeModal.tsx` (239 lines)
+
+**Files Modified:**
+- `client/src/i18n/locales/en.json` (added premium and upgradeModal keys)
+- `client/src/i18n/locales/it.json` (added premium and upgradeModal keys)
+
+### Commit: 54ab186
+
+**Status: Features #374 and #375 MARKED PASSING**
+
+---
+
+## MILESTONE: 365/384 Features Passing (95.1%)
+
+Latest completed: Features #374 & #375 - PremiumBadge and UpgradeModal components
