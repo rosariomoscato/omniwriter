@@ -81,11 +81,13 @@
         "price": "€0",
         "period": "forever",
         "description": "To start exploring",
-        "feature1": "Limited generation",
-        "feature2": "Basic Human Model",
-        "feature3": "Limited source uploads",
-        "feature4": "Export TXT, DOCX",
-        "feature5": "Basic web search"
+        "feature1": "Up to 3,000 words per chapter",
+        "feature2": "Up to 5 chapters per project",
+        "feature3": "Up to 10,000 words/month",
+        "feature4": "1 Human Model profile (basic analysis)",
+        "feature5": "Up to 5 sources uploaded",
+        "feature6": "Web search (10/month)",
+        "feature7": "Export TXT, DOCX"
       },
       "premium": {
         "name": "Premium",
@@ -93,12 +95,15 @@
         "period": "/month",
         "description": "For serious writers",
         "feature1": "Unlimited generation",
-        "feature2": "Advanced Human Model",
-        "feature3": "Unlimited source uploads",
-        "feature4": "All export formats",
-        "feature5": "Advanced SEO",
-        "feature6": "Google Drive",
-        "feature7": "Priority support",
+        "feature2": "Up to 10 Human Model profiles (advanced analysis)",
+        "feature3": "Unlimited sources",
+        "feature4": "Unlimited web search",
+        "feature5": "Export in all formats (EPUB, PDF, RTF)",
+        "feature6": "Sagas and continuity",
+        "feature7": "Sequel generation",
+        "feature8": "Google Drive integration",
+        "feature9": "Advanced SEO",
+        "feature10": "Priority support",
         "popular": "Most Popular"
       },
       "lifetime": {
@@ -106,11 +111,11 @@
         "price": "€299",
         "period": "one-time",
         "description": "Access forever",
-        "feature1": "All Premium included",
+        "feature1": "All Premium included forever",
         "feature2": "No monthly fees",
-        "feature3": "Future updates",
-        "feature4": "New features",
-        "feature5": "VIP support"
+        "feature3": "All future updates",
+        "feature4": "Early access to new features",
+        "feature5": "Dedicated VIP support"
       }
     },
     "cta": {
@@ -1326,6 +1331,10 @@
       "lifetime": "Lifetime",
       "admin": "Admin"
     },
+    "subscriptionForever": "Forever",
+    "subscriptionExpired": "Subscription expired",
+    "subscriptionExpiresSoon": "Expires in {{days}} days ({{date}})",
+    "subscriptionExpires": "Expires: {{date}}",
     "quickLinks": {
       "settings": "Settings",
       "settingsDesc": "Manage your app preferences",
@@ -1471,6 +1480,26 @@
       "cancel": "Cancel",
       "deleteSuccess": "Citation deleted successfully",
       "deleteError": "Failed to delete citation"
+    }
+  },
+  "premium": {
+    "badge": "Premium"
+  },
+  "upgradeModal": {
+    "title": "Upgrade to Premium",
+    "description": "Unlock all features and take your writing to the next level",
+    "whatsIncluded": "What's included:",
+    "upgradeNow": "Upgrade Now",
+    "moneyBack": "30-day money-back guarantee. No questions asked.",
+    "benefits": {
+      "unlimited": "Unlimited content generation",
+      "advancedHumanModel": "Advanced Human Model with multiple profiles",
+      "unlimitedSources": "Unlimited source uploads",
+      "allFormats": "All export formats (DOCX, EPUB, PDF, RTF)",
+      "advancedSEO": "Advanced SEO tools",
+      "googleDrive": "Google Drive integration",
+      "sagaGrouping": "Saga/Series grouping with shared sources",
+      "prioritySupport": "Priority support"
     }
   }
 }

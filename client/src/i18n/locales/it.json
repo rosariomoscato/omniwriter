@@ -81,11 +81,13 @@
         "price": "€0",
         "period": "per sempre",
         "description": "Per iniziare a esplorare",
-        "feature1": "Generazione limitata",
-        "feature2": "Human Model base",
-        "feature3": "Upload fonti limitato",
-        "feature4": "Export TXT, DOCX",
-        "feature5": "Ricerca web base"
+        "feature1": "Fino a 3,000 parole per capitolo",
+        "feature2": "Fino a 5 capitoli per progetto",
+        "feature3": "Fino a 10,000 parole al mese",
+        "feature4": "1 profilo Human Model (analisi base)",
+        "feature5": "Fino a 5 fonti caricate",
+        "feature6": "Ricerca web (10/mese)",
+        "feature7": "Export TXT, DOCX"
       },
       "premium": {
         "name": "Premium",
@@ -93,12 +95,15 @@
         "period": "/mese",
         "description": "Per scrittori seri",
         "feature1": "Generazione illimitata",
-        "feature2": "Human Model avanzato",
-        "feature3": "Upload fonti illimitato",
-        "feature4": "Tutti i formati export",
-        "feature5": "SEO avanzato",
-        "feature6": "Google Drive",
-        "feature7": "Supporto prioritario",
+        "feature2": "Fino a 10 profili Human Model (analisi avanzata)",
+        "feature3": "Fonti illimitate",
+        "feature4": "Ricerca web illimitata",
+        "feature5": "Export in tutti i formati (EPUB, PDF, RTF)",
+        "feature6": "Saghe e continuity",
+        "feature7": "Generazione sequel",
+        "feature8": "Google Drive integration",
+        "feature9": "SEO avanzato",
+        "feature10": "Supporto prioritario",
         "popular": "Più Popolare"
       },
       "lifetime": {
@@ -106,11 +111,11 @@
         "price": "€299",
         "period": "una tantum",
         "description": "Accesso per sempre",
-        "feature1": "Tutto Premium incluso",
+        "feature1": "Tutto Premium incluso per sempre",
         "feature2": "Nessun canone mensile",
-        "feature3": "Aggiornamenti futuri",
-        "feature4": "Nuove funzionalità",
-        "feature5": "Supporto VIP"
+        "feature3": "Tutti gli aggiornamenti futuri",
+        "feature4": "Accesso anticipato a nuove funzionalità",
+        "feature5": "Supporto VIP dedicato"
       }
     },
     "cta": {
@@ -1326,6 +1331,10 @@
       "lifetime": "Lifetime",
       "admin": "Admin"
     },
+    "subscriptionForever": "Per sempre",
+    "subscriptionExpired": "Abbonamento scaduto",
+    "subscriptionExpiresSoon": "Scade tra {{days}} giorni ({{date}})",
+    "subscriptionExpires": "Scade: {{date}}",
     "quickLinks": {
       "settings": "Impostazioni",
       "settingsDesc": "Gestisci le tue preferenze dell'app",
@@ -1471,6 +1480,127 @@
       "cancel": "Annulla",
       "deleteSuccess": "Citazione eliminata con successo",
       "deleteError": "Eliminazione citazione fallita"
+    }
+  },
+  "premium": {
+    "badge": "Premium"
+  },
+  "upgradeModal": {
+    "title": "Passa a Premium",
+    "description": "Sblocca tutte le funzionalità e porta la tua scrittura al livello successivo",
+    "whatsIncluded": "Cosa è incluso:",
+    "upgradeNow": "Passa a Premium",
+    "moneyBack": "Garanzia soddisfatti o rimborsati di 30 giorni. Nessuna domanda.",
+    "benefits": {
+      "unlimited": "Generazione contenuti illimitata",
+      "advancedHumanModel": "Modello Umano avanzato con profili multipli",
+      "unlimitedSources": "Caricamento fonti illimitato",
+      "allFormats": "Tutti i formati di export (DOCX, EPUB, PDF, RTF)",
+      "advancedSEO": "Strumenti SEO avanzati",
+      "googleDrive": "Integrazione Google Drive",
+      "sagaGrouping": "Raggruppamento Saghe/Serie con fonti condivise",
+      "prioritySupport": "Supporto prioritario"
+    }
+  },
+  "tier": {
+    "errors": {
+      "premiumRequired": "La funzionalità \"{{feature}}\" richiede un abbonamento Premium.",
+      "tierLimitReached": "Hai raggiunto il limite di {{limit}} per il tuo piano.",
+      "upgradePrompt": "Passa a Premium per sbloccare questa funzionalità.",
+      "codes": {
+        "PREMIUM_REQUIRED": "Funzionalità Premium",
+        "TIER_LIMIT_REACHED": "Limite piano raggiunto",
+        "AUTH_REQUIRED": "Autenticazione richiesta"
+      }
+    },
+    "plans": {
+      "free": {
+        "name": "Gratuito",
+        "description": "Piano base per iniziare a esplorare OmniWriter",
+        "price": "€0",
+        "period": "per sempre"
+      },
+      "premium": {
+        "name": "Premium",
+        "description": "Accesso completo a tutte le funzionalità",
+        "price": "€19",
+        "period": "/mese"
+      },
+      "lifetime": {
+        "name": "Lifetime",
+        "description": "Accesso permanente a tutte le funzionalità",
+        "price": "€299",
+        "period": "una tantum"
+      },
+      "admin": {
+        "name": "Amministratore",
+        "description": "Accesso amministrativo completo"
+      }
+    },
+    "limits": {
+      "generation": {
+        "maxWordsPerGeneration": "parole per generazione",
+        "maxChaptersPerProject": "capitoli per progetto",
+        "maxWordsPerProject": "parole per progetto",
+        "maxGenerationsPerDay": "generazioni al giorno"
+      },
+      "humanModel": {
+        "maxProfiles": "profili stile",
+        "minWordCountRomanziere": "parole minime per Romanziere",
+        "minWordCountBasic": "parole minime per base",
+        "maxUploadSizeMB": "MB per upload"
+      },
+      "sources": {
+        "maxSourcesPerProject": "fonti per progetto",
+        "maxFileSizeMB": "MB per file",
+        "maxTotalStorageMB": "MB di spazio totale",
+        "maxWebSearchesPerDay": "ricerche web al giorno"
+      },
+      "saga": {
+        "maxSagasPerUser": "saghe",
+        "maxProjectsPerSaga": "progetti per saga"
+      }
+    },
+    "features": {
+      "sources": {
+        "canUseWebSearch": "Ricerca Web",
+        "canSaveWebSearchResults": "Salvataggio risultati ricerca"
+      },
+      "saga": {
+        "canCreateSagas": "Creazione Saghe/Serie",
+        "canShareSources": "Condivisione fonti tra saghe",
+        "canUseContinuityChecker": "Controllo continuità",
+        "canAnalyzeNovels": "Analisi romanzi",
+        "canProposeSequel": "Proposta sequel"
+      },
+      "integration": {
+        "canConnectGoogleDrive": "Integrazione Google Drive",
+        "canSelectAiModel": "Selezione modello AI",
+        "canAdjustQualitySetting": "Impostazione qualità/velocità",
+        "canUseSeoTools": "Strumenti SEO avanzati"
+      },
+      "humanModel": {
+        "canUseArticulatedAnalysis": "Analisi stile approfondita",
+        "canAdjustStyleStrength": "Regolazione intensità stile"
+      },
+      "export": {
+        "canUploadEpubCover": "Cover EPUB personalizzata",
+        "canEditEpubMetadata": "Metadata EPUB",
+        "canBatchExport": "Esportazione batch",
+        "canPreviewExport": "Anteprima esportazione",
+        "canCustomizeFormatting": "Formattazione personalizzata"
+      },
+      "generation": {
+        "canGenerateFullContent": "Generazione contenuti completi"
+      }
+    },
+    "upgrade": {
+      "title": "Passa a Premium",
+      "subtitle": "Sblocca tutte le funzionalità",
+      "currentPlan": "Piano attuale",
+      "upgradeTo": "Passa a {{plan}}",
+      "learnMore": "Scopri di più",
+      "contactSupport": "Contatta il supporto"
     }
   }
 }
