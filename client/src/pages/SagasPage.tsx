@@ -7,6 +7,8 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import { Plus, BookOpen, FileText, Edit3, Trash2, X, FolderOpen, ArrowRight, Sparkles } from 'lucide-react';
 import SagaTimeline from '../components/SagaTimeline';
 import CreateSagaSequelModal from '../components/CreateSagaSequelModal';
+import FeatureGate from '../components/FeatureGate';
+import UpgradeModal from '../components/UpgradeModal';
 
 export default function SagasPage() {
   const { t } = useTranslation();
@@ -33,6 +35,9 @@ export default function SagasPage() {
 
   // Create sequel modal state (Feature #303)
   const [showCreateSequelModal, setShowCreateSequelModal] = useState(false);
+
+  // Upgrade modal state (Feature #377)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Selected saga for detail view
   const [selectedSaga, setSelectedSaga] = useState<Saga | null>(null);
@@ -167,13 +172,19 @@ export default function SagasPage() {
             {t('sagas.description', 'Manage your novel series and shared sources across related projects.')}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <FeatureGate
+          feature="sagas"
+          showLocked
+          onUpgradeClick={() => setShowUpgradeModal(true)}
         >
-          <Plus size={20} />
-          {t('sagas.createNew', 'Create Saga')}
-        </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+            {t('sagas.createNew', 'Create Saga')}
+          </button>
+        </FeatureGate>
       </div>
 
       {error && (
@@ -201,12 +212,18 @@ export default function SagasPage() {
                   <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
                     {t('sagas.noSagasDesc', 'Create a saga to group related novels and share sources.')}
                   </p>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  <FeatureGate
+                    feature="sagas"
+                    showLocked
+                    onUpgradeClick={() => setShowUpgradeModal(true)}
                   >
-                    {t('sagas.createFirst', 'Create your first saga')}
-                  </button>
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      {t('sagas.createFirst', 'Create your first saga')}
+                    </button>
+                  </FeatureGate>
                 </div>
               ) : (
                 sagas.map(saga => {
@@ -304,13 +321,19 @@ export default function SagasPage() {
                   </button>
                   {/* Feature #303: Create Sequel with Continuity button */}
                   {sagaProjects.length > 0 && (
-                    <button
-                      onClick={() => setShowCreateSequelModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    <FeatureGate
+                      feature="novelAnalysis"
+                      showLocked
+                      onUpgradeClick={() => setShowUpgradeModal(true)}
                     >
-                      <Sparkles size={18} />
-                      {t('sagas.createSequel', 'Create Sequel')}
-                    </button>
+                      <button
+                        onClick={() => setShowCreateSequelModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Sparkles size={18} />
+                        {t('sagas.createSequel', 'Create Sequel')}
+                      </button>
+                    </FeatureGate>
                   )}
                 </div>
               </div>
@@ -523,6 +546,12 @@ export default function SagasPage() {
           }}
         />
       )}
+
+      {/* Upgrade Modal (Feature #377) */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   );
 }

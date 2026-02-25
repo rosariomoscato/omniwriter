@@ -15,12 +15,19 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AssignToSagaModal from '../components/AssignToSagaModal';
 import { apiService, Chapter, Project, Source, Character, Location, PlotEvent } from '../services/api';
 import { useToastNotification } from '../components/Toast';
+import FeatureGate from '../components/FeatureGate';
+import UpgradeModal from '../components/UpgradeModal';
+import { useTierPermissions } from '../hooks/useTierPermissions';
 
 export default function ProjectDetail() {
   const { t, i18n } = useTranslation();
   const toast = useToastNotification();
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Tier permissions hook (Feature #377)
+  const { canExportFormat } = useTierPermissions();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Refs to track ongoing delete operations
   const deletingChapterIdRef = useRef<string | null>(null);
@@ -2169,27 +2176,41 @@ export default function ProjectDetail() {
                     <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.wordDocDesc')}</div>
                   </div>
                 </label>
-                <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                  exportFormat === 'epub'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
-                }`}>
-                  <input
-                    type="radio"
-                    name="exportFormat"
-                    value="epub"
-                    checked={exportFormat === 'epub'}
-                    onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
-                    className="sr-only"
-                  />
-                  <div className="ml-3">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">{t('projectPage.exportDialog.ebook')}</div>
-                      <Crown className="w-4 h-4 text-amber-500" />
+                {/* EPUB export - Premium only (Feature #377) */}
+                {canExportFormat('epub') ? (
+                  <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                    exportFormat === 'epub'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="epub"
+                      checked={exportFormat === 'epub'}
+                      onChange={(e) => setExportFormat(e.target.value as 'txt' | 'docx' | 'epub')}
+                      className="sr-only"
+                    />
+                    <div className="ml-3">
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{t('projectPage.exportDialog.ebook')}</div>
+                        <Crown className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.ebookDesc')}</div>
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{t('projectPage.exportDialog.ebookDesc')}</div>
+                  </label>
+                ) : (
+                  <div
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors border-gray-300 dark:border-gray-600 hover:border-amber-400 bg-gray-50 dark:bg-gray-700/50"
+                  >
+                    <div className="ml-3 flex items-center gap-2">
+                      <div className="font-medium text-gray-400 dark:text-gray-500">{t('projectPage.exportDialog.ebook')}</div>
+                      <Crown className="w-4 h-4 text-amber-500" />
+                      <span className="text-xs text-amber-600 dark:text-amber-400">{t('premium.badge', 'Premium')}</span>
+                    </div>
                   </div>
-                </label>
+                )}
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-b-lg flex justify-end gap-2">
@@ -4448,6 +4469,12 @@ export default function ProjectDetail() {
           </div>
         </div>
       )}
+
+      {/* Upgrade Modal (Feature #377) */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   );
 }
