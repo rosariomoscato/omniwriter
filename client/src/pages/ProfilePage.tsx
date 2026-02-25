@@ -116,12 +116,52 @@ export default function ProfilePage() {
 
   const getRoleBadge = (role: string) => {
     const badges = {
-      free: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', label: t('profile.roles.free') },
-      premium: { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', label: t('profile.roles.premium') },
-      lifetime: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', label: t('profile.roles.lifetime') },
-      admin: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', label: t('profile.roles.admin') },
+      free: {
+        color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600',
+        label: t('profile.roles.free'),
+        icon: '○'
+      },
+      premium: {
+        color: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900 dark:to-yellow-900 dark:text-amber-100 border border-amber-300 dark:border-amber-700',
+        label: t('profile.roles.premium'),
+        icon: '★'
+      },
+      lifetime: {
+        color: 'bg-gradient-to-r from-purple-100 to-amber-100 text-purple-900 dark:from-purple-900 dark:to-amber-900 dark:text-purple-100 border border-purple-300 dark:border-purple-700',
+        label: t('profile.roles.lifetime'),
+        icon: '♦'
+      },
+      admin: {
+        color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-700',
+        label: t('profile.roles.admin'),
+        icon: '⚙'
+      },
     };
     return badges[role as keyof typeof badges] || badges.free;
+  };
+
+  const getSubscriptionExpiryInfo = () => {
+    if (!profile) return null;
+
+    if (profile.role === 'lifetime') {
+      return t('profile.subscriptionForever');
+    }
+
+    if (profile.role === 'premium' && profile.subscription_expires_at) {
+      const expiryDate = new Date(profile.subscription_expires_at);
+      const now = new Date();
+      const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysLeft <= 0) {
+        return t('profile.subscriptionExpired');
+      } else if (daysLeft <= 7) {
+        return t('profile.subscriptionExpiresSoon', { days: daysLeft, date: formatDate(profile.subscription_expires_at) });
+      } else {
+        return t('profile.subscriptionExpires', { date: formatDate(profile.subscription_expires_at) });
+      }
+    }
+
+    return null;
   };
 
   if (isLoading) {
@@ -174,13 +214,19 @@ export default function ProfilePage() {
 
             {/* Name and Email */}
             <div className="flex-grow">
-              <h1 className="text-3xl font-bold text-white">{profile.name}</h1>
-              <p className="text-blue-100">{profile.email}</p>
-              <div className="mt-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${roleBadge.color}`}>
-                  {roleBadge.label}
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-white">{profile.name}</h1>
+                <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${roleBadge.color} flex items-center gap-1.5`}>
+                  <span>{roleBadge.icon}</span>
+                  <span>{roleBadge.label}</span>
                 </span>
               </div>
+              <p className="text-blue-100 mt-1">{profile.email}</p>
+              {getSubscriptionExpiryInfo() && (
+                <p className="text-blue-200 text-sm mt-1">
+                  {getSubscriptionExpiryInfo()}
+                </p>
+              )}
             </div>
 
             {/* Edit Button */}
@@ -287,13 +333,16 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   {t('profile.subscriptionStatus')}
                 </label>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${roleBadge.color}`}>
-                    {roleBadge.label}
-                  </span>
-                  {profile.subscription_expires_at && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${roleBadge.color} flex items-center gap-1.5`}>
+                      <span>{roleBadge.icon}</span>
+                      <span>{roleBadge.label}</span>
+                    </span>
+                  </div>
+                  {getSubscriptionExpiryInfo() && (
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {t('profile.expires', { date: formatDate(profile.subscription_expires_at) })}
+                      {getSubscriptionExpiryInfo()}
                     </span>
                   )}
                 </div>

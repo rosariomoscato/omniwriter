@@ -189,7 +189,9 @@ export default function LandingPage() {
                 t('landing.pricing.free.feature2'),
                 t('landing.pricing.free.feature3'),
                 t('landing.pricing.free.feature4'),
-                t('landing.pricing.free.feature5')
+                t('landing.pricing.free.feature5'),
+                t('landing.pricing.free.feature6'),
+                t('landing.pricing.free.feature7')
               ]}
               ctaText={t('landing.startFree')}
               ctaLink="/register"
@@ -209,7 +211,10 @@ export default function LandingPage() {
                 t('landing.pricing.premium.feature4'),
                 t('landing.pricing.premium.feature5'),
                 t('landing.pricing.premium.feature6'),
-                t('landing.premium.premium.feature7')
+                t('landing.pricing.premium.feature7'),
+                t('landing.pricing.premium.feature8'),
+                t('landing.pricing.premium.feature9'),
+                t('landing.pricing.premium.feature10'),
               ]}
               ctaText={t('common.register')}
               ctaLink="/register"
@@ -230,7 +235,7 @@ export default function LandingPage() {
                 t('landing.pricing.lifetime.feature4'),
                 t('landing.pricing.lifetime.feature5')
               ]}
-              ctaText={t('landing.lifetime.feature5')}
+              ctaText={t('landing.pricing.lifetime.cta')}
               ctaLink="/register"
               isPopular={false}
             />
