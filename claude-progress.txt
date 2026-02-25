@@ -1,5 +1,123 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-25 - Features #367 and #368 Implementation
+
+### Completed Features: 375/384 (97.7%)
+
+### Feature #367: Apply tier limits to projects routes
+
+**Objective:** Applicare i controlli tier alle route dei progetti: limite numero capitoli per progetto per utenti free, limite parole totali per mese.
+
+**Implementation:**
+
+1. **Modified `server/src/routes/chapters.ts`**
+   - Added imports for TIER_LIMITS and UserRole from tier-permissions config
+   - Added tier limit check in POST /projects/:id/chapters (chapter creation):
+     - Checks maxChaptersPerProject limit for free users (5 chapters max)
+     - Returns 403 with Italian localized error message if limit reached
+   - Added tier limit check in POST /chapters/:id/generate-stream:
+     - Checks maxWordsPerProject limit before AI generation
+     - Estimates ~3000 words per chapter generation
+   - Added tier limit check in POST /chapters/:id/regenerate-stream:
+     - Same word count checks for regeneration
+   - Added tier limit check in POST /chapters/:id/generate-with-comparison:
+     - Checks word limits for comparison generation (2x content)
+
+2. **Modified `server/src/routes/projects.ts`**
+   - Added imports for TIER_LIMITS and UserRole
+   - Added tier limit check in POST /:id/generate/outline:
+     - Checks maxChaptersPerProject before generating outline
+     - Calculates chapters needed based on word count target
+     - Returns 403 if outline would exceed chapter limit
+
+**Error Response Format:**
+```json
+{
+  "message": "Limite di 5 capitoli per progetto raggiunto. Passa a Premium per capitoli illimitati.",
+  "code": "TIER_LIMIT_REACHED",
+  "limitType": "generation.maxChaptersPerProject",
+  "current": 5,
+  "max": 5
+}
+```
+
+**Files Modified:**
+- `server/src/routes/chapters.ts` (tier limit checks added)
+- `server/src/routes/projects.ts` (tier limit checks added)
+
+**Commit:** 18246e8
+
+**Status: Feature #367 MARKED PASSING**
+
+---
+
+### Feature #368: Apply tier limits to sources routes
+
+**Objective:** Applicare i controlli tier alle route delle fonti: limite numero upload fonti, limite dimensione file per utenti free.
+
+**Implementation:**
+
+1. **Modified `server/src/routes/sources.ts`**
+   - Added imports for TIER_LIMITS and UserRole from tier-permissions config
+   - Created dynamic multer configuration based on user tier:
+     - Free users: 5MB max file size
+     - Premium users: 25MB max file size
+
+2. **POST /sources/upload (standalone upload)**
+   - Dynamic multer with tier-based file size limit
+   - Checks maxTotalStorageMB (50MB for free users)
+   - Returns 403 with Italian error if storage exceeded
+
+3. **POST /projects/:id/sources/upload (project upload)**
+   - Dynamic multer with tier-based file size limit
+   - Checks maxSourcesPerProject (5 for free users)
+   - Checks maxTotalStorageMB (50MB for free users)
+   - Returns 403 with Italian errors if limits exceeded
+
+**Error Response Examples:**
+```json
+// File size exceeded
+{
+  "message": "File troppo grande. Limite: 5MB. Passa a Premium per file fino a 25MB.",
+  "code": "TIER_LIMIT_REACHED",
+  "limitType": "sources.maxFileSizeMB",
+  "max": 5
+}
+
+// Source count exceeded
+{
+  "message": "Limite di 5 fonti per progetto raggiunto. Passa a Premium per fonti illimitate.",
+  "code": "TIER_LIMIT_REACHED",
+  "limitType": "sources.maxSourcesPerProject",
+  "current": 5,
+  "max": 5
+}
+
+// Storage exceeded
+{
+  "message": "Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.",
+  "code": "TIER_LIMIT_REACHED",
+  "limitType": "sources.maxTotalStorageMB",
+  "current": 48.5,
+  "max": 50
+}
+```
+
+**Files Modified:**
+- `server/src/routes/sources.ts` (tier limit checks and dynamic multer)
+
+**Commit:** 18246e8
+
+**Status: Feature #368 MARKED PASSING**
+
+---
+
+## MILESTONE: 375/384 Features Passing (97.7%)
+
+Latest completed: Features #367 & #368 - Tier limits for projects and sources routes
+
+---
+
 ## Session: 2026-02-25 - Features #376 and #377 Implementation
 
 ### Completed Features: 375/384 (97.7%)
