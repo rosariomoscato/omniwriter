@@ -6,6 +6,8 @@ import fs from 'fs';
 import multer from 'multer';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { checkHumanModelLimit } from '../middleware/tierCheck';
+import { TIER_LIMITS, UserRole } from '../config/tier-permissions';
 import { HumanModel, CreateHumanModelInput } from '../models/HumanModel';
 import { analyzeWritingStyle, isAIAvailable, hasUserProvider } from '../services/ai-service';
 import { extractTextFromFile, isSupportedFormat } from '../services/text-extraction';
@@ -103,10 +105,11 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
 
 // POST /api/human-models - Create new style profile
 // @ts-expect-error - AuthRequest type compatibility with router
-router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, checkHumanModelLimit(), (req: AuthRequest, res: Response) => {
   try {
     const db = getDatabase();
     const userId = req.user?.id;
+    const userRole = req.user?.role as UserRole;
     const { name, description, model_type, style_strength }: CreateHumanModelInput = req.body;
 
     if (!name) {
@@ -117,6 +120,19 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     if (!model_type || !['romanziere_advanced', 'saggista_basic', 'redattore_basic'].includes(model_type)) {
       res.status(400).json({ message: 'Invalid model type' });
       return;
+    }
+
+    // Check if user can use romanziere_advanced (articulated analysis) - Premium only
+    if (model_type === 'romanziere_advanced') {
+      const limits = TIER_LIMITS[userRole];
+      if (!limits.humanModel.canUseArticulatedAnalysis) {
+        res.status(403).json({
+          message: 'L\'analisi stile approfondita (Romanziere Advanced) richiede un abbonamento Premium. Passa a Premium per sbloccare questa funzionalità.',
+          code: 'PREMIUM_REQUIRED',
+          feature: 'humanModel.canUseArticulatedAnalysis',
+        });
+        return;
+      }
     }
 
     const modelId = uuidv4();
