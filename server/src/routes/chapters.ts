@@ -12,6 +12,8 @@ import {
   sanitizeSensitiveWords
 } from '../services/contentModeration';
 import { fetchContinuityForProject } from './projects'; // Feature #304 - Import continuity helper
+import { checkTierLimit, checkGenerationLimit } from '../middleware/tierCheck'; // Feature #367 - Tier limits
+import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #367 - Tier configuration
 
 const router = express.Router();
 
@@ -184,11 +186,13 @@ router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
 });
 
 // POST /api/projects/:id/chapters - Create a new chapter
+// Feature #367: Added tier limit check for maxChaptersPerProject
 router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
   try {
     const { id: projectId } = req.params;
     const { title, summary } = req.body;
     const userId = (req as any).user.id;
+    const userRole = (req as any).user.role as UserRole;
     const db = getDatabase();
 
     // Validate required fields
@@ -200,6 +204,23 @@ router.post('/projects/:id/chapters', authenticateToken, (req, res) => {
     const project = db.prepare('SELECT id, area FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Feature #367: Check tier limit for chapters per project
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const maxChapters = tierLimits.generation.maxChaptersPerProject;
+
+    if (maxChapters !== null) {
+      const chapterCountResult = db.prepare('SELECT COUNT(*) as count FROM chapters WHERE project_id = ?').get(projectId) as { count: number };
+      if (chapterCountResult.count >= maxChapters) {
+        return res.status(403).json({
+          message: `Limite di ${maxChapters} capitoli per progetto raggiunto. Passa a Premium per capitoli illimitati.`,
+          code: 'TIER_LIMIT_REACHED',
+          limitType: 'generation.maxChaptersPerProject',
+          current: chapterCountResult.count,
+          max: maxChapters
+        });
+      }
     }
 
     // Get next order index
@@ -945,11 +966,13 @@ Genera 2 varianti per Twitter e 1 per ciascuna delle altre piattaforme (LinkedIn
 });
 
 // POST /api/chapters/:id/generate-stream - Generate chapter content with SSE streaming (Feature #232, #233)
+// Feature #367: Added tier limit check for word generation
 router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { human_model_id, prompt_context } = req.body;
     const userId = req.user.id;
+    const userRole = req.user.role as UserRole;
     const db = getDatabase();
 
     // Verify chapter exists and belongs to user's project
@@ -980,6 +1003,32 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
 
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Feature #367: Check tier limits for word generation
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const { maxWordsPerGeneration, maxWordsPerProject } = tierLimits.generation;
+
+    // Get current project word count
+    const projectWordCountResult = db.prepare(`
+      SELECT COALESCE(SUM(word_count), 0) as total_words
+      FROM chapters
+      WHERE project_id = ?
+    `).get(chapter.project_id) as { total_words: number };
+    const currentProjectWords = projectWordCountResult.total_words;
+
+    // Estimate words to be generated (typical chapter: ~3000 words)
+    const estimatedWords = 3000;
+
+    // Check per-project limit
+    if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
+      return res.status(403).json({
+        message: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto. Passa a Premium per progetti illimitati.`,
+        code: 'TIER_LIMIT_REACHED',
+        limitType: 'generation.maxWordsPerProject',
+        current: currentProjectWords,
+        max: maxWordsPerProject
+      });
     }
 
     // If human_model_id is provided, verify it exists and belongs to user
@@ -1509,11 +1558,13 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
 // POST /api/chapters/:id/generate-with-comparison - Generate content with and without Human Model for comparison
 // Feature #345: Now uses real AI generation instead of templates
+// Feature #367: Added tier limit check for word generation
 router.post('/chapters/:id/generate-with-comparison', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
     const { human_model_id, prompt_context } = req.body;
     const userId = (req as any).user.id;
+    const userRole = (req as any).user.role as UserRole;
     const db = getDatabase();
 
     // Verify chapter exists and belongs to user's project
@@ -1526,6 +1577,32 @@ router.post('/chapters/:id/generate-with-comparison', authenticateToken, generat
 
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Feature #367: Check tier limits for word generation
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const { maxWordsPerProject } = tierLimits.generation;
+
+    // Get current project word count
+    const projectWordCountResult = db.prepare(`
+      SELECT COALESCE(SUM(word_count), 0) as total_words
+      FROM chapters
+      WHERE project_id = ?
+    `).get(chapter.project_id) as { total_words: number };
+    const currentProjectWords = projectWordCountResult.total_words;
+
+    // Estimate words to be generated (comparison generates 2 versions: ~6000 words)
+    const estimatedWords = 6000;
+
+    // Check per-project limit
+    if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
+      return res.status(403).json({
+        message: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto. Passa a Premium per progetti illimitati.`,
+        code: 'TIER_LIMIT_REACHED',
+        limitType: 'generation.maxWordsPerProject',
+        current: currentProjectWords,
+        max: maxWordsPerProject
+      });
     }
 
     // Parse project settings for language
@@ -2077,11 +2154,13 @@ IMPORTANT: Write in the author's personal style as defined above.`;
 });
 
 // POST /api/chapters/:id/regenerate-stream - Regenerate a single chapter with SSE streaming (Feature #271)
+// Feature #367: Added tier limit check for word generation
 router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { human_model_id, prompt_context } = req.body;
     const userId = req.user.id;
+    const userRole = req.user.role as UserRole;
     const db = getDatabase();
 
     // Verify chapter exists and belongs to user's project
@@ -2112,6 +2191,32 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
 
     if (!chapter) {
       return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Feature #367: Check tier limits for word generation
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const { maxWordsPerProject } = tierLimits.generation;
+
+    // Get current project word count (excluding current chapter for regeneration)
+    const projectWordCountResult = db.prepare(`
+      SELECT COALESCE(SUM(word_count), 0) as total_words
+      FROM chapters
+      WHERE project_id = ? AND id != ?
+    `).get(chapter.project_id, chapter.id) as { total_words: number };
+    const currentProjectWords = projectWordCountResult.total_words;
+
+    // Estimate words to be generated (typical chapter: ~3000 words)
+    const estimatedWords = 3000;
+
+    // Check per-project limit
+    if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
+      return res.status(403).json({
+        message: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto. Passa a Premium per progetti illimitati.`,
+        code: 'TIER_LIMIT_REACHED',
+        limitType: 'generation.maxWordsPerProject',
+        current: currentProjectWords,
+        max: maxWordsPerProject
+      });
     }
 
     // If human_model_id is provided, verify it exists and belongs to user

@@ -12,6 +12,7 @@ import {
   sanitizeSensitiveWords,
   isModerationError
 } from '../services/contentModeration';
+import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #367 - Tier configuration
 // import * as mammoth from 'mammoth'; // Temporarily disabled - package not installed
 
 const router = Router();
@@ -4144,11 +4145,13 @@ router.post('/:id/analyze-novel', authenticateToken, upload.single('file'), asyn
 });
 
 // POST /api/projects/:id/generate/outline - Generate full novel outline (Feature #179)
+// Feature #367: Added tier limit check for chapters
 // @ts-expect-error - AuthRequest type compatibility with router
 router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const db = getDatabase();
     const userId = req.user?.id;
+    const userRole = req.user?.role as UserRole;
     const projectId = req.params.id;
 
     console.log('[Projects] Generating outline for project:', projectId);
@@ -4184,6 +4187,27 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
       return;
     }
 
+    // Feature #367: Check tier limit for chapters
+    const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
+    const maxChapters = tierLimits.generation.maxChaptersPerProject;
+
+    // Determine number of chapters based on word count target
+    const wordCountTarget = project.word_count_target || 50000;
+    const avgChapterWords = 3000; // Average 3000 words per chapter
+    const numChapters = Math.max(10, Math.min(30, Math.ceil(wordCountTarget / avgChapterWords)));
+
+    // Check if the number of chapters would exceed tier limit
+    if (maxChapters !== null && numChapters > maxChapters) {
+      res.status(403).json({
+        message: `Gli utenti Free possono creare al massimo ${maxChapters} capitoli per progetto. Il tuo progetto richiederebbe ${numChapters} capitoli. Passa a Premium per capitoli illimitati.`,
+        code: 'TIER_LIMIT_REACHED',
+        limitType: 'generation.maxChaptersPerProject',
+        current: numChapters,
+        max: maxChapters
+      });
+      return;
+    }
+
     // Parse project settings
     let settings = {};
     try {
@@ -4191,11 +4215,6 @@ router.post('/:id/generate/outline', authenticateToken, async (req: AuthRequest,
     } catch (e) {
       console.warn('[Projects] Failed to parse settings_json:', e);
     }
-
-    // Determine number of chapters based on word count target
-    const wordCountTarget = project.word_count_target || 50000;
-    const avgChapterWords = 3000; // Average 3000 words per chapter
-    const numChapters = Math.max(10, Math.min(30, Math.ceil(wordCountTarget / avgChapterWords)));
 
     // Generate chapter outline with summaries
     const chapters: Array<{ title: string; summary: string }> = [];
