@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService, LLMProvider, CreateLLMProviderData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
-import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Plus, Eye, EyeOff, CheckCircle, XCircle, HelpCircle, Server, RefreshCw } from 'lucide-react';
+import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Plus, Eye, EyeOff, CheckCircle, XCircle, HelpCircle, Server, RefreshCw, Crown, Zap, Sparkles, ArrowUpCircle } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { TIER_LIMITS, PREMIUM_TIERS, TierLimits, UserRole } from '../config/tier-config';
+import PremiumBadge from '../components/PremiumBadge';
+import UpgradeModal from '../components/UpgradeModal';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -55,6 +58,22 @@ export default function SettingsPage() {
   const [isSavingProvider, setIsSavingProvider] = useState(false);
   const [isDeletingProvider, setIsDeletingProvider] = useState(false);
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
+
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Get tier limits for current user
+  const userRole = useMemo((): UserRole => {
+    return (user?.role as UserRole) || 'free';
+  }, [user?.role]);
+
+  const tierLimits = useMemo(() => {
+    return TIER_LIMITS[userRole] || TIER_LIMITS.free;
+  }, [userRole]);
+
+  const isPremium = useMemo(() => {
+    return PREMIUM_TIERS.includes(userRole);
+  }, [userRole]);
 
   // Password validation
   const [passwordValidations, setPasswordValidations] = useState({
@@ -618,6 +637,179 @@ export default function SettingsPage() {
             <div className="text-sm bg-white/10 rounded px-3 py-2">
               <span className="capitalize">{user?.role || 'free'}</span> {t('settings.accountInfo.account')}
             </div>
+          </div>
+
+          {/* Tier Status Card */}
+          <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {t('settings.tierStatus.title')}
+              </h3>
+              {isPremium && (
+                <PremiumBadge size="md" />
+              )}
+            </div>
+
+            {/* Tier Name and Badge */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                userRole === 'lifetime'
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-600'
+                  : userRole === 'premium'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                    : 'bg-gray-200 dark:bg-gray-700'
+              }`}>
+                {userRole === 'lifetime' ? (
+                  <Zap className="w-6 h-6 text-white" />
+                ) : userRole === 'premium' ? (
+                  <Crown className="w-6 h-6 text-white" />
+                ) : (
+                  <User className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                )}
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">
+                  {t(`tier.plans.${userRole}.name`)}
+                </h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t(`tier.plans.${userRole}.description`)}
+                </p>
+              </div>
+            </div>
+
+            {/* Subscription Status (for premium/lifetime) */}
+            {isPremium && (
+              <div className="mb-4 p-3 bg-gradient-to-r from-amber-50 to-purple-50 dark:from-amber-900/20 dark:to-purple-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                  {userRole === 'lifetime' ? (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t('settings.tierStatus.lifetimeAccess')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t('settings.tierStatus.activeSubscription')}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Current Limits */}
+            <div className="mb-4">
+              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                {t('settings.tierStatus.currentLimits')}
+              </h5>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Projects Limit */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.tierStatus.limits.projects')}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {tierLimits.maxProjects === -1
+                      ? t('settings.tierStatus.unlimited')
+                      : tierLimits.maxProjects}
+                  </p>
+                </div>
+
+                {/* Sources per Project */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.tierStatus.limits.sourcesPerProject')}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {tierLimits.maxSourcesPerProject === -1
+                      ? t('settings.tierStatus.unlimited')
+                      : tierLimits.maxSourcesPerProject}
+                  </p>
+                </div>
+
+                {/* Generation Length */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.tierStatus.limits.generationLength')}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {tierLimits.maxGenerationLength === -1
+                      ? t('settings.tierStatus.unlimited')
+                      : `${tierLimits.maxGenerationLength} ${t('settings.tierStatus.words')}`}
+                  </p>
+                </div>
+
+                {/* Web Searches */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.tierStatus.limits.webSearches')}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {tierLimits.maxDailyWebSearches === -1
+                      ? t('settings.tierStatus.unlimited')
+                      : `${tierLimits.maxDailyWebSearches}/${t('settings.tierStatus.day')}`}
+                  </p>
+                </div>
+
+                {/* Export Formats */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.tierStatus.limits.exportFormats')}</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {tierLimits.exportFormats.map((format) => (
+                      <span
+                        key={format}
+                        className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase"
+                      >
+                        {format}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Features Status */}
+            <div className="mb-4">
+              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                {t('settings.tierStatus.premiumFeatures')}
+              </h5>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{t('settings.tierStatus.features.sagas')}</span>
+                  {tierLimits.canCreateSagas ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{t('settings.tierStatus.features.novelAnalysis')}</span>
+                  {tierLimits.canAnalyzeNovels ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{t('settings.tierStatus.features.googleDrive')}</span>
+                  {tierLimits.canGoogleDriveSync ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{t('settings.tierStatus.features.advancedAI')}</span>
+                  {tierLimits.canAdvancedAIModels ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Upgrade Button for Free Users */}
+            {!isPremium && (
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-400 via-purple-500 to-pink-500 hover:from-amber-500 hover:via-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
+              >
+                <ArrowUpCircle className="w-5 h-5" />
+                {t('settings.tierStatus.upgradeToPremium')}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1259,6 +1451,12 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   );
 }

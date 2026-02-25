@@ -818,7 +818,16 @@
     "deleteModelTitle": "Delete Style Profile",
     "confirmDeleteModel": "Are you sure you want to delete this style profile? All associated sources and analysis data will be permanently removed.",
     "deleteSourceTitle": "Delete Source",
-    "confirmDeleteSourceMsg": "Are you sure you want to delete this source? This action cannot be undone."
+    "confirmDeleteSourceMsg": "Are you sure you want to delete this source? This action cannot be undone.",
+    "profileCounter": "Profiles",
+    "limitReached": "Limit reached",
+    "comparisonPremium": "Premium Style Comparison",
+    "comparisonPremiumDesc": "Style comparison is a Premium feature. Upgrade to test how your style profile affects AI-generated content.",
+    "upgradeNow": "Upgrade to Premium",
+    "upgradeMultipleProfiles": "Create More Style Profiles",
+    "upgradeMultipleProfilesDesc": "With Premium you can create unlimited style profiles for every type of writing.",
+    "upgradeFullAnalysis": "Full Style Analysis",
+    "upgradeFullAnalysisDesc": "With Premium you can test how your style profile influences AI-generated content."
   },
   "breadcrumbs": {
     "dashboard": "Dashboard",
@@ -1297,6 +1306,30 @@
       "errors": {
         "loadFailed": "Failed to load providers",
         "deleteActive": "Cannot delete the active provider. Select another provider first."
+      }
+    },
+    "tierStatus": {
+      "title": "Your Plan",
+      "currentLimits": "Current Limits",
+      "premiumFeatures": "Premium Features",
+      "lifetimeAccess": "Permanent Lifetime access",
+      "activeSubscription": "Active Premium subscription",
+      "upgradeToPremium": "Upgrade to Premium",
+      "unlimited": "Unlimited",
+      "words": "words",
+      "day": "day",
+      "limits": {
+        "projects": "Projects",
+        "sourcesPerProject": "Sources per project",
+        "generationLength": "Generation length",
+        "webSearches": "Web searches",
+        "exportFormats": "Export formats"
+      },
+      "features": {
+        "sagas": "Create Sagas/Series",
+        "novelAnalysis": "Novel Analysis",
+        "googleDrive": "Google Drive Integration",
+        "advancedAI": "Advanced AI Models"
       }
     }
   },

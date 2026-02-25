@@ -818,7 +818,16 @@
     "deleteModelTitle": "Elimina Profilo di Stile",
     "confirmDeleteModel": "Sei sicuro di voler eliminare questo profilo di stile? Tutte le fonti e i dati di analisi associati verranno rimossi definitivamente.",
     "deleteSourceTitle": "Elimina Fonte",
-    "confirmDeleteSourceMsg": "Sei sicuro di voler eliminare questa fonte? Questa azione non può essere annullata."
+    "confirmDeleteSourceMsg": "Sei sicuro di voler eliminare questa fonte? Questa azione non può essere annullata.",
+    "profileCounter": "Profili",
+    "limitReached": "Limite raggiunto",
+    "comparisonPremium": "Confronto Stile Premium",
+    "comparisonPremiumDesc": "Il confronto stile è una funzionalità Premium. Effettua l'upgrade per testare come il tuo profilo di stile influenza i contenuti generati dall'AI.",
+    "upgradeNow": "Passa a Premium",
+    "upgradeMultipleProfiles": "Crea più profili di stile",
+    "upgradeMultipleProfilesDesc": "Con Premium puoi creare profili di stile illimitati per ogni tipo di scrittura.",
+    "upgradeFullAnalysis": "Analisi Completa Stile",
+    "upgradeFullAnalysisDesc": "Con Premium puoi testare come il tuo profilo di stile influenza i contenuti generati dall'AI."
   },
   "breadcrumbs": {
     "dashboard": "Dashboard",
@@ -1297,6 +1306,30 @@
       "errors": {
         "loadFailed": "Impossibile caricare i provider",
         "deleteActive": "Impossibile eliminare il provider attivo. Seleziona prima un altro provider."
+      }
+    },
+    "tierStatus": {
+      "title": "Il Tuo Piano",
+      "currentLimits": "Limiti Attuali",
+      "premiumFeatures": "Funzionalità Premium",
+      "lifetimeAccess": "Accesso Lifetime permanente",
+      "activeSubscription": "Abbonamento Premium attivo",
+      "upgradeToPremium": "Passa a Premium",
+      "unlimited": "Illimitato",
+      "words": "parole",
+      "day": "giorno",
+      "limits": {
+        "projects": "Progetti",
+        "sourcesPerProject": "Fonti per progetto",
+        "generationLength": "Lunghezza generazione",
+        "webSearches": "Ricerche web",
+        "exportFormats": "Formati export"
+      },
+      "features": {
+        "sagas": "Creazione Saghe/Serie",
+        "novelAnalysis": "Analisi Romanzi",
+        "googleDrive": "Integrazione Google Drive",
+        "advancedAI": "Modelli AI Avanzati"
       }
     }
   },
