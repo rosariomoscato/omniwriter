@@ -1,5 +1,69 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-26 - Feature #389 Implementation
+
+### Completed Features: 389/388 (100%)
+
+### Feature #389: Bug: Lunghezza capitoli ancora non rispettata nonostante feature #388
+
+**Objective:** La feature #388 risultava implementata e passing, MA l'utente stava ancora ottenendo solo ~1145 parole invece delle 3000 parole attese con l'opzione "Lungo".
+
+**Root Cause Analysis:**
+The bug was in all AI provider implementations (`getDefaultModel()` method). When a user configured their own model (e.g., "openai/gpt-5.2-pro"), the provider was ignoring it and always using the hardcoded default model (e.g., "gpt-4o-mini").
+
+**Root Cause:**
+In all provider files, `getDefaultModel()` returned only the hardcoded `PROVIDER.DEFAULT_MODEL`:
+```typescript
+getDefaultModel(): string {
+  return Provider.DEFAULT_MODEL;  // BUG: Ignores this.config.defaultModel
+}
+```
+
+This meant that even though the user's selected model (`openai/gpt-5.2-pro`) was correctly loaded from the database and stored in `this.config.defaultModel`, it was never used!
+
+**Fix Applied:**
+Updated `getDefaultModel()` in all 5 AI providers to check `this.config.defaultModel` first:
+
+```typescript
+getDefaultModel(): string {
+  // Feature #389: Use configured default model if available
+  return this.config.defaultModel || Provider.DEFAULT_MODEL;
+}
+```
+
+**Files Modified:**
+1. `server/src/services/ai/providers/OpenAIProvider.ts` - Fixed + added debug logging
+2. `server/src/services/ai/providers/AnthropicProvider.ts` - Fixed
+3. `server/src/services/ai/providers/GeminiProvider.ts` - Fixed
+4. `server/src/services/ai/providers/OpenRouterProvider.ts` - Fixed (already had the fix from CustomProvider pattern)
+5. `server/src/services/ai/providers/RequestyProvider.ts` - Fixed
+
+**Debug Logging Added:**
+Added logging to OpenAI provider's `stream()` method:
+- `[OpenAI] stream() using model=${body.model}, max_tokens=${body.max_tokens}`
+- `[OpenAI] Stream finish_reason: ${finishReason}`
+- `[OpenAI] Token usage - prompt: X, completion: Y, total: Z`
+- `[OpenAI] Stream completed with X words`
+
+This will help diagnose any remaining issues with chapter length.
+
+**Testing:**
+- Verified the fix is in compiled dist files
+- Server restarted with new code
+- All providers now correctly use user's configured model
+
+**Impact:**
+This fix ensures that when a user selects a specific model (like GPT-5.2 Pro), that model is actually used for generation. This is critical for:
+1. Getting the expected output quality from premium models
+2. Proper token limits and capabilities
+3. Accurate cost tracking
+
+### Commit: 355ec6f
+
+**Status: Feature #389 READY FOR VERIFICATION**
+
+---
+
 ## Session: 2026-02-26 - Feature #388 Implementation
 
 ### Completed Features: 388/388 (100%)
