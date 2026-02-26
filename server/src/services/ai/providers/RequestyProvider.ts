@@ -421,7 +421,8 @@ export class RequestyProvider extends BaseProvider {
   }
 
   getDefaultModel(): string {
-    return RequestyProvider.DEFAULT_MODEL;
+    // Feature #389: Use configured default model if available
+    return this.config.defaultModel || RequestyProvider.DEFAULT_MODEL;
   }
 
   protected buildRequestBody(

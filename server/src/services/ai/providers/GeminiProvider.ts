@@ -445,7 +445,8 @@ export class GeminiProvider extends BaseProvider {
   }
 
   getDefaultModel(): string {
-    return GeminiProvider.DEFAULT_MODEL;
+    // Feature #389: Use configured default model if available
+    return this.config.defaultModel || GeminiProvider.DEFAULT_MODEL;
   }
 
   protected buildRequestBody(

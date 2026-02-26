@@ -428,7 +428,8 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   getDefaultModel(): string {
-    return AnthropicProvider.DEFAULT_MODEL;
+    // Feature #389: Use configured default model if available
+    return this.config.defaultModel || AnthropicProvider.DEFAULT_MODEL;
   }
 
   protected buildRequestBody(

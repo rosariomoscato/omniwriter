@@ -217,6 +217,9 @@ export class OpenAIProvider extends BaseProvider {
 
     const body = this.buildRequestBody(messages, { ...options, stream: true });
 
+    // Feature #389: Log model and max_tokens for debugging chapter length issues
+    console.log(`[OpenAI] stream() using model=${body.model}, max_tokens=${body.max_tokens || 'not set'}`);
+
     // Feature #273: Get timeout settings from options or use defaults
     const timeoutMs = options?.timeoutMs || BaseProvider.DEFAULT_TIMEOUT_MS;
     const idleTimeoutMs = options?.idleTimeoutMs || BaseProvider.DEFAULT_IDLE_TIMEOUT_MS;
@@ -313,6 +316,7 @@ export class OpenAIProvider extends BaseProvider {
               if (data === '[DONE]') {
                 watchdog.cleanup();
                 timeoutCleanup();
+                console.log(`[OpenAI] Stream completed with ${totalContent.split(/\s+/).filter(w => w.length > 0).length} words`);
                 yield { type: 'done', content: totalContent, usage };
                 return;
               }
@@ -326,6 +330,12 @@ export class OpenAIProvider extends BaseProvider {
                   yield { type: 'delta', content: delta };
                 }
 
+                // Feature #389: Log finish_reason for debugging
+                const finishReason = parsed.choices[0]?.finish_reason;
+                if (finishReason) {
+                  console.log(`[OpenAI] Stream finish_reason: ${finishReason}`);
+                }
+
                 // Check for usage in final chunk (if available)
                 if (parsed.usage) {
                   usage = {
@@ -333,6 +343,7 @@ export class OpenAIProvider extends BaseProvider {
                     completionTokens: parsed.usage.completion_tokens,
                     totalTokens: parsed.usage.total_tokens
                   };
+                  console.log(`[OpenAI] Token usage - prompt: ${usage.promptTokens}, completion: ${usage.completionTokens}, total: ${usage.totalTokens}`);
                 }
               } catch {
                 // Skip malformed JSON chunks
@@ -474,7 +485,8 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   getDefaultModel(): string {
-    return OpenAIProvider.DEFAULT_MODEL;
+    // Feature #389: Use configured default model if available
+    return this.config.defaultModel || OpenAIProvider.DEFAULT_MODEL;
   }
 
   protected buildRequestBody(

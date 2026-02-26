@@ -438,7 +438,8 @@ export class OpenRouterProvider extends BaseProvider {
   }
 
   getDefaultModel(): string {
-    return OpenRouterProvider.DEFAULT_MODEL;
+    // Feature #389: Use configured default model if available
+    return this.config.defaultModel || OpenRouterProvider.DEFAULT_MODEL;
   }
 
   protected buildRequestBody(
