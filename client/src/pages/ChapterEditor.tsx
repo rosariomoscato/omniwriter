@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon, Ruler } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -497,9 +498,16 @@ export default function ChapterEditor() {
           },
           onDelta: (deltaContent) => {
             accumulatedContent += deltaContent;
-            setStreamingContent(accumulatedContent);
-            // Also update the content in real-time for the editor
-            setContent(accumulatedContent);
+            // Feature #390: Use flushSync to prevent React batching and ensure immediate UI updates
+            flushSync(() => {
+              setStreamingContent(accumulatedContent);
+              // Also update the content in real-time for the editor
+              setContent(accumulatedContent);
+            });
+            // Feature #390: Auto-scroll textarea to show new content
+            if (textareaRef.current) {
+              textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+            }
           },
           onDone: (data) => {
             setIsGenerating(false);

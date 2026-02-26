@@ -1224,32 +1224,49 @@ class ApiService {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process complete SSE events
+          // Feature #390: Improved SSE parsing to handle partial chunks and empty lines
+          // Process complete SSE events - events are separated by blank lines (\n\n)
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
           let eventType = '';
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.substring(7);
-            } else if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.substring(6));
+            // Skip empty lines (they separate SSE events)
+            if (line.trim() === '') {
+              eventType = ''; // Reset event type after each blank line
+              continue;
+            }
 
-              switch (eventType) {
-                case 'phase':
-                  callbacks?.onPhase?.(data.phase, data.message);
-                  break;
-                case 'delta':
-                  callbacks?.onDelta?.(data.content);
-                  break;
-                case 'done':
-                  cleanupWatchdog();
-                  callbacks?.onDone?.(data);
-                  break;
-                case 'error':
-                  cleanupWatchdog();
-                  callbacks?.onError?.(data.message);
-                  break;
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7).trim();
+            } else if (line.startsWith('data: ')) {
+              const dataStr = line.substring(6);
+              try {
+                const data = JSON.parse(dataStr);
+
+                // Feature #390: Log delta events for debugging
+                if (eventType === 'delta') {
+                  console.log('[SSE] Delta event received, content length:', data.content?.length || 0);
+                }
+
+                switch (eventType) {
+                  case 'phase':
+                    callbacks?.onPhase?.(data.phase, data.message);
+                    break;
+                  case 'delta':
+                    callbacks?.onDelta?.(data.content);
+                    break;
+                  case 'done':
+                    cleanupWatchdog();
+                    callbacks?.onDone?.(data);
+                    break;
+                  case 'error':
+                    cleanupWatchdog();
+                    callbacks?.onError?.(data.message);
+                    break;
+                }
+              } catch (parseError) {
+                console.warn('[SSE] Failed to parse data:', dataStr, parseError);
               }
 
               eventType = ''; // Reset for next event
@@ -1382,32 +1399,49 @@ class ApiService {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process complete SSE events
+          // Feature #390: Improved SSE parsing to handle partial chunks and empty lines
+          // Process complete SSE events - events are separated by blank lines (\n\n)
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
           let eventType = '';
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.substring(7);
-            } else if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.substring(6));
+            // Skip empty lines (they separate SSE events)
+            if (line.trim() === '') {
+              eventType = ''; // Reset event type after each blank line
+              continue;
+            }
 
-              switch (eventType) {
-                case 'phase':
-                  callbacks?.onPhase?.(data.phase, data.message);
-                  break;
-                case 'delta':
-                  callbacks?.onDelta?.(data.content);
-                  break;
-                case 'done':
-                  cleanupWatchdog();
-                  callbacks?.onDone?.(data);
-                  break;
-                case 'error':
-                  cleanupWatchdog();
-                  callbacks?.onError?.(data.message);
-                  break;
+            if (line.startsWith('event: ')) {
+              eventType = line.substring(7).trim();
+            } else if (line.startsWith('data: ')) {
+              const dataStr = line.substring(6);
+              try {
+                const data = JSON.parse(dataStr);
+
+                // Feature #390: Log delta events for debugging
+                if (eventType === 'delta') {
+                  console.log('[SSE] Delta event received, content length:', data.content?.length || 0);
+                }
+
+                switch (eventType) {
+                  case 'phase':
+                    callbacks?.onPhase?.(data.phase, data.message);
+                    break;
+                  case 'delta':
+                    callbacks?.onDelta?.(data.content);
+                    break;
+                  case 'done':
+                    cleanupWatchdog();
+                    callbacks?.onDone?.(data);
+                    break;
+                  case 'error':
+                    cleanupWatchdog();
+                    callbacks?.onError?.(data.message);
+                    break;
+                }
+              } catch (parseError) {
+                console.warn('[SSE] Failed to parse data:', dataStr, parseError);
               }
 
               eventType = ''; // Reset for next event
