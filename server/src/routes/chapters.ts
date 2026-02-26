@@ -179,6 +179,106 @@ function truncateToWordLimit(content: string, maxWords: number): { content: stri
   };
 }
 
+/**
+ * Feature #388: Get word range with specific min/max values for more precise generation
+ * Returns a range instead of "approximately X" to help LLMs target specific lengths
+ */
+function getWordRange(target: number, isItalian: boolean): { min: number; max: number; display: string } {
+  // Calculate range as ±10% of target
+  const minRange = Math.round(target * 0.9);
+  const maxRange = Math.round(target * 1.1);
+
+  if (isItalian) {
+    return {
+      min: minRange,
+      max: maxRange,
+      display: `tra ${minRange.toLocaleString('it-IT')} e ${maxRange.toLocaleString('it-IT')} parole`
+    };
+  } else {
+    return {
+      min: minRange,
+      max: maxRange,
+      display: `between ${minRange.toLocaleString('en-US')} and ${maxRange.toLocaleString('en-US')} words`
+    };
+  }
+}
+
+/**
+ * Feature #388: Get narrative expansion tips for longer content
+ * Provides specific guidance to help LLMs expand their content
+ */
+function getNarrativeExpansionTips(target: number, isItalian: boolean): string {
+  // Only provide tips for longer targets (2000+)
+  if (target < 2000) {
+    return '';
+  }
+
+  if (isItalian) {
+    return `
+STRATEGIE DI ESPANSIONE NARRATIVA (per raggiungere ${target} parole):
+- Aggiungi dialoghi dettagliati tra i personaggi con descrizioni delle loro espressioni e toni di voce
+- Includi descrizioni ambientali approfondite: luci, suoni, odori, atmosfera
+- Sviluppa monologhi interni e pensieri dei personaggi per mostrare le loro emozioni
+- Usa transizioni fluide tra le scene con dettagli sensoriali
+- Aggiungi dettagli sul linguaggio corporeo e i gesti dei personaggi
+- Espandi i momenti di tensione o riflessione con pause narrative
+- Descrivi l'ambiente circostante e come influenza l'umore della scena`;
+  } else {
+    return `
+NARRATIVE EXPANSION STRATEGIES (to reach ${target} words):
+- Add detailed dialogues between characters with descriptions of their expressions and tones of voice
+- Include in-depth environmental descriptions: lights, sounds, smells, atmosphere
+- Develop internal monologues and character thoughts to show their emotions
+- Use fluid transitions between scenes with sensory details
+- Add details about body language and character gestures
+- Expand moments of tension or reflection with narrative pauses
+- Describe the surrounding environment and how it influences the scene's mood`;
+  }
+}
+
+/**
+ * Feature #388: Check if content meets minimum target threshold (80%)
+ */
+function isContentUnderTarget(content: string, target: number): { isUnder: boolean; ratio: number; wordCount: number } {
+  const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+  const ratio = wordCount / target;
+  const isUnder = ratio < 0.8;
+
+  return { isUnder, ratio, wordCount };
+}
+
+/**
+ * Feature #388: Generate continuation prompt for iterative expansion
+ */
+function getContinuationPrompt(currentContent: string, target: number, isItalian: boolean): string {
+  const wordCount = currentContent.split(/\s+/).filter(w => w.length > 0).length;
+  const remainingWords = target - wordCount;
+
+  if (isItalian) {
+    return `Il contenuto generato finora contiene solo ${wordCount} parole, ma il target è ${target} parole.
+Mancano circa ${remainingWords} parole.
+
+CONTINUA la narrazione esattamente da dove si è interrotta, espandendo la storia con:
+- Ulteriori dettagli narrativi e descrittivi
+- Dialoghi aggiuntivi tra i personaggi
+- Sviluppo più approfondito della scena
+
+IMPORTANTE: Non ripetere o riassumere quanto già scritto. CONTINUA SEMPLICEMENTE la storia.
+Scrivi almeno ${Math.round(remainingWords * 1.2)} parole aggiuntive per raggiungere il target.`;
+  } else {
+    return `The content generated so far contains only ${wordCount} words, but the target is ${target} words.
+We need approximately ${remainingWords} more words.
+
+CONTINUE the narrative exactly where it left off, expanding the story with:
+- Additional narrative and descriptive details
+- Additional dialogue between characters
+- Deeper development of the scene
+
+IMPORTANT: Do not repeat or summarize what has already been written. SIMPLY CONTINUE the story.
+Write at least ${Math.round(remainingWords * 1.2)} additional words to reach the target.`;
+  }
+}
+
 // GET /api/projects/:id/chapters - Get all chapters for a project
 router.get('/projects/:id/chapters', authenticateToken, (req, res) => {
   try {
@@ -1307,6 +1407,10 @@ IMPORTANT: Write in the author's personal style as defined above.`;
         + `- Respect the established timeline\n`;
     }
 
+    // Feature #388: Get word range for more precise generation
+    const wordRange = getWordRange(wordTarget, isItalian);
+    const narrativeTips = getNarrativeExpansionTips(wordTarget, isItalian);
+
     // Build user prompt
     let userPrompt = '';
     if (isItalian) {
@@ -1321,7 +1425,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa ${wordTarget} parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+REQUISITO DI LUNGHEZZA: Il capitolo DEVE contenere ${wordRange.display}. Questo è un requisito obbligatorio, non una stima approssimativa.
+
+${narrativeTips}
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
         : `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
@@ -1331,7 +1437,9 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa ${wordTarget} parole in italiano.
+REQUISITO DI LUNGHEZZA: Il capitolo DEVE contenere ${wordRange.display}. Questo è un requisito obbligatorio, non una stima approssimativa.
+
+${narrativeTips}
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
@@ -1346,7 +1454,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately ${wordTarget} words in English, maintaining all narrative elements from the synopsis.
+LENGTH REQUIREMENT: The chapter MUST contain ${wordRange.display}. This is a mandatory requirement, not an approximate estimate.
+
+${narrativeTips}
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
         : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
@@ -1356,7 +1466,9 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately ${wordTarget} words in English.
+LENGTH REQUIREMENT: The chapter MUST contain ${wordRange.display}. This is a mandatory requirement, not an approximate estimate.
+
+${narrativeTips}
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
@@ -1502,6 +1614,49 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       // Send revision phase
       sendEvent('phase', { phase: 'revision', message: 'Reviewing generated content...' });
 
+      // Feature #388: Check if content is under target and attempt continuation
+      let underTargetCheck = isContentUnderTarget(fullContent, wordTarget);
+      let continuationAttempts = 0;
+      const maxContinuationAttempts = 2; // Maximum 2 continuation attempts
+
+      while (underTargetCheck.isUnder && continuationAttempts < maxContinuationAttempts) {
+        continuationAttempts++;
+        console.log(`[Generate Stream] Content under target (${underTargetCheck.wordCount}/${wordTarget} words, ${(underTargetCheck.ratio * 100).toFixed(1)}%). Attempting continuation ${continuationAttempts}/${maxContinuationAttempts}...`);
+
+        sendEvent('phase', { phase: 'continuation', message: `Expanding content (${underTargetCheck.wordCount}/${wordTarget} words)...` });
+
+        const continuationPrompt = getContinuationPrompt(fullContent, wordTarget, isItalian);
+        const continuationMessages = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: continuationPrompt }
+        ];
+
+        let continuationContent = '';
+        try {
+          for await (const contEvent of provider.stream(continuationMessages, { maxTokens: Math.round((wordTarget - underTargetCheck.wordCount) * 4) })) {
+            if (contEvent.type === 'delta' && contEvent.content) {
+              continuationContent += contEvent.content;
+              sendEvent('delta', { content: contEvent.content });
+            } else if (contEvent.type === 'error') {
+              console.error('[Generate Stream] Continuation error:', contEvent.error);
+              break; // Exit continuation loop on error
+            }
+          }
+
+          if (continuationContent.trim()) {
+            // Append continuation to full content with a space
+            fullContent = fullContent.trim() + '\n\n' + continuationContent.trim();
+            underTargetCheck = isContentUnderTarget(fullContent, wordTarget);
+            console.log(`[Generate Stream] After continuation ${continuationAttempts}: ${underTargetCheck.wordCount} words (${(underTargetCheck.ratio * 100).toFixed(1)}% of target)`);
+          } else {
+            break; // No continuation content generated, exit loop
+          }
+        } catch (contError) {
+          console.error('[Generate Stream] Continuation attempt failed:', contError);
+          break; // Exit continuation loop on error
+        }
+      }
+
       // Feature #371: Apply word limit truncation for free users
       let wasTruncated = false;
       if (maxWordsPerGeneration !== null) {
@@ -1548,6 +1703,19 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         word_count: wordCount,
         chapter_id: id
       };
+
+      // Feature #388: Add warning if content is significantly under target (after all continuation attempts)
+      if (underTargetCheck.ratio < 0.8 && !wasTruncated) {
+        const shortfallPercent = Math.round((1 - underTargetCheck.ratio) * 100);
+        if (isItalian) {
+          doneData.lengthWarning = `Il contenuto generato (${wordCount} parole) è inferiore al target richiesto (${wordTarget} parole, -${shortfallPercent}%). Prova a rigenerare o aggiungi dettagli manualmente.`;
+        } else {
+          doneData.lengthWarning = `Generated content (${wordCount} words) is below the required target (${wordTarget} words, -${shortfallPercent}%). Try regenerating or add details manually.`;
+        }
+        doneData.targetWords = wordTarget;
+        doneData.actualWords = wordCount;
+        doneData.continuationAttempts = continuationAttempts;
+      }
 
       // Feature #371: Add truncation warning if content was truncated
       if (wasTruncated) {
@@ -2648,6 +2816,10 @@ IMPORTANT: Write in the author's personal style as defined above.`;
         + `- Respect the established timeline\n`;
     }
 
+    // Feature #388: Get word range for more precise generation
+    const wordRange = getWordRange(wordTarget, isItalian);
+    const narrativeTips = getNarrativeExpansionTips(wordTarget, isItalian);
+
     // Build user prompt for regeneration
     let userPrompt = '';
     if (isItalian) {
@@ -2662,17 +2834,21 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa ${wordTarget} parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+REQUISITO DI LUNGHEZZA: Il capitolo DEVE contenere ${wordRange.display}. Questo è un requisito obbligatorio, non una stima approssimativa.
+
+${narrativeTips}
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
-        : `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
+        : `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}"
 
 ${previousChapter ? `CAPITOLO PRECEDENTE: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'Questo è il primo capitolo.'}
 ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'Questo è l\'ultimo capitolo.'}
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa ${wordTarget} parole in italiano che mantenga la coerenza con la storia.
+REQUISITO DI LUNGHEZZA: Il capitolo DEVE contenere ${wordRange.display}. Questo è un requisito obbligatorio, non una stima approssimativa.
+
+${narrativeTips}
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
@@ -2687,17 +2863,21 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately ${wordTarget} words in English, maintaining all narrative elements from the synopsis.
+LENGTH REQUIREMENT: The chapter MUST contain ${wordRange.display}. This is a mandatory requirement, not an approximate estimate.
+
+${narrativeTips}
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
-        : `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
+        : `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}"
 
 ${previousChapter ? `PREVIOUS CHAPTER: "${sanitizeSensitiveWords(previousChapter.title)}"` : 'This is the first chapter.'}
 ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` : 'This is the last chapter.'}
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately ${wordTarget} words in English that maintains story coherence.
+LENGTH REQUIREMENT: The chapter MUST contain ${wordRange.display}. This is a mandatory requirement, not an approximate estimate.
+
+${narrativeTips}
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
@@ -2876,6 +3056,49 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       // Send revision phase
       sendEvent('phase', { phase: 'revision', message: 'Reviewing regenerated content...' });
 
+      // Feature #388: Check if content is under target and attempt continuation
+      let underTargetCheck = isContentUnderTarget(fullContent, wordTarget);
+      let continuationAttempts = 0;
+      const maxContinuationAttempts = 2; // Maximum 2 continuation attempts
+
+      while (underTargetCheck.isUnder && continuationAttempts < maxContinuationAttempts) {
+        continuationAttempts++;
+        console.log(`[Regenerate Stream] Content under target (${underTargetCheck.wordCount}/${wordTarget} words, ${(underTargetCheck.ratio * 100).toFixed(1)}%). Attempting continuation ${continuationAttempts}/${maxContinuationAttempts}...`);
+
+        sendEvent('phase', { phase: 'continuation', message: `Expanding content (${underTargetCheck.wordCount}/${wordTarget} words)...` });
+
+        const continuationPrompt = getContinuationPrompt(fullContent, wordTarget, isItalian);
+        const continuationMessages = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: continuationPrompt }
+        ];
+
+        let continuationContent = '';
+        try {
+          for await (const contEvent of provider.stream(continuationMessages, { maxTokens: Math.round((wordTarget - underTargetCheck.wordCount) * 4) })) {
+            if (contEvent.type === 'delta' && contEvent.content) {
+              continuationContent += contEvent.content;
+              sendEvent('delta', { content: contEvent.content });
+            } else if (contEvent.type === 'error') {
+              console.error('[Regenerate Stream] Continuation error:', contEvent.error);
+              break; // Exit continuation loop on error
+            }
+          }
+
+          if (continuationContent.trim()) {
+            // Append continuation to full content with a space
+            fullContent = fullContent.trim() + '\n\n' + continuationContent.trim();
+            underTargetCheck = isContentUnderTarget(fullContent, wordTarget);
+            console.log(`[Regenerate Stream] After continuation ${continuationAttempts}: ${underTargetCheck.wordCount} words (${(underTargetCheck.ratio * 100).toFixed(1)}% of target)`);
+          } else {
+            break; // No continuation content generated, exit loop
+          }
+        } catch (contError) {
+          console.error('[Regenerate Stream] Continuation attempt failed:', contError);
+          break; // Exit continuation loop on error
+        }
+      }
+
       // Feature #371: Apply word limit truncation for free users
       let wasTruncated = false;
       if (maxWordsPerGeneration !== null) {
@@ -2924,6 +3147,19 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         regenerated_chapter_id: id,
         other_chapters_unchanged: otherChapters
       };
+
+      // Feature #388: Add warning if content is significantly under target (after all continuation attempts)
+      if (underTargetCheck.ratio < 0.8 && !wasTruncated) {
+        const shortfallPercent = Math.round((1 - underTargetCheck.ratio) * 100);
+        if (isItalian) {
+          doneData.lengthWarning = `Il contenuto generato (${wordCount} parole) è inferiore al target richiesto (${wordTarget} parole, -${shortfallPercent}%). Prova a rigenerare o aggiungi dettagli manualmente.`;
+        } else {
+          doneData.lengthWarning = `Generated content (${wordCount} words) is below the required target (${wordTarget} words, -${shortfallPercent}%). Try regenerating or add details manually.`;
+        }
+        doneData.targetWords = wordTarget;
+        doneData.actualWords = wordCount;
+        doneData.continuationAttempts = continuationAttempts;
+      }
 
       if (wasTruncated) {
         doneData.truncated = true;

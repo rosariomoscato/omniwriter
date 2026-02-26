@@ -1137,6 +1137,7 @@ class ApiService {
     options?: {
       human_model_id?: string;
       prompt_context?: string;
+      chapter_word_target?: number;  // Feature #386: Chapter length selector
       idleTimeoutMs?: number;  // Feature #273: Client-side idle timeout (default 90s)
     },
     callbacks?: {
@@ -1148,6 +1149,7 @@ class ApiService {
   ): { abort: () => void; promise: Promise<void> } {
     const token = localStorage.getItem('token');
     const url = `${this.baseUrl}/chapters/${chapterId}/generate-stream`;
+    const chapterWordTarget = options?.chapter_word_target || 2000;
 
     const controller = new AbortController();
 
@@ -1190,6 +1192,7 @@ class ApiService {
           body: JSON.stringify({
             human_model_id: options?.human_model_id || null,
             prompt_context: options?.prompt_context || '',
+            chapter_word_target: chapterWordTarget,
           }),
           signal: controller.signal,
         });
@@ -1285,6 +1288,7 @@ class ApiService {
     options?: {
       human_model_id?: string;
       prompt_context?: string;
+      chapter_word_target?: number;  // Feature #386: Chapter length selector
       idleTimeoutMs?: number;  // Feature #273: Client-side idle timeout (default 90s)
     },
     callbacks?: {
@@ -1304,6 +1308,7 @@ class ApiService {
   ): { abort: () => void; promise: Promise<void> } {
     const token = localStorage.getItem('token');
     const url = `${this.baseUrl}/chapters/${chapterId}/regenerate-stream`;
+    const chapterWordTarget = options?.chapter_word_target || 2000;
 
     const controller = new AbortController();
 
@@ -1345,6 +1350,7 @@ class ApiService {
           body: JSON.stringify({
             human_model_id: options?.human_model_id || null,
             prompt_context: options?.prompt_context || '',
+            chapter_word_target: chapterWordTarget,
           }),
           signal: controller.signal,
         });

@@ -996,7 +996,17 @@
       "simplifiedMode": "Chapter generated (simplified mode)",
       "streamStalled": "Generation was interrupted - no data received for too long",
       "streamTimeout": "Request timed out - please try again",
-      "connectionLost": "Connection lost to AI server"
+      "connectionLost": "Connection lost to AI server",
+      "chapterLength": "Chapter length",
+      "chapterLengthShort": "Short",
+      "chapterLengthShortDesc": "~1,000 words",
+      "chapterLengthMedium": "Medium",
+      "chapterLengthMediumDesc": "~2,000 words",
+      "chapterLengthLong": "Long",
+      "chapterLengthLongDesc": "~3,000 words",
+      "chapterLengthExtended": "Extended",
+      "chapterLengthExtendedDesc": "~5,000 words",
+      "chapterLengthTierWarning": "Your plan limits generation to {{limit}} words. Content will be truncated."
     }
   },
   "newProject": {

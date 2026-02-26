@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon, Ruler } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
@@ -9,10 +9,20 @@ import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion, HumanModel } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
+import { useTierPermissions } from '../hooks/useTierPermissions';
+
+// Chapter word target options
+const CHAPTER_LENGTH_OPTIONS = [
+  { value: 1000, labelKey: 'chapterLengthShort', descKey: 'chapterLengthShortDesc' },
+  { value: 2000, labelKey: 'chapterLengthMedium', descKey: 'chapterLengthMediumDesc' },
+  { value: 3000, labelKey: 'chapterLengthLong', descKey: 'chapterLengthLongDesc' },
+  { value: 5000, labelKey: 'chapterLengthExtended', descKey: 'chapterLengthExtendedDesc' },
+] as const;
 
 export default function ChapterEditor() {
   const { t } = useTranslation();
   const toast = useToastNotification();
+  const { getLimit, isPremium } = useTierPermissions();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +63,8 @@ export default function ChapterEditor() {
   const [showHumanModelDropdown, setShowHumanModelDropdown] = useState(false);
   const [generationAbortController, setGenerationAbortController] = useState<{ abort: () => void } | null>(null);
   const [streamingContent, setStreamingContent] = useState<string>('');
+  const [chapterWordTarget, setChapterWordTarget] = useState<number>(2000);
+  const [showChapterLengthDropdown, setShowChapterLengthDropdown] = useState(false);
 
   // Find & Replace state
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -476,6 +488,7 @@ export default function ChapterEditor() {
         chapterId,
         {
           human_model_id: useHumanModel ? selectedHumanModelId : undefined,
+          chapter_word_target: chapterWordTarget,
         },
         {
           onPhase: (phase, message) => {
@@ -1157,6 +1170,58 @@ export default function ChapterEditor() {
                   </div>
                 ) : (
                   <>
+                    {/* Chapter Length Selector (Feature #386) */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowChapterLengthDropdown(!showChapterLengthDropdown)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-gray-600"
+                        title={t('chapterEditor.generation.chapterLength', 'Chapter length')}
+                      >
+                        <Ruler className="w-4 h-4" />
+                        <span>{CHAPTER_LENGTH_OPTIONS.find(o => o.value === chapterWordTarget)?.labelKey ? t(`chapterEditor.generation.${CHAPTER_LENGTH_OPTIONS.find(o => o.value === chapterWordTarget)?.labelKey}`) : ''}</span>
+                        <ChevronDownIcon className="w-3 h-3" />
+                      </button>
+
+                      {showChapterLengthDropdown && (
+                        <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                          <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                            {t('chapterEditor.generation.chapterLength', 'Chapter length')}
+                          </div>
+                          {CHAPTER_LENGTH_OPTIONS.map(option => {
+                            const tierLimit = getLimit('maxGenerationLength');
+                            const isOverTierLimit = tierLimit > 0 && option.value > tierLimit;
+                            return (
+                              <button
+                                key={option.value}
+                                onClick={() => {
+                                  setChapterWordTarget(option.value);
+                                  setShowChapterLengthDropdown(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
+                                  chapterWordTarget === option.value
+                                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                    : 'text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{t(`chapterEditor.generation.${option.labelKey}`)}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">{t(`chapterEditor.generation.${option.descKey}`)}</span>
+                                  {isOverTierLimit && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                      {t('chapterEditor.generation.chapterLengthTierWarning', { limit: tierLimit.toLocaleString() })}
+                                    </span>
+                                  )}
+                                </div>
+                                {chapterWordTarget === option.value && (
+                                  <span className="text-purple-600 dark:text-purple-400 ml-2">✓</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Generate Standard Button */}
                     <button
                       onClick={() => handleGenerateChapter(false)}
