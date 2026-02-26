@@ -1243,9 +1243,16 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
     // Send initial status
     sendEvent('phase', { phase: 'structure', message: 'Analyzing project structure and context...' });
 
+    // Feature #391: Add detailed logging for debugging streaming issues
+    const streamStartTime = Date.now();
+    console.log(`[Generate Stream] Starting generation for chapter ${id} at ${new Date().toISOString()}`);
+
     // Build the system prompt based on project settings and Human Model
     const language = chapter.preferred_language === 'it' ? 'it' : 'en';
     const isItalian = language === 'it';
+
+    // Feature #391: Send progress updates during preparation phase
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Preparando il contesto del progetto...' : 'Preparing project context...' });
 
     // Feature #233: Sanitize content to avoid moderation triggers
     // Feature #275: Include character status (alive/dead) information
@@ -1352,6 +1359,8 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     }
 
     // Feature #304: Add saga continuity context if this is a sequel project
+    // Feature #391: Send progress update before continuity fetch
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Verificando continuità saga...' : 'Checking saga continuity...' });
     const continuityContext = fetchContinuityForProject(db, chapter.project_id, isItalian);
     if (continuityContext.hasContinuity) {
       console.log('[Generate Stream] Including continuity context for chapter generation:', {
@@ -1473,8 +1482,15 @@ ${narrativeTips}
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
 
+    // Feature #391: Send progress update before AI provider initialization
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Inizializzando il provider AI...' : 'Initializing AI provider...' });
+
     // Send phase update
     sendEvent('phase', { phase: 'writing', message: 'Generating chapter content...' });
+
+    // Feature #391: Log timing for debugging
+    const preparationTime = Date.now() - streamStartTime;
+    console.log(`[Generate Stream] Preparation completed in ${preparationTime}ms, starting AI stream...`);
 
     // Try to use AI provider with streaming
     try {
@@ -1520,11 +1536,18 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       ];
 
       let fullContent = '';
+      let firstDeltaReceived = false;  // Feature #391: Track first delta for timing
 
       // Stream from provider - Feature #386: Use dynamic maxTokens based on word target
       console.log(`[Generate Stream] Using wordTarget=${wordTarget}, maxTokens=${maxTokensForTarget}`);
       for await (const event of provider.stream(messages, { maxTokens: maxTokensForTarget })) {
         if (event.type === 'delta' && event.content) {
+          // Feature #391: Log timing of first delta
+          if (!firstDeltaReceived) {
+            firstDeltaReceived = true;
+            const timeToFirstDelta = Date.now() - streamStartTime;
+            console.log(`[Generate Stream] First delta received after ${timeToFirstDelta}ms`);
+          }
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
         } else if (event.type === 'error') {
@@ -2652,9 +2675,16 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
     // Send initial status
     sendEvent('phase', { phase: 'structure', message: 'Analyzing chapter context...' });
 
+    // Feature #391: Add detailed logging for debugging streaming issues
+    const streamStartTime = Date.now();
+    console.log(`[Regenerate Stream] Starting regeneration for chapter ${id} at ${new Date().toISOString()}`);
+
     // Build the system prompt based on project settings and Human Model
     const language = chapter.preferred_language === 'it' ? 'it' : 'en';
     const isItalian = language === 'it';
+
+    // Feature #391: Send progress updates during preparation phase
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Preparando il contesto del progetto...' : 'Preparing project context...' });
 
     // Feature #233: Sanitize content to avoid moderation triggers
     // Feature #275: Include character status (alive/dead) information
@@ -2761,6 +2791,8 @@ IMPORTANT: Write in the author's personal style as defined above.`;
     }
 
     // Feature #304: Add saga continuity context if this is a sequel project
+    // Feature #391: Send progress update before continuity fetch
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Verificando continuità saga...' : 'Checking saga continuity...' });
     const continuityContext = fetchContinuityForProject(db, chapter.project_id, isItalian);
     if (continuityContext.hasContinuity) {
       console.log('[Regenerate Stream] Including continuity context for chapter regeneration:', {
@@ -2882,8 +2914,15 @@ ${narrativeTips}
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
 
+    // Feature #391: Send progress update before AI provider initialization
+    sendEvent('phase', { phase: 'structure', message: isItalian ? 'Inizializzando il provider AI...' : 'Initializing AI provider...' });
+
     // Send phase update
     sendEvent('phase', { phase: 'writing', message: 'Regenerating chapter content...' });
+
+    // Feature #391: Log timing for debugging
+    const preparationTime = Date.now() - streamStartTime;
+    console.log(`[Regenerate Stream] Preparation completed in ${preparationTime}ms, starting AI stream...`);
 
     // Try to use AI provider with streaming
     try {
@@ -2961,10 +3000,17 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
       ];
 
       let fullContent = '';
+      let firstDeltaReceived = false;  // Feature #391: Track first delta for timing
 
       // Stream from provider - Feature #386: Use dynamic maxTokens based on word target
       for await (const event of provider.stream(messages, { maxTokens: maxTokensForTarget })) {
         if (event.type === 'delta' && event.content) {
+          // Feature #391: Log timing of first delta
+          if (!firstDeltaReceived) {
+            firstDeltaReceived = true;
+            const timeToFirstDelta = Date.now() - streamStartTime;
+            console.log(`[Regenerate Stream] First delta received after ${timeToFirstDelta}ms`);
+          }
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
         } else if (event.type === 'error') {
