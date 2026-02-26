@@ -1,7 +1,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon, Ruler } from 'lucide-react';
+import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon, Ruler, Bug } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Breadcrumbs from '../components/Breadcrumbs';
 import VersionHistory from '../components/VersionHistory';
@@ -11,6 +11,7 @@ import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion, HumanModel } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
 import { useTierPermissions } from '../hooks/useTierPermissions';
+import { DebugPanel, useDebugLogs } from '../components/debug/DebugPanel';
 
 // Chapter word target options
 const CHAPTER_LENGTH_OPTIONS = [
@@ -82,6 +83,10 @@ export default function ChapterEditor() {
   const [showReviseMenu, setShowReviseMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [revising, setRevising] = useState(false);
+
+  // Debug Panel state (Feature #392)
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const debugLogs = useDebugLogs(100);
 
   // Dialogue Enhancement state (Feature #188)
   const [enhancingDialogue, setEnhancingDialogue] = useState(false);
@@ -475,11 +480,17 @@ export default function ChapterEditor() {
   const handleGenerateChapter = async (useHumanModel: boolean = false) => {
     if (!chapterId || isGenerating) return;
 
+    // Feature #392: Log connection start to debug panel
+    debugLogs.logConnection('connecting', 'Starting chapter generation...');
+
     // Reset streaming content
     setStreamingContent('');
     setIsGenerating(true);
     setGenerationPhase('structure');
     setGenerationMessage(t('chapterEditor.generation.analyzing', 'Analyzing project structure and context...'));
+
+    // Feature #392: Log initial phase
+    debugLogs.logPhase('structure', 'Analyzing project structure and context...');
 
     // Use a ref to track accumulated content
     let accumulatedContent = '';
@@ -495,9 +506,13 @@ export default function ChapterEditor() {
           onPhase: (phase, message) => {
             setGenerationPhase(phase);
             setGenerationMessage(message);
+            // Feature #392: Log phase to debug panel
+            debugLogs.logPhase(phase, message);
           },
           onDelta: (deltaContent) => {
             accumulatedContent += deltaContent;
+            // Feature #392: Log delta to debug panel
+            debugLogs.logDelta(deltaContent, accumulatedContent.length);
             // Feature #390: Use flushSync to prevent React batching and ensure immediate UI updates
             flushSync(() => {
               setStreamingContent(accumulatedContent);
@@ -513,6 +528,9 @@ export default function ChapterEditor() {
             setIsGenerating(false);
             setGenerationPhase('');
             setGenerationMessage('');
+            // Feature #392: Log done to debug panel
+            debugLogs.logConnection('connected', 'Generation completed');
+            debugLogs.logDone(data);
 
             // Final content is already set via onDelta
             toast.success(data.message || t('chapterEditor.generation.success', 'Chapter generated successfully'));
@@ -525,6 +543,8 @@ export default function ChapterEditor() {
             setIsGenerating(false);
             setGenerationPhase('');
             setGenerationMessage('');
+            // Feature #392: Log error to debug panel
+            debugLogs.logError(error || 'Unknown error');
             toast.error(error || t('chapterEditor.generation.error', 'Failed to generate chapter'));
           },
         }
@@ -537,6 +557,8 @@ export default function ChapterEditor() {
       setIsGenerating(false);
       setGenerationPhase('');
       setGenerationMessage('');
+      // Feature #392: Log error to debug panel
+      debugLogs.logError(err.message || 'Failed to generate chapter');
       toast.error(err.message || t('chapterEditor.generation.error', 'Failed to generate chapter'));
     } finally {
       setGenerationAbortController(null);
@@ -1321,6 +1343,19 @@ export default function ChapterEditor() {
               >
                 {isPreview ? <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" /> : <Eye className="w-4 h-4 text-gray-700 dark:text-gray-300" />}
               </button>
+              {/* Debug Panel Toggle Button (Feature #392) */}
+              <button
+                onClick={() => setShowDebugPanel(!showDebugPanel)}
+                className={`p-2 rounded-lg border transition-colors ${
+                  showDebugPanel
+                    ? 'bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-400'
+                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                aria-label={t('chapterEditor.debugPanel', 'Debug Panel')}
+                title={t('chapterEditor.debugPanel', 'Debug Panel')}
+              >
+                <Bug className={`w-4 h-4 ${showDebugPanel ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`} />
+              </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -1844,6 +1879,15 @@ export default function ChapterEditor() {
           </div>
         </div>
       )}
+
+      {/* Debug Panel (Feature #392) */}
+      <DebugPanel
+        isOpen={showDebugPanel}
+        onClose={() => setShowDebugPanel(false)}
+        logs={debugLogs.logs}
+        onClear={debugLogs.clearLogs}
+        connectionStatus={debugLogs.connectionStatus}
+      />
     </div>
   );
 }

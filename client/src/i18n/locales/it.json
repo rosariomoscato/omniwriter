@@ -962,6 +962,7 @@
     "summaryPlaceholder": "Descrivi brevemente cosa deve accadere in questo capitolo...",
     "revising": "Revisione...",
     "enhancing": "Miglioramento...",
+    "debugPanel": "Pannello Debug",
     "versionHistory": {
       "title": "Cronologia Versioni",
       "version": "Versione",
@@ -1007,6 +1008,14 @@
       "chapterLengthExtended": "Esteso",
       "chapterLengthExtendedDesc": "~5.000 parole",
       "chapterLengthTierWarning": "Il tuo piano limita la generazione a {{limit}} parole. Il contenuto verrà troncato."
+    },
+    "debug": {
+      "clearLogs": "Cancella log",
+      "expand": "Espandi",
+      "minimize": "Riduci",
+      "close": "Chiudi",
+      "noLogs": "Nessun log. Avvia una generazione per vedere le informazioni di debug.",
+      "scrollToBottom": "Scorri in basso"
     }
   },
   "newProject": {

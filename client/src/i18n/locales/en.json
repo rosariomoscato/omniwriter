@@ -962,6 +962,7 @@
     "summaryPlaceholder": "Briefly describe what should happen in this chapter...",
     "revising": "Revising...",
     "enhancing": "Enhancing...",
+    "debugPanel": "Debug Panel",
     "versionHistory": {
       "title": "Version History",
       "version": "Version",
@@ -1007,6 +1008,14 @@
       "chapterLengthExtended": "Extended",
       "chapterLengthExtendedDesc": "~5,000 words",
       "chapterLengthTierWarning": "Your plan limits generation to {{limit}} words. Content will be truncated."
+    },
+    "debug": {
+      "clearLogs": "Clear logs",
+      "expand": "Expand",
+      "minimize": "Minimize",
+      "close": "Close",
+      "noLogs": "No logs yet. Start a generation to see debug info.",
+      "scrollToBottom": "Scroll to bottom"
     }
   },
   "newProject": {
