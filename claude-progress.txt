@@ -7490,3 +7490,22 @@ function truncateToWordLimit(content: string, maxWords: number): { content: stri
 
 ALL 384 FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED!
 
+
+---
+
+## Session: 2026-02-26 - Feature #387 Implementation
+
+### Feature #387: Fix moltiplicatore maxTokens per lunghezza capitolo
+
+**Objective:** Il moltiplicatore token-per-parola era troppo basso (2x), causando generazioni di ~1000 parole anche quando si selezionava Lungo (~3000) o Esteso (~5000). L'italiano richiede ~3-4 token per parola.
+
+**Fix:** Cambiato il moltiplicatore da 2 a 4 in tutti e 4 i punti del file chapters.ts:
+- Line 998: generate-stream route
+- Line 1652: generate-with-comparison route
+- Line 2044: regenerate route
+- Line 2331: regenerate-stream route
+
+**Files Modified:**
+- server/src/routes/chapters.ts (4 locations)
+
+**Status: Feature #387 MARKED PASSING**

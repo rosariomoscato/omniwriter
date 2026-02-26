@@ -988,8 +988,14 @@ Genera 2 varianti per Twitter e 1 per ciascuna delle altre piattaforme (LinkedIn
 router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { human_model_id, prompt_context } = req.body;
+    const { human_model_id, prompt_context, chapter_word_target } = req.body;
     const userId = req.user.id;
+
+    // Feature #386: Validate chapter_word_target
+    const VALID_WORD_TARGETS = [1000, 2000, 3000, 5000];
+    const wordTarget = VALID_WORD_TARGETS.includes(chapter_word_target) ? chapter_word_target : 2000;
+    // Calculate maxTokens proportional to word target (~4 tokens per word for Italian)
+    const maxTokensForTarget = Math.round(wordTarget * 4);
     const userRole = req.user.role as UserRole;
     const db = getDatabase();
 
@@ -1035,8 +1041,8 @@ router.post('/chapters/:id/generate-stream', authenticateToken, generationRateLi
     `).get(chapter.project_id) as { total_words: number };
     const currentProjectWords = projectWordCountResult.total_words;
 
-    // Estimate words to be generated (typical chapter: ~3000 words)
-    const estimatedWords = 3000;
+    // Feature #386: Use actual word target instead of hard-coded estimate
+    const estimatedWords = wordTarget;
 
     // Check per-project limit
     if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
@@ -1315,7 +1321,7 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+Scrivi un capitolo coinvolgente di circa ${wordTarget} parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
         : `Scrivi il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
@@ -1325,7 +1331,7 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Scrivi un capitolo coinvolgente di circa 2000-3000 parole in italiano.
+Scrivi un capitolo coinvolgente di circa ${wordTarget} parole in italiano.
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
@@ -1340,7 +1346,7 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.
+Write an engaging chapter of approximately ${wordTarget} words in English, maintaining all narrative elements from the synopsis.
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
         : `Write the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
@@ -1350,7 +1356,7 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Write an engaging chapter of approximately 2000-3000 words in English.
+Write an engaging chapter of approximately ${wordTarget} words in English.
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
@@ -1403,8 +1409,9 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       let fullContent = '';
 
-      // Stream from provider
-      for await (const event of provider.stream(messages, { maxTokens: 4000 })) {
+      // Stream from provider - Feature #386: Use dynamic maxTokens based on word target
+      console.log(`[Generate Stream] Using wordTarget=${wordTarget}, maxTokens=${maxTokensForTarget}`);
+      for await (const event of provider.stream(messages, { maxTokens: maxTokensForTarget })) {
         if (event.type === 'delta' && event.content) {
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
@@ -1426,7 +1433,7 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
               ];
 
               let retryContent = '';
-              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: 4000 })) {
+              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: maxTokensForTarget })) {
                 if (retryEvent.type === 'delta' && retryEvent.content) {
                   retryContent += retryEvent.content;
                   sendEvent('delta', { content: retryEvent.content });
@@ -1635,8 +1642,14 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 router.post('/chapters/:id/generate-with-comparison', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
-    const { human_model_id, prompt_context } = req.body;
+    const { human_model_id, prompt_context, chapter_word_target } = req.body;
     const userId = (req as any).user.id;
+
+    // Feature #386: Validate chapter_word_target
+    const VALID_WORD_TARGETS_CMP = [1000, 2000, 3000, 5000];
+    const wordTarget = VALID_WORD_TARGETS_CMP.includes(chapter_word_target) ? chapter_word_target : 2000;
+    // Calculate maxTokens proportional to word target (~4 tokens per word for Italian)
+    const maxTokensForTarget = Math.round(wordTarget * 4);
     const userRole = (req as any).user.role as UserRole;
     const db = getDatabase();
 
@@ -1762,7 +1775,7 @@ ${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate co
             { role: 'system', content: baselineSystemPrompt },
             { role: 'user', content: baselineUserPrompt }
           ],
-          { temperature: 0.7, maxTokens: 1500 }
+          { temperature: 0.7, maxTokens: maxTokensForTarget }
         );
         baselineContent = baselineResponse.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, null, projectSources);
       } catch (baselineError: any) {
@@ -1816,7 +1829,7 @@ ${prompt_context ? `ADDITIONAL CONTEXT:\n${prompt_context}\n\n` : ''}Generate co
               { role: 'system', content: styledSystemPrompt },
               { role: 'user', content: styledUserPrompt }
             ],
-            { temperature: 0.7, maxTokens: 1500 }
+            { temperature: 0.7, maxTokens: maxTokensForTarget }
           );
           styledContent = styledResponse.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
         } catch (styledError: any) {
@@ -2021,8 +2034,14 @@ function calculateStyleDifferences(baseline: string, styled: string, humanModel:
 router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, async (req, res) => {
   try {
     const { id } = req.params;
-    const { human_model_id, prompt_context } = req.body;
+    const { human_model_id, prompt_context, chapter_word_target } = req.body;
     const userId = (req as any).user.id;
+
+    // Feature #386: Validate chapter_word_target
+    const VALID_WORD_TARGETS_REGEN = [1000, 2000, 3000, 5000];
+    const wordTarget = VALID_WORD_TARGETS_REGEN.includes(chapter_word_target) ? chapter_word_target : 2000;
+    // Calculate maxTokens proportional to word target (~4 tokens per word for Italian)
+    const maxTokensForTarget = Math.round(wordTarget * 4);
     const userRole = (req as any).user.role as UserRole;
     const db = getDatabase();
 
@@ -2061,8 +2080,8 @@ router.post('/chapters/:id/regenerate', authenticateToken, generationRateLimit, 
     `).get(chapter.project_id, id) as { total_words: number };
     const currentProjectWords = projectWordCountResult.total_words;
 
-    // Estimate words to be generated (typical chapter: ~3000 words)
-    const estimatedWords = 3000;
+    // Feature #386: Use actual word target instead of hard-coded estimate
+    const estimatedWords = wordTarget;
 
     // Check per-project limit
     if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
@@ -2192,7 +2211,7 @@ IMPORTANT: Write in the author's personal style as defined above.`;
             { role: 'system', content: finalSystemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          { temperature: 0.7, maxTokens: 1500 }
+          { temperature: 0.7, maxTokens: maxTokensForTarget }
         );
 
         newContent = response.content || generateTemplateContent(chapter.title, chapter.area, prompt_context, humanModel, projectSources);
@@ -2302,8 +2321,14 @@ IMPORTANT: Write in the author's personal style as defined above.`;
 router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRateLimit, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { human_model_id, prompt_context } = req.body;
+    const { human_model_id, prompt_context, chapter_word_target } = req.body;
     const userId = req.user.id;
+
+    // Feature #386: Validate chapter_word_target
+    const VALID_WORD_TARGETS = [1000, 2000, 3000, 5000];
+    const wordTarget = VALID_WORD_TARGETS.includes(chapter_word_target) ? chapter_word_target : 2000;
+    // Calculate maxTokens proportional to word target (~4 tokens per word for Italian)
+    const maxTokensForTarget = Math.round(wordTarget * 4);
     const userRole = req.user.role as UserRole;
     const db = getDatabase();
 
@@ -2349,8 +2374,8 @@ router.post('/chapters/:id/regenerate-stream', authenticateToken, generationRate
     `).get(chapter.project_id, chapter.id) as { total_words: number };
     const currentProjectWords = projectWordCountResult.total_words;
 
-    // Estimate words to be generated (typical chapter: ~3000 words)
-    const estimatedWords = 3000;
+    // Feature #386: Use actual word target instead of hard-coded estimate
+    const estimatedWords = wordTarget;
 
     // Check per-project limit
     if (maxWordsPerProject !== null && currentProjectWords + estimatedWords > maxWordsPerProject) {
@@ -2637,7 +2662,7 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
+Genera un capitolo fresco e coinvolgente di circa ${wordTarget} parole in italiano, mantenendo tutti gli elementi narrativi della sinossi.
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`
         : `Rigenera il contenuto completo del capitolo "${sanitizeSensitiveWords(chapter.title)}".
@@ -2647,7 +2672,7 @@ ${nextChapter ? `PROSSIMO CAPITOLO: "${sanitizeSensitiveWords(nextChapter.title)
 
 ${prompt_context ? `NOTE AGGIUNTIVE: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Genera un capitolo fresco e coinvolgente di circa 2000-3000 parole in italiano che mantenga la coerenza con la storia.
+Genera un capitolo fresco e coinvolgente di circa ${wordTarget} parole in italiano che mantenga la coerenza con la storia.
 
 IMPORTANTE: Scrivi SOLO la narrazione. Non aggiungere note, commenti, riepiloghi di fonti, indicazioni di fine capitolo, o alcun testo che non faccia parte della storia. Il capitolo deve contenere esclusivamente il testo narrativo che verrà pubblicato nel libro.`;
     } else {
@@ -2662,7 +2687,7 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately 2000-3000 words in English, maintaining all narrative elements from the synopsis.
+Generate fresh, engaging chapter content of approximately ${wordTarget} words in English, maintaining all narrative elements from the synopsis.
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`
         : `Regenerate the complete content for chapter "${sanitizeSensitiveWords(chapter.title)}".
@@ -2672,7 +2697,7 @@ ${nextChapter ? `NEXT CHAPTER: "${sanitizeSensitiveWords(nextChapter.title)}"` :
 
 ${prompt_context ? `ADDITIONAL NOTES: ${sanitizeSensitiveWords(prompt_context)}` : ''}
 
-Generate fresh, engaging chapter content of approximately 2000-3000 words in English that maintains story coherence.
+Generate fresh, engaging chapter content of approximately ${wordTarget} words in English that maintains story coherence.
 
 IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summaries, chapter end markers, or any text that is not part of the story. The chapter must contain exclusively the narrative text that will be published in the book.`;
     }
@@ -2747,7 +2772,7 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
         return res.end();
       }
 
-      console.log(`[Regenerate Stream] Using ${provider.getProviderType()} provider`);
+      console.log(`[Regenerate Stream] Using ${provider.getProviderType()} provider, wordTarget=${wordTarget}, maxTokens=${maxTokensForTarget}`);
 
       // Use streaming with sanitized messages
       const messages = [
@@ -2757,8 +2782,8 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
 
       let fullContent = '';
 
-      // Stream from provider
-      for await (const event of provider.stream(messages, { maxTokens: 4000 })) {
+      // Stream from provider - Feature #386: Use dynamic maxTokens based on word target
+      for await (const event of provider.stream(messages, { maxTokens: maxTokensForTarget })) {
         if (event.type === 'delta' && event.content) {
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
@@ -2780,7 +2805,7 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
               ];
 
               let retryContent = '';
-              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: 4000 })) {
+              for await (const retryEvent of provider.stream(simplifiedMessages, { maxTokens: maxTokensForTarget })) {
                 if (retryEvent.type === 'delta' && retryEvent.content) {
                   retryContent += retryEvent.content;
                   sendEvent('delta', { content: retryEvent.content });
