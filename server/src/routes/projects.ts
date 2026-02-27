@@ -70,6 +70,9 @@ function setCachedStatus(characterName: string, contentHash: string, status: str
  * If notes contain survival indicators but status is 'dead', corrects to 'alive'.
  * If notes contain death indicators but status is 'alive', corrects to 'dead'.
  *
+ * Feature #399: Prioritizes survival keywords in the ORIGINAL notes (before any
+ * "Status dedotto" additions) over death keywords that might be in appended text.
+ *
  * @param status - The status returned by AI (alive, dead, injured, missing, unknown)
  * @param notes - The notes returned by AI
  * @param language - 'it' for Italian, 'en' for English
@@ -88,6 +91,7 @@ function validateCharacterStatus(
   const isItalian = language === 'it';
 
   // Survival keywords that indicate character is ALIVE
+  // Note: "finale" removed as standalone - too ambiguous ("battaglia finale" vs "nel finale")
   const survivalKeywordsIt = [
     'sopravvive', 'sopravvisse', 'si salvò', 'si salva', 'salvato', 'salvata',
     'vivo', 'viva', 'vivente', 'in vita',
@@ -95,13 +99,15 @@ function validateCharacterStatus(
     'emerge', 'emerso', 'emersa', 'si rialza finalmente', 'finalmente si rialza',
     'celebra', 'celebrò', 'festeggia', 'festeggiò', 'trionfa', 'trionfò',
     'vince', 'vinse', 'vittoria', 'vincitore', 'vincitrice',
-    'epilogo', 'finale', 'alla fine', 'nel finale',
-    'anni dopo', 'continua', 'continuò', 'visse', 'vive',
+    'epilogo', 'alla fine', 'nel finale', 'nel epilogo',
+    'anni dopo', 'continua', 'continuò', 'visse', 'vive ancora',
     'abbraccia', 'abbracciò', 'sorriso', 'sorrise', 'felice',
     'nuova era', 'nuovo inizio', 'futuro', 'speranza',
     'insieme', 'unito', 'unita', 'riunito', 'riunita'
   ];
 
+  // Survival keywords that indicate character is ALIVE
+  // Note: "finale" removed as standalone - too ambiguous ("final battle" vs "in the finale")
   const survivalKeywordsEn = [
     'survives', 'survived', 'escaped death', 'cheated death',
     'alive', 'living', 'in life', 'still breathing',
@@ -109,7 +115,7 @@ function validateCharacterStatus(
     'emerges', 'emerged', 'rises', 'rose again', 'got back up',
     'celebrates', 'celebrated', 'rejoices', 'rejoiced', 'triumphs', 'triumphed',
     'wins', 'won', 'victory', 'victorious',
-    'epilogue', 'finale', 'in the end', 'at the end',
+    'epilogue', 'in the end', 'at the end', 'in the finale',
     'years later', 'continues', 'continued', 'lived', 'lives on',
     'embraces', 'embraced', 'smiles', 'smiled', 'happy',
     'new era', 'new beginning', 'future', 'hope',
@@ -140,23 +146,52 @@ function validateCharacterStatus(
   const survivalKeywords = isItalian ? survivalKeywordsIt : survivalKeywordsEn;
   const deathKeywords = isItalian ? deathKeywordsIt : deathKeywordsEn;
 
-  // Check for survival keywords in notes
+  // Feature #399: Extract the ORIGINAL notes (before any "Status dedotto/deduced" additions)
+  // The "Status dedotto" text is added later by the system and may contain contradictory keywords
+  const statusDedottoMarkers = isItalian
+    ? ['status dedotto dal testo', 'status dedotto:', '[corretto da']
+    : ['status deduced from text', 'status deduced:', '[corrected from'];
+
+  let originalNotes = notes;
+  for (const marker of statusDedottoMarkers) {
+    const markerIndex = notesLower.indexOf(marker.toLowerCase());
+    if (markerIndex > 0) {
+      originalNotes = notes.substring(0, markerIndex).trim();
+      break;
+    }
+  }
+  const originalNotesLower = originalNotes.toLowerCase();
+
+  // Check for survival keywords in ORIGINAL notes (before system additions)
+  const hasSurvivalKeywordInOriginal = survivalKeywords.some(kw => originalNotesLower.includes(kw.toLowerCase()));
+
+  // Check for survival keywords in FULL notes (for backward compatibility)
   const hasSurvivalKeyword = survivalKeywords.some(kw => notesLower.includes(kw.toLowerCase()));
 
-  // Check for death keywords in notes
+  // Check for death keywords in full notes
   const hasDeathKeyword = deathKeywords.some(kw => notesLower.includes(kw.toLowerCase()));
+
+  // Check for death keywords ONLY in original notes (not in system additions)
+  const hasDeathKeywordInOriginal = deathKeywords.some(kw => originalNotesLower.includes(kw.toLowerCase()));
 
   // Validate status against notes
   const statusLower = status.toLowerCase();
 
+  // Feature #399: If survival keywords are in the ORIGINAL notes, they take priority
+  // over death keywords that might be in the appended "Status dedotto" text
+  // This handles cases like: "Sopravvive alla battaglia" + "(Status dedotto: il personaggio muore)"
+  const survivalTakesPriority = hasSurvivalKeywordInOriginal && !hasDeathKeywordInOriginal;
+
   // CASE 1: Status is 'dead' but notes say they survive
-  if (statusLower === 'dead' && hasSurvivalKeyword && !hasDeathKeyword) {
-    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
-    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'alive'`);
+  // Feature #399: Use survivalTakesPriority to handle mixed keyword cases
+  if (statusLower === 'dead' && hasSurvivalKeyword && (survivalTakesPriority || !hasDeathKeyword)) {
+    console.log(`[Feature #398/399] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
+    console.log(`[Feature #398/399] AUTO-CORRECTING: '${status}' → 'alive' (survivalTakesPriority: ${survivalTakesPriority})`);
     return { status: 'alive', correctionLogged: true };
   }
 
   // CASE 2: Status is 'alive' but notes say they die
+  // Only correct if death keywords are in ORIGINAL notes (not in system additions)
   if (statusLower === 'alive' && hasDeathKeyword && !hasSurvivalKeyword) {
     console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate death. Notes: "${notes}"`);
     console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'dead'`);
@@ -164,6 +199,7 @@ function validateCharacterStatus(
   }
 
   // CASE 3: Status is 'injured' but notes say they die
+  // Only correct if death keywords are in ORIGINAL notes (not in system additions)
   if (statusLower === 'injured' && hasDeathKeyword && !hasSurvivalKeyword) {
     console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate death. Notes: "${notes}"`);
     console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'dead'`);
@@ -171,9 +207,10 @@ function validateCharacterStatus(
   }
 
   // CASE 4: Status is 'missing' but notes clearly say they survive
-  if (statusLower === 'missing' && hasSurvivalKeyword && !hasDeathKeyword) {
-    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
-    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'alive'`);
+  // Feature #399: Use survivalTakesPriority to handle mixed keyword cases
+  if (statusLower === 'missing' && hasSurvivalKeyword && (survivalTakesPriority || !hasDeathKeyword)) {
+    console.log(`[Feature #398/399] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
+    console.log(`[Feature #398/399] AUTO-CORRECTING: '${status}' → 'alive' (survivalTakesPriority: ${survivalTakesPriority})`);
     return { status: 'alive', correctionLogged: true };
   }
 
