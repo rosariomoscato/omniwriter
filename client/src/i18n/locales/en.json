@@ -732,7 +732,8 @@
     "close": "Close",
     "notFound": "Page not found",
     "goHome": "Go Home",
-    "required": "required"
+    "required": "required",
+    "continue": "Continue"
   },
   "humanModel": {
     "title": "Human Model",
@@ -1682,8 +1683,5 @@
       "thinking": "Deep reasoning in progress...",
       "extended": "Extended reasoning for quality output..."
     }
-  },
-  "common": {
-    "continue": "Continue"
   }
 }

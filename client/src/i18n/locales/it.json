@@ -732,7 +732,8 @@
     "close": "Chiudi",
     "notFound": "Pagina non trovata",
     "goHome": "Torna alla Home",
-    "required": "richiesto"
+    "required": "richiesto",
+    "continue": "Continua"
   },
   "humanModel": {
     "title": "Modello Umano",
@@ -1682,8 +1683,5 @@
       "thinking": "Reasoning approfondito in corso...",
       "extended": "Reasoning esteso per output di qualità..."
     }
-  },
-  "common": {
-    "continue": "Continua"
   }
 }
