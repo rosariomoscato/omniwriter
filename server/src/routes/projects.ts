@@ -60,6 +60,126 @@ function setCachedStatus(characterName: string, contentHash: string, status: str
   characterStatusCache.set(key, { status, notes, timestamp: Date.now() });
 }
 
+// ============================================================================
+// Feature #398: Post-AI character status validation
+// Detects contradictions between status and notes, corrects status based on notes
+// ============================================================================
+
+/**
+ * Validates character status by checking if notes contradict the status.
+ * If notes contain survival indicators but status is 'dead', corrects to 'alive'.
+ * If notes contain death indicators but status is 'alive', corrects to 'dead'.
+ *
+ * @param status - The status returned by AI (alive, dead, injured, missing, unknown)
+ * @param notes - The notes returned by AI
+ * @param language - 'it' for Italian, 'en' for English
+ * @returns Corrected status if contradiction found, original status otherwise
+ */
+function validateCharacterStatus(
+  status: string,
+  notes: string,
+  language: 'it' | 'en' = 'it'
+): { status: string; correctionLogged: boolean } {
+  if (!notes || !status) {
+    return { status, correctionLogged: false };
+  }
+
+  const notesLower = notes.toLowerCase();
+  const isItalian = language === 'it';
+
+  // Survival keywords that indicate character is ALIVE
+  const survivalKeywordsIt = [
+    'sopravvive', 'sopravvisse', 'si salvò', 'si salva', 'salvato', 'salvata',
+    'vivo', 'viva', 'vivente', 'in vita',
+    'si riprende', 'si riprese', 'guarito', 'guarita', 'guarì',
+    'emerge', 'emerso', 'emersa', 'si rialza finalmente', 'finalmente si rialza',
+    'celebra', 'celebrò', 'festeggia', 'festeggiò', 'trionfa', 'trionfò',
+    'vince', 'vinse', 'vittoria', 'vincitore', 'vincitrice',
+    'epilogo', 'finale', 'alla fine', 'nel finale',
+    'anni dopo', 'continua', 'continuò', 'visse', 'vive',
+    'abbraccia', 'abbracciò', 'sorriso', 'sorrise', 'felice',
+    'nuova era', 'nuovo inizio', 'futuro', 'speranza',
+    'insieme', 'unito', 'unita', 'riunito', 'riunita'
+  ];
+
+  const survivalKeywordsEn = [
+    'survives', 'survived', 'escaped death', 'cheated death',
+    'alive', 'living', 'in life', 'still breathing',
+    'recovers', 'recovered', 'healed', 'got better',
+    'emerges', 'emerged', 'rises', 'rose again', 'got back up',
+    'celebrates', 'celebrated', 'rejoices', 'rejoiced', 'triumphs', 'triumphed',
+    'wins', 'won', 'victory', 'victorious',
+    'epilogue', 'finale', 'in the end', 'at the end',
+    'years later', 'continues', 'continued', 'lived', 'lives on',
+    'embraces', 'embraced', 'smiles', 'smiled', 'happy',
+    'new era', 'new beginning', 'future', 'hope',
+    'together', 'united', 'reunited'
+  ];
+
+  // Death keywords that indicate character is DEAD
+  const deathKeywordsIt = [
+    'muore', 'morì', 'morto', 'morta', 'morte',
+    'ucciso', 'uccisa', 'ammazzato', 'ammazzata',
+    'deceduto', 'deceduta', 'perito', 'perita', 'spirò',
+    'ultimo respiro', 'esalò', 'smise di respirare',
+    'corpo senza vita', 'cadavere', 'defunto', 'defunta',
+    'non si rialzò più', 'non si mosse più', 'mai più',
+    'sacrifica la vita', 'sacrificò la vita', 'muore da eroe'
+  ];
+
+  const deathKeywordsEn = [
+    'dies', 'died', 'dead', 'death', 'deceased',
+    'killed', 'murdered', 'slain', 'slayed',
+    'perished', 'expired', 'passed away',
+    'last breath', 'breathed last', 'stopped breathing',
+    'lifeless body', 'corpse', 'lifeless',
+    'never got back up', 'never moved again', 'never rose again',
+    'sacrificed life', 'gave life', 'died a hero'
+  ];
+
+  const survivalKeywords = isItalian ? survivalKeywordsIt : survivalKeywordsEn;
+  const deathKeywords = isItalian ? deathKeywordsIt : deathKeywordsEn;
+
+  // Check for survival keywords in notes
+  const hasSurvivalKeyword = survivalKeywords.some(kw => notesLower.includes(kw.toLowerCase()));
+
+  // Check for death keywords in notes
+  const hasDeathKeyword = deathKeywords.some(kw => notesLower.includes(kw.toLowerCase()));
+
+  // Validate status against notes
+  const statusLower = status.toLowerCase();
+
+  // CASE 1: Status is 'dead' but notes say they survive
+  if (statusLower === 'dead' && hasSurvivalKeyword && !hasDeathKeyword) {
+    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
+    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'alive'`);
+    return { status: 'alive', correctionLogged: true };
+  }
+
+  // CASE 2: Status is 'alive' but notes say they die
+  if (statusLower === 'alive' && hasDeathKeyword && !hasSurvivalKeyword) {
+    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate death. Notes: "${notes}"`);
+    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'dead'`);
+    return { status: 'dead', correctionLogged: true };
+  }
+
+  // CASE 3: Status is 'injured' but notes say they die
+  if (statusLower === 'injured' && hasDeathKeyword && !hasSurvivalKeyword) {
+    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate death. Notes: "${notes}"`);
+    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'dead'`);
+    return { status: 'dead', correctionLogged: true };
+  }
+
+  // CASE 4: Status is 'missing' but notes clearly say they survive
+  if (statusLower === 'missing' && hasSurvivalKeyword && !hasDeathKeyword) {
+    console.log(`[Feature #398] CONTRADICTION DETECTED: status='${status}' but notes indicate survival. Notes: "${notes}"`);
+    console.log(`[Feature #398] AUTO-CORRECTING: '${status}' → 'alive'`);
+    return { status: 'alive', correctionLogged: true };
+  }
+
+  return { status, correctionLogged: false };
+}
+
 // Helper function to fetch and format continuity data for AI generation (Feature #304)
 interface ContinuityContext {
   cumulativeSynopsis: string;
@@ -3689,13 +3809,28 @@ Respond with JSON:
   }
 
   const parsed = JSON.parse(jsonStr);
-  const results = (parsed.characters || []).map((c: any) => ({
-    name: String(c.name || '').trim(),
-    status_at_end: ['alive', 'dead', 'injured', 'missing', 'unknown'].includes(String(c.status_at_end || '').trim().toLowerCase())
-      ? String(c.status_at_end).trim().toLowerCase()
-      : 'unknown',
-    status_notes: String(c.status_notes || '').trim()
-  }));
+  const results = (parsed.characters || []).map((c: any) => {
+    const rawStatus = String(c.status_at_end || '').trim().toLowerCase();
+    const rawNotes = String(c.status_notes || '').trim();
+    const validStatus = ['alive', 'dead', 'injured', 'missing', 'unknown'].includes(rawStatus)
+      ? rawStatus
+      : 'unknown';
+
+    // Feature #398: Validate status against notes for contradictions
+    const validationResult = validateCharacterStatus(validStatus, rawNotes, language);
+    const finalStatus = validationResult.status;
+    const finalNotes = validationResult.correctionLogged
+      ? (language === 'it'
+          ? `${rawNotes} [Corretto da ${validStatus} a ${finalStatus}]`
+          : `${rawNotes} [Corrected from ${validStatus} to ${finalStatus}]`)
+      : rawNotes;
+
+    return {
+      name: String(c.name || '').trim(),
+      status_at_end: finalStatus,
+      status_notes: finalNotes
+    };
+  });
 
   console.log(`[NovelAnalysis] Character status consolidation returned ${results.length} results`);
   return results;
@@ -7368,11 +7503,21 @@ Reply ONLY with the JSON.`;
               : ` [Quote: "${parsed.final_mention.substring(0, 100)}${parsed.final_mention.length > 100 ? '...' : ''}"]`;
           }
 
+          // Feature #398: Validate status against notes for contradictions
+          let finalStatus = parsed.status.toLowerCase();
+          const validationResult = validateCharacterStatus(finalStatus, notes, language);
+          if (validationResult.correctionLogged) {
+            finalStatus = validationResult.status;
+            notes = isItalian
+              ? `${notes} [Corretto da ${parsed.status} a ${finalStatus}]`
+              : `${notes} [Corrected from ${parsed.status} to ${finalStatus}]`;
+          }
+
           // Feature #397: Cache the result to avoid duplicate LLM calls
-          setCachedStatus(name, hash, parsed.status.toLowerCase(), notes);
+          setCachedStatus(name, hash, finalStatus, notes);
 
           return {
-            status: parsed.status.toLowerCase(),
+            status: finalStatus,
             notes
           };
         }
@@ -8679,12 +8824,25 @@ ${chapterSummaries}`;
           if (parsed) {
             synopsis = parsed.synopsis || '';
             if (Array.isArray(parsed.characters)) {
-              charactersData = parsed.characters.map((c: any) => ({
-                name: c.name || '',
-                status: c.status || 'alive',
-                notes: c.notes || '',
-                role: c.role || ''
-              }));
+              charactersData = parsed.characters.map((c: any) => {
+                const rawStatus = c.status || 'alive';
+                const rawNotes = c.notes || '';
+                // Feature #398: Validate status against notes for contradictions
+                const validationResult = validateCharacterStatus(rawStatus, rawNotes, language);
+                const finalStatus = validationResult.status;
+                const finalNotes = validationResult.correctionLogged
+                  ? (language === 'it'
+                      ? `${rawNotes} [Corretto da ${rawStatus} a ${finalStatus}]`
+                      : `${rawNotes} [Corrected from ${rawStatus} to ${finalStatus}]`)
+                  : rawNotes;
+
+                return {
+                  name: c.name || '',
+                  status: finalStatus,
+                  notes: finalNotes,
+                  role: c.role || ''
+                };
+              });
             }
             if (Array.isArray(parsed.events)) {
               eventsData = parsed.events.map((e: any) => ({

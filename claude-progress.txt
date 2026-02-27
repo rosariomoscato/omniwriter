@@ -1,5 +1,97 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-27 - Feature #398 Implementation
+
+### Completed Features: 397/397 (100%)
+
+### Feature #398: Bug - AI restituisce status contraddittori (dead ma sopravvive nelle note)
+
+**Objective:** La finalizzazione dell'episodio marca personaggi come morti anche quando le note dicono che sopravvivono (es. Athan e Gloria). Il problema è che l'LLM principale restituisce JSON contraddittori: status=dead ma notes=Sopravvive. Bisogna aggiungere validazione post-AI che rileva queste contraddizioni e corregge lo stato basandosi sulle note.
+
+**Implementation:**
+
+#### 1. Created `validateCharacterStatus` function (lines 63-168 in projects.ts)
+
+A new validation function that:
+- Checks if notes contradict the status
+- Detects survival keywords: sopravvive, emerge, celebra, vittoria, epilogo, vive, etc.
+- Detects death keywords: muore, morto, ultimo respiro, cadavere, etc.
+- Auto-corrects status when contradiction found:
+  - status='dead' + survival keywords → 'alive'
+  - status='alive' + death keywords → 'dead'
+  - status='injured' + death keywords → 'dead'
+  - status='missing' + survival keywords → 'alive'
+
+**Survival Keywords (Italian):**
+- sopravvive, sopravvisse, si salvò, si salva, salvato, salvata
+- vivo, viva, vivente, in vita
+- si riprende, si riprese, guarito, guarita, guarì
+- emerge, emerso, emersa
+- celebra, celebrò, festeggia, festeggiò, trionfa, trionfò
+- vince, vinse, vittoria, vincitore, vincitrice
+- epilogo, finale, alla fine, nel finale
+- anni dopo, continua, continuò, visse, vive
+- abbraccia, abbracciò, sorriso, sorrise, felice
+- nuova era, nuovo inizio, futuro, speranza
+- insieme, unito, unita, riunito, riunita
+
+**Death Keywords (Italian):**
+- muore, morì, morto, morta, morte
+- ucciso, uccisa, ammazzato, ammazzata
+- deceduto, deceduta, perito, perita, spirò
+- ultimo respiro, esalò, smise di respirare
+- corpo senza vita, cadavere, defunto, defunta
+- non si rialzò più, non si mosse più, mai più
+- sacrifica la vita, sacrificò la vita, muore da eroe
+
+#### 2. Applied Validation in 3 Locations
+
+**Location 1: `deduceCharacterStatusWithAI` function (line 7508)**
+- Validates LLM result before caching and returning
+- Adds "[Corrected from X to Y]" to notes when correction applied
+
+**Location 2: `consolidateCharacterStatus` function (line 3820)**
+- Validates each character result from consolidation AI
+- Ensures consistency across the full novel analysis
+
+**Location 3: Finalize route AI parsing (line 8831)**
+- Validates all characters extracted from AI analysis
+- Catches contradictions in episode finalization
+
+#### 3. Test Suite Created
+
+Created `/test-character-status-validation-398.js` with 30 test cases:
+
+**Edge Cases from Robocrazia novel:**
+- ✅ Athan: status='dead', notes='Sopravvive alla battaglia finale' → 'alive'
+- ✅ Gloria: status='dead', notes='Emerge più forte dopo il rituale' → 'alive'
+- ✅ KT119U: status='dead', notes='Il robot si riprende e celebra la vittoria' → 'alive'
+
+**All 30 test cases pass:**
+- Survival keywords correctly override 'dead' status
+- Death keywords correctly override 'alive'/'injured' status
+- No correction when both survival and death keywords present
+- No correction when status matches notes
+- Empty/null notes handled gracefully
+
+**Files Modified:**
+- `server/src/routes/projects.ts` (added ~100 lines)
+
+**Files Created:**
+- `test-character-status-validation-398.js` (test suite)
+
+### Commit: TBD
+
+**Status: Feature #398 MARKED PASSING**
+
+---
+
+## MILESTONE: 397/397 Features Passing (100%)
+
+Latest completed: Feature #398 - Post-AI character status validation for contradictory results
+
+---
+
 ## Session: 2026-02-27 - Feature #397 Implementation
 
 ### Completed Features: 395/396 (99.7%)
