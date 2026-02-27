@@ -745,6 +745,10 @@ export default function ProjectDetail() {
           },
           onError: (error) => {
             toast.error(error || 'Failed to regenerate chapter');
+          },
+          // Feature #393: Handle waiting event for slow reasoning models
+          onWaiting: (data) => {
+            console.log(`[Regenerate] Waiting: ${data.reason} (${Math.round(data.elapsedTime / 1000)}s)`);
           }
         }
       );

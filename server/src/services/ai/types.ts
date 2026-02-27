@@ -44,7 +44,8 @@ export interface ModelInfo {
 }
 
 // Streaming event types
-export type StreamEventType = 'start' | 'delta' | 'done' | 'error';
+// Feature #393: Added 'waiting' event type for slow reasoning models
+export type StreamEventType = 'start' | 'delta' | 'done' | 'error' | 'waiting';
 
 // Stream event
 export interface StreamEvent {
@@ -52,6 +53,9 @@ export interface StreamEvent {
   content?: string;
   error?: string;
   usage?: TokenUsage;
+  // Feature #393: Additional info for waiting events
+  waitingReason?: string;
+  elapsedTime?: number;  // Elapsed time since stream started (ms)
 }
 
 // Token usage statistics

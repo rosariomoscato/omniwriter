@@ -547,6 +547,14 @@ export default function ChapterEditor() {
             debugLogs.logError(error || 'Unknown error');
             toast.error(error || t('chapterEditor.generation.error', 'Failed to generate chapter'));
           },
+          // Feature #393: Handle waiting event for slow reasoning models
+          onWaiting: (data) => {
+            const { reason, elapsedTime } = data;
+            debugLogs.logWaiting(reason, elapsedTime);
+            // Update the generation message to show waiting status
+            const elapsedSec = Math.round(elapsedTime / 1000);
+            setGenerationMessage(`${reason} (${elapsedSec}s)`);
+          },
         }
       );
 

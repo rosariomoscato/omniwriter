@@ -1550,6 +1550,13 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
           }
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
+        } else if (event.type === 'waiting') {
+          // Feature #393: Handle waiting event for slow reasoning models
+          console.log(`[Generate Stream] Waiting event: ${event.waitingReason}, elapsed: ${event.elapsedTime}ms`);
+          sendEvent('waiting', {
+            reason: event.waitingReason || 'Waiting for model response...',
+            elapsedTime: event.elapsedTime || 0
+          });
         } else if (event.type === 'error') {
           const errorMessage = event.error || 'Unknown error during generation';
 
@@ -3013,6 +3020,13 @@ IMPORTANT: Write ONLY the narrative. Do not add notes, comments, source summarie
           }
           fullContent += event.content;
           sendEvent('delta', { content: event.content });
+        } else if (event.type === 'waiting') {
+          // Feature #393: Handle waiting event for slow reasoning models
+          console.log(`[Regenerate Stream] Waiting event: ${event.waitingReason}, elapsed: ${event.elapsedTime}ms`);
+          sendEvent('waiting', {
+            reason: event.waitingReason || 'Waiting for model response...',
+            elapsedTime: event.elapsedTime || 0
+          });
         } else if (event.type === 'error') {
           const errorMessage = event.error || 'Unknown error during regeneration';
 

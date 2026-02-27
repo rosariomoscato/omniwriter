@@ -256,6 +256,12 @@ export function useDebugLogs(maxEntries: number = 100) {
     }
   }, [addLog]);
 
+  // Feature #393: Log waiting event for slow reasoning models
+  const logWaiting = useCallback((reason: string, elapsedTime: number) => {
+    const elapsedSec = Math.round(elapsedTime / 1000);
+    addLog('waiting', `Waiting for model... (${elapsedSec}s)`, { reason, elapsed_ms: elapsedTime });
+  }, [addLog]);
+
   return {
     logs,
     connectionStatus,
@@ -266,6 +272,7 @@ export function useDebugLogs(maxEntries: number = 100) {
     logDone,
     logError,
     logConnection,
+    logWaiting,
   };
 }
 

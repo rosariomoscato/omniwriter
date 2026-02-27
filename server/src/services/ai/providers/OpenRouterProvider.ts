@@ -143,6 +143,20 @@ export class OpenRouterProvider extends BaseProvider {
     return this.chat([{ role: 'user', content: prompt }], options);
   }
 
+  // Feature #393: Check if model is a "reasoning" model that needs longer idle timeout
+  private isReasoningModel(model: string): boolean {
+    const reasoningPatterns = [
+      /gpt-5/i,
+      /o1-/i,
+      /o3-/i,
+      /claude.*thinking/i,
+      /claude.*extended/i,
+      /deepseek.*reasoning/i,
+      /reasoning/i
+    ];
+    return reasoningPatterns.some(pattern => pattern.test(model));
+  }
+
   async *stream(
     messages: ChatMessage[],
     options?: CompletionOptions
@@ -156,10 +170,19 @@ export class OpenRouterProvider extends BaseProvider {
     }
 
     const body = this.buildRequestBody(messages, { ...options, stream: true });
+    const model = options?.model || this.getDefaultModel();
+
+    // Feature #393: Increase idle timeout for "reasoning" models (GPT 5.x, Claude thinking, etc.)
+    // These models can take up to 3 minutes to produce the first token
+    const isReasoning = this.isReasoningModel(model);
+    const defaultIdleTimeout = isReasoning ? 180 * 1000 : BaseProvider.DEFAULT_IDLE_TIMEOUT_MS; // 180s for reasoning, 60s default
 
     // Feature #273: Get timeout settings from options or use defaults
     const timeoutMs = options?.timeoutMs || BaseProvider.DEFAULT_TIMEOUT_MS;
-    const idleTimeoutMs = options?.idleTimeoutMs || BaseProvider.DEFAULT_IDLE_TIMEOUT_MS;
+    const idleTimeoutMs = options?.idleTimeoutMs || defaultIdleTimeout;
+
+    // Feature #393: Log model info and timeout settings
+    console.log(`[OpenRouter] Model: ${model}, isReasoning: ${isReasoning}, idleTimeout: ${idleTimeoutMs}ms`);
 
     let retries = 0;
     const maxRetries = this.retryConfig.maxRetries;
@@ -172,9 +195,18 @@ export class OpenRouterProvider extends BaseProvider {
       // Feature #273: Track if stream is stalled
       let streamStalled = false;
 
-      try {
-        console.log(`[OpenRouter] Starting stream with timeout=${timeoutMs}ms, idleTimeout=${idleTimeoutMs}ms`);
+      // Feature #393: Track timing for waiting events
+      const streamStartTime = Date.now();
+      let lastWaitingEventTime = 0;
+      const waitingEventInterval = 10000; // Send waiting event every 10 seconds
 
+      try {
+        // Feature #393: Detailed logging before fetch
+        console.log(`[OpenRouter] Starting fetch to ${this.getBaseUrl()}/chat/completions`);
+        console.log(`[OpenRouter] Request body model: ${body.model}, stream: true`);
+        console.log(`[OpenRouter] Timeout settings: total=${timeoutMs}ms, idle=${idleTimeoutMs}ms`);
+
+        const fetchStartTime = Date.now();
         const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -184,6 +216,9 @@ export class OpenRouterProvider extends BaseProvider {
           body: JSON.stringify(body),
           signal: timeoutController.signal  // Feature #273: Add abort signal
         });
+
+        // Feature #393: Log fetch completion time
+        console.log(`[OpenRouter] Fetch completed in ${Date.now() - fetchStartTime}ms, status: ${response.status}`);
 
         if (!response.ok) {
           timeoutCleanup();
@@ -208,6 +243,9 @@ export class OpenRouterProvider extends BaseProvider {
           return;
         }
 
+        // Feature #393: Log successful connection
+        console.log('[OpenRouter] Response body stream connected, sending start event');
+
         yield { type: 'start' };
 
         const reader = response.body.getReader();
@@ -215,6 +253,8 @@ export class OpenRouterProvider extends BaseProvider {
         let buffer = '';
         let totalContent = '';
         let usage: TokenUsage | undefined;
+        let firstDeltaReceived = false; // Feature #393: Track first delta
+        let chunkCount = 0; // Feature #393: Count chunks for debugging
 
         // Feature #273: Create watchdog to detect stalled streams
         const watchdog = this.createStreamWatchdog(idleTimeoutMs, () => {
@@ -232,10 +272,34 @@ export class OpenRouterProvider extends BaseProvider {
               return;
             }
 
+            // Feature #393: Send "waiting" event periodically if no delta received yet
+            if (!firstDeltaReceived) {
+              const now = Date.now();
+              const elapsed = now - streamStartTime;
+              if (now - lastWaitingEventTime >= waitingEventInterval) {
+                lastWaitingEventTime = now;
+                console.log(`[OpenRouter] Sending waiting event, elapsed: ${elapsed}ms`);
+                yield {
+                  type: 'waiting',
+                  waitingReason: isReasoning ? 'Model is reasoning (this may take a while for thinking models)' : 'Waiting for model response...',
+                  elapsedTime: elapsed
+                };
+              }
+            }
+
             const { done, value } = await reader.read();
 
             if (done) {
+              // Feature #393: Log stream completion
+              console.log(`[OpenRouter] Stream done, total chunks: ${chunkCount}, total content length: ${totalContent.length}`);
               break;
+            }
+
+            // Feature #393: Log raw chunk received and reset watchdog
+            chunkCount++;
+            if (chunkCount <= 5 || chunkCount % 50 === 0) {
+              // Log first 5 chunks and then every 50th chunk
+              console.log(`[OpenRouter] Chunk #${chunkCount} received, size: ${value?.length || 0} bytes`);
             }
 
             // Feature #273: Reset watchdog on each successful read
@@ -255,6 +319,8 @@ export class OpenRouterProvider extends BaseProvider {
               const data = trimmed.slice(6);
 
               if (data === '[DONE]') {
+                // Feature #393: Log stream done event
+                console.log(`[OpenRouter] Received [DONE] event after ${chunkCount} chunks`);
                 watchdog.cleanup();
                 timeoutCleanup();
                 yield { type: 'done', content: totalContent, usage };
@@ -266,6 +332,11 @@ export class OpenRouterProvider extends BaseProvider {
                 const delta = parsed.choices[0]?.delta?.content;
 
                 if (delta) {
+                  // Feature #393: Log first delta received
+                  if (!firstDeltaReceived) {
+                    firstDeltaReceived = true;
+                    console.log(`[OpenRouter] First delta received after ${Date.now() - streamStartTime}ms`);
+                  }
                   totalContent += delta;
                   yield { type: 'delta', content: delta };
                 }
@@ -277,8 +348,9 @@ export class OpenRouterProvider extends BaseProvider {
                     totalTokens: parsed.usage.total_tokens
                   };
                 }
-              } catch {
-                // Skip malformed JSON chunks
+              } catch (parseError) {
+                // Feature #393: Log parse errors for debugging
+                console.warn('[OpenRouter] Failed to parse SSE data:', data.substring(0, 100), parseError);
               }
             }
           }
@@ -291,6 +363,12 @@ export class OpenRouterProvider extends BaseProvider {
         return;
       } catch (error) {
         timeoutCleanup();
+
+        // Feature #393: Detailed error logging
+        console.error('[OpenRouter] Stream error:', error);
+        if (error instanceof Error) {
+          console.error(`[OpenRouter] Error name: ${error.name}, message: ${error.message}`);
+        }
 
         // Feature #273: Check for abort/timeout errors
         if (this.isAbortError(error) || streamStalled) {

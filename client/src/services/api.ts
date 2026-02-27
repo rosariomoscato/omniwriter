@@ -1145,6 +1145,8 @@ class ApiService {
       onDelta?: (content: string) => void;
       onDone?: (data: { message: string; word_count: number; chapter_id?: string; warning?: string }) => void;
       onError?: (error: string) => void;
+      // Feature #393: Waiting callback for slow reasoning models
+      onWaiting?: (data: { reason: string; elapsedTime: number }) => void;
     }
   ): { abort: () => void; promise: Promise<void> } {
     const token = localStorage.getItem('token');
@@ -1256,6 +1258,11 @@ class ApiService {
                   case 'delta':
                     callbacks?.onDelta?.(data.content);
                     break;
+                  case 'waiting':
+                    // Feature #393: Handle waiting event from slow reasoning models
+                    console.log('[SSE] Waiting event received:', data.reason, 'elapsed:', data.elapsedTime);
+                    callbacks?.onWaiting?.(data);
+                    break;
                   case 'done':
                     cleanupWatchdog();
                     callbacks?.onDone?.(data);
@@ -1321,6 +1328,8 @@ class ApiService {
         note?: string;
       }) => void;
       onError?: (error: string) => void;
+      // Feature #393: Waiting callback for slow reasoning models
+      onWaiting?: (data: { reason: string; elapsedTime: number }) => void;
     }
   ): { abort: () => void; promise: Promise<void> } {
     const token = localStorage.getItem('token');
@@ -1430,6 +1439,11 @@ class ApiService {
                     break;
                   case 'delta':
                     callbacks?.onDelta?.(data.content);
+                    break;
+                  case 'waiting':
+                    // Feature #393: Handle waiting event from slow reasoning models
+                    console.log('[SSE] Waiting event received:', data.reason, 'elapsed:', data.elapsedTime);
+                    callbacks?.onWaiting?.(data);
                     break;
                   case 'done':
                     cleanupWatchdog();
