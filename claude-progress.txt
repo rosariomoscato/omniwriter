@@ -1,5 +1,130 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-27 - Feature #395 Implementation
+
+### Completed Features: 394/394 (100%)
+
+### Feature #395: Miglioramento UX per modelli reasoning con streaming lento
+
+**Objective:** Quando si usano modelli reasoning (GPT 5.x, Claude thinking), l'output arriva tutto insieme dopo lunghi tempi di attesa. Migliorare UX mostrando: 1) Progress bar animata durante waiting, 2) Stimatore tempo rimanente, 3) Messaggio esplicativo che il modello sta elaborando, 4) Possibilità di vedere log in tempo reale.
+
+**Implementation:**
+
+#### 1. Created WaitingIndicator Component (client/src/components/WaitingIndicator.tsx)
+
+**Features:**
+- Animated progress bar with indeterminate animation when no estimate
+- Determinate progress when estimated time is available
+- Elapsed time display in human-readable format (MM:SS or HH:MM:SS)
+- Estimated remaining time display
+- Phase descriptions that update based on elapsed time:
+  - < 30s: "Initializing reasoning process..."
+  - < 60s: "Analyzing context and planning..."
+  - < 120s: "Deep reasoning in progress..."
+  - > 120s: "Extended reasoning for quality output..."
+- Cancel button with confirmation dialog
+- Model name badge display
+- Brain icon with spinning hourglass animation
+- Explanatory message about reasoning models
+- Dark/light theme support
+
+**Props:**
+```typescript
+interface WaitingIndicatorProps {
+  isActive: boolean;
+  startTime: number | null;
+  reason?: string;
+  onCancel?: () => void;
+  modelName?: string;
+  isReasoningModel?: boolean;
+  estimatedWaitSeconds?: number;
+}
+```
+
+#### 2. Created useWaitingIndicator Hook
+
+**Features:**
+- Manages waiting state (isWaiting, waitingStartTime, waitingReason)
+- Tracks model name and reasoning model status
+- Stores estimated wait time
+- startWaiting() - Initialize waiting with options
+- stopWaiting() - Clear waiting state
+- updateWaitingReason() - Update reason during waiting
+
+#### 3. Integration in ChapterEditor.tsx
+
+**Changes:**
+- Imported WaitingIndicator and useWaitingIndicator
+- Added waitingIndicator state using useWaitingIndicator hook
+- Modified handleGenerateChapter to:
+  - Start waiting indicator at generation start
+  - Stop waiting on phase updates (when not waiting anymore)
+  - Stop waiting on first delta (when content starts streaming)
+  - Update waiting reason on waiting events from server
+  - Stop waiting on done/error/cancel
+- Added WaitingIndicator component in render:
+  - Fixed position at bottom center
+  - Shows when isGenerating AND waitingIndicator.isWaiting
+  - Passes all relevant props including cancel handler
+
+#### 4. i18n Translations Added
+
+**English (en.json):**
+```json
+"waitingIndicator": {
+  "title": "AI Processing",
+  "reasoningModelTitle": "Reasoning Model Active",
+  "processing": "Processing...",
+  "elapsed": "Elapsed",
+  "remaining": "Est. remaining",
+  "cancel": "Cancel",
+  "cancelConfirmTitle": "Cancel Generation?",
+  "cancelConfirmMessage": "Are you sure you want to cancel?...",
+  "confirmCancel": "Yes, Cancel",
+  "standardExplanation": "The AI model is processing...",
+  "reasoningExplanation": "Advanced reasoning models produce higher quality...",
+  "reasoning": {
+    "starting": "Initializing reasoning process...",
+    "analyzing": "Analyzing context and planning...",
+    "thinking": "Deep reasoning in progress...",
+    "extended": "Extended reasoning for quality output..."
+  }
+}
+```
+
+**Italian (it.json):**
+```json
+"waitingIndicator": {
+  "title": "Elaborazione AI",
+  "reasoningModelTitle": "Modello Reasoning Attivo",
+  "processing": "Elaborazione...",
+  "elapsed": "Trascorso",
+  "remaining": "Tempo rimanente stimato",
+  "cancel": "Annulla",
+  ...
+}
+```
+
+**Files Created:**
+- `client/src/components/WaitingIndicator.tsx` (280 lines)
+
+**Files Modified:**
+- `client/src/pages/ChapterEditor.tsx` (added import, hook, integration)
+- `client/src/i18n/locales/en.json` (added waitingIndicator translations)
+- `client/src/i18n/locales/it.json` (added waitingIndicator translations)
+
+### Commit: 5d0e55d
+
+**Status: Feature #395 MARKED PASSING**
+
+---
+
+## MILESTONE: 394/394 Features Passing (100%)
+
+ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED!
+
+---
+
 ## Session: 2026-02-26 - Feature #392 Implementation
 
 ### Completed Features: 390/391 (99.7%)
