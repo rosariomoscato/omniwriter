@@ -17,6 +17,49 @@ import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #
 
 const router = Router();
 
+// ============================================================================
+// Feature #397: LLM-based character status analysis cache
+// Caches LLM results to avoid duplicate calls for the same character/content
+// ============================================================================
+interface CharacterStatusCacheEntry {
+  status: string;
+  notes: string;
+  timestamp: number;
+}
+const characterStatusCache = new Map<string, CharacterStatusCacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+
+function getCacheKey(characterName: string, contentHash: string): string {
+  return `${characterName.toLowerCase()}:${contentHash}`;
+}
+
+function getContentHash(content: string): string {
+  // Simple hash function for content
+  let hash = 0;
+  const str = content.substring(0, 1000); // Use first 1000 chars for hash
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash.toString(16);
+}
+
+function getCachedStatus(characterName: string, contentHash: string): CharacterStatusCacheEntry | null {
+  const key = getCacheKey(characterName, contentHash);
+  const entry = characterStatusCache.get(key);
+  if (entry && (Date.now() - entry.timestamp) < CACHE_TTL_MS) {
+    return entry;
+  }
+  characterStatusCache.delete(key); // Expired entry
+  return null;
+}
+
+function setCachedStatus(characterName: string, contentHash: string, status: string, notes: string): void {
+  const key = getCacheKey(characterName, contentHash);
+  characterStatusCache.set(key, { status, notes, timestamp: Date.now() });
+}
+
 // Helper function to fetch and format continuity data for AI generation (Feature #304)
 interface ContinuityContext {
   cumulativeSynopsis: string;
@@ -6657,97 +6700,134 @@ function analyzeCharacterStatusInText(
 
   const isItalian = language === 'it';
 
-  // Death patterns - Italian
-  const deathPatternsIt = [
-    new RegExp(`${escapedName}[^.!?]*(?:muore|è morto|è morta|morì|mori|ucciso|uccisa|uccidere|ammazzato|ammazzata|cadde|caduto|caduta|sacrificò|sacrificato|sacrificata|trafigge|colpì a morte|ferita mortale|morte eroica|morire|perì|peri|deceduto|deceduta|estinto)`, 'i'),
-    new RegExp(`(?:muore|muoiono|è morto|è morta|morì|mori)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`(?:uccide|uccidono|ammazza|uccise|uccisero)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:non si rialzò|non si rialza|non resse|cadde per sempre|ultimo respiro|occhi si chiusero|si spense)`, 'i'),
+  // ==========================================================================
+  // Feature #396: Improved character status detection
+  // Priority: ALIVE > INJURED > DEAD
+  // Only mark as dead with explicit, unambiguous death indicators
+  // ==========================================================================
+
+  // Exclusion patterns - if these match, character is NOT dead (Italian)
+  const notDeadPatternsIt = [
+    // Explicit survival
+    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|si salvò|salvo|salva|vivo|viva|si riprese|guarì|guari|riuscì a scappare|riuscì a fuggire)`, 'i'),
+    // Recovery after injury
+    new RegExp(`${escapedName}[^.!?]*(?:si rialzò|si rialza|emerse|emerge[^.!?]*più forte|si riprend|guarì|recuperò)`, 'i'),
+    // Positive actions after being mentioned in violent context
+    new RegExp(`${escapedName}[^.!?]*(?:abbracciò|sorrise|rise|festeggi|celebr|trionf|vinse|vittoria)`, 'i'),
+    // Epilogue/future references
+    new RegExp(`${escapedName}[^.!?]*(?:alla fine|nell'epilogo|nel finale|visse per|anni dopo|continuò|regna|governa)`, 'i'),
+    // Wounded but explicitly not dead
+    new RegExp(`${escapedName}[^.!?]*(?:ferito[^.!?]*ma (?:vivo|sopravvisse)|sanguinando[^.!?]*ma|non mortale)`, 'i'),
+  ];
+
+  // Exclusion patterns - if these match, character is NOT dead (English)
+  const notDeadPatternsEn = [
+    // Explicit survival
+    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|escaped|alive|safe|recovered|healed|made it|pulled through)`, 'i'),
+    // Recovery after injury
+    new RegExp(`${escapedName}[^.!?]*(?:got back up|rose again|emerged[^.!?]*stronger|recovered|healed)`, 'i'),
+    // Positive actions after being mentioned in violent context
+    new RegExp(`${escapedName}[^.!?]*(?:hugged|smiled|laughed|celebrated|triumphed|won|victory)`, 'i'),
+    // Epilogue/future references
+    new RegExp(`${escapedName}[^.!?]*(?:in the end|in the epilogue|in the finale|lived for|years later|continued|reigns|rules)`, 'i'),
+    // Wounded but explicitly not dead
+    new RegExp(`${escapedName}[^.!?]*(?:wounded[^.!?]*but (?:alive|survived)|bleeding[^.!?]*but|non-lethal|not fatal)`, 'i'),
+  ];
+
+  // Strong death patterns - require EXPLICIT death indicators (Italian)
+  // These are the ONLY patterns that can mark a character as dead
+  const strongDeathPatternsIt = [
+    // Explicit death verbs with character as subject
+    new RegExp(`${escapedName}[^.!?]*(?:morì|è morto|è morta|muore|perì|spirò|decedette)`, 'i'),
+    // Explicit "was killed" constructions
+    new RegExp(`${escapedName}[^.!?]*(?:fu ucciso|fu uccisa|venne ucciso|venne uccisa|è stato ucciso|è stata uccisa)`, 'i'),
+    // Death scene descriptions - very explicit
+    new RegExp(`${escapedName}[^.!?]*(?:ultimo respiro|esalò l'ultimo respiro|smise di respirare|occhi si chiusero per sempre|corpo senza vita|cadavere di)`, 'i'),
+    // "Died in arms" type descriptions
+    new RegExp(`${escapedName}[^.!?]*(?:morì tra le braccia|spirò tra le braccia|morì tra le sue braccia)`, 'i'),
+    // "The death of X" - explicit reference
     new RegExp(`la morte di ${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:sangue[^.!?]*uscire|sangue[^.!?]*fluire|morì tra le braccia|spirò)`, 'i'),
-    // Pattern: "X uccise Name" or "X uccide Name"
-    new RegExp(`(?:uccise|uccide|ammazzò|ammazza|eliminò|elimina)[^.!?]*${escapedName}`, 'i'),
-    // Pattern: "X sconfisse Name" with lethal context
-    new RegExp(`sconfisse[^.!?]*${escapedName}[^.!?]*(?:uccidendo|ucciso|morto)`, 'i'),
+    // "X killed Y" - active verb with character as object (very explicit)
+    new RegExp(`(?:uccise|ammazzò|eliminò)[^.!?]*${escapedName}[^.!?]*(?:morto|ucciso|senza vita)`, 'i'),
+    // Sacrifice with death confirmation
+    new RegExp(`${escapedName}[^.!?]*(?:si sacrificò[^.!?]*morendo|sacrificò la propria vita|morì da eroe)`, 'i'),
+    // Never rose/never got up - explicit death (colpito a morte + non si rialzò più)
+    new RegExp(`${escapedName}[^.!?]*(?:colpito a morte|non si rialzò più|non si mosse più|non si riprese mai)`, 'i'),
   ];
 
-  // Death patterns - English
-  const deathPatternsEn = [
-    new RegExp(`${escapedName}[^.!?]*(?:dies|died|is killed|was killed|killed|slain|slayed|fell|sacrificed|mortal wound|death|perished|passed away)`, 'i'),
-    new RegExp(`(?:dies|died|is killed|was killed)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`(?:kills|murders|slays|killed)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:never rose|didn't rise|didn't make it|last breath|eyes closed|passed on)`, 'i'),
+  // Strong death patterns - require EXPLICIT death indicators (English)
+  const strongDeathPatternsEn = [
+    // Explicit death verbs with character as subject
+    new RegExp(`${escapedName}[^.!?]*(?:died|has died|is dead|was dead|perished|passed away|expired)`, 'i'),
+    // Explicit "was killed" constructions
+    new RegExp(`${escapedName}[^.!?]*(?:was killed|was murdered|was slain|got killed)`, 'i'),
+    // Death scene descriptions - very explicit
+    new RegExp(`${escapedName}[^.!?]*(?:last breath|breathed (?:his|her|their) last|stopped breathing|eyes closed (?:forever|for good)|lifeless body|corpse of)`, 'i'),
+    // "Died in arms" type descriptions
+    new RegExp(`${escapedName}[^.!?]*(?:died in[^.!?]*arms|passed (?:away|on) in[^.!?]*arms)`, 'i'),
+    // "The death of X" - explicit reference
     new RegExp(`the death of ${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:blood[^.!?]*flowing|died in[^.!?]*arms|breathed[^.!?]*last)`, 'i'),
-    // Pattern: "X killed Name" - active verb with Name as object
-    new RegExp(`killed[^.!?]*${escapedName}`, 'i'),
-    // Pattern: "defeated Name" with lethal context
-    new RegExp(`defeated[^.!?]*${escapedName}[^.!?]*(?:killing|killed|dead)`, 'i'),
+    // "X killed Y" - active verb with character as object (very explicit)
+    new RegExp(`(?:killed|murdered|eliminated)[^.!?]*${escapedName}[^.!?]*(?:dead|body|lifeless)`, 'i'),
+    // Sacrifice with death confirmation
+    new RegExp(`${escapedName}[^.!?]*(?:sacrificed (?:himself|herself|themselves)[^.!?]*dying|gave (?:his|her|their) life)`, 'i'),
+    // Never rose/never got up - explicit death
+    new RegExp(`${escapedName}[^.!?]*(?:never (?:got back up|rose again|moved again|recovered))`, 'i'),
   ];
 
-  // Injury patterns - Italian
+  // Injury patterns - Italian (without aggressive "sangue" pattern)
+  // These should only match if character is wounded but NOT explicitly recovering
   const injuryPatternsIt = [
-    new RegExp(`${escapedName}[^.!?]*(?:ferito|ferita|colpito|colpita|sanguinando|sangue|gravemente|bruciato|bruciata|mutilato|mutilata|perde un|perso un|persa una|cicatrice|menomato|menomata|invalido|invalida)`, 'i'),
-    new RegExp(`(?:ferisce|colpisce|brucia)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:cadde a terra|strisciò|zoppicava|non riusciva a|perdeva sangue)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:fu ferito|fu ferita|venne ferito|è stato ferito|è stata ferita|rimase ferito|rimase ferita)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:fu colpito|fu colpita|venne colpito|venne colpita)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:ferito|ferita|colpito|colpita)[^.!?]*(?:gravemente|seriamente)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:sanguinava|perdeva sangue|aveva una ferita)`, 'i'),
+    new RegExp(`(?:ferì|colpì|bruciò)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:cadde a terra|strisciò|zoppicava)`, 'i'),
   ];
 
   // Injury patterns - English
   const injuryPatternsEn = [
-    new RegExp(`${escapedName}[^.!?]*(?:wounded|injured|hurt|bleeding|blood|badly|burned|burnt|mutilated|lost a|scar|maimed|disabled|crippled)`, 'i'),
-    new RegExp(`(?:wounds|injures|hurts|burns)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:fell to the ground|crawled|limped|couldn't|was bleeding)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:was wounded|was injured|got wounded|got injured|remained injured)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:wounded|injured|hurt)[^.!?]*(?:but[^.!?]*(?:alive|survived|recovered)|badly|severely)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:was bleeding|had a wound|bled|remained wounded)`, 'i'),
+    new RegExp(`(?:wounded|injured|hurt|burned)[^.!?]*${escapedName}`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:fell to the ground|crawled|limped|unable to)`, 'i'),
   ];
 
   // Alive patterns - Italian
   const alivePatternsIt = [
-    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|vivo|viva|salvo|salva|si riprese|guarì|guari|ritorno|ritornò|celebrò|celebra|festa|trionfo|vittoria|finalmente)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|vivo|viva|salvo|salva|si riprese|guarì|guari|ritorno|ritornò)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:si rialzò|si rialza|emerse|emerge[^.!?]*più forte|si riprend)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:celebrò|celebra|festeggi|trionf|vinse|vittoria|finalmente)`, 'i'),
     new RegExp(`${escapedName}[^.!?]*(?:alla fine|nell'epilogo|nel finale|visse per|regna|governa)`, 'i'),
     new RegExp(`${escapedName}[^.!?]*(?:abbracciò|sorrise|rise|pianto di gioia|felice)`, 'i'),
   ];
 
   // Alive patterns - English
   const alivePatternsEn = [
-    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|alive|safe|recovered|healed|returned|celebrated|triumph|victory|finally)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|alive|safe|recovered|healed|returned|made it)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:got back up|rose again|emerged stronger|recovered)`, 'i'),
+    new RegExp(`${escapedName}[^.!?]*(?:celebrated|triumph|victory|finally)`, 'i'),
     new RegExp(`${escapedName}[^.!?]*(?:in the end|in the epilogue|in the finale|lived for|reigns|rules)`, 'i'),
     new RegExp(`${escapedName}[^.!?]*(?:hugged|smiled|laughed|tears of joy|happy)`, 'i'),
   ];
 
-  const deathPatterns = isItalian ? deathPatternsIt : deathPatternsEn;
+  const notDeadPatterns = isItalian ? notDeadPatternsIt : notDeadPatternsEn;
+  const strongDeathPatterns = isItalian ? strongDeathPatternsIt : strongDeathPatternsEn;
   const injuryPatterns = isItalian ? injuryPatternsIt : injuryPatternsEn;
   const alivePatterns = isItalian ? alivePatternsIt : alivePatternsEn;
 
-  // Check for death patterns first (highest priority)
-  for (const pattern of deathPatterns) {
-    if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found death pattern for "${name}" in text`);
-      return {
-        status: 'dead',
-        notes: isItalian
-          ? `Status dedotto dal testo: il personaggio muore nella storia`
-          : `Status deduced from text: character dies in the story`
-      };
-    }
-  }
+  // ==========================================================================
+  // NEW PRIORITY ORDER: ALIVE > INJURED > DEAD
+  // This prevents false positives by checking survival indicators first
+  // ==========================================================================
 
-  // Check for injury patterns (second priority)
-  for (const pattern of injuryPatterns) {
+  // STEP 1: Check for ALIVE patterns first (highest priority)
+  for (let i = 0; i < alivePatterns.length; i++) {
+    const pattern = alivePatterns[i];
     if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found injury pattern for "${name}" in text`);
-      return {
-        status: 'injured',
-        notes: isItalian
-          ? `Status dedotto dal testo: il personaggio viene ferito`
-          : `Status deduced from text: character is wounded`
-      };
-    }
-  }
-
-  // Check for alive patterns (lowest priority for unknown)
-  // Only use this if no death/injury patterns found and character appears in positive context
-  for (const pattern of alivePatterns) {
-    if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found alive pattern for "${name}" in text`);
+      console.log(`[Status Analysis] Found ALIVE pattern #${i + 1} for "${name}" in text`);
       return {
         status: 'alive',
         notes: isItalian
@@ -6757,7 +6837,72 @@ function analyzeCharacterStatusInText(
     }
   }
 
+  // STEP 2: Check for NOT-DEAD exclusion patterns
+  // If these match, character survived despite violent context
+  for (let i = 0; i < notDeadPatterns.length; i++) {
+    const pattern = notDeadPatterns[i];
+    if (pattern.test(context)) {
+      console.log(`[Status Analysis] Found NOT-DEAD exclusion pattern #${i + 1} for "${name}" - character survives`);
+      return {
+        status: 'alive',
+        notes: isItalian
+          ? `Status dedotto dal testo: il personaggio sopravvive nonostante le difficoltà`
+          : `Status deduced from text: character survives despite difficulties`
+      };
+    }
+  }
+
+  // STEP 3: Check for INJURY patterns (middle priority)
+  for (let i = 0; i < injuryPatterns.length; i++) {
+    const pattern = injuryPatterns[i];
+    if (pattern.test(context)) {
+      console.log(`[Status Analysis] Found INJURY pattern #${i + 1} for "${name}" in text`);
+      return {
+        status: 'injured',
+        notes: isItalian
+          ? `Status dedotto dal testo: il personaggio viene ferito`
+          : `Status deduced from text: character is wounded`
+      };
+    }
+  }
+
+  // STEP 4: Check for STRONG DEATH patterns (lowest priority - requires explicit confirmation)
+  // Only mark as dead if we have very strong evidence
+  for (let i = 0; i < strongDeathPatterns.length; i++) {
+    const pattern = strongDeathPatterns[i];
+    if (pattern.test(context)) {
+      // Double-check: make sure no alive/notDead patterns match near this death mention
+      let hasSurvivalContext = false;
+      for (const alivePattern of [...alivePatterns, ...notDeadPatterns]) {
+        if (alivePattern.test(context)) {
+          hasSurvivalContext = true;
+          console.log(`[Status Analysis] Death pattern #${i + 1} found for "${name}" BUT survival context also present - keeping as alive`);
+          break;
+        }
+      }
+
+      if (!hasSurvivalContext) {
+        console.log(`[Status Analysis] Found STRONG DEATH pattern #${i + 1} for "${name}" - character confirmed dead`);
+        return {
+          status: 'dead',
+          notes: isItalian
+            ? `Status dedotto dal testo: il personaggio muore nella storia`
+            : `Status deduced from text: character dies in the story`
+        };
+      } else {
+        // Survival context found - character is alive
+        return {
+          status: 'alive',
+          notes: isItalian
+            ? `Status dedotto dal testo: il personaggio sopravvive`
+            : `Status deduced from text: character survives`
+        };
+      }
+    }
+  }
+
   // No conclusive patterns found - keep unknown
+  console.log(`[Status Analysis] No conclusive status patterns found for "${name}" - keeping as unknown`);
   return { status: 'unknown', notes: '' };
 }
 
@@ -7113,11 +7258,20 @@ async function deduceCharacterStatusWithAI(
   characterName: string,
   relevantText: string,
   provider: { chat: (messages: ChatMessage[], options?: any) => Promise<string> },
-  language: 'it' | 'en' = 'it'
+  language: 'it' | 'en' = 'it',
+  contentHash?: string
 ): Promise<{ status: string; notes: string } | null> {
   const name = characterName.trim();
   if (!name || !relevantText) {
     return null;
+  }
+
+  // Feature #397: Check cache first to avoid duplicate LLM calls
+  const hash = contentHash || getContentHash(relevantText);
+  const cachedResult = getCachedStatus(name, hash);
+  if (cachedResult) {
+    console.log(`[Feature #397] Cache HIT for "${name}" - returning cached status: ${cachedResult.status}`);
+    return { status: cachedResult.status, notes: cachedResult.notes };
   }
 
   const isItalian = language === 'it';
@@ -7215,7 +7369,7 @@ Reply in JSON format: { "status": "...", "reason": "brief explanation", "final_m
 ⚠️ CERCA L'ULTIMA MENZIONE del personaggio nel testo. Lo stato finale deve basarsi SOLO su cosa succede ALLA FINE, non agli eventi intermedi.
 
 Estratto della storia:
-${relevantText.substring(0, 2500)}${relevantText.length > 2500 ? '...' : ''}
+${relevantText.substring(0, 4000)}${relevantText.length > 4000 ? '...' : ''}
 
 Rispondi SOLO con il JSON.`
     : `Determine the FINAL status of character "${name}" based on this story excerpt.
@@ -7223,12 +7377,12 @@ Rispondi SOLO con il JSON.`
 ⚠️ LOOK FOR THE LAST MENTION of the character in the text. The final status must be based ONLY on what happens at the END, not intermediate events.
 
 Story excerpt:
-${relevantText.substring(0, 2500)}${relevantText.length > 2500 ? '...' : ''}
+${relevantText.substring(0, 4000)}${relevantText.length > 4000 ? '...' : ''}
 
 Reply ONLY with the JSON.`;
 
   try {
-    console.log(`[Feature #322] Level 1: Querying AI for status of "${name}"`);
+    console.log(`[Feature #397] Querying AI for status of "${name}" (context: ${relevantText.length} chars)`);
     const response = await provider.chat(
       [
         { role: 'system', content: systemPrompt },
@@ -7245,7 +7399,7 @@ Reply ONLY with the JSON.`;
         const validStatuses = ['alive', 'dead', 'injured', 'missing', 'transformed'];
 
         if (parsed.status && validStatuses.includes(parsed.status.toLowerCase())) {
-          console.log(`[Feature #322] Level 1: AI determined "${name}" status as "${parsed.status}"`);
+          console.log(`[Feature #397] AI determined "${name}" status as "${parsed.status}"`);
           // Include the final_mention in notes for verification if available
           let notes = parsed.reason || (isItalian
             ? 'Status determinato dall\'AI'
@@ -7255,6 +7409,10 @@ Reply ONLY with the JSON.`;
               ? ` [Cita: "${parsed.final_mention.substring(0, 100)}${parsed.final_mention.length > 100 ? '...' : ''}"]`
               : ` [Quote: "${parsed.final_mention.substring(0, 100)}${parsed.final_mention.length > 100 ? '...' : ''}"]`;
           }
+
+          // Feature #397: Cache the result to avoid duplicate LLM calls
+          setCachedStatus(name, hash, parsed.status.toLowerCase(), notes);
+
           return {
             status: parsed.status.toLowerCase(),
             notes
@@ -7263,7 +7421,7 @@ Reply ONLY with the JSON.`;
       }
     }
   } catch (error) {
-    console.warn(`[Feature #322] Level 1: AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
+    console.warn(`[Feature #397] AI query failed for "${name}":`, error instanceof Error ? error.message : 'Unknown error');
   }
 
   return null;
@@ -8635,91 +8793,124 @@ ${chapterSummaries}`;
     }
 
     // ==========================================================================
-    // Feature #310: Post-process character status for 'unknown' statuses
+    // Feature #397: LLM-first character status analysis
+    // Use LLM as PRIMARY method, regex only as ultra-conservative fallback
     // ==========================================================================
     const chaptersContent = chapters.map(ch => ch.content || '').join('\n\n');
+    const chapterTexts = chapters.map(ch => ch.content || '');
+    const contentHash = getContentHash(chaptersContent);
 
     // Count unknown characters before post-processing
     const unknownCountBefore = charactersData.filter(c => !c.status || c.status === 'unknown').length;
 
     if (unknownCountBefore > 0 && chaptersContent) {
-      console.log(`[Finalize] Feature #310: Post-processing ${unknownCountBefore} characters with 'unknown' status`);
+      console.log(`[Finalize] Feature #397: Processing ${unknownCountBefore} characters with 'unknown' status (LLM-first approach)`);
 
-      for (const charData of charactersData) {
-        if (!charData.status || charData.status === 'unknown') {
-          const analysisResult = analyzeCharacterStatusInText(charData.name, chaptersContent, language);
+      // Get provider for LLM-based analysis
+      const smartProvider = getProviderForUser(userId);
+      const charactersToProcess = charactersData.filter(c => !c.status || c.status === 'unknown');
+      const maxParallel = 5;
 
-          if (analysisResult.status !== 'unknown') {
-            // Update the character status
-            charData.status = analysisResult.status;
+      // ==========================================================================
+      // STEP 1: LLM-based analysis (PRIMARY method)
+      // ==========================================================================
+      if (smartProvider) {
+        console.log(`[Finalize] Feature #397: Using LLM as PRIMARY method for ${charactersToProcess.length} characters`);
 
-            // Append the deduced notes
-            if (analysisResult.notes) {
-              charData.notes = charData.notes
-                ? `${charData.notes} (${analysisResult.notes})`
-                : analysisResult.notes;
+        for (let i = 0; i < charactersToProcess.length; i += maxParallel) {
+          const batch = charactersToProcess.slice(i, i + maxParallel);
+
+          // Get full context for each character (not just snippets)
+          const results = await Promise.all(
+            batch.map(async (charData) => {
+              // Pass FULL chapter content to LLM, not just snippets
+              const name = charData.name.trim();
+              const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const namePattern = new RegExp(`.{0,300}${escapedName}.{0,300}`, 'gi');
+              const matches = chaptersContent.match(namePattern) || [];
+              const fullContext = matches.join('\n\n---\n\n');
+
+              // Use LLM to analyze character status with full context
+              const aiResult = await deduceCharacterStatusWithAI(
+                charData.name,
+                fullContext,
+                smartProvider,
+                language,
+                contentHash
+              );
+
+              return { charData, aiResult };
+            })
+          );
+
+          // Apply LLM results
+          for (const { charData, aiResult } of results) {
+            if (aiResult && aiResult.status !== 'unknown') {
+              charData.status = aiResult.status;
+              if (aiResult.notes) {
+                charData.notes = charData.notes
+                  ? `${charData.notes} (${aiResult.notes})`
+                  : aiResult.notes;
+              }
+              console.log(`[Finalize] Feature #397: LLM resolved "${charData.name}" to '${charData.status}'`);
             }
+          }
+        }
+      }
 
-            console.log(`[Finalize] Feature #310: Updated "${charData.name}" status from 'unknown' to '${charData.status}'`);
+      // ==========================================================================
+      // STEP 2: Regex-based fallback (ULTRA-CONSERVATIVE - only for remaining unknowns)
+      // Only marks as dead with EXPLICIT, UNAMBIGUOUS death indicators
+      // ==========================================================================
+      const remainingUnknown = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+
+      if (remainingUnknown > 0) {
+        console.log(`[Finalize] Feature #397: Regex fallback for ${remainingUnknown} remaining unknown characters`);
+
+        for (const charData of charactersData) {
+          if (!charData.status || charData.status === 'unknown') {
+            const analysisResult = analyzeCharacterStatusInText(charData.name, chaptersContent, language);
+
+            if (analysisResult.status !== 'unknown') {
+              charData.status = analysisResult.status;
+              if (analysisResult.notes) {
+                charData.notes = charData.notes
+                  ? `${charData.notes} (${analysisResult.notes})`
+                  : analysisResult.notes;
+              }
+              console.log(`[Finalize] Feature #397: Regex fallback resolved "${charData.name}" to '${charData.status}'`);
+            }
+          }
+        }
+      }
+
+      // ==========================================================================
+      // STEP 3: Positional analysis for any final unknowns
+      // ==========================================================================
+      const finalUnknown = charactersData.filter(c => !c.status || c.status === 'unknown').length;
+
+      if (finalUnknown > 0 && chapterTexts.length > 0) {
+        console.log(`[Finalize] Feature #397: Positional analysis for ${finalUnknown} final unknown characters`);
+
+        for (const charData of charactersData) {
+          if (!charData.status || charData.status === 'unknown') {
+            const positionResult = analyzeCharacterPosition(chapterTexts, charData.name, language);
+
+            if (positionResult.status !== 'unknown') {
+              charData.status = positionResult.status;
+              if (positionResult.notes) {
+                charData.notes = charData.notes
+                  ? `${charData.notes} (${positionResult.notes})`
+                  : positionResult.notes;
+              }
+              console.log(`[Finalize] Feature #397: Positional analysis resolved "${charData.name}" to '${charData.status}'`);
+            }
           }
         }
       }
 
       const unknownCountAfter = charactersData.filter(c => !c.status || c.status === 'unknown').length;
-      console.log(`[Finalize] Feature #310: Post-processing complete. Resolved ${unknownCountBefore - unknownCountAfter} statuses`);
-    }
-
-    // ==========================================================================
-    // Feature #313: Smart AI-assisted character status extraction
-    // Apply 3-level strategy for remaining 'unknown' statuses
-    // ==========================================================================
-    const unknownCountBefore313 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
-
-    if (unknownCountBefore313 > 0 && chaptersContent) {
-      console.log(`[Finalize] Feature #313: Smart AI-assisted extraction for ${unknownCountBefore313} remaining 'unknown' statuses`);
-
-      // Get provider for smart extraction (may be null if not configured)
-      const smartProvider = getProviderForUser(userId);
-      const chapterTexts = chapters.map(ch => ch.content || '');
-
-      // Limit to 5-10 characters in parallel for performance
-      const charactersToProcess = charactersData.filter(c => !c.status || c.status === 'unknown');
-      const maxParallel = 5;
-
-      for (let i = 0; i < charactersToProcess.length; i += maxParallel) {
-        const batch = charactersToProcess.slice(i, i + maxParallel);
-
-        // Process batch in parallel
-        const results = await Promise.all(
-          batch.map(async (charData) => {
-            const result = await smartCharacterStatusExtraction(
-              charData.name,
-              chaptersContent,
-              chapterTexts,
-              smartProvider,
-              language,
-              usedAI // Skip Level 1 if main extraction already used AI
-            );
-            return { charData, result };
-          })
-        );
-
-        // Apply results
-        for (const { charData, result } of results) {
-          if (result.status !== 'unknown') {
-            charData.status = result.status;
-            if (result.notes) {
-              charData.notes = charData.notes
-                ? `${charData.notes} (${result.notes})`
-                : result.notes;
-            }
-            console.log(`[Finalize] Feature #313: "${charData.name}" status resolved to '${charData.status}' via ${result.method}`);
-          }
-        }
-      }
-
-      const unknownCountAfter313 = charactersData.filter(c => !c.status || c.status === 'unknown').length;
-      console.log(`[Finalize] Feature #313: Smart extraction complete. Resolved ${unknownCountBefore313 - unknownCountAfter313} additional statuses`);
+      console.log(`[Finalize] Feature #397: Character status analysis complete. Resolved ${unknownCountBefore - unknownCountAfter} statuses (${unknownCountAfter} remain unknown)`);
     }
 
     // ==========================================================================
