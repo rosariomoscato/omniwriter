@@ -6724,10 +6724,11 @@ function analyzeCharacterStatusInText(
   };
 
   // ALIVE keywords - if these appear anywhere with character, they're alive
+  // Note: These must NOT appear in a negative context (e.g., "non si rialzò")
   const aliveKeywordsIt = [
-    'sopravvive', 'sopravvisse', 'si salvò', 'salvo', 'salva',
+    'sopravvive', 'sopravvisse', 'si salvò',
     'vivo', 'viva', 'si riprese', 'guarì', 'guari',
-    'si rialzò', 'si rialza', 'emerse', 'si riprend',
+    'emerse', 'si riprend',
     'celebrò', 'celebra', 'festeggi', 'trionf', 'vinse', 'vittoria',
     'alla fine', 'nell\'epilogo', 'nel finale', 'visse per', 'regna', 'governa',
     'abbracciò', 'sorrise', 'pianto di gioia', 'felice',

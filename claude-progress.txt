@@ -1,5 +1,65 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-27 - Feature #397 Implementation
+
+### Completed Features: 395/396 (99.7%)
+
+### Feature #397: Usare LLM invece di regex per determinare stato personaggi
+
+**Objective:** Sostituire le regex aggressive in `analyzeCharacterStatusInText()` con analisi LLM semantica. Invece di usare pattern rigidi che causano falsi positivi (es. sangue = morto), usare l'LLM per analizzare semanticamente lo stato finale del personaggio. L'LLM può capire meglio i casi edge come "emerge più forte", "sopravvive", "ferito ma cosciente".
+
+**Changes:**
+
+1. **Added caching layer** (lines 20-61)
+   - Created `CharacterStatusCacheEntry` interface
+   - Added `characterStatusCache` Map with 5-minute TTL
+   - Created helper functions: `getCacheKey`, `getContentHash`, `getCachedStatus`, `setCachedStatus`
+   - Avoids duplicate LLM calls for the same character/content
+
+2. **Made LLM the PRIMARY method** (lines 8794-8912)
+   - Changed flow from: regex → LLM → positional
+   - To: LLM → regex → positional
+   - LLM now runs FIRST for all unknown characters
+   - Regex only runs as ultra-conservative fallback
+   - Positional analysis runs last for any remaining unknowns
+
+3. **Strengthened regex patterns** (lines 6703-6813)
+   - Added `notDeadPatternsIt` and `notDeadPatternsEn` for exclusion
+   - `strongDeathPatterns` require EXPLICIT death indicators
+   - Priority order: ALIVE > INJURED > DEAD
+   - "emerge più forte" correctly returns "alive", not "dead"
+
+4. **Increased context limit for LLM** (line 7370, 7378)
+   - Changed from 2500 to 4000 characters
+   - Passes more context to LLM for better analysis
+
+5. **Updated `deduceCharacterStatusWithAI` function** (lines 7255-7422)
+   - Added `contentHash` parameter for caching
+   - Checks cache before making LLM call
+   - Caches results after successful LLM response
+   - Added better logging with context length
+
+**Files Modified:**
+- `server/src/routes/projects.ts` (311 insertions, 120 deletions)
+
+**Test Verification:**
+- "Marco emerges stronger" → status: alive (CORRECT - not dead!)
+- "Elena survives" → status: alive
+- "Nemico muore" → status: dead (explicit death)
+- "La morte del Traditore" → status: dead (explicit death)
+
+### Commit: 9ff0580
+
+**Status: Feature #397 MARKED PASSING**
+
+---
+
+## MILESTONE: 395/396 Features Passing (99.7%)
+
+Latest completed: Feature #397 - LLM-first character status analysis
+
+---
+
 ## Session: 2026-02-27 - Feature #395 Implementation
 
 ### Completed Features: 394/394 (100%)
