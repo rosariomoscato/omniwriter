@@ -8329,3 +8329,55 @@ Completely rewrote analyzeCharacterStatusInText() function with:
 ## MILESTONE: 395/396 Features Passing (99.7%)
 
 Latest completed: Feature #396 - Character status detection fix
+
+---
+
+## Session: 2026-02-27 - Feature #400 Implementation
+
+### Feature #400: Rimuovere regex fallback per status personaggi, usare solo LLM
+
+**Objective:** Remove the regex-based `analyzeCharacterStatusInText` fallback from the episode finalization flow. This function caused false positives by matching death-related keywords (like "sangue") near character names without understanding context, leading to characters being incorrectly marked as "dead".
+
+**Problem:**
+- The finalization flow had 3 steps: LLM analysis → Regex fallback → Positional analysis
+- STEP 2 (regex fallback) used `analyzeCharacterStatusInText()` which did keyword-based matching
+- Example: "Athan" was marked as "dead" because text contained "sangue" near his name, even though story notes said "Sopravvive"
+
+**Fix Applied:**
+
+1. **Removed STEP 2 (regex fallback) from finalization flow** (lines 9014-9038 in projects.ts)
+   - Replaced with a log message indicating regex fallback is disabled
+   - Characters now stay 'unknown' if LLM doesn't determine their status
+
+2. **Added logging for no-provider case**
+   - When no AI provider is available, added explicit log: "No AI provider available - characters will remain 'unknown' (regex fallback removed)"
+
+3. **Marked `analyzeCharacterStatusInText` as @deprecated**
+   - Added deprecation JSDoc annotation
+   - Added comment block explaining why it was removed
+   - Function definition kept for reference but no longer called
+
+**Flow After Change:**
+- STEP 1: LLM analysis (deduceCharacterStatusWithAI) - ONLY method for status determination
+- STEP 2: (REMOVED) - Was regex fallback, now just a log message
+- STEP 3: Positional analysis (analyzeCharacterPosition) - remains, uses position-based heuristics not keywords
+
+**Verification:**
+- Server compiles and runs without errors
+- Frontend has zero console errors
+- Characters API returns correct data
+- No mock data patterns found in codebase
+- Browser automation verified app loads correctly
+
+**Files Modified:**
+- server/src/routes/projects.ts (16 insertions, 22 deletions)
+
+### Commit: d1c6914
+
+**Status: Feature #400 MARKED PASSING**
+
+---
+
+## MILESTONE: 399/399 Features Passing (100%)
+
+ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED!
