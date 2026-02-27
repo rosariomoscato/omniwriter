@@ -6839,10 +6839,16 @@ function analyzeTimelineContinuity(
 // Feature #310: Post-process AI character status extraction
 // Analyzes chapter content to deduce character status when AI returns 'unknown'
 // ============================================================================
+// Feature #400: This function is DEPRECATED and no longer called in the finalization flow.
+// It was removed because regex-based keyword matching caused false positives
+// (e.g., marking characters as 'dead' because 'sangue' appeared near their name).
+// Character status is now determined exclusively by LLM (deduceCharacterStatusWithAI).
+// ============================================================================
 
 /**
+ * @deprecated Feature #400: Removed from finalization flow. Use deduceCharacterStatusWithAI instead.
  * Analyzes chapter content to deduce character status from text patterns.
- * Used as post-processing when AI returns status='unknown'.
+ * WARNING: This function uses keyword-based regex matching which can produce false positives.
  *
  * @param characterName - The name of the character to analyze
  * @param chaptersContent - Combined content of all chapters
@@ -8968,7 +8974,7 @@ ${chapterSummaries}`;
       // STEP 1: LLM-based analysis (PRIMARY method)
       // ==========================================================================
       if (smartProvider) {
-        console.log(`[Finalize] Feature #397: Using LLM as PRIMARY method for ${charactersToProcess.length} characters`);
+        console.log(`[Finalize] Feature #400: Using LLM as ONLY method for ${charactersToProcess.length} characters (regex fallback removed)`);
 
         for (let i = 0; i < charactersToProcess.length; i += maxParallel) {
           const batch = charactersToProcess.slice(i, i + maxParallel);
@@ -9009,32 +9015,20 @@ ${chapterSummaries}`;
             }
           }
         }
+      } else {
+        console.log(`[Finalize] Feature #400: No AI provider available - ${charactersToProcess.length} characters will remain 'unknown' (regex fallback removed)`);
       }
 
       // ==========================================================================
-      // STEP 2: Regex-based fallback (ULTRA-CONSERVATIVE - only for remaining unknowns)
-      // Only marks as dead with EXPLICIT, UNAMBIGUOUS death indicators
+      // Feature #400: Regex fallback REMOVED
+      // The old STEP 2 used analyzeCharacterStatusInText() which caused false
+      // positives (e.g., marking characters as 'dead' because 'sangue' appeared
+      // near their name). Now we rely ONLY on LLM for status determination.
+      // If LLM returns 'unknown', the character stays 'unknown'.
       // ==========================================================================
       const remainingUnknown = charactersData.filter(c => !c.status || c.status === 'unknown').length;
-
       if (remainingUnknown > 0) {
-        console.log(`[Finalize] Feature #397: Regex fallback for ${remainingUnknown} remaining unknown characters`);
-
-        for (const charData of charactersData) {
-          if (!charData.status || charData.status === 'unknown') {
-            const analysisResult = analyzeCharacterStatusInText(charData.name, chaptersContent, language);
-
-            if (analysisResult.status !== 'unknown') {
-              charData.status = analysisResult.status;
-              if (analysisResult.notes) {
-                charData.notes = charData.notes
-                  ? `${charData.notes} (${analysisResult.notes})`
-                  : analysisResult.notes;
-              }
-              console.log(`[Finalize] Feature #397: Regex fallback resolved "${charData.name}" to '${charData.status}'`);
-            }
-          }
-        }
+        console.log(`[Finalize] Feature #400: ${remainingUnknown} characters still unknown after LLM analysis (regex fallback DISABLED - characters will remain unknown)`);
       }
 
       // ==========================================================================
