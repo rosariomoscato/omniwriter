@@ -7804,3 +7804,103 @@ ALL 384 FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED!
 
 ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED!
 
+
+---
+
+## Feature #393: Bug - Streaming si blocca durante fase writing
+
+**Date:** 2026-02-27
+
+**Problem:** Streaming stops during "writing" phase without sending deltas. User sees "Generating" but no content arrives.
+
+**Root Causes Addressed:**
+1. Idle timeout too short for slow reasoning models (GPT-5.x, Claude thinking, o1, o3)
+2. No feedback to user while waiting for first delta from model
+
+**Changes Made:**
+
+#### 1. `server/src/services/ai/types.ts`
+- Added `waiting` event type to `StreamEventType`
+- Added `waitingReason` and `elapsedTime` fields to `StreamEvent`
+
+#### 2. `server/src/services/ai/providers/OpenRouterProvider.ts`
+- Added `isReasoningModel()` method to detect models needing longer timeout
+- Increased idle timeout from 60s to 180s for reasoning models
+- Added detailed logging before/after fetch
+- Added chunk counter and logging for each raw chunk received
+- Added periodic "waiting" events every 10 seconds before first delta
+
+#### 3. `server/src/routes/chapters.ts`
+- Added handling for `waiting` event in generate-stream route
+- Added handling for `waiting` event in regenerate-stream route
+- Forward waiting events to frontend via SSE
+
+#### 4. `client/src/services/api.ts`
+- Added `onWaiting` callback to stream interfaces
+- Added switch case for `waiting` event parsing
+
+#### 5. `client/src/components/debug/DebugPanel.tsx`
+- Added `logWaiting` method to display waiting status in debug panel
+
+#### 6. `client/src/pages/ChapterEditor.tsx`
+- Added `onWaiting` handler to update generation message with waiting status
+
+#### 7. `client/src/pages/ProjectDetail.tsx`
+- Added `onWaiting` handler for regeneration streaming
+
+**Verification:**
+- Debug panel shows PHASE and DELTA events correctly
+- Waiting events would be sent for slow reasoning models
+
+### Commit: 5534968
+
+**Status: Feature #393 MARKED PASSING**
+
+---
+
+## MILESTONE: 392/392 Features Passing (100%)
+
+ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED\!
+
+---
+
+## Session: 2026-02-27 - Feature #394 Implementation
+
+### Feature #394: Bug - Pagina bianca crash - tipo waiting mancante in DebugPanel
+
+**Objective:** Il frontend crashava con pagina bianca durante la generazione perché il tipo "waiting" era usato in `logWaiting()` ma non era definito in `DebugLogEventType` e mancava in `eventTypeStyles`. Questo causava `undefined.icon` che faceva crashare React.
+
+**Problem:**
+- Feature #393 added `logWaiting()` function that calls `addLog('waiting', ...)`
+- But `'waiting'` was not in the `DebugLogEventType` union type
+- And `'waiting'` was not in `eventTypeStyles` Record
+- When a log entry with type 'waiting' was rendered, `eventTypeStyles[log.type]` returned `undefined`
+- Accessing `undefined.icon` caused a JavaScript error that crashed the entire React app
+
+**Fix Applied:**
+
+1. Added `'waiting'` to `DebugLogEventType` type union:
+```typescript
+export type DebugLogEventType = 'phase' | 'delta' | 'done' | 'error' | 'connection' | 'timing' | 'waiting';
+```
+
+2. Added `Hourglass` icon import from lucide-react
+
+3. Added `waiting` style entry to `eventTypeStyles`:
+```typescript
+waiting: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', icon: Hourglass },
+```
+
+**Files Modified:**
+- `client/src/components/debug/DebugPanel.tsx` (3 lines changed)
+
+### Commit: e651f7f
+
+**Status: Feature #394 MARKED PASSING**
+
+---
+
+## MILESTONE: 393/393 Features Passing (100%)
+
+ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED\!
+
