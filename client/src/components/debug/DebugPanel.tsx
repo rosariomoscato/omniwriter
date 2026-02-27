@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bug, X, Trash2, ChevronDown, ChevronUp, Wifi, WifiOff, Clock, Zap, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bug, X, Trash2, ChevronDown, ChevronUp, Wifi, WifiOff, Clock, Zap, AlertCircle, CheckCircle, Hourglass } from 'lucide-react';
 
 // Types for debug log entries
-export type DebugLogEventType = 'phase' | 'delta' | 'done' | 'error' | 'connection' | 'timing';
+export type DebugLogEventType = 'phase' | 'delta' | 'done' | 'error' | 'connection' | 'timing' | 'waiting';
 
 export interface DebugLogEntry {
   id: string;
@@ -29,6 +29,7 @@ const eventTypeStyles: Record<DebugLogEventType, { bg: string; text: string; ico
   error: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', icon: AlertCircle },
   connection: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300', icon: Wifi },
   timing: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', icon: Clock },
+  waiting: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', icon: Hourglass },
 };
 
 export function DebugPanel({ isOpen, onClose, logs, onClear, connectionStatus }: DebugPanelProps) {
