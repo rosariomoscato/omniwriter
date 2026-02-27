@@ -6704,201 +6704,158 @@ function analyzeCharacterStatusInText(
   // Feature #396: Improved character status detection
   // Priority: ALIVE > INJURED > DEAD
   // Only mark as dead with explicit, unambiguous death indicators
+  //
+  // KEY FIX: Check for keywords ANYWHERE in context, not just same sentence
   // ==========================================================================
 
-  // Exclusion patterns - if these match, character is NOT dead (Italian)
-  const notDeadPatternsIt = [
-    // Explicit survival
-    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|si salvò|salvo|salva|vivo|viva|si riprese|guarì|guari|riuscì a scappare|riuscì a fuggire)`, 'i'),
-    // Recovery after injury
-    new RegExp(`${escapedName}[^.!?]*(?:si rialzò|si rialza|emerse|emerge[^.!?]*più forte|si riprend|guarì|recuperò)`, 'i'),
-    // Positive actions after being mentioned in violent context
-    new RegExp(`${escapedName}[^.!?]*(?:abbracciò|sorrise|rise|festeggi|celebr|trionf|vinse|vittoria)`, 'i'),
-    // Epilogue/future references
-    new RegExp(`${escapedName}[^.!?]*(?:alla fine|nell'epilogo|nel finale|visse per|anni dopo|continuò|regna|governa)`, 'i'),
-    // Wounded but explicitly not dead
-    new RegExp(`${escapedName}[^.!?]*(?:ferito[^.!?]*ma (?:vivo|sopravvisse)|sanguinando[^.!?]*ma|non mortale)`, 'i'),
-  ];
+  // Helper: Check if any keyword exists in context
+  const hasKeyword = (keywords: string[]): boolean => {
+    return keywords.some(kw => context.includes(kw.toLowerCase()));
+  };
 
-  // Exclusion patterns - if these match, character is NOT dead (English)
-  const notDeadPatternsEn = [
-    // Explicit survival
-    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|escaped|alive|safe|recovered|healed|made it|pulled through)`, 'i'),
-    // Recovery after injury
-    new RegExp(`${escapedName}[^.!?]*(?:got back up|rose again|emerged[^.!?]*stronger|recovered|healed)`, 'i'),
-    // Positive actions after being mentioned in violent context
-    new RegExp(`${escapedName}[^.!?]*(?:hugged|smiled|laughed|celebrated|triumphed|won|victory)`, 'i'),
-    // Epilogue/future references
-    new RegExp(`${escapedName}[^.!?]*(?:in the end|in the epilogue|in the finale|lived for|years later|continued|reigns|rules)`, 'i'),
-    // Wounded but explicitly not dead
-    new RegExp(`${escapedName}[^.!?]*(?:wounded[^.!?]*but (?:alive|survived)|bleeding[^.!?]*but|non-lethal|not fatal)`, 'i'),
-  ];
-
-  // Strong death patterns - require EXPLICIT death indicators (Italian)
-  // These are the ONLY patterns that can mark a character as dead
-  const strongDeathPatternsIt = [
-    // Explicit death verbs with character as subject
-    new RegExp(`${escapedName}[^.!?]*(?:morì|è morto|è morta|muore|perì|spirò|decedette)`, 'i'),
-    // Explicit "was killed" constructions
-    new RegExp(`${escapedName}[^.!?]*(?:fu ucciso|fu uccisa|venne ucciso|venne uccisa|è stato ucciso|è stata uccisa)`, 'i'),
-    // Death scene descriptions - very explicit
-    new RegExp(`${escapedName}[^.!?]*(?:ultimo respiro|esalò l'ultimo respiro|smise di respirare|occhi si chiusero per sempre|corpo senza vita|cadavere di)`, 'i'),
-    // "Died in arms" type descriptions
-    new RegExp(`${escapedName}[^.!?]*(?:morì tra le braccia|spirò tra le braccia|morì tra le sue braccia)`, 'i'),
-    // "The death of X" - explicit reference
-    new RegExp(`la morte di ${escapedName}`, 'i'),
-    // "X killed Y" - active verb with character as object (very explicit)
-    new RegExp(`(?:uccise|ammazzò|eliminò)[^.!?]*${escapedName}[^.!?]*(?:morto|ucciso|senza vita)`, 'i'),
-    // Sacrifice with death confirmation
-    new RegExp(`${escapedName}[^.!?]*(?:si sacrificò[^.!?]*morendo|sacrificò la propria vita|morì da eroe)`, 'i'),
-    // Never rose/never got up - explicit death (colpito a morte + non si rialzò più)
-    new RegExp(`${escapedName}[^.!?]*(?:colpito a morte|non si rialzò più|non si mosse più|non si riprese mai)`, 'i'),
-  ];
-
-  // Strong death patterns - require EXPLICIT death indicators (English)
-  const strongDeathPatternsEn = [
-    // Explicit death verbs with character as subject
-    new RegExp(`${escapedName}[^.!?]*(?:died|has died|is dead|was dead|perished|passed away|expired)`, 'i'),
-    // Explicit "was killed" constructions
-    new RegExp(`${escapedName}[^.!?]*(?:was killed|was murdered|was slain|got killed)`, 'i'),
-    // Death scene descriptions - very explicit
-    new RegExp(`${escapedName}[^.!?]*(?:last breath|breathed (?:his|her|their) last|stopped breathing|eyes closed (?:forever|for good)|lifeless body|corpse of)`, 'i'),
-    // "Died in arms" type descriptions
-    new RegExp(`${escapedName}[^.!?]*(?:died in[^.!?]*arms|passed (?:away|on) in[^.!?]*arms)`, 'i'),
-    // "The death of X" - explicit reference
-    new RegExp(`the death of ${escapedName}`, 'i'),
-    // "X killed Y" - active verb with character as object (very explicit)
-    new RegExp(`(?:killed|murdered|eliminated)[^.!?]*${escapedName}[^.!?]*(?:dead|body|lifeless)`, 'i'),
-    // Sacrifice with death confirmation
-    new RegExp(`${escapedName}[^.!?]*(?:sacrificed (?:himself|herself|themselves)[^.!?]*dying|gave (?:his|her|their) life)`, 'i'),
-    // Never rose/never got up - explicit death
-    new RegExp(`${escapedName}[^.!?]*(?:never (?:got back up|rose again|moved again|recovered))`, 'i'),
-  ];
-
-  // Injury patterns - Italian (without aggressive "sangue" pattern)
-  // These should only match if character is wounded but NOT explicitly recovering
-  const injuryPatternsIt = [
-    new RegExp(`${escapedName}[^.!?]*(?:fu ferito|fu ferita|venne ferito|è stato ferito|è stata ferita|rimase ferito|rimase ferita)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:fu colpito|fu colpita|venne colpito|venne colpita)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:ferito|ferita|colpito|colpita)[^.!?]*(?:gravemente|seriamente)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:sanguinava|perdeva sangue|aveva una ferita)`, 'i'),
-    new RegExp(`(?:ferì|colpì|bruciò)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:cadde a terra|strisciò|zoppicava)`, 'i'),
-  ];
-
-  // Injury patterns - English
-  const injuryPatternsEn = [
-    new RegExp(`${escapedName}[^.!?]*(?:was wounded|was injured|got wounded|got injured|remained injured)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:wounded|injured|hurt)[^.!?]*(?:but[^.!?]*(?:alive|survived|recovered)|badly|severely)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:was bleeding|had a wound|bled|remained wounded)`, 'i'),
-    new RegExp(`(?:wounded|injured|hurt|burned)[^.!?]*${escapedName}`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:fell to the ground|crawled|limped|unable to)`, 'i'),
-  ];
-
-  // Alive patterns - Italian
-  const alivePatternsIt = [
-    new RegExp(`${escapedName}[^.!?]*(?:sopravvive|sopravvisse|vivo|viva|salvo|salva|si riprese|guarì|guari|ritorno|ritornò)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:si rialzò|si rialza|emerse|emerge[^.!?]*più forte|si riprend)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:celebrò|celebra|festeggi|trionf|vinse|vittoria|finalmente)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:alla fine|nell'epilogo|nel finale|visse per|regna|governa)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:abbracciò|sorrise|rise|pianto di gioia|felice)`, 'i'),
-  ];
-
-  // Alive patterns - English
-  const alivePatternsEn = [
-    new RegExp(`${escapedName}[^.!?]*(?:survives|survived|alive|safe|recovered|healed|returned|made it)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:got back up|rose again|emerged stronger|recovered)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:celebrated|triumph|victory|finally)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:in the end|in the epilogue|in the finale|lived for|reigns|rules)`, 'i'),
-    new RegExp(`${escapedName}[^.!?]*(?:hugged|smiled|laughed|tears of joy|happy)`, 'i'),
-  ];
-
-  const notDeadPatterns = isItalian ? notDeadPatternsIt : notDeadPatternsEn;
-  const strongDeathPatterns = isItalian ? strongDeathPatternsIt : strongDeathPatternsEn;
-  const injuryPatterns = isItalian ? injuryPatternsIt : injuryPatternsEn;
-  const alivePatterns = isItalian ? alivePatternsIt : alivePatternsEn;
-
-  // ==========================================================================
-  // NEW PRIORITY ORDER: ALIVE > INJURED > DEAD
-  // This prevents false positives by checking survival indicators first
-  // ==========================================================================
-
-  // STEP 1: Check for ALIVE patterns first (highest priority)
-  for (let i = 0; i < alivePatterns.length; i++) {
-    const pattern = alivePatterns[i];
-    if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found ALIVE pattern #${i + 1} for "${name}" in text`);
-      return {
-        status: 'alive',
-        notes: isItalian
-          ? `Status dedotto dal testo: il personaggio sopravvive`
-          : `Status deduced from text: character survives`
-      };
-    }
-  }
-
-  // STEP 2: Check for NOT-DEAD exclusion patterns
-  // If these match, character survived despite violent context
-  for (let i = 0; i < notDeadPatterns.length; i++) {
-    const pattern = notDeadPatterns[i];
-    if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found NOT-DEAD exclusion pattern #${i + 1} for "${name}" - character survives`);
-      return {
-        status: 'alive',
-        notes: isItalian
-          ? `Status dedotto dal testo: il personaggio sopravvive nonostante le difficoltà`
-          : `Status deduced from text: character survives despite difficulties`
-      };
-    }
-  }
-
-  // STEP 3: Check for INJURY patterns (middle priority)
-  for (let i = 0; i < injuryPatterns.length; i++) {
-    const pattern = injuryPatterns[i];
-    if (pattern.test(context)) {
-      console.log(`[Status Analysis] Found INJURY pattern #${i + 1} for "${name}" in text`);
-      return {
-        status: 'injured',
-        notes: isItalian
-          ? `Status dedotto dal testo: il personaggio viene ferito`
-          : `Status deduced from text: character is wounded`
-      };
-    }
-  }
-
-  // STEP 4: Check for STRONG DEATH patterns (lowest priority - requires explicit confirmation)
-  // Only mark as dead if we have very strong evidence
-  for (let i = 0; i < strongDeathPatterns.length; i++) {
-    const pattern = strongDeathPatterns[i];
-    if (pattern.test(context)) {
-      // Double-check: make sure no alive/notDead patterns match near this death mention
-      let hasSurvivalContext = false;
-      for (const alivePattern of [...alivePatterns, ...notDeadPatterns]) {
-        if (alivePattern.test(context)) {
-          hasSurvivalContext = true;
-          console.log(`[Status Analysis] Death pattern #${i + 1} found for "${name}" BUT survival context also present - keeping as alive`);
-          break;
-        }
-      }
-
-      if (!hasSurvivalContext) {
-        console.log(`[Status Analysis] Found STRONG DEATH pattern #${i + 1} for "${name}" - character confirmed dead`);
-        return {
-          status: 'dead',
-          notes: isItalian
-            ? `Status dedotto dal testo: il personaggio muore nella storia`
-            : `Status deduced from text: character dies in the story`
-        };
-      } else {
-        // Survival context found - character is alive
-        return {
-          status: 'alive',
-          notes: isItalian
-            ? `Status dedotto dal testo: il personaggio sopravvive`
-            : `Status deduced from text: character survives`
-        };
+  // Helper: Check for pattern with name in same sentence
+  const hasPatternInSentence = (patterns: RegExp[]): { found: boolean; patternIndex: number } => {
+    for (let i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(context)) {
+        return { found: true, patternIndex: i };
       }
     }
+    return { found: false, patternIndex: -1 };
+  };
+
+  // ALIVE keywords - if these appear anywhere with character, they're alive
+  const aliveKeywordsIt = [
+    'sopravvive', 'sopravvisse', 'si salvò', 'salvo', 'salva',
+    'vivo', 'viva', 'si riprese', 'guarì', 'guari',
+    'si rialzò', 'si rialza', 'emerse', 'si riprend',
+    'celebrò', 'celebra', 'festeggi', 'trionf', 'vinse', 'vittoria',
+    'alla fine', 'nell\'epilogo', 'nel finale', 'visse per', 'regna', 'governa',
+    'abbracciò', 'sorrise', 'pianto di gioia', 'felice',
+    'anni dopo', 'continuò'
+  ];
+
+  const aliveKeywordsEn = [
+    'survives', 'survived', 'escaped', 'alive', 'safe', 'recovered', 'healed',
+    'got back up', 'rose again', 'emerged stronger',
+    'celebrated', 'triumph', 'won', 'victory',
+    'in the end', 'in the epilogue', 'in the finale', 'lived for', 'reigns', 'rules',
+    'hugged', 'smiled', 'tears of joy', 'happy',
+    'years later', 'continued'
+  ];
+
+  // DEAD keywords - require EXPLICIT death confirmation
+  const deadKeywordsIt = [
+    'è morto', 'è morta', 'morì', 'muore', 'perì', 'spirò', 'decedette',
+    'fu ucciso', 'fu uccisa', 'venne ucciso', 'venne uccisa',
+    'è stato ucciso', 'è stata uccisa',
+    'ultimo respiro', 'esalò l\'ultimo respiro', 'smise di respirare',
+    'occhi si chiusero per sempre', 'corpo senza vita', 'cadavere di',
+    'morì tra le braccia', 'spirò tra le braccia',
+    'morì da eroe',
+    'non si rialzò più', 'non si mosse più', 'non si riprese mai',
+    'colpito a morte'
+  ];
+
+  const deadKeywordsEn = [
+    'is dead', 'was dead', 'died', 'has died', 'perished', 'passed away', 'expired',
+    'was killed', 'was murdered', 'was slain', 'got killed',
+    'last breath', 'breathed his last', 'breathed her last', 'stopped breathing',
+    'eyes closed forever', 'lifeless body', 'corpse of',
+    'died in his arms', 'died in her arms', 'died in their arms',
+    'never got back up', 'never rose again', 'never moved again', 'never recovered'
+  ];
+
+  // INJURY keywords - wounded but no explicit death or recovery
+  const injuryKeywordsIt = [
+    'fu ferito', 'fu ferita', 'venne ferito', 'venne ferita',
+    'è stato ferito', 'è stata ferita', 'rimase ferito', 'rimase ferita',
+    'fu colpito', 'fu colpita', 'venne colpito', 'venne colpita',
+    'ferito gravemente', 'ferita gravemente',
+    'sanguinava', 'perdeva sangue', 'aveva una ferita',
+    'cadde a terra', 'strisciò', 'zoppicava'
+  ];
+
+  const injuryKeywordsEn = [
+    'was wounded', 'was injured', 'got wounded', 'got injured', 'remained injured',
+    'was bleeding', 'had a wound', 'bled',
+    'fell to the ground', 'crawled', 'limped'
+  ];
+
+  // Death patterns that require name in same sentence
+  const deathPatternIt = new RegExp(`la morte di ${escapedName}`, 'i');
+  const deathPatternEn = new RegExp(`the death of ${escapedName}`, 'i');
+
+  // Sacrifice pattern (need both sacrifice AND death)
+  const sacrificePatternIt = new RegExp(`${escapedName}[^.!?]*(?:si sacrificò|sacrificò la propria vita)`, 'i');
+  const sacrificePatternEn = new RegExp(`${escapedName}[^.!?]*(?:sacrificed (?:himself|herself|themselves)|gave (?:his|her|their) life)`, 'i');
+
+  const aliveKeywords = isItalian ? aliveKeywordsIt : aliveKeywordsEn;
+  const deadKeywords = isItalian ? deadKeywordsIt : deadKeywordsEn;
+  const injuryKeywords = isItalian ? injuryKeywordsIt : injuryKeywordsEn;
+  const deathPattern = isItalian ? deathPatternIt : deathPatternEn;
+  const sacrificePattern = isItalian ? sacrificePatternIt : sacrificePatternEn;
+
+  // ==========================================================================
+  // STEP 1: Check for ALIVE indicators (highest priority)
+  // ==========================================================================
+  if (hasKeyword(aliveKeywords)) {
+    console.log(`[Status Analysis] Found ALIVE keyword for "${name}" in text`);
+    return {
+      status: 'alive',
+      notes: isItalian
+        ? `Status dedotto dal testo: il personaggio sopravvive`
+        : `Status deduced from text: character survives`
+    };
+  }
+
+  // ==========================================================================
+  // STEP 2: Check for explicit DEATH indicators
+  // ==========================================================================
+
+  // Check for "la morte di X" pattern
+  if (deathPattern.test(context)) {
+    console.log(`[Status Analysis] Found "death of ${name}" pattern - character confirmed dead`);
+    return {
+      status: 'dead',
+      notes: isItalian
+        ? `Status dedotto dal testo: il personaggio muore nella storia`
+        : `Status deduced from text: character dies in the story`
+    };
+  }
+
+  // Check for sacrifice WITH death confirmation
+  if (sacrificePattern.test(context) && hasKeyword(deadKeywords)) {
+    console.log(`[Status Analysis] Found sacrifice + death for "${name}" - character confirmed dead`);
+    return {
+      status: 'dead',
+      notes: isItalian
+        ? `Status dedotto dal testo: il personaggio muore nella storia`
+        : `Status deduced from text: character dies in the story`
+    };
+  }
+
+  // Check for death keywords
+  if (hasKeyword(deadKeywords)) {
+    console.log(`[Status Analysis] Found DEATH keyword for "${name}" - character confirmed dead`);
+    return {
+      status: 'dead',
+      notes: isItalian
+        ? `Status dedotto dal testo: il personaggio muore nella storia`
+        : `Status deduced from text: character dies in the story`
+    };
+  }
+
+  // ==========================================================================
+  // STEP 3: Check for INJURY indicators (middle priority)
+  // ==========================================================================
+  if (hasKeyword(injuryKeywords)) {
+    console.log(`[Status Analysis] Found INJURY keyword for "${name}" in text`);
+    return {
+      status: 'injured',
+      notes: isItalian
+        ? `Status dedotto dal testo: il personaggio viene ferito`
+        : `Status deduced from text: character is wounded`
+    };
   }
 
   // No conclusive patterns found - keep unknown
