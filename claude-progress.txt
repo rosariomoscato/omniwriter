@@ -8089,3 +8089,57 @@ waiting: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dar
 
 ALL FEATURES HAVE BEEN SUCCESSFULLY IMPLEMENTED AND VERIFIED\!
 
+
+---
+
+## Session: 2026-02-27 - Feature #396 Implementation
+
+### Feature #396: Bug - Finalizzazione marca personaggi come morti erroneamente
+
+**Objective:** La finalizzazione dell'episodio marcava erroneamente molti personaggi come 'dead' quando in realtà erano vivi. Le regex in analyzeCharacterStatusInText() erano troppo aggressive e cercano solo parole come 'sangue', 'uccise' senza verificare che il personaggio muoia realmente.
+
+**Root Causes Identified:**
+1. Death patterns checked BEFORE alive patterns (wrong priority)
+2. Regex patterns like 'sangue' matched even if character was just bleeding but survived
+3. No exclusion patterns for recovery/survival after violent context
+4. Patterns used [^.!?]* which didn't work across sentences
+
+**Fix Applied:**
+
+Completely rewrote analyzeCharacterStatusInText() function with:
+
+1. Keyword-based detection instead of complex regex patterns
+2. Changed priority order: ALIVE > INJURED > DEAD (was DEAD > INJURED > ALIVE)
+3. Removed aggressive patterns: No longer matches 'sangue' alone
+4. Added explicit death keywords: Must have clear confirmation like 'mori', 'cadavere di', 'non si rialzo piu'
+5. Added alive keywords: 'sopravvive', 'si riprese', 'celebro', 'vittoria', etc.
+
+**Test Results (15/15 passed - 100%):**
+- Battle with blood but survives and celebrates - ALIVE (correct)
+- Explicit death scene - DEAD (correct)
+- Wounded but recovers - ALIVE (correct)
+- Fallen with blood but gets back up and wins - ALIVE (correct)
+- Witness to death, not the victim - ALIVE (correct)
+- Explicit death reference - DEAD (correct)
+- Character in epilogue - ALIVE (correct)
+- Character killed someone else - UNKNOWN (correct)
+- Explicit sacrifice with death - DEAD (correct)
+- Wounded but no recovery info - INJURED (correct)
+- Blood on face but explicitly alive - ALIVE (correct)
+- Colpito a morte, non si rialzo piu - DEAD (correct)
+- Wounded gravemente - INJURED (correct)
+- Fought in battle then celebrated - ALIVE (correct)
+- Cadavere di, ucciso - DEAD (correct)
+
+**Files Modified:**
+- server/src/routes/projects.ts (analyzeCharacterStatusInText function rewritten)
+
+### Commit: fe2f8db
+
+**Status: Feature #396 MARKED PASSING**
+
+---
+
+## MILESTONE: 395/396 Features Passing (99.7%)
+
+Latest completed: Feature #396 - Character status detection fix
