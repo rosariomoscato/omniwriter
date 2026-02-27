@@ -1663,5 +1663,27 @@
       "learnMore": "Scopri di più",
       "contactSupport": "Contatta il supporto"
     }
+  },
+  "waitingIndicator": {
+    "title": "Elaborazione AI",
+    "reasoningModelTitle": "Modello Reasoning Attivo",
+    "processing": "Elaborazione...",
+    "elapsed": "Trascorso",
+    "remaining": "Tempo rimanente stimato",
+    "cancel": "Annulla",
+    "cancelConfirmTitle": "Annullare la generazione?",
+    "cancelConfirmMessage": "Sei sicuro di voler annullare? Ogni progresso verrà perso e dovrai ricominciare da capo.",
+    "confirmCancel": "Sì, annulla",
+    "standardExplanation": "Il modello AI sta elaborando la tua richiesta. La generazione inizierà a breve.",
+    "reasoningExplanation": "I modelli reasoning avanzati producono contenuti di qualità superiore elaborando l'output passo dopo passo. Questo richiede più tempo ma produce testi più coerenti e creativi.",
+    "reasoning": {
+      "starting": "Inizializzazione processo di reasoning...",
+      "analyzing": "Analisi del contesto e pianificazione...",
+      "thinking": "Reasoning approfondito in corso...",
+      "extended": "Reasoning esteso per output di qualità..."
+    }
+  },
+  "common": {
+    "continue": "Continua"
   }
 }

@@ -12,6 +12,7 @@ import { apiService, Chapter, Project, ChapterVersion, HumanModel } from '../ser
 import RedattoreTools from '../components/RedattoreTools';
 import { useTierPermissions } from '../hooks/useTierPermissions';
 import { DebugPanel, useDebugLogs } from '../components/debug/DebugPanel';
+import { WaitingIndicator, useWaitingIndicator } from '../components/WaitingIndicator';
 
 // Chapter word target options
 const CHAPTER_LENGTH_OPTIONS = [
@@ -87,6 +88,9 @@ export default function ChapterEditor() {
   // Debug Panel state (Feature #392)
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const debugLogs = useDebugLogs(100);
+
+  // Waiting Indicator state (Feature #395)
+  const waitingIndicator = useWaitingIndicator();
 
   // Dialogue Enhancement state (Feature #188)
   const [enhancingDialogue, setEnhancingDialogue] = useState(false);
@@ -483,6 +487,13 @@ export default function ChapterEditor() {
     // Feature #392: Log connection start to debug panel
     debugLogs.logConnection('connecting', 'Starting chapter generation...');
 
+    // Feature #395: Start waiting indicator
+    waitingIndicator.startWaiting({
+      reason: t('chapterEditor.generation.analyzing', 'Analyzing project structure and context...'),
+      isReasoningModel: true, // Assume reasoning model for better UX
+      estimatedWaitSeconds: 60, // Initial estimate
+    });
+
     // Reset streaming content
     setStreamingContent('');
     setIsGenerating(true);
@@ -508,11 +519,15 @@ export default function ChapterEditor() {
             setGenerationMessage(message);
             // Feature #392: Log phase to debug panel
             debugLogs.logPhase(phase, message);
+            // Feature #395: Stop waiting indicator when we get a phase update (not waiting anymore)
+            waitingIndicator.stopWaiting();
           },
           onDelta: (deltaContent) => {
             accumulatedContent += deltaContent;
             // Feature #392: Log delta to debug panel
             debugLogs.logDelta(deltaContent, accumulatedContent.length);
+            // Feature #395: Stop waiting indicator when deltas start coming
+            waitingIndicator.stopWaiting();
             // Feature #390: Use flushSync to prevent React batching and ensure immediate UI updates
             flushSync(() => {
               setStreamingContent(accumulatedContent);
@@ -528,6 +543,8 @@ export default function ChapterEditor() {
             setIsGenerating(false);
             setGenerationPhase('');
             setGenerationMessage('');
+            // Feature #395: Stop waiting indicator
+            waitingIndicator.stopWaiting();
             // Feature #392: Log done to debug panel
             debugLogs.logConnection('connected', 'Generation completed');
             debugLogs.logDone(data);
@@ -543,15 +560,21 @@ export default function ChapterEditor() {
             setIsGenerating(false);
             setGenerationPhase('');
             setGenerationMessage('');
+            // Feature #395: Stop waiting indicator
+            waitingIndicator.stopWaiting();
             // Feature #392: Log error to debug panel
             debugLogs.logError(error || 'Unknown error');
             toast.error(error || t('chapterEditor.generation.error', 'Failed to generate chapter'));
           },
           // Feature #393: Handle waiting event for slow reasoning models
+          // Feature #395: Enhanced waiting indicator integration
           onWaiting: (data) => {
             const { reason, elapsedTime } = data;
             debugLogs.logWaiting(reason, elapsedTime);
-            // Update the generation message to show waiting status
+            // Feature #395: Update waiting indicator with latest reason
+            // The waiting indicator handles its own elapsed time display
+            waitingIndicator.updateWaitingReason(reason);
+            // Also update the legacy generation message for compatibility
             const elapsedSec = Math.round(elapsedTime / 1000);
             setGenerationMessage(`${reason} (${elapsedSec}s)`);
           },
@@ -565,6 +588,8 @@ export default function ChapterEditor() {
       setIsGenerating(false);
       setGenerationPhase('');
       setGenerationMessage('');
+      // Feature #395: Stop waiting indicator
+      waitingIndicator.stopWaiting();
       // Feature #392: Log error to debug panel
       debugLogs.logError(err.message || 'Failed to generate chapter');
       toast.error(err.message || t('chapterEditor.generation.error', 'Failed to generate chapter'));
@@ -579,6 +604,8 @@ export default function ChapterEditor() {
       setIsGenerating(false);
       setGenerationPhase('');
       setGenerationMessage('');
+      // Feature #395: Stop waiting indicator
+      waitingIndicator.stopWaiting();
       setGenerationAbortController(null);
       toast.info(t('chapterEditor.generation.cancelled', 'Generation cancelled'));
     }
@@ -1896,6 +1923,20 @@ export default function ChapterEditor() {
         onClear={debugLogs.clearLogs}
         connectionStatus={debugLogs.connectionStatus}
       />
+
+      {/* Waiting Indicator for slow reasoning models (Feature #395) */}
+      {isGenerating && waitingIndicator.isWaiting && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-lg px-4">
+          <WaitingIndicator
+            isActive={waitingIndicator.isWaiting}
+            startTime={waitingIndicator.waitingStartTime}
+            reason={waitingIndicator.waitingReason}
+            isReasoningModel={waitingIndicator.isReasoningModel}
+            estimatedWaitSeconds={waitingIndicator.estimatedWaitSeconds}
+            onCancel={handleCancelGeneration}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1663,5 +1663,27 @@
       "learnMore": "Learn more",
       "contactSupport": "Contact support"
     }
+  },
+  "waitingIndicator": {
+    "title": "AI Processing",
+    "reasoningModelTitle": "Reasoning Model Active",
+    "processing": "Processing...",
+    "elapsed": "Elapsed",
+    "remaining": "Est. remaining",
+    "cancel": "Cancel",
+    "cancelConfirmTitle": "Cancel Generation?",
+    "cancelConfirmMessage": "Are you sure you want to cancel? Any progress will be lost and you will need to start over.",
+    "confirmCancel": "Yes, Cancel",
+    "standardExplanation": "The AI model is processing your request. Generation will begin shortly.",
+    "reasoningExplanation": "Advanced reasoning models produce higher quality content by thinking through the output step by step. This takes longer but results in more coherent and creative text.",
+    "reasoning": {
+      "starting": "Initializing reasoning process...",
+      "analyzing": "Analyzing context and planning...",
+      "thinking": "Deep reasoning in progress...",
+      "extended": "Extended reasoning for quality output..."
+    }
+  },
+  "common": {
+    "continue": "Continue"
   }
 }
