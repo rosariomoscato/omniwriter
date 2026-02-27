@@ -1,5 +1,99 @@
 # OmniWriter Progress Log
 
+## Session: 2026-02-27 - Feature #399 Implementation
+
+### Completed Features: 398/398 (100%)
+
+### Feature #399: Bug - Validazione status personaggi non funziona per contraddizioni con keyword miste
+
+**Objective:** La funzione `validateCharacterStatus` non correggeva gli stati quando le note contenevano sia keyword di sopravvivenza che di morte. Questo succedeva quando l'LLM restituiva `status="dead"` con `notes="Sopravvive..."` e poi veniva aggiunto `"(Status dedotto dal testo: il personaggio muore nella storia)"`. La condizione attuale richiedeva `!hasDeathKeyword`, impedendo la correzione.
+
+**Root Cause:**
+1. The validation function checked for `!hasDeathKeyword` before correcting
+2. When "Status dedotto dal testo: il personaggio muore nella storia" was appended, it added "muore" death keyword
+3. The condition `!hasDeathKeyword` became false, preventing correction even when survival keywords were in the original AI output
+
+**Solution:**
+
+#### 1. Extract Original Notes Before System Additions
+
+Added logic to extract the original AI output before any "Status dedotto/deduced" text:
+
+```typescript
+const statusDedottoMarkers = isItalian
+  ? ['status dedotto dal testo', 'status dedotto:', '[corretto da']
+  : ['status deduced from text', 'status deduced:', '[corrected from'];
+
+let originalNotes = notes;
+for (const marker of statusDedottoMarkers) {
+  const markerIndex = notesLower.indexOf(marker.toLowerCase());
+  if (markerIndex > 0) {
+    originalNotes = notes.substring(0, markerIndex).trim();
+    break;
+  }
+}
+```
+
+#### 2. Priority System for Survival Keywords
+
+Added `survivalTakesPriority` flag:
+- Survival keywords in ORIGINAL notes take priority over death keywords in appended text
+- If both survival AND death keywords are in ORIGINAL text, no correction (ambiguous)
+
+```typescript
+const survivalTakesPriority = hasSurvivalKeywordInOriginal && !hasDeathKeywordInOriginal;
+
+// CASE 1: Status is 'dead' but notes say they survive
+if (statusLower === 'dead' && hasSurvivalKeyword && (survivalTakesPriority || !hasDeathKeyword)) {
+  return { status: 'alive', correctionLogged: true };
+}
+```
+
+#### 3. Removed Ambiguous Keyword
+
+- Removed "finale" as standalone survival keyword
+- Too ambiguous: "battaglia finale" (final battle) vs "nel finale" (in the finale)
+- Kept "nel finale", "alla fine" as unambiguous survival indicators
+
+**Test Results:**
+
+Created comprehensive test suite (`test-feature-399.js`) with 17 test cases:
+
+- ✅ Athan: status='dead' + 'Sopravvive' + 'Status dedotto: muore' → 'alive'
+- ✅ Gloria: status='dead' + 'Emerge più forte' + 'Status dedotto: muore' → 'alive'
+- ✅ KT119U: status='dead' + 'si riprende' + 'muore' in appended → 'alive'
+- ✅ Simple survival: status='dead' + 'Sopravvive' → 'alive'
+- ✅ Simple death: status='alive' + 'Muore' → 'dead'
+- ✅ Both keywords in original: NO correction (ambiguous)
+- ✅ Death in original: status='alive' + 'Muore' → 'dead'
+- ✅ No correction needed: status='alive' + 'Sopravvive' → 'alive'
+- ✅ No correction needed: status='dead' + 'Muore' → 'dead'
+- ✅ English mixed keywords: Works correctly
+- ✅ Injured to dead: status='injured' + 'Muore' → 'dead'
+- ✅ Missing to alive: status='missing' + 'Sopravvive' + 'Status dedotto: muore' → 'alive'
+- ✅ Corrected marker handling
+- ✅ Empty/null notes handling
+
+All 17/17 tests pass, plus Feature #398 tests still pass (30/30).
+
+**Files Modified:**
+- `server/src/routes/projects.ts` (48 insertions, 11 deletions)
+
+**Files Created:**
+- `test-feature-399.js` (comprehensive test suite)
+
+### Commit: f226fdf
+
+**Status: Feature #399 MARKED PASSING**
+
+---
+
+## MILESTONE: 398/398 Features Passing (100%)
+
+Latest completed: Feature #399 - Fixed character status validation for mixed keywords
+
+---
+
 ## Session: 2026-02-27 - Feature #398 Implementation
 
 ### Completed Features: 397/397 (100%)
