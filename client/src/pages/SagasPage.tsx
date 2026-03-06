@@ -530,12 +530,6 @@ export default function SagasPage() {
           }}
         />
       )}
-
-      {/* Upgrade Modal (Feature #377) */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-      />
     </div>
   );
 }

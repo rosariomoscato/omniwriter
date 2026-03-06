@@ -2,7 +2,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { requirePremium } from '../middleware/roles';
 import { checkSourceUploadLimit } from '../middleware/tierCheck'; // Feature #368 - Tier limits
 import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #368 - Tier configuration
 import { increaseUserStorage, decreaseUserStorage } from '../utils/storage'; // Feature #404 - Storage quota tracking
@@ -569,7 +568,6 @@ router.delete('/sources/:id', authenticateToken, (req: any, res: any) => {
 router.post(
   '/sagas/:id/sources/upload',
   authenticateToken,
-  requirePremium,
   (req: Request, res: Response, next: NextFunction) => {
     // Custom multer error handling
     upload.single('file')(req, res, (err: any) => {
@@ -655,7 +653,7 @@ router.post(
 );
 
 // GET /api/sagas/:id/sources - Get sources for a saga (shared sources)
-router.get('/sagas/:id/sources', authenticateToken, requirePremium, (req: any, res: any) => {
+router.get('/sagas/:id/sources', authenticateToken, (req: any, res: any) => {
   const db = getDatabase();
   const userId = req.user?.id;
   const sagaId = req.params.id;

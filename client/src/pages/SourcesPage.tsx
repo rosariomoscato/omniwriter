@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
-import UpgradeModal from '../components/UpgradeModal';
-import { useTierPermissions } from '../hooks/useTierPermissions';
+// import UpgradeModal from '../components/UpgradeModal'; // Feature #414: Removed
+// import { useTierPermissions } from '../hooks/useTierPermissions'; // Feature #414: No longer needed
 import {
   FileText,
   Upload,

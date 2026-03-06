@@ -7,7 +7,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const database_1 = require("../db/database");
 const auth_1 = require("../middleware/auth");
-const roles_1 = require("../middleware/roles");
 const multer_1 = __importDefault(require("multer"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -792,7 +791,7 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
     }
 });
 // POST /api/projects/:id/google-drive/save - Save project to Google Drive
-router.post('/projects/:id/google-drive/save', auth_1.authenticateToken, roles_1.requirePremium, async (req, res) => {
+router.post('/projects/:id/google-drive/save', auth_1.authenticateToken, async (req, res) => {
     try {
         const { id: projectId } = req.params;
         const { format = 'docx' } = req.body;
@@ -859,7 +858,7 @@ router.post('/projects/:id/google-drive/save', auth_1.authenticateToken, roles_1
     }
 });
 // POST /api/projects/:id/google-drive/load - Load project from Google Drive
-router.post('/projects/:id/google-drive/load', auth_1.authenticateToken, roles_1.requirePremium, async (req, res) => {
+router.post('/projects/:id/google-drive/load', auth_1.authenticateToken, async (req, res) => {
     try {
         const { id: projectId } = req.params;
         const { fileId } = req.body;
@@ -950,7 +949,7 @@ router.post('/projects/:id/google-drive/load', auth_1.authenticateToken, roles_1
     }
 });
 // GET /api/google-drive/files - List user's Google Drive files
-router.get('/google-drive/files', auth_1.authenticateToken, roles_1.requirePremium, async (req, res) => {
+router.get('/google-drive/files', auth_1.authenticateToken, async (req, res) => {
     try {
         const userId = req.user?.id;
         const db = (0, database_1.getDatabase)();
