@@ -334,3 +334,36 @@ The feature was already correctly implemented as part of Feature #401 (premium t
 ## Previous Sessions
 
 [... previous progress notes preserved ...]
+# Session: 2026-03-06 - Features #409, #410 Implementation
+
+### Completed Features: 410/417 (98.3%)
+
+### Feature #409: Aggiornamento CTA e messaggi nella landing page
+
+**Objective:** Aggiornare tutte le Call-to-Action della landing page per riflettere il modello gratuito.
+
+**Modified Files:**
+- client/src/i18n/locales/it.json
+- client/src/i18n/locales/en.json
+
+**Changes:**
+- Updated "Start Free" → "Sign Up" / "Registrati"
+- Removed "Cancel anytime" subscription language
+- Changed "Sign Up Free" → "Start Writing" / "Inizia a Scrivere"
+- Updated "No card required • Cancel anytime" → "No credit card required"
+
+**Status: Feature #409 MARKED PASSING**
+
+### Feature #410: Rimozione limitazioni visuali nella sezione funzionalità
+
+**Objective:** Verificare che non ci siano icone di lucchetto, badge 'Premium', o etichette 'Pro' nella sezione funzionalità.
+
+**Verification:**
+- FeatureCard component has no lock icons, premium badges, or Pro labels
+- No tooltips indicating premium-only features
+- All features presented at the same level
+- Both Italian and English verified
+
+**Status: Feature #410 MARKED PASSING**
+
+### Commit: c742e44

@@ -282,9 +282,10 @@ router.delete(
  * Get platform statistics (admin only)
  *
  * Feature #350: Enhanced statistics with detailed breakdowns
+ * Feature #401: Removed premium/lifetime tiers, simplified to user/admin
  * Returns:
  * - totalUsers: number of total users
- * - usersByRole: { free, premium, lifetime, admin }
+ * - usersByRole: { user, admin }
  * - totalProjects: number of total projects
  * - projectsByArea: { romanziere, saggista, redattore }
  * - totalWordsGenerated: sum of all word_count

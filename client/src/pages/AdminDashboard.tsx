@@ -8,39 +8,11 @@ import {
   Calendar,
   RefreshCw
 } from 'lucide-react';
-import { useToastNotification } from '../components/Toast';
-
-interface UserStats {
-  total: number;
-  byRole: {
-    free: number;
-    premium: number;
-    lifetime: number;
-    admin: number;
-  };
-  activeLast30Days: number;
-  newLast30Days: number;
-}
-
-interface ProjectStats {
-  total: number;
-  byArea: {
-    romanziere: number;
-    saggista: number;
-    redattore: number;
-  };
-}
-
-interface WordStats {
-  total: number;
-}
 
 interface StatsResponse {
   totalUsers: number;
   usersByRole: {
-    free: number;
-    premium: number;
-    lifetime: number;
+    user: number;
     admin: number;
   };
   totalProjects: number;
@@ -61,7 +33,6 @@ interface RegistrationByDate {
 }
 
 const AdminDashboard = () => {
-  const toast = useToastNotification();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [registrationsByDate, setRegistrationsByDate] = useState<RegistrationByDate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,11 +132,9 @@ const AdminDashboard = () => {
   }
 
   // Calculate percentages for charts
-  const totalRoles = stats.usersByRole.free + stats.usersByRole.premium + stats.usersByRole.lifetime + stats.usersByRole.admin;
+  const totalRoles = stats.usersByRole.user + stats.usersByRole.admin;
   const rolePercentages = {
-    free: totalRoles > 0 ? (stats.usersByRole.free / totalRoles) * 100 : 0,
-    premium: totalRoles > 0 ? (stats.usersByRole.premium / totalRoles) * 100 : 0,
-    lifetime: totalRoles > 0 ? (stats.usersByRole.lifetime / totalRoles) * 100 : 0,
+    user: totalRoles > 0 ? (stats.usersByRole.user / totalRoles) * 100 : 0,
     admin: totalRoles > 0 ? (stats.usersByRole.admin / totalRoles) * 100 : 0
   };
 
@@ -298,21 +267,8 @@ const AdminDashboard = () => {
                   strokeWidth="20"
                   className="text-gray-200 dark:text-gray-700"
                 />
-                {/* Free Users - Gray */}
-                {rolePercentages.free > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#6B7280"
-                    strokeWidth="20"
-                    strokeDasharray={`${rolePercentages.free * 2.51} 251`}
-                    strokeDashoffset="0"
-                  />
-                )}
-                {/* Premium Users - Blue */}
-                {rolePercentages.premium > 0 && (
+                {/* Regular Users - Blue */}
+                {rolePercentages.user > 0 && (
                   <circle
                     cx="50"
                     cy="50"
@@ -320,21 +276,8 @@ const AdminDashboard = () => {
                     fill="none"
                     stroke="#3B82F6"
                     strokeWidth="20"
-                    strokeDasharray={`${rolePercentages.premium * 2.51} 251`}
-                    strokeDashoffset={`-${rolePercentages.free * 2.51}`}
-                  />
-                )}
-                {/* Lifetime Users - Amber */}
-                {rolePercentages.lifetime > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="20"
-                    strokeDasharray={`${rolePercentages.lifetime * 2.51} 251`}
-                    strokeDashoffset={`-${(rolePercentages.free + rolePercentages.premium) * 2.51}`}
+                    strokeDasharray={`${rolePercentages.user * 2.51} 251`}
+                    strokeDashoffset="0"
                   />
                 )}
                 {/* Admin Users - Purple */}
@@ -347,7 +290,7 @@ const AdminDashboard = () => {
                     stroke="#8B5CF6"
                     strokeWidth="20"
                     strokeDasharray={`${rolePercentages.admin * 2.51} 251`}
-                    strokeDashoffset={`-${(rolePercentages.free + rolePercentages.premium + rolePercentages.lifetime) * 2.51}`}
+                    strokeDashoffset={`-${rolePercentages.user * 2.51}`}
                   />
                 )}
               </svg>
@@ -366,29 +309,11 @@ const AdminDashboard = () => {
             <div className="flex-1 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Free</span>
-                </div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatNumber(stats.usersByRole.free)} ({rolePercentages.free.toFixed(1)}%)
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Premium</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Utenti</span>
                 </div>
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatNumber(stats.usersByRole.premium)} ({rolePercentages.premium.toFixed(1)}%)
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Lifetime</span>
-                </div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatNumber(stats.usersByRole.lifetime)} ({rolePercentages.lifetime.toFixed(1)}%)
+                  {formatNumber(stats.usersByRole.user)} ({rolePercentages.user.toFixed(1)}%)
                 </div>
               </div>
               <div className="flex items-center justify-between">

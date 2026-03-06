@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Users, FolderOpen, Activity, TrendingUp, Calendar } from 'lucide-react';
-import { useToastNotification } from '../components/Toast';
+import { Users, FolderOpen, Activity, Calendar } from 'lucide-react';
 
 interface UserStats {
   total: number;
   active: number;
-  premium: number;
 }
 
 interface ProjectStats {
@@ -23,8 +21,15 @@ interface StatsResponse {
   registrationsByDate: RegistrationByDate[];
 }
 
+// Temporary adapter to convert from new API format to legacy format
+interface NewStatsResponse {
+  totalUsers: number;
+  activeUsersLast30Days: number;
+  totalProjects: number;
+  registrationsByDate: RegistrationByDate[];
+}
+
 const AdminStatsPage = () => {
-  const toast = useToastNotification();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,7 +56,34 @@ const AdminStatsPage = () => {
         throw new Error('Failed to fetch statistics');
       }
 
-      const data: StatsResponse = await response.json();
+      // Convert from new API format to legacy format
+      const newData: NewStatsResponse = await response.json();
+
+      // Fetch registration data separately
+      const regResponse = await fetch('http://localhost:3001/api/admin/stats/registrations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let registrationsByDate: RegistrationByDate[] = [];
+      if (regResponse.ok) {
+        const regData = await regResponse.json();
+        registrationsByDate = regData.registrationsByDate || [];
+      }
+
+      const data: StatsResponse = {
+        users: {
+          total: newData.totalUsers,
+          active: newData.activeUsersLast30Days
+        },
+        projects: {
+          total: newData.totalProjects
+        },
+        registrationsByDate
+      };
+
       setStats(data);
       setError('');
     } catch (err) {
@@ -102,11 +134,6 @@ const AdminStatsPage = () => {
   }
 
   // Calculate additional metrics
-  const freeUsers = stats.users.total - stats.users.premium;
-  const premiumPercentage = stats.users.total > 0
-    ? ((stats.users.premium / stats.users.total) * 100).toFixed(1)
-    : '0.0';
-
   const avgProjectsPerUser = stats.users.total > 0
     ? (stats.projects.total / stats.users.total).toFixed(1)
     : '0.0';
@@ -127,7 +154,7 @@ const AdminStatsPage = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Total Users */}
         <div className="bg-white dark:bg-dark-card rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -162,26 +189,6 @@ const AdminStatsPage = () => {
           </div>
         </div>
 
-        {/* Premium Users */}
-        <div className="bg-white dark:bg-dark-card rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                Utenti Premium
-              </p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.users.premium}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {premiumPercentage}% del totale
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-
         {/* Total Projects */}
         <div className="bg-white dark:bg-dark-card rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -198,62 +205,6 @@ const AdminStatsPage = () => {
             </div>
             <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
               <FolderOpen className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* User Breakdown */}
-      <div className="bg-white dark:bg-dark-card rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700 mb-8">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Distribuzione Utenti
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Free Users */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Utenti Free
-            </p>
-            <p className="text-4xl font-bold text-gray-700 dark:text-gray-300">
-              {freeUsers}
-            </p>
-            <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gray-500 dark:bg-gray-600 rounded-full"
-                style={{ width: `${(freeUsers / stats.users.total) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Premium Users */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Utenti Premium
-            </p>
-            <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-              {stats.users.premium}
-            </p>
-            <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-600 dark:bg-blue-500 rounded-full"
-                style={{ width: `${(stats.users.premium / stats.users.total) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Lifetime Users */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Utenti Lifetime
-            </p>
-            <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">
-              {stats.users.premium > 0 ? Math.floor(stats.users.premium * 0.1) : 0}
-            </p>
-            <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-600 dark:bg-amber-500 rounded-full"
-                style={{ width: `${((stats.users.premium * 0.1) / stats.users.total) * 100}%` }}
-              />
             </div>
           </div>
         </div>
