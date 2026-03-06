@@ -73,51 +73,11 @@
       "feature3": "Generazione headline",
       "feature4": "Snippet social media"
     },
-    "pricing": {
-      "title": "Piani e Prezzi",
-      "subtitle": "Scegli il piano perfetto per le tue esigenze creative",
-      "free": {
-        "name": "Free",
-        "price": "€0",
-        "period": "per sempre",
-        "description": "Per iniziare a esplorare",
-        "feature1": "Fino a 3,000 parole per capitolo",
-        "feature2": "Fino a 5 capitoli per progetto",
-        "feature3": "Fino a 10,000 parole al mese",
-        "feature4": "1 profilo Human Model (analisi base)",
-        "feature5": "Fino a 5 fonti caricate",
-        "feature6": "Ricerca web (10/mese)",
-        "feature7": "Export TXT, DOCX"
-      },
-      "premium": {
-        "name": "Premium",
-        "price": "€19",
-        "period": "/mese",
-        "description": "Per scrittori seri",
-        "feature1": "Generazione illimitata",
-        "feature2": "Fino a 10 profili Human Model (analisi avanzata)",
-        "feature3": "Fonti illimitate",
-        "feature4": "Ricerca web illimitata",
-        "feature5": "Export in tutti i formati (EPUB, PDF, RTF)",
-        "feature6": "Saghe e continuity",
-        "feature7": "Generazione sequel",
-        "feature8": "Google Drive integration",
-        "feature9": "SEO avanzato",
-        "feature10": "Supporto prioritario",
-        "popular": "Più Popolare"
-      },
-      "lifetime": {
-        "name": "Lifetime",
-        "price": "€299",
-        "period": "una tantum",
-        "description": "Accesso per sempre",
-        "feature1": "Tutto Premium incluso per sempre",
-        "feature2": "Nessun canone mensile",
-        "feature3": "Tutti gli aggiornamenti futuri",
-        "feature4": "Accesso anticipato a nuove funzionalità",
-        "feature5": "Supporto VIP dedicato",
-        "cta": "Ottieni Lifetime"
-      }
+    "freeForAll": {
+      "title": "Completamente Gratuito",
+      "subtitle": "OmniWriter è gratuito. Tutte le funzionalità sono disponibili per tutti gli utenti.",
+      "description": "Nessun piano a pagamento, nessuna limitazione. Accedi a tutte le funzionalità di scrittura AI senza alcun costo.",
+      "cta": "Registrati Gratis"
     },
     "cta": {
       "title": "Pronto a Trasformare le Tue Idee in Capolavori?",

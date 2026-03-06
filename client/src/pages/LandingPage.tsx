@@ -165,80 +165,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Free For All Section */}
       <section className="py-24 bg-gray-50 dark:bg-dark-surface">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              {t('landing.pricing.title')}
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300">
-              {t('landing.pricing.subtitle')}
-            </p>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 mb-8">
+            <span className="text-5xl">🎁</span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Free Plan */}
-            <PricingCard
-              name={t('landing.pricing.free.name')}
-              price={t('landing.pricing.free.price')}
-              period={t('landing.pricing.free.period')}
-              description={t('landing.pricing.free.description')}
-              features={[
-                t('landing.pricing.free.feature1'),
-                t('landing.pricing.free.feature2'),
-                t('landing.pricing.free.feature3'),
-                t('landing.pricing.free.feature4'),
-                t('landing.pricing.free.feature5'),
-                t('landing.pricing.free.feature6'),
-                t('landing.pricing.free.feature7')
-              ]}
-              ctaText={t('landing.startFree')}
-              ctaLink="/register"
-              isPopular={false}
-            />
-
-            {/* Premium Plan */}
-            <PricingCard
-              name={t('landing.pricing.premium.name')}
-              price={t('landing.pricing.premium.price')}
-              period={t('landing.pricing.premium.period')}
-              description={t('landing.pricing.premium.description')}
-              features={[
-                t('landing.pricing.premium.feature1'),
-                t('landing.pricing.premium.feature2'),
-                t('landing.pricing.premium.feature3'),
-                t('landing.pricing.premium.feature4'),
-                t('landing.pricing.premium.feature5'),
-                t('landing.pricing.premium.feature6'),
-                t('landing.pricing.premium.feature7'),
-                t('landing.pricing.premium.feature8'),
-                t('landing.pricing.premium.feature9'),
-                t('landing.pricing.premium.feature10'),
-              ]}
-              ctaText={t('common.register')}
-              ctaLink="/register"
-              isPopular={true}
-              popularLabel={t('landing.pricing.premium.popular')}
-            />
-
-            {/* Lifetime Plan */}
-            <PricingCard
-              name={t('landing.pricing.lifetime.name')}
-              price={t('landing.pricing.lifetime.price')}
-              period={t('landing.pricing.lifetime.period')}
-              description={t('landing.pricing.lifetime.description')}
-              features={[
-                t('landing.pricing.lifetime.feature1'),
-                t('landing.pricing.lifetime.feature2'),
-                t('landing.pricing.lifetime.feature3'),
-                t('landing.pricing.lifetime.feature4'),
-                t('landing.pricing.lifetime.feature5')
-              ]}
-              ctaText={t('landing.pricing.lifetime.cta')}
-              ctaLink="/register"
-              isPopular={false}
-            />
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            {t('landing.freeForAll.title')}
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
+            {t('landing.freeForAll.subtitle')}
+          </p>
+          <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+            {t('landing.freeForAll.description')}
+          </p>
+          <div className="mt-10">
+            <Link
+              to="/register"
+              className="inline-block px-10 py-4 bg-green-600 text-white text-lg font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
+            >
+              {t('landing.freeForAll.cta')}
+            </Link>
           </div>
         </div>
       </section>
@@ -322,58 +270,3 @@ function FeatureCard({ icon, title, color, description, features }: FeatureCardP
   );
 }
 
-interface PricingCardProps {
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  ctaText: string;
-  ctaLink: string;
-  isPopular: boolean;
-  popularLabel?: string;
-}
-
-function PricingCard({ name, price, period, description, features, ctaText, ctaLink, isPopular, popularLabel }: PricingCardProps) {
-  return (
-    <div className={`relative bg-white dark:bg-dark-surface rounded-2xl p-8 shadow-xl ${
-      isPopular ? 'border-2 border-primary-500 scale-105' : 'border border-gray-200 dark:border-gray-700'
-    }`}>
-      {isPopular && (
-        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-          <span className="bg-primary-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-            {popularLabel}
-          </span>
-        </div>
-      )}
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{name}</h3>
-        <div className="flex items-baseline justify-center gap-1">
-          <span className="text-5xl font-extrabold text-gray-900 dark:text-white">{price}</span>
-          <span className="text-gray-500 dark:text-gray-400">{period}</span>
-        </div>
-        <p className="mt-4 text-gray-600 dark:text-gray-300">{description}</p>
-      </div>
-      <ul className="space-y-4 mb-8">
-        {features.map((feature, idx) => (
-          <li key={idx} className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-gray-600 dark:text-gray-300">{feature}</span>
-          </li>
-        ))}
-      </ul>
-      <Link
-        to={ctaLink}
-        className={`block w-full text-center py-4 rounded-lg font-semibold transition-colors ${
-          isPopular
-            ? 'bg-primary-600 text-white hover:bg-primary-700'
-            : 'bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
-        }`}
-      >
-        {ctaText}
-      </Link>
-    </div>
-  );
-}
