@@ -960,7 +960,7 @@
       "chapterLengthLong": "Lungo",
       "chapterLengthLongDesc": "~3.000 parole",
       "chapterLengthExtended": "Esteso",
-      "chapterLengthExtendedDesc": "~5.000 parole",
+      "chapterLengthExtendedDesc": "~5.000 parole"
     },
     "debug": {
       "clearLogs": "Cancella log",

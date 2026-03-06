@@ -115,20 +115,10 @@ export default function ProfilePage() {
 
   const getRoleBadge = (role: string) => {
     const badges = {
-      free: {
-        color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600',
-        label: t('profile.roles.free'),
+      user: {
+        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-700',
+        label: t('profile.roles.user'),
         icon: '○'
-      },
-      premium: {
-        color: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900 dark:to-yellow-900 dark:text-amber-100 border border-amber-300 dark:border-amber-700',
-        label: t('profile.roles.premium'),
-        icon: '★'
-      },
-      lifetime: {
-        color: 'bg-gradient-to-r from-purple-100 to-amber-100 text-purple-900 dark:from-purple-900 dark:to-amber-900 dark:text-purple-100 border border-purple-300 dark:border-purple-700',
-        label: t('profile.roles.lifetime'),
-        icon: '♦'
       },
       admin: {
         color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-700',
@@ -136,7 +126,7 @@ export default function ProfilePage() {
         icon: '⚙'
       },
     };
-    return badges[role as keyof typeof badges] || badges.free;
+    return badges[role as keyof typeof badges] || badges.user;
   };
 
   if (isLoading) {
