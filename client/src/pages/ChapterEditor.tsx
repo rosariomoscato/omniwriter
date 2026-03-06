@@ -10,7 +10,6 @@ import { EditorSkeleton } from '../components/Skeleton';
 import { useToastNotification } from '../components/Toast';
 import { apiService, Chapter, Project, ChapterVersion, HumanModel } from '../services/api';
 import RedattoreTools from '../components/RedattoreTools';
-import { useTierPermissions } from '../hooks/useTierPermissions';
 import { DebugPanel, useDebugLogs } from '../components/debug/DebugPanel';
 import { WaitingIndicator, useWaitingIndicator } from '../components/WaitingIndicator';
 
@@ -25,7 +24,6 @@ const CHAPTER_LENGTH_OPTIONS = [
 export default function ChapterEditor() {
   const { t } = useTranslation();
   const toast = useToastNotification();
-  const { getLimit } = useTierPermissions();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
 
@@ -1251,37 +1249,28 @@ export default function ChapterEditor() {
                           <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                             {t('chapterEditor.generation.chapterLength', 'Chapter length')}
                           </div>
-                          {CHAPTER_LENGTH_OPTIONS.map(option => {
-                            const tierLimit = getLimit('maxGenerationLength');
-                            const isOverTierLimit = tierLimit > 0 && option.value > tierLimit;
-                            return (
-                              <button
-                                key={option.value}
-                                onClick={() => {
-                                  setChapterWordTarget(option.value);
-                                  setShowChapterLengthDropdown(false);
-                                }}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
-                                  chapterWordTarget === option.value
-                                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-                                    : 'text-gray-700 dark:text-gray-300'
-                                }`}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{t(`chapterEditor.generation.${option.labelKey}`)}</span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{t(`chapterEditor.generation.${option.descKey}`)}</span>
-                                  {isOverTierLimit && (
-                                    <span className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                                      {t('chapterEditor.generation.chapterLengthTierWarning', { limit: tierLimit.toLocaleString() })}
-                                    </span>
-                                  )}
-                                </div>
-                                {chapterWordTarget === option.value && (
-                                  <span className="text-purple-600 dark:text-purple-400 ml-2">✓</span>
-                                )}
-                              </button>
-                            );
-                          })}
+                          {CHAPTER_LENGTH_OPTIONS.map(option => (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setChapterWordTarget(option.value);
+                                setShowChapterLengthDropdown(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${
+                                chapterWordTarget === option.value
+                                  ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{t(`chapterEditor.generation.${option.labelKey}`)}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{t(`chapterEditor.generation.${option.descKey}`)}</span>
+                              </div>
+                              {chapterWordTarget === option.value && (
+                                <span className="text-purple-600 dark:text-purple-400 ml-2">✓</span>
+                              )}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
