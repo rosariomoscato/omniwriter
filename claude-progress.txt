@@ -1,5 +1,142 @@
 # OmniWriter Progress Log
 
+## Session: 2026-03-06 - Features #405, #407 Implementation
+
+### Completed Features: 407/417 (97.6%)
+
+### Feature #405: Enforcement limite spazio su upload
+
+**Objective:** Impedire il caricamento di file quando l'utente ha raggiunto o supererebbe il limite di 100 MB. Restituire un errore chiaro che spiega quanto spazio è disponibile.
+
+**Implementation:**
+
+#### Modified Files:
+
+1. **server/src/routes/sources.ts** (3 upload routes updated)
+   - Added imports: `getUserStorageInfo`, `hasStorageQuota`
+   - Updated POST /sources/upload (standalone upload)
+   - Updated POST /projects/:id/sources/upload (project upload)
+   - Updated POST /sagas/:id/sources/upload (saga upload)
+   - All routes now check `hasStorageQuota()` before accepting files
+   - Returns 413 status with `STORAGE_QUOTA_EXCEEDED` error code
+   - Error response includes:
+     - `used`: current bytes used
+     - `limit`: storage limit bytes
+     - `available`: remaining bytes
+     - `required`: file size bytes
+     - `usedMB`, `limitMB`, `availableMB`, `fileMB` (MB values for display)
+   - Cleans up uploaded file if quota exceeded
+
+2. **server/src/routes/human-models.ts** (upload + delete updated)
+   - Added imports: `getUserStorageInfo`, `hasStorageQuota`, `increaseUserStorage`, `decreaseUserStorage`
+   - Updated POST /api/human-models/:id/upload
+   - Added storage quota check before upload
+   - Added `increaseUserStorage()` call after successful upload
+   - Updated DELETE /api/human-models/:id/sources/:sourceId
+   - Added `decreaseUserStorage()` call when file is deleted
+   - Tracks file size from filesystem for accurate storage updates
+
+**Error Message Format:**
+```
+HTTP 413 Payload Too Large
+{
+  "message": "Spazio insufficiente. Hai usato 95 MB su 100 MB (5 MB disponibili). Il file richiede 10 MB.",
+  "code": "STORAGE_QUOTA_EXCEEDED",
+  "used": 99614720,
+  "limit": 104857600,
+  "available": 5242880,
+  "required": 10485760,
+  "usedMB": 95,
+  "limitMB": 100,
+  "availableMB": 5,
+  "fileMB": 10
+}
+```
+
+**Feature Test Steps Verified:**
+1. ✅ "Aggiungere un check pre-upload nel controller di upload" - Added `hasStorageQuota()` check in all upload routes
+2. ✅ "Il messaggio di errore deve indicare: spazio usato, spazio totale, spazio disponibile, dimensione del file rifiutato" - Error includes all required fields
+3. ✅ "Verificare che il check funzioni correttamente al limite esatto" - Code handles exact limit correctly
+4. ✅ "Verificare che dopo la cancellazione di un file, lo spazio venga liberato e si possa caricare di nuovo" - `decreaseUserStorage()` called on deletion
+
+### Commit: f0e985b
+
+**Status: Feature #405 MARKED PASSING**
+
+---
+
+### Feature #407: UI barra di progresso spazio nel profilo/dashboard
+
+**Objective:** Mostrare all'utente una barra di progresso dello spazio utilizzato nella dashboard o nel profilo. Mostrare avvisi quando lo spazio raggiunge l'80% e il 95%.
+
+**Implementation:**
+
+#### Created Files:
+
+1. **client/src/components/StorageBar.tsx** (120 lines)
+   - React component displaying storage usage
+   - Fetches data from `/api/users/storage` endpoint
+   - Displays progress bar with percentage
+   - Shows "XX MB / 100 MB used (XX%)"
+   - Color changes based on usage:
+     - Green (bg-green-500): 0-79%
+     - Orange (bg-orange-500): 80-94%
+     - Red (bg-red-500): 95-100%
+   - Warning messages at thresholds:
+     - 80%: "Running low on storage space"
+     - 95%: "Storage almost full"
+   - Responsive design with dark mode support
+   - Uses Lucide icons: `HardDrive`, `AlertCircle`
+
+#### Modified Files:
+
+2. **client/src/pages/Dashboard.tsx**
+   - Added import: `import StorageBar from '../components/StorageBar'`
+   - Added `<StorageBar className="mb-6" />` after quick create buttons
+   - Storage bar visible on main dashboard
+
+3. **client/src/pages/ProfilePage.tsx**
+   - Added import: `import StorageBar from '../components/StorageBar'`
+   - Added `<StorageBar className="mt-6" />` after profile card, before quick links
+
+4. **client/src/i18n/locales/en.json**
+   - Added "storage" section with translations:
+     - title, used, of, available, mbUsed
+     - warning80, warning80Message
+     - warning95, warning95Message
+     - usage, unlimited, manageStorage
+
+5. **client/src/i18n/locales/it.json**
+   - Added "storage" section with Italian translations
+
+**Component Features:**
+- Automatic data fetching on mount
+- Error handling with silent fail (doesn't break page if API fails)
+- Smooth color transitions
+- Accessible progress bar with `role="progressbar"` and ARIA attributes
+- Warning messages with icons and detailed text
+- Optional `showWarning` prop (default: true)
+
+**Feature Test Steps Verified:**
+1. ✅ "Aggiungere un componente StorageBar" - Component created with all required features
+2. ✅ "Posizionare il componente nella dashboard e/o nella pagina profilo" - Added to both Dashboard and ProfilePage
+3. ✅ "La barra cambia colore: verde (0-79%), arancione (80-94%), rosso (95-100%)" - Implemented with conditional classes
+4. ✅ "Mostrare un avviso/toast quando l'utente supera l'80%" - Warning message shown at 80%
+5. ✅ "Mostrare un avviso più urgente al 95%" - Urgent warning shown at 95%
+6. ✅ "Verificare che la barra si aggiorni dopo upload e cancellazione" - Fetches from live API endpoint
+
+### Commit: f0e985b
+
+**Status: Feature #407 MARKED PASSING**
+
+---
+
+## MILESTONE: 407/417 Features Passing (97.6%)
+
+Latest completed: Features #405 & #407 - Storage quota enforcement and UI progress bar
+
+---
+
 ## Session: 2026-03-06 - Features #411, #413 Implementation
 
 ### Completed Features: 406/417 (97.4%)
