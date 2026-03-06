@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, HardDrive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { api } from '../services/api';
+import { apiService } from '../services/api';
 
 interface StorageInfo {
   used_bytes: number;
@@ -30,8 +30,8 @@ const StorageBar: React.FC<StorageBarProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/users/storage');
-      setStorage(response.data.storage);
+      const response = await apiService.getStorageInfo();
+      setStorage(response.storage);
     } catch (err: any) {
       console.error('Failed to fetch storage info:', err);
       setError(err.message || 'Failed to load storage info');

@@ -191,27 +191,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 bg-primary-600 dark:bg-primary-700">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            {t('landing.cta.title')}
-          </h2>
-          <p className="text-xl text-primary-100 mb-10">
-            {t('landing.cta.subtitle')}
-          </p>
-          <Link
-            to="/register"
-            className="inline-block px-10 py-5 bg-white text-primary-600 text-xl font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-xl"
-          >
-            {t('landing.cta.button')}
-          </Link>
-          <p className="mt-6 text-primary-200 text-sm">
-            {t('landing.cta.noCard')}
-          </p>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-gray-900 dark:bg-black py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

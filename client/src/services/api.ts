@@ -2571,6 +2571,20 @@ class ApiService {
     return this.request<any>(`/admin/activity${queryString ? `?${queryString}` : ''}`);
   }
 
+  // Storage info (Feature #404)
+  async getStorageInfo(): Promise<{
+    storage: {
+      used_bytes: number;
+      limit_bytes: number;
+      used_mb: number;
+      limit_mb: number;
+      percent_used: number;
+      available_bytes: number;
+    };
+  }> {
+    return this.request<any>('/users/storage');
+  }
+
   // Helper to store auth data
   static setAuth(user: AuthResponse['user'], token: string) {
     localStorage.setItem('user', JSON.stringify(user));
