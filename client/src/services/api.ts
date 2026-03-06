@@ -2194,8 +2194,6 @@ class ApiService {
     bio: string;
     avatar_url: string;
     role: string;
-    subscription_status: string;
-    subscription_expires_at: string | null;
     preferred_language: string;
     theme_preference: string;
     created_at: string;
@@ -2375,8 +2373,6 @@ class ApiService {
       email: string;
       name: string;
       role: string;
-      subscription_status: string;
-      subscription_expires_at: string | null;
       preferred_language: string;
       theme_preference: string;
       created_at: string;

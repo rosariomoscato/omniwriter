@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Shield, UserCheck, UserX, Mail, Calendar, Crown, User, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, Shield, Mail, Calendar, Crown, User, Trash2, AlertTriangle } from 'lucide-react';
 import { useToastNotification } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,11 +8,11 @@ interface User {
   email: string;
   name: string;
   role: 'user' | 'admin';
-  subscription_status?: string;
-  subscription_expires_at?: string;
   preferred_language: 'it' | 'en';
   created_at: string;
   last_login_at?: string;
+  storage_used_bytes: number;
+  storage_limit_bytes: number;
 }
 
 interface Pagination {
@@ -40,12 +40,13 @@ const AdminUsersPage = () => {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState<'created_at' | 'storage_used'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
-  const fetchUsers = async (page: number, searchQuery: string, role: string, status: string) => {
+  const fetchUsers = async (page: number, searchQuery: string, role: string) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -57,9 +58,6 @@ const AdminUsersPage = () => {
       }
       if (role) {
         url.searchParams.append('role', role);
-      }
-      if (status) {
-        url.searchParams.append('status', status);
       }
 
       const response = await fetch(url.toString(), {
@@ -93,8 +91,8 @@ const AdminUsersPage = () => {
   };
 
   useEffect(() => {
-    fetchUsers(pagination.page, search, roleFilter, statusFilter);
-  }, [pagination.page, search, roleFilter, statusFilter]);
+    fetchUsers(pagination.page, search, roleFilter);
+  }, [pagination.page, search, roleFilter]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,17 +105,43 @@ const AdminUsersPage = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handleStatusFilterChange = (newStatus: string) => {
-    setStatusFilter(newStatus);
-    setPagination(prev => ({ ...prev, page: 1 }));
+  const handleSortByStorage = () => {
+    if (sortBy === 'storage_used') {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy('storage_used');
+      setSortOrder('desc');
+    }
   };
 
   const clearFilters = () => {
     setSearchInput('');
     setSearch('');
     setRoleFilter('');
-    setStatusFilter('');
     setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const formatStorage = (bytes: number): string => {
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 1) {
+      return `${mb.toFixed(1)} MB`;
+    }
+    const kb = bytes / 1024;
+    return `${kb.toFixed(1)} KB`;
+  };
+
+  const getStoragePercentage = (used: number, limit: number): number => {
+    return Math.min((used / limit) * 100, 100);
+  };
+
+  const getStorageColor = (percentage: number): string => {
+    if (percentage >= 95) {
+      return 'bg-red-500';
+    }
+    if (percentage >= 80) {
+      return 'bg-orange-500';
+    }
+    return 'bg-green-500';
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -176,34 +200,6 @@ const AdminUsersPage = () => {
     }
   };
 
-  const handleSuspendToggle = async (userId: string, currentStatus: string) => {
-    const shouldSuspend = currentStatus !== 'suspended';
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/suspend`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ suspended: shouldSuspend })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update suspension');
-      }
-
-      // Update local state
-      setUsers(users.map(u =>
-        u.id === userId ? { ...u, subscription_status: shouldSuspend ? 'suspended' : 'active' } : u
-      ));
-      toast.success(`User ${shouldSuspend ? 'suspended' : 'activated'} successfully`);
-    } catch (err) {
-      console.error('Error updating suspension:', err);
-      toast.error('Failed to update user suspension');
-    }
-  };
-
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
@@ -215,6 +211,19 @@ const AdminUsersPage = () => {
   const getRoleIcon = (role: string) => {
     return role === 'admin' ? Crown : User;
   };
+
+  // Sort users based on current sort settings
+  const sortedUsers = [...users].sort((a, b) => {
+    if (sortBy === 'storage_used') {
+      const aUsage = a.storage_used_bytes / a.storage_limit_bytes;
+      const bUsage = b.storage_used_bytes / b.storage_limit_bytes;
+      return sortOrder === 'asc' ? aUsage - bUsage : bUsage - aUsage;
+    }
+    // created_at
+    const aDate = new Date(a.created_at).getTime();
+    const bDate = new Date(b.created_at).getTime();
+    return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+  });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -296,22 +305,7 @@ const AdminUsersPage = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Stato:
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => handleStatusFilterChange(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-surface text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tutti</option>
-            <option value="active">Attivo</option>
-            <option value="suspended">Sospeso</option>
-          </select>
-        </div>
-
-        {(search || roleFilter || statusFilter) && (
+        {(search || roleFilter) && (
           <button
             onClick={clearFilters}
             className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -340,8 +334,12 @@ const AdminUsersPage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Ruolo
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Stato
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-card transition-colors"
+                    onClick={handleSortByStorage}>
+                  Spazio
+                  {sortBy === 'storage_used' && (
+                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Creato il
@@ -362,8 +360,10 @@ const AdminUsersPage = () => {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => {
+                sortedUsers.map((user) => {
                   const RoleIcon = getRoleIcon(user.role);
+                  const storagePercentage = getStoragePercentage(user.storage_used_bytes, user.storage_limit_bytes);
+                  const storageColor = getStorageColor(storagePercentage);
                   return (
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -391,23 +391,26 @@ const AdminUsersPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.subscription_status === 'suspended'
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        }`}>
-                          {user.subscription_status === 'suspended' ? (
-                            <>
-                              <UserX className="w-3 h-3" />
-                              Sospeso
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="w-3 h-3" />
-                              Attivo
-                            </>
-                          )}
-                        </span>
+                        <div className="w-full max-w-xs">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-900 dark:text-white">
+                              {formatStorage(user.storage_used_bytes)} / {formatStorage(user.storage_limit_bytes)}
+                            </span>
+                            <span className={`font-medium ${
+                              storagePercentage >= 95 ? 'text-red-600 dark:text-red-400' :
+                              storagePercentage >= 80 ? 'text-orange-600 dark:text-orange-400' :
+                              'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {storagePercentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${storageColor} rounded-full transition-all`}
+                              style={{ width: `${storagePercentage}%` }}
+                            />
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-1">
@@ -426,31 +429,12 @@ const AdminUsersPage = () => {
                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                             className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-dark-surface text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                           >
-                            <option value="free">Free</option>
-                            <option value="premium">Premium</option>
-                            <option value="lifetime">Lifetime</option>
+                            <option value="user">Utente</option>
                             <option value="admin">Admin</option>
                           </select>
 
-                          {/* Suspend/Reactivate Button */}
-                          <button
-                            onClick={() => handleSuspendToggle(user.id, user.subscription_status || 'active')}
-                            className={`p-1.5 rounded ${
-                              user.subscription_status === 'suspended'
-                                ? 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900 dark:hover:bg-green-800 dark:text-green-200'
-                                : 'bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-200'
-                            } transition-colors`}
-                            title={user.subscription_status === 'suspended' ? 'Riattiva utente' : 'Sospendi utente'}
-                          >
-                            {user.subscription_status === 'suspended' ? (
-                              <UserCheck className="w-4 h-4" />
-                            ) : (
-                              <UserX className="w-4 h-4" />
-                            )}
-                          </button>
-
                           {/* Delete Button */}
-                          {user.id !== currentUser?.id && (
+                          {String(user.id) !== String(currentUser?.id) && (
                             <button
                               onClick={() => setDeleteConfirm({ id: user.id, name: user.name })}
                               className="p-1.5 rounded bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-200 transition-colors"

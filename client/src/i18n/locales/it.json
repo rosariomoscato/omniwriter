@@ -1625,6 +1625,21 @@
       "contactSupport": "Contatta il supporto"
     }
   },
+  "storage": {
+    "title": "Spazio di Archiviazione",
+    "used": "Utilizzato",
+    "of": "su",
+    "available": "disponibile",
+    "mbUsed": "{{used}} MB utilizzati",
+    "quotaFull": "Spazio esaurito",
+    "warning80": "Spazio in esaurimento",
+    "warning80Message": "Hai utilizzato oltre l'80% dello spazio disponibile. Considera di passare a Premium per spazio illimitato.",
+    "warning95": "Spazio quasi esaurito",
+    "warning95Message": "Hai utilizzato oltre il 95% dello spazio disponibile. Libera spazio cancellando file non necessari o passa a Premium.",
+    "usage": "{{used}} MB / {{limit}} MB utilizzati ({{percent}}%)",
+    "unlimited": "Illimitato",
+    "manageStorage": "Gestisci Spazio"
+  },
   "waitingIndicator": {
     "title": "Elaborazione AI",
     "reasoningModelTitle": "Modello Reasoning Attivo",

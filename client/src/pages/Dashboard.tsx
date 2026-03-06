@@ -11,6 +11,7 @@ import { ProjectCardSkeleton } from '../components/Skeleton';
 import DashboardStats from '../components/DashboardStats';
 import DashboardAreas from '../components/DashboardAreas';
 import AnalyzeNovelModal from '../components/AnalyzeNovelModal';
+import StorageBar from '../components/StorageBar';
 
 type FilterArea = 'all' | 'romanziere' | 'saggista' | 'redattore';
 type FilterStatus = 'all' | 'draft' | 'in_progress' | 'completed' | 'archived';
@@ -652,6 +653,9 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* Storage Bar - Feature #407 */}
+      <StorageBar className="mb-6" />
 
       {/* Analyze Novel Modal */}
       <AnalyzeNovelModal

@@ -577,11 +577,14 @@ router.delete('/:id/sources/:sourceId', authenticateToken, (req: AuthRequest, re
       return;
     }
 
-    // Delete file from filesystem
+    // Delete file from filesystem and track storage
+    let fileSizeBytes = 0;
     try {
       if (fs.existsSync(source.file_path)) {
+        const stats = fs.statSync(source.file_path);
+        fileSizeBytes = stats.size;
         fs.unlinkSync(source.file_path);
-        console.log('[HumanModels] Deleted source file:', source.file_path);
+        console.log('[HumanModels] Deleted source file:', source.file_path, 'Size:', fileSizeBytes);
       }
     } catch (err) {
       console.warn('[HumanModels] Failed to delete file:', source.file_path, err);
@@ -589,6 +592,11 @@ router.delete('/:id/sources/:sourceId', authenticateToken, (req: AuthRequest, re
 
     // Delete source from database
     db.prepare('DELETE FROM human_model_sources WHERE id = ? AND human_model_id = ?').run(sourceId, modelId);
+
+    // Feature #404: Update user storage tracking (decrease storage when human model file is deleted)
+    if (fileSizeBytes > 0) {
+      decreaseUserStorage(userId, fileSizeBytes);
+    }
 
     // Update total word count
     const newTotalWordCount = Math.max(0, model.total_word_count - source.word_count);

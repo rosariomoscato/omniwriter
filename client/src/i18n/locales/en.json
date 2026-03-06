@@ -1625,6 +1625,21 @@
       "contactSupport": "Contact support"
     }
   },
+  "storage": {
+    "title": "Storage Space",
+    "used": "Used",
+    "of": "of",
+    "available": "available",
+    "mbUsed": "{{used}} MB used",
+    "quotaFull": "Storage quota full",
+    "warning80": "Running low on storage space",
+    "warning80Message": "You've used over 80% of your available storage. Consider upgrading to Premium for unlimited storage.",
+    "warning95": "Storage almost full",
+    "warning95Message": "You've used over 95% of your available storage. Free up space by deleting unnecessary files or upgrade to Premium.",
+    "usage": "{{used}} MB / {{limit}} MB used ({{percent}}%)",
+    "unlimited": "Unlimited",
+    "manageStorage": "Manage Storage"
+  },
   "waitingIndicator": {
     "title": "AI Processing",
     "reasoningModelTitle": "Reasoning Model Active",

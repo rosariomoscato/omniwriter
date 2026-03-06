@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
+import StorageBar from '../components/StorageBar';
 
 interface UserProfile {
   id: string | number;
@@ -379,6 +380,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Storage Bar - Feature #407 */}
+      <StorageBar className="mt-6" />
 
       {/* Quick Links */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
