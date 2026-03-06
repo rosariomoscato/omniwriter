@@ -1,21 +1,21 @@
 import React from 'react';
-import { Crown } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-interface PremiumBadgeProps {
-  tier?: 'free' | 'premium' | 'lifetime' | 'admin';
+interface AdminBadgeProps {
+  role?: 'user' | 'admin';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
 
-const PremiumBadge: React.FC<PremiumBadgeProps> = ({
-  tier = 'free',
+const AdminBadge: React.FC<AdminBadgeProps> = ({
+  role = 'user',
   size = 'md',
   showLabel = true
 }) => {
   const { t } = useTranslation();
 
-  if (tier === 'free') {
+  if (role === 'user') {
     return null;
   }
 
@@ -31,24 +31,16 @@ const PremiumBadge: React.FC<PremiumBadgeProps> = ({
     lg: 16
   };
 
-  const isLifetime = tier === 'lifetime' || tier === 'admin';
-
   return (
     <div
-      className={`inline-flex items-center gap-1.5 rounded-full ${
-        isLifetime
-          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-          : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-      } ${sizeClasses[size]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-red-600 to-orange-600 text-white ${sizeClasses[size]}`}
     >
-      <Crown size={iconSizes[size]} className="fill-current" />
+      <Shield size={iconSizes[size]} className="fill-current" />
       {showLabel && (
-        <span className="font-medium">
-          {isLifetime ? t('premium.lifetime') : t('premium.premium')}
-        </span>
+        <span className="font-medium">{t('profile.roles.admin')}</span>
       )}
     </div>
   );
 };
 
-export default PremiumBadge;
+export default AdminBadge;
