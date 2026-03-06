@@ -1,11 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { apiService, Source } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { useToastNotification } from '../components/Toast';
 import Breadcrumbs from '../components/Breadcrumbs';
 import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
-// import UpgradeModal from '../components/UpgradeModal'; // Feature #414: Removed
-// import { useTierPermissions } from '../hooks/useTierPermissions'; // Feature #414: No longer needed
 import {
   FileText,
   Upload,
@@ -15,8 +13,6 @@ import {
   Search,
   Filter,
   FolderOpen,
-  Lock,
-  AlertTriangle,
 } from 'lucide-react';
 
 export default function SourcesPage() {
@@ -46,19 +42,6 @@ export default function SourcesPage() {
   // Tag deletion confirmation states
   const [showDeleteTagDialog, setShowDeleteTagDialog] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
-
-  // Tier permissions
-  const { isPremium, getLimit, canAccess } = useTierPermissions();
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  // Get source limits
-  const maxSources = getLimit('maxSourcesPerProject');
-  const hasUnlimitedSources = canAccess('unlimitedSources');
-
-  // Calculate if limit reached (for free users)
-  const sourcesUsed = sources.length;
-  const isAtLimit = !hasUnlimitedSources && maxSources > 0 && sourcesUsed >= maxSources;
-  const isNearLimit = !hasUnlimitedSources && maxSources > 0 && sourcesUsed >= maxSources * 0.8;
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -111,13 +94,6 @@ export default function SourcesPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
-    // Check if user has reached source limit
-    if (isAtLimit) {
-      setShowUpgradeModal(true);
-      e.target.value = '';
-      return;
-    }
 
     const file = files[0];
 
@@ -297,24 +273,6 @@ export default function SourcesPage() {
         <p className="text-gray-600 dark:text-gray-400">
           {t('sources.description')}
         </p>
-        {/* Source counter for free users */}
-        {!hasUnlimitedSources && (
-          <div className={`mt-2 text-sm flex items-center gap-2 ${isAtLimit ? 'text-red-600 dark:text-red-400' : isNearLimit ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
-            <span>{t('sources.sourceCounter', { used: sourcesUsed, limit: maxSources })}</span>
-            {isAtLimit && (
-              <span className="flex items-center gap-1">
-                <Lock className="w-4 h-4" />
-                {t('sources.limitReached')}
-              </span>
-            )}
-            {isNearLimit && !isAtLimit && (
-              <span className="flex items-center gap-1">
-                <AlertTriangle className="w-4 h-4" />
-                {t('sources.nearLimit')}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Stats and Upload */}
@@ -345,27 +303,17 @@ export default function SourcesPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('sources.uploadNew')}
               </label>
-              {isAtLimit ? (
-                <button
-                  onClick={() => setShowUpgradeModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed transition-colors w-fit"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>{t('sources.limitReachedButton')}</span>
-                </button>
-              ) : (
-                <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors w-fit ${uploading ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
-                  <Upload className="w-4 h-4" />
-                  <span>{uploading ? t('sources.uploading') : t('sources.uploadButton')}</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.docx,.doc,.rtf,.txt"
-                    onChange={handleFileUpload}
-                    disabled={uploading || isAtLimit}
-                  />
-                </label>
-              )}
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors w-fit ${uploading ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
+                <Upload className="w-4 h-4" />
+                <span>{uploading ? t('sources.uploading') : t('sources.uploadButton')}</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.docx,.doc,.rtf,.txt"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+              </label>
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
               PDF, DOCX, DOC, RTF, TXT
@@ -660,14 +608,6 @@ export default function SourcesPage() {
         }}
         confirmText={t('common.delete', 'Delete')}
         cancelText={t('common.cancel', 'Cancel')}
-      />
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        title={t('sources.upgradeModal.title')}
-        description={t('sources.upgradeModal.description')}
       />
     </div>
   );

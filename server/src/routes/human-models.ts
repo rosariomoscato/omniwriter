@@ -11,6 +11,7 @@ import { TIER_LIMITS, UserRole } from '../config/tier-permissions';
 import { HumanModel, CreateHumanModelInput } from '../models/HumanModel';
 import { analyzeWritingStyle, isAIAvailable, hasUserProvider } from '../services/ai-service';
 import { extractTextFromFile, isSupportedFormat } from '../services/text-extraction';
+import { getUserStorageInfo, hasStorageQuota, increaseUserStorage, decreaseUserStorage } from '../utils/storage'; // Feature #404 - Storage quota tracking
 
 const router = Router();
 
@@ -298,6 +299,37 @@ router.post(
         return;
       }
 
+      // Feature #405: Check storage quota from users table before upload
+      if (req.file) {
+        const storageInfo = getUserStorageInfo(userId);
+        const newFileSizeBytes = req.file.size;
+
+        if (!hasStorageQuota(userId, newFileSizeBytes)) {
+          // Clean up uploaded file
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+
+          const usedMB = Math.round((storageInfo.used / (1024 * 1024)) * 100) / 100;
+          const limitMB = Math.round((storageInfo.limit / (1024 * 1024)) * 100) / 100;
+          const availableMB = Math.round(((storageInfo.limit - storageInfo.used) / (1024 * 1024)) * 100) / 100;
+          const fileMB = Math.round((newFileSizeBytes / (1024 * 1024)) * 100) / 100;
+
+          return res.status(413).json({
+            message: `Spazio insufficiente. Hai usato ${usedMB} MB su ${limitMB} MB (${availableMB} MB disponibili). Il file richiede ${fileMB} MB.`,
+            code: 'STORAGE_QUOTA_EXCEEDED',
+            used: storageInfo.used,
+            limit: storageInfo.limit,
+            available: storageInfo.limit - storageInfo.used,
+            required: newFileSizeBytes,
+            usedMB,
+            limitMB,
+            availableMB,
+            fileMB
+          });
+        }
+      }
+
       const contentType = req.headers['content-type'] || '';
       let file_name: string;
       let file_type: string;
@@ -390,6 +422,10 @@ router.post(
         `INSERT INTO human_model_sources (id, human_model_id, file_name, file_path, file_type, word_count, uploaded_at)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
       ).run(sourceId, modelId, file_name, finalFilePath, file_type, wordCount);
+
+      // Feature #404: Update user storage tracking (human model files count toward quota)
+      const fileSizeBytes = req.file ? req.file.size : Buffer.byteLength(content_text, 'utf8');
+      increaseUserStorage(userId, fileSizeBytes);
 
       // Update total word count
       const newTotalWordCount = model.total_word_count + wordCount;

@@ -4,11 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService, LLMProvider, CreateLLMProviderData } from '../services/api';
 import { useToastNotification } from '../components/Toast';
-import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Plus, Eye, EyeOff, CheckCircle, XCircle, HelpCircle, Server, RefreshCw, Crown, Zap, Sparkles, ArrowUpCircle } from 'lucide-react';
+import { Lock, Key, User, Shield, LogOut, AlertTriangle, Trash2, Cpu, Loader2, Plus, Eye, EyeOff, CheckCircle, XCircle, HelpCircle, Server, RefreshCw } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { TIER_LIMITS, PREMIUM_TIERS, TierLimits, UserRole } from '../config/tier-config';
-import PremiumBadge from '../components/PremiumBadge';
-import UpgradeModal from '../components/UpgradeModal';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -58,22 +55,6 @@ export default function SettingsPage() {
   const [isSavingProvider, setIsSavingProvider] = useState(false);
   const [isDeletingProvider, setIsDeletingProvider] = useState(false);
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null);
-
-  // Upgrade modal state
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  // Get tier limits for current user
-  const userRole = useMemo((): UserRole => {
-    return (user?.role as UserRole) || 'free';
-  }, [user?.role]);
-
-  const tierLimits = useMemo(() => {
-    return TIER_LIMITS[userRole] || TIER_LIMITS.free;
-  }, [userRole]);
-
-  const isPremium = useMemo(() => {
-    return PREMIUM_TIERS.includes(userRole);
-  }, [userRole]);
 
   // Password validation
   const [passwordValidations, setPasswordValidations] = useState({
@@ -653,48 +634,36 @@ export default function SettingsPage() {
             {/* Tier Name and Badge */}
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                userRole === 'lifetime'
-                  ? 'bg-gradient-to-r from-amber-400 to-amber-600'
-                  : userRole === 'premium'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                    : 'bg-gray-200 dark:bg-gray-700'
+                userRole === 'admin'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600'
               }`}>
-                {userRole === 'lifetime' ? (
-                  <Zap className="w-6 h-6 text-white" />
-                ) : userRole === 'premium' ? (
-                  <Crown className="w-6 h-6 text-white" />
+                {userRole === 'admin' ? (
+                  <Shield className="w-6 h-6 text-white" />
                 ) : (
-                  <User className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                  <User className="w-6 h-6 text-white" />
                 )}
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">
-                  {t(`tier.plans.${userRole}.name`)}
+                  {userRole === 'admin' ? t('settings.role.admin', 'Amministratore') : t('settings.role.user', 'Utente')}
                 </h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t(`tier.plans.${userRole}.description`)}
+                  {userRole === 'admin'
+                    ? t('settings.role.adminDesc', 'Accesso completo al sistema')
+                    : t('settings.role.userDesc', 'Accesso completo a tutte le funzionalità')
+                  }
                 </p>
               </div>
             </div>
 
-            {/* Subscription Status (for premium/lifetime) */}
-            {isPremium && (
-              <div className="mb-4 p-3 bg-gradient-to-r from-amber-50 to-purple-50 dark:from-amber-900/20 dark:to-purple-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                  {userRole === 'lifetime' ? (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span className="text-sm font-medium">{t('settings.tierStatus.lifetimeAccess')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Crown className="w-4 h-4" />
-                      <span className="text-sm font-medium">{t('settings.tierStatus.activeSubscription')}</span>
-                    </>
-                  )}
-                </div>
+            {/* Access Status */}
+            <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">{t('settings.tierStatus.fullAccess', 'Accesso Completo Attivo')}</span>
               </div>
-            )}
+            </div>
 
             {/* Current Limits */}
             <div className="mb-4">

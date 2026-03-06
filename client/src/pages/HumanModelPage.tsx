@@ -465,12 +465,6 @@ export default function HumanModelPage() {
           <p className="text-gray-600 dark:text-gray-400">
             {t('humanModel.description', 'Crea profili di stile personali caricando tuoi testi. L\'AI analizzerà il tuo stile di scrittura.')}
           </p>
-          {/* Profile counter for free users */}
-          {!isPremium && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {t('humanModel.profileCounter', 'Profili')}: {models.length}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -986,8 +980,6 @@ export default function HumanModelPage() {
                           </button>
                         </div>
                       </div>
-                    )}
-                      </>
                     )}
                   </div>
                 </div>

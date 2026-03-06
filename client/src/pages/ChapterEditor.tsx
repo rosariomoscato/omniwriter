@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { Save, ArrowLeft, Bold, Italic, Heading1, Eye, Edit, Loader2, Clock, Undo, Redo, Search, X, ChevronUp, ChevronDown, Maximize, Minimize, Sparkles, Lightbulb, Wand2, User, ChevronDown as ChevronDownIcon, Ruler, Bug } from 'lucide-react';
@@ -25,10 +25,9 @@ const CHAPTER_LENGTH_OPTIONS = [
 export default function ChapterEditor() {
   const { t } = useTranslation();
   const toast = useToastNotification();
-  const { getLimit, isPremium } = useTierPermissions();
+  const { getLimit } = useTierPermissions();
   const { id: projectId, chapterId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [project, setProject] = useState<Project | null>(null);

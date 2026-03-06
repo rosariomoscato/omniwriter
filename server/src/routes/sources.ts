@@ -4,7 +4,7 @@ import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { checkSourceUploadLimit } from '../middleware/tierCheck'; // Feature #368 - Tier limits
 import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #368 - Tier configuration
-import { increaseUserStorage, decreaseUserStorage } from '../utils/storage'; // Feature #404 - Storage quota tracking
+import { increaseUserStorage, decreaseUserStorage, getUserStorageInfo, hasStorageQuota } from '../utils/storage'; // Feature #404 - Storage quota tracking
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -253,31 +253,33 @@ router.post(
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      // Feature #368: Check total storage limit
-      const tierLimits = TIER_LIMITS[userRole] || TIER_LIMITS.free;
-      const maxTotalStorageMB = tierLimits.sources.maxTotalStorageMB;
+      // Feature #405: Check storage quota from users table before upload
+      const storageInfo = getUserStorageInfo(userId);
+      const newFileSizeBytes = req.file.size;
 
-      if (maxTotalStorageMB !== null) {
-        const storageResult = db
-          .prepare('SELECT COALESCE(SUM(file_size), 0) as total FROM sources WHERE user_id = ?')
-          .get(userId) as { total: number };
-
-        const currentStorageMB = storageResult.total / (1024 * 1024);
-        const newFileSizeMB = req.file.size / (1024 * 1024);
-
-        if (currentStorageMB + newFileSizeMB > maxTotalStorageMB) {
-          // Clean up uploaded file
-          if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-          }
-          return res.status(403).json({
-            message: `Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.`,
-            code: 'TIER_LIMIT_REACHED',
-            limitType: 'sources.maxTotalStorageMB',
-            current: Math.round(currentStorageMB * 100) / 100,
-            max: maxTotalStorageMB
-          });
+      if (!hasStorageQuota(userId, newFileSizeBytes)) {
+        // Clean up uploaded file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
         }
+
+        const usedMB = Math.round((storageInfo.used / (1024 * 1024)) * 100) / 100;
+        const limitMB = Math.round((storageInfo.limit / (1024 * 1024)) * 100) / 100;
+        const availableMB = Math.round(((storageInfo.limit - storageInfo.used) / (1024 * 1024)) * 100) / 100;
+        const fileMB = Math.round((newFileSizeBytes / (1024 * 1024)) * 100) / 100;
+
+        return res.status(413).json({
+          message: `Spazio insufficiente. Hai usato ${usedMB} MB su ${limitMB} MB (${availableMB} MB disponibili). Il file richiede ${fileMB} MB.`,
+          code: 'STORAGE_QUOTA_EXCEEDED',
+          used: storageInfo.used,
+          limit: storageInfo.limit,
+          available: storageInfo.limit - storageInfo.used,
+          required: newFileSizeBytes,
+          usedMB,
+          limitMB,
+          availableMB,
+          fileMB
+        });
       }
 
       // Extract text content
@@ -444,28 +446,33 @@ router.post(
         }
       }
 
-      // Check total storage limit
-      if (maxTotalStorageMB !== null) {
-        const storageResult = db
-          .prepare('SELECT COALESCE(SUM(file_size), 0) as total FROM sources WHERE user_id = ?')
-          .get(userId) as { total: number };
+      // Feature #405: Check storage quota from users table before upload
+      const storageInfo = getUserStorageInfo(userId);
+      const newFileSizeBytes = req.file.size;
 
-        const currentStorageMB = storageResult.total / (1024 * 1024);
-        const newFileSizeMB = req.file.size / (1024 * 1024);
-
-        if (currentStorageMB + newFileSizeMB > maxTotalStorageMB) {
-          // Clean up uploaded file
-          if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-          }
-          return res.status(403).json({
-            message: `Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.`,
-            code: 'TIER_LIMIT_REACHED',
-            limitType: 'sources.maxTotalStorageMB',
-            current: Math.round(currentStorageMB * 100) / 100,
-            max: maxTotalStorageMB
-          });
+      if (!hasStorageQuota(userId, newFileSizeBytes)) {
+        // Clean up uploaded file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
         }
+
+        const usedMB = Math.round((storageInfo.used / (1024 * 1024)) * 100) / 100;
+        const limitMB = Math.round((storageInfo.limit / (1024 * 1024)) * 100) / 100;
+        const availableMB = Math.round(((storageInfo.limit - storageInfo.used) / (1024 * 1024)) * 100) / 100;
+        const fileMB = Math.round((newFileSizeBytes / (1024 * 1024)) * 100) / 100;
+
+        return res.status(413).json({
+          message: `Spazio insufficiente. Hai usato ${usedMB} MB su ${limitMB} MB (${availableMB} MB disponibili). Il file richiede ${fileMB} MB.`,
+          code: 'STORAGE_QUOTA_EXCEEDED',
+          used: storageInfo.used,
+          limit: storageInfo.limit,
+          available: storageInfo.limit - storageInfo.used,
+          required: newFileSizeBytes,
+          usedMB,
+          limitMB,
+          availableMB,
+          fileMB
+        });
       }
 
       // Extract text content
@@ -603,6 +610,35 @@ router.post(
 
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Feature #405: Check storage quota from users table before upload
+      const storageInfo = getUserStorageInfo(userId);
+      const newFileSizeBytes = req.file.size;
+
+      if (!hasStorageQuota(userId, newFileSizeBytes)) {
+        // Clean up uploaded file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+
+        const usedMB = Math.round((storageInfo.used / (1024 * 1024)) * 100) / 100;
+        const limitMB = Math.round((storageInfo.limit / (1024 * 1024)) * 100) / 100;
+        const availableMB = Math.round(((storageInfo.limit - storageInfo.used) / (1024 * 1024)) * 100) / 100;
+        const fileMB = Math.round((newFileSizeBytes / (1024 * 1024)) * 100) / 100;
+
+        return res.status(413).json({
+          message: `Spazio insufficiente. Hai usato ${usedMB} MB su ${limitMB} MB (${availableMB} MB disponibili). Il file richiede ${fileMB} MB.`,
+          code: 'STORAGE_QUOTA_EXCEEDED',
+          used: storageInfo.used,
+          limit: storageInfo.limit,
+          available: storageInfo.limit - storageInfo.used,
+          required: newFileSizeBytes,
+          usedMB,
+          limitMB,
+          availableMB,
+          fileMB
+        });
       }
 
       // Extract text content

@@ -1,6 +1,6 @@
 // Simple Feature 3 test: Create user, restart server, verify user still exists
 const Database = require('/Users/rosario/CODICE/omniwriter/server/node_modules/better-sqlite3');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('/Users/rosario/CODICE/omniwriter/server/node_modules/bcryptjs');
 const fs = require('fs');
 
 const db = new Database('/Users/rosario/CODICE/omniwriter/server/data/omniwriter.db');
@@ -21,7 +21,7 @@ try {
   db.prepare(`
     INSERT INTO users (id, email, password_hash, name, role, preferred_language, theme_preference, storage_used_bytes, storage_limit_bytes, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).run(userId, testEmail, passwordHash, 'Feature3 Test User', 'free_user', 'it', 'light', 0, 104857600);
+  `).run(userId, testEmail, passwordHash, 'Feature3 Test User', 'user', 'it', 'light', 0, 104857600);
 
   console.log('✓ Test user created successfully');
 } catch(e) {
