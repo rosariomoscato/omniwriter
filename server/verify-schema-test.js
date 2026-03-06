@@ -52,7 +52,7 @@ try {
   const projectColNames = projectsColumns.map(c => c.name);
   console.log('  Columns:', projectColNames.join(', '));
 
-  const requiredProjectCols = ['id', 'user_id', 'title', 'type', 'status', 'created_at', 'updated_at'];
+  const requiredProjectCols = ['id', 'user_id', 'title', 'area', 'status', 'created_at', 'updated_at'];
   let missingProjectCols = requiredProjectCols.filter(col => !projectColNames.includes(col));
   if (missingProjectCols.length > 0) {
     console.log(`  ✗ Missing columns: ${missingProjectCols.join(', ')}`);
@@ -66,7 +66,7 @@ try {
   const chapterColNames = chaptersColumns.map(c => c.name);
   console.log('  Columns:', chapterColNames.join(', '));
 
-  const requiredChapterCols = ['id', 'project_id', 'title', 'content', 'order', 'created_at', 'updated_at'];
+  const requiredChapterCols = ['id', 'project_id', 'title', 'content', 'order_index', 'created_at', 'updated_at'];
   let missingChapterCols = requiredChapterCols.filter(col => !chapterColNames.includes(col));
   if (missingChapterCols.length > 0) {
     console.log(`  ✗ Missing columns: ${missingChapterCols.join(', ')}`);

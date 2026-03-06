@@ -44,9 +44,9 @@
     "heroTitle": "Scrittura AI",
     "heroSubtitle": "Senza Limiti",
     "heroDescription": "La piattaforma professionale di scrittura basata su intelligenza artificiale. Genera romanzi, saggi e articoli giornalistici con stili unici e coerenti.",
-    "startWriting": "Inizia a Scrivere",
+    "startWriting": "Registrati",
     "login": "Accedi",
-    "heroTagline": "Registrazione gratuita • Tutte le funzionalità incluse",
+    "heroTagline": "Completamente gratuito • Tutte le funzionalità incluse",
     "featuresTitle": "Tre Aree Creative Specializzate",
     "featuresSubtitle": "Scegli l'area perfetta per il tuo progetto di scrittura",
     "romanziere": {
@@ -77,13 +77,13 @@
       "title": "Completamente Gratuito",
       "subtitle": "OmniWriter è gratuito. Tutte le funzionalità sono disponibili per tutti gli utenti.",
       "description": "Nessun piano a pagamento, nessuna limitazione. Accedi a tutte le funzionalità di scrittura AI senza alcun costo.",
-      "cta": "Registrati Gratis"
+      "cta": "Inizia a Scrivere"
     },
     "cta": {
       "title": "Pronto a Trasformare le Tue Idee in Capolavori?",
       "subtitle": "Unisciti a migliaia di scrittori che usano OmniWriter per creare contenuti straordinari.",
-      "button": "Inizia Ora - È Gratis",
-      "noCard": "Nessuna carta richiesta • Cancella quando vuoi"
+      "button": "Inizia a Scrivere",
+      "noCard": "Nessuna carta di credito richiesta"
     },
     "footer": {
       "copyright": "© 2025 OmniWriter. Tutti i diritti riservati."

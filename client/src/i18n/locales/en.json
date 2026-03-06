@@ -44,9 +44,9 @@
     "heroTitle": "AI Writing",
     "heroSubtitle": "Without Limits",
     "heroDescription": "The professional AI-powered writing platform. Generate novels, essays, and journalistic articles with unique and coherent styles.",
-    "startFree": "Start Free",
+    "startFree": "Sign Up",
     "login": "Log In",
-    "noCreditCard": "No credit card required • Free plan available",
+    "noCreditCard": "Completely free • No credit card required",
     "featuresTitle": "Three Specialized Creative Areas",
     "featuresSubtitle": "Choose the perfect area for your writing project",
     "romanziere": {
@@ -77,13 +77,13 @@
       "title": "Completely Free",
       "subtitle": "OmniWriter is free. All features are available for all users.",
       "description": "No paid plans, no limitations. Access all AI writing features at no cost.",
-      "cta": "Sign Up Free"
+      "cta": "Start Writing"
     },
     "cta": {
       "title": "Ready to Transform Your Ideas into Masterpieces?",
       "subtitle": "Join thousands of writers using OmniWriter to create extraordinary content.",
-      "button": "Start Now - It's Free",
-      "noCard": "No card required • Cancel anytime"
+      "button": "Start Writing",
+      "noCard": "No credit card required"
     },
     "footer": {
       "copyright": "© 2025 OmniWriter. All rights reserved."
