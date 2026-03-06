@@ -1403,11 +1403,7 @@ export default function ProjectDetail() {
       // Reset metadata state
       setExportMetadata({ author: '', publisher: '', isbn: '', language: 'en' });
     } catch (err: any) {
-      if (err.code === 'PREMIUM_REQUIRED') {
-        setError('EPUB export requires a Premium subscription. Upgrade to access this feature.');
-      } else {
-        setError(err.message || 'Failed to export project');
-      }
+      setError(err.message || 'Failed to export project');
     } finally {
       setExporting(false);
     }
@@ -1451,9 +1447,6 @@ export default function ProjectDetail() {
 
       if (!response.ok) {
         const error = await response.json();
-        if (error.code === 'PREMIUM_REQUIRED') {
-          throw new Error('EPUB export features require a Premium subscription');
-        }
         throw new Error(error.message || 'Failed to upload cover');
       }
 
@@ -1504,11 +1497,7 @@ export default function ProjectDetail() {
       setSelectAllChapters(false);
       toast.success(`Exported ${selectedChapterIds.length} chapter(s) successfully`);
     } catch (err: any) {
-      if (err.code === 'PREMIUM_REQUIRED') {
-        setError('EPUB batch export requires a Premium subscription. Upgrade to access this feature.');
-      } else {
-        setError(err.message || 'Failed to export chapters');
-      }
+      setError(err.message || 'Failed to export chapters');
     } finally {
       setExportingBatch(false);
     }

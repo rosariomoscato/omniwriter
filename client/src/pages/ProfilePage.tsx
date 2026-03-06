@@ -14,8 +14,6 @@ interface UserProfile {
   bio: string;
   avatar_url: string;
   role: string;
-  subscription_status: string;
-  subscription_expires_at: string | null;
   preferred_language: string;
   theme_preference: string;
   created_at: string;
@@ -141,30 +139,6 @@ export default function ProfilePage() {
     return badges[role as keyof typeof badges] || badges.free;
   };
 
-  const getSubscriptionExpiryInfo = () => {
-    if (!profile) return null;
-
-    if (profile.role === 'lifetime') {
-      return t('profile.subscriptionForever');
-    }
-
-    if (profile.role === 'premium' && profile.subscription_expires_at) {
-      const expiryDate = new Date(profile.subscription_expires_at);
-      const now = new Date();
-      const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (daysLeft <= 0) {
-        return t('profile.subscriptionExpired');
-      } else if (daysLeft <= 7) {
-        return t('profile.subscriptionExpiresSoon', { days: daysLeft, date: formatDate(profile.subscription_expires_at) });
-      } else {
-        return t('profile.subscriptionExpires', { date: formatDate(profile.subscription_expires_at) });
-      }
-    }
-
-    return null;
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -223,11 +197,6 @@ export default function ProfilePage() {
                 </span>
               </div>
               <p className="text-blue-100 mt-1">{profile.email}</p>
-              {getSubscriptionExpiryInfo() && (
-                <p className="text-blue-200 text-sm mt-1">
-                  {getSubscriptionExpiryInfo()}
-                </p>
-              )}
             </div>
 
             {/* Edit Button */}
@@ -328,25 +297,6 @@ export default function ProfilePage() {
                   {t('profile.email')}
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">{profile.email}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('profile.subscriptionStatus')}
-                </label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${roleBadge.color} flex items-center gap-1.5`}>
-                      <span>{roleBadge.icon}</span>
-                      <span>{roleBadge.label}</span>
-                    </span>
-                  </div>
-                  {getSubscriptionExpiryInfo() && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {getSubscriptionExpiryInfo()}
-                    </span>
-                  )}
-                </div>
               </div>
 
               <div>
