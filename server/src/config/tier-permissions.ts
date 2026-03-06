@@ -1,16 +1,14 @@
 /**
  * Tier Permissions Configuration
  *
- * Centralized configuration for all subscription tier limits and permissions.
- * This file defines the feature gates and resource limits for each user role:
- * - free: Basic tier with limited features
- * - premium: Full access with unlimited generation
- * - lifetime: Same as premium but permanent access
- * - admin: Full system access (inherits premium + admin features)
+ * Centralized configuration for all user role limits and permissions.
+ * Feature #401: Simplified to two roles only:
+ * - user: Standard authenticated user with full access to all features
+ * - admin: Full system access (same as user + admin features)
  */
 
 // Type definitions for tier limits
-export type UserRole = 'free' | 'premium' | 'lifetime' | 'admin';
+export type UserRole = 'user' | 'admin';
 
 export interface GenerationLimits {
   /** Maximum words per generation (null = unlimited) */
@@ -116,67 +114,10 @@ export interface TierLimits {
 }
 
 /**
- * Free tier limits
- * Basic access with limitations to encourage upgrade
+ * User limits - full access to all features
+ * Feature #401: All users now have what was previously "premium" access
  */
-const FREE_LIMITS: TierLimits = {
-  generation: {
-    maxWordsPerGeneration: 2000,       // Limited to short content
-    maxChaptersPerProject: 5,          // Only short chapters
-    maxWordsPerProject: 10000,         // 10k words max per project
-    maxGenerationsPerDay: 10,          // 10 generations per day
-    canGenerateFullContent: false,     // Cannot generate full novels/essays
-  },
-  humanModel: {
-    maxProfiles: 1,                    // Only 1 style profile
-    minWordCountRomanziere: 50000,     // 50k words minimum for Romanziere
-    minWordCountBasic: 10000,          // 10k words minimum for basic
-    canUseArticulatedAnalysis: false,  // No deep analysis
-    maxUploadSizeMB: 5,                // 5MB per upload
-    canAdjustStyleStrength: false,     // No style strength slider
-  },
-  sources: {
-    maxSourcesPerProject: 5,           // 5 sources per project
-    maxFileSizeMB: 5,                  // 5MB per file
-    maxTotalStorageMB: 50,             // 50MB total storage
-    allowedFileTypes: ['pdf', 'docx', 'txt', 'rtf'],
-    canUseWebSearch: true,             // Web search available
-    maxWebSearchesPerDay: 5,           // 5 web searches per day
-    canSaveWebSearchResults: true,     // Can save web results
-  },
-  export: {
-    availableFormats: ['docx', 'txt'], // Only basic formats
-    canUploadEpubCover: false,         // No EPUB features
-    canEditEpubMetadata: false,
-    canBatchExport: false,             // No batch export
-    canPreviewExport: false,
-    canCustomizeFormatting: false,
-  },
-  saga: {
-    canCreateSagas: false,             // No saga grouping
-    maxSagasPerUser: 0,
-    maxProjectsPerSaga: 0,
-    canShareSources: false,
-    canUseContinuityChecker: false,
-    canAnalyzeNovels: false,           // No novel analysis
-    canProposeSequel: false,           // No sequel proposal
-  },
-  integration: {
-    canConnectGoogleDrive: false,      // No Google Drive
-    canSaveToGoogleDrive: false,
-    canLoadFromGoogleDrive: false,
-    canSelectAiModel: false,           // No model selection
-    availableAiModels: ['default'],    // Only default model
-    canAdjustQualitySetting: false,    // No quality/speed setting
-    canUseSeoTools: false,             // Basic SEO only
-  },
-};
-
-/**
- * Premium tier limits
- * Full access with unlimited features
- */
-const PREMIUM_LIMITS: TierLimits = {
+const USER_LIMITS: TierLimits = {
   generation: {
     maxWordsPerGeneration: null,       // Unlimited
     maxChaptersPerProject: null,       // Unlimited
@@ -230,19 +171,10 @@ const PREMIUM_LIMITS: TierLimits = {
 };
 
 /**
- * Lifetime tier limits
- * Same as premium - permanent access
- */
-const LIFETIME_LIMITS: TierLimits = {
-  ...PREMIUM_LIMITS,
-};
-
-/**
- * Admin tier limits
- * Inherits all premium features
+ * Admin limits - inherits all user features
  */
 const ADMIN_LIMITS: TierLimits = {
-  ...PREMIUM_LIMITS,
+  ...USER_LIMITS,
 };
 
 /**
@@ -250,9 +182,7 @@ const ADMIN_LIMITS: TierLimits = {
  * Maps each user role to its corresponding limits
  */
 export const TIER_LIMITS: Record<UserRole, TierLimits> = {
-  free: FREE_LIMITS,
-  premium: PREMIUM_LIMITS,
-  lifetime: LIFETIME_LIMITS,
+  user: USER_LIMITS,
   admin: ADMIN_LIMITS,
 };
 
@@ -260,7 +190,7 @@ export const TIER_LIMITS: Record<UserRole, TierLimits> = {
  * Helper function to get limits for a specific role
  */
 export function getTierLimits(role: UserRole): TierLimits {
-  return TIER_LIMITS[role];
+  return TIER_LIMITS[role] || TIER_LIMITS.user;
 }
 
 /**
@@ -270,7 +200,7 @@ export function isFeatureAvailable(
   role: UserRole,
   featurePath: string
 ): boolean {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const pathParts = featurePath.split('.');
 
   let current: unknown = limits;
@@ -291,7 +221,7 @@ export function getLimitValue(
   role: UserRole,
   limitPath: string
 ): number | string | boolean | string[] | null {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const pathParts = limitPath.split('.');
 
   let current: unknown = limits;
@@ -313,20 +243,20 @@ export function canGenerateWords(
   requestedWords: number,
   currentProjectWords: number
 ): { allowed: boolean; reason?: string } {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const { maxWordsPerGeneration, maxWordsPerProject } = limits.generation;
 
   if (maxWordsPerGeneration !== null && requestedWords > maxWordsPerGeneration) {
     return {
       allowed: false,
-      reason: `Generazione limitata a ${maxWordsPerGeneration.toLocaleString('it-IT')} parole per richiesta. Passa a Premium per sbloccare generazioni illimitate.`,
+      reason: `Generazione limitata a ${maxWordsPerGeneration.toLocaleString('it-IT')} parole per richiesta.`,
     };
   }
 
   if (maxWordsPerProject !== null && currentProjectWords + requestedWords > maxWordsPerProject) {
     return {
       allowed: false,
-      reason: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto. Passa a Premium per progetti illimitati.`,
+      reason: `Limite di ${maxWordsPerProject.toLocaleString('it-IT')} parole per progetto raggiunto.`,
     };
   }
 
@@ -340,13 +270,13 @@ export function canCreateStyleProfile(
   role: UserRole,
   currentProfileCount: number
 ): { allowed: boolean; reason?: string } {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const { maxProfiles } = limits.humanModel;
 
   if (currentProfileCount >= maxProfiles) {
     return {
       allowed: false,
-      reason: `Limite di ${maxProfiles} profili stile raggiunto. Passa a Premium per creare più profili.`,
+      reason: `Limite di ${maxProfiles} profili stile raggiunto.`,
     };
   }
 
@@ -362,27 +292,27 @@ export function canUploadSource(
   currentSourceCount: number,
   currentTotalStorageMB: number
 ): { allowed: boolean; reason?: string } {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const { maxSourcesPerProject, maxFileSizeMB, maxTotalStorageMB } = limits.sources;
 
   if (maxSourcesPerProject !== null && currentSourceCount >= maxSourcesPerProject) {
     return {
       allowed: false,
-      reason: `Limite di ${maxSourcesPerProject} fonti per progetto raggiunto. Passa a Premium per fonti illimitate.`,
+      reason: `Limite di ${maxSourcesPerProject} fonti per progetto raggiunto.`,
     };
   }
 
   if (fileSizeMB > maxFileSizeMB) {
     return {
       allowed: false,
-      reason: `File troppo grande. Limite: ${maxFileSizeMB}MB. Passa a Premium per file fino a 25MB.`,
+      reason: `File troppo grande. Limite: ${maxFileSizeMB}MB.`,
     };
   }
 
   if (maxTotalStorageMB !== null && currentTotalStorageMB + fileSizeMB > maxTotalStorageMB) {
     return {
       allowed: false,
-      reason: `Spazio di archiviazione esaurito. Passa a Premium per spazio illimitato.`,
+      reason: `Spazio di archiviazione esaurito.`,
     };
   }
 
@@ -396,13 +326,13 @@ export function canExportFormat(
   role: UserRole,
   format: string
 ): { allowed: boolean; reason?: string } {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const { availableFormats } = limits.export;
 
   if (!availableFormats.includes(format as 'docx' | 'epub' | 'rtf' | 'pdf' | 'txt')) {
     return {
       allowed: false,
-      reason: `Formato ${format.toUpperCase()} non disponibile nel piano Free. Passa a Premium per esportare in tutti i formati.`,
+      reason: `Formato ${format.toUpperCase()} non disponibile.`,
     };
   }
 
@@ -416,13 +346,13 @@ export function canCreateSaga(
   role: UserRole,
   currentSagaCount: number
 ): { allowed: boolean; reason?: string } {
-  const limits = TIER_LIMITS[role];
+  const limits = TIER_LIMITS[role] || TIER_LIMITS.user;
   const { canCreateSagas, maxSagasPerUser } = limits.saga;
 
   if (!canCreateSagas) {
     return {
       allowed: false,
-      reason: 'Le saghe/serie sono disponibili solo per gli utenti Premium. Aggiorna il tuo piano per sbloccare questa funzionalità.',
+      reason: 'La creazione di saghe/serie non e disponibile.',
     };
   }
 
@@ -441,19 +371,18 @@ export function canCreateSaga(
  */
 export function getTierName(role: UserRole): string {
   const names: Record<UserRole, string> = {
-    free: 'Gratuito',
-    premium: 'Premium',
-    lifetime: 'Lifetime',
+    user: 'Utente',
     admin: 'Amministratore',
   };
-  return names[role];
+  return names[role] || 'Utente';
 }
 
 /**
  * Get tier upgrade prompt message
+ * @deprecated No longer needed since all users have full access
  */
 export function getUpgradePrompt(feature: string): string {
-  return `La funzionalità "${feature}" richiede un abbonamento Premium. Visita la pagina Piani per aggiornare il tuo account.`;
+  return `La funzionalita "${feature}" non e attualmente disponibile.`;
 }
 
 export default TIER_LIMITS;

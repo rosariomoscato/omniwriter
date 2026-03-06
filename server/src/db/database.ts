@@ -52,9 +52,7 @@ function runMigrations(db: Database.Database): void {
       name TEXT NOT NULL DEFAULT '',
       bio TEXT DEFAULT '',
       avatar_url TEXT DEFAULT '',
-      role TEXT NOT NULL DEFAULT 'free' CHECK(role IN ('free', 'premium', 'lifetime', 'admin')),
-      subscription_status TEXT DEFAULT 'active',
-      subscription_expires_at TEXT,
+      role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
       preferred_language TEXT NOT NULL DEFAULT 'it' CHECK(preferred_language IN ('it', 'en')),
       theme_preference TEXT NOT NULL DEFAULT 'light' CHECK(theme_preference IN ('light', 'dark')),
       google_id TEXT UNIQUE,
@@ -62,7 +60,9 @@ function runMigrations(db: Database.Database): void {
       google_refresh_token TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_login_at TEXT
+      last_login_at TEXT,
+      storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+      storage_limit_bytes INTEGER NOT NULL DEFAULT 104857600
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -497,6 +497,85 @@ function runMigrations(db: Database.Database): void {
       }
     } catch (adminLogsMigrationError) {
       console.log('[Database] admin_logs migration (may already be applied):', adminLogsMigrationError);
+    }
+
+    // Feature #404: Add storage_used_bytes and storage_limit_bytes columns to users
+    if (!userColumnNames.includes('storage_used_bytes')) {
+      console.log('[Database] Adding storage_used_bytes column to users...');
+      db.exec('ALTER TABLE users ADD COLUMN storage_used_bytes INTEGER NOT NULL DEFAULT 0');
+
+      // Backfill storage_used_bytes from existing sources for each user
+      console.log('[Database] Backfilling storage_used_bytes from existing sources...');
+      db.exec(`
+        UPDATE users SET storage_used_bytes = (
+          SELECT COALESCE(SUM(file_size), 0) FROM sources WHERE sources.user_id = users.id
+        )
+      `);
+      console.log('[Database] storage_used_bytes backfilled successfully');
+    }
+
+    if (!userColumnNames.includes('storage_limit_bytes')) {
+      console.log('[Database] Adding storage_limit_bytes column to users...');
+      db.exec('ALTER TABLE users ADD COLUMN storage_limit_bytes INTEGER NOT NULL DEFAULT 104857600');
+    }
+
+    // Feature #401: Migrate roles from free/premium/lifetime to user/admin
+    // Convert old role values to the new simplified two-role system
+    try {
+      const oldRolesExist = db.prepare("SELECT COUNT(*) as count FROM users WHERE role IN ('free', 'premium', 'lifetime')").get() as { count: number };
+      if (oldRolesExist.count > 0) {
+        console.log(`[Database] Feature #401: Migrating ${oldRolesExist.count} users from old roles (free/premium/lifetime) to 'user'...`);
+        db.exec("UPDATE users SET role = 'user' WHERE role IN ('free', 'premium', 'lifetime')");
+        console.log('[Database] Feature #401: Role migration completed');
+      }
+    } catch (roleMigrationError) {
+      console.log('[Database] Role migration (may already be applied):', roleMigrationError);
+    }
+
+    // Feature #414: Remove subscription columns from users table
+    try {
+      const usersInfo = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+      const userColumnNames = usersInfo.map(col => col.name);
+
+      if (userColumnNames.includes('subscription_status')) {
+        console.log('[Database] Feature #414: Removing subscription_status and subscription_expires_at columns from users table...');
+        // SQLite doesn't support DROP COLUMN directly, need to rebuild table
+        db.pragma('foreign_keys = OFF');
+        db.exec(`
+          CREATE TABLE users_new (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT,
+            name TEXT NOT NULL DEFAULT '',
+            bio TEXT DEFAULT '',
+            avatar_url TEXT DEFAULT '',
+            role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
+            preferred_language TEXT NOT NULL DEFAULT 'it' CHECK(preferred_language IN ('it', 'en')),
+            theme_preference TEXT NOT NULL DEFAULT 'light' CHECK(theme_preference IN ('light', 'dark')),
+            google_id TEXT UNIQUE,
+            google_access_token TEXT,
+            google_refresh_token TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_login_at TEXT,
+            storage_used_bytes INTEGER NOT NULL DEFAULT 0,
+            storage_limit_bytes INTEGER NOT NULL DEFAULT 104857600
+          );
+          INSERT INTO users_new (id, email, password_hash, name, bio, avatar_url, role, preferred_language, theme_preference, google_id, google_access_token, google_refresh_token, created_at, updated_at, last_login_at, storage_used_bytes, storage_limit_bytes)
+          SELECT id, email, password_hash, name, bio, avatar_url, role, preferred_language, theme_preference, google_id, google_access_token, google_refresh_token, created_at, updated_at, last_login_at, storage_used_bytes, storage_limit_bytes FROM users;
+          DROP TABLE users;
+          ALTER TABLE users_new RENAME TO users;
+        `);
+        db.pragma('foreign_keys = ON');
+        // Recreate indexes on users table
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+        `);
+        console.log('[Database] Feature #414: Subscription columns removed successfully');
+      }
+    } catch (subscriptionMigrationError) {
+      console.log('[Database] Subscription column removal (may already be applied):', subscriptionMigrationError);
     }
   } catch (error) {
     console.error('[Database] Error during schema migration:', error);

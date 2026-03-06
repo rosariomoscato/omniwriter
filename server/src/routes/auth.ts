@@ -76,7 +76,7 @@ router.post('/register', (req: Request, res: Response) => {
     console.log('[Auth] Creating new user:', userId);
     db.prepare(
       `INSERT INTO users (id, email, password_hash, name, role, preferred_language, theme_preference, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
+       VALUES (?, ?, ?, ?, 'user', 'it', 'light', datetime('now'), datetime('now'))`
     ).run(userId, email, passwordHash, userName);
 
     // Create JWT token
@@ -107,7 +107,7 @@ router.post('/register', (req: Request, res: Response) => {
         id: userId,
         email,
         name: userName,
-        role: 'free',
+        role: 'user',
         preferred_language: 'it',
         theme_preference: 'light',
       },
@@ -134,26 +134,19 @@ router.post('/login', (req: Request, res: Response) => {
     // Find user by email
     console.log('[Auth] Looking up user by email:', email);
     const user = db.prepare(
-      'SELECT id, email, password_hash, name, role, subscription_status, preferred_language, theme_preference FROM users WHERE email = ?'
+      'SELECT id, email, password_hash, name, role, preferred_language, theme_preference FROM users WHERE email = ?'
     ).get(email) as {
       id: string;
       email: string;
       password_hash: string;
       name: string;
       role: string;
-      subscription_status: string;
       preferred_language: string;
       theme_preference: string;
     } | undefined;
 
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password' });
-      return;
-    }
-
-    // Check if user is suspended
-    if (user.subscription_status === 'suspended') {
-      res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
       return;
     }
 
@@ -236,8 +229,9 @@ router.get('/me', authenticateToken, (req: AuthRequest, res: Response) => {
 
     console.log('[Auth] Fetching user profile for:', req.user?.id);
     const user = db.prepare(
-      `SELECT id, email, name, bio, avatar_url, role, subscription_status,
-              subscription_expires_at, preferred_language, theme_preference,
+      `SELECT id, email, name, bio, avatar_url, role,
+              preferred_language, theme_preference,
+              storage_used_bytes, storage_limit_bytes,
               created_at, updated_at, last_login_at
        FROM users WHERE id = ?`
     ).get(req.user?.id) as Record<string, unknown> | undefined;
@@ -425,7 +419,7 @@ passport.use(
         console.log('[Google OAuth] Creating new user from Google:', userId);
         db.prepare(
           `INSERT INTO users (id, email, name, avatar_url, google_id, google_access_token, google_refresh_token, role, preferred_language, theme_preference, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 'it', 'light', datetime('now'), datetime('now'))`
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 'it', 'light', datetime('now'), datetime('now'))`
         ).run(userId, email, name, avatarUrl, profile.id, accessToken, refreshToken);
 
         const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;

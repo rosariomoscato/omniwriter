@@ -8,7 +8,6 @@ import { Plus, BookOpen, FileText, Edit3, Trash2, X, FolderOpen, ArrowRight, Spa
 import SagaTimeline from '../components/SagaTimeline';
 import CreateSagaSequelModal from '../components/CreateSagaSequelModal';
 import FeatureGate from '../components/FeatureGate';
-import UpgradeModal from '../components/UpgradeModal';
 
 export default function SagasPage() {
   const { t } = useTranslation();
@@ -35,9 +34,6 @@ export default function SagasPage() {
 
   // Create sequel modal state (Feature #303)
   const [showCreateSequelModal, setShowCreateSequelModal] = useState(false);
-
-  // Upgrade modal state (Feature #377)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Selected saga for detail view
   const [selectedSaga, setSelectedSaga] = useState<Saga | null>(null);
@@ -172,11 +168,7 @@ export default function SagasPage() {
             {t('sagas.description', 'Manage your novel series and shared sources across related projects.')}
           </p>
         </div>
-        <FeatureGate
-          feature="sagas"
-          showLocked
-          onUpgradeClick={() => setShowUpgradeModal(true)}
-        >
+        <FeatureGate feature="sagas">
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -212,11 +204,7 @@ export default function SagasPage() {
                   <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
                     {t('sagas.noSagasDesc', 'Create a saga to group related novels and share sources.')}
                   </p>
-                  <FeatureGate
-                    feature="sagas"
-                    showLocked
-                    onUpgradeClick={() => setShowUpgradeModal(true)}
-                  >
+                  <FeatureGate feature="sagas">
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -321,11 +309,7 @@ export default function SagasPage() {
                   </button>
                   {/* Feature #303: Create Sequel with Continuity button */}
                   {sagaProjects.length > 0 && (
-                    <FeatureGate
-                      feature="novelAnalysis"
-                      showLocked
-                      onUpgradeClick={() => setShowUpgradeModal(true)}
-                    >
+                    <FeatureGate feature="novelAnalysis">
                       <button
                         onClick={() => setShowCreateSequelModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"

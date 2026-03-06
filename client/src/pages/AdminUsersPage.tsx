@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'free' | 'premium' | 'lifetime' | 'admin';
+  role: 'user' | 'admin';
   subscription_status?: string;
   subscription_expires_at?: string;
   preferred_language: 'it' | 'en';
@@ -207,8 +207,7 @@ const AdminUsersPage = () => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case 'premium': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'lifetime': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+      case 'user': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
@@ -292,9 +291,7 @@ const AdminUsersPage = () => {
             className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-surface text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Tutti</option>
-            <option value="free">Free</option>
-            <option value="premium">Premium</option>
-            <option value="lifetime">Lifetime</option>
+            <option value="user">Utente</option>
             <option value="admin">Admin</option>
           </select>
         </div>

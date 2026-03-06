@@ -3,6 +3,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { getUserStorageInfo, recalculateUserStorage } from '../utils/storage'; // Feature #404
 
 const router = Router();
 
@@ -14,8 +15,9 @@ router.get('/profile', authenticateToken, (req: AuthRequest, res: Response) => {
 
     console.log('[Users] Fetching profile for user:', req.user?.id);
     const user = db.prepare(
-      `SELECT id, email, name, bio, avatar_url, role, subscription_status,
-              subscription_expires_at, preferred_language, theme_preference,
+      `SELECT id, email, name, bio, avatar_url, role,
+              preferred_language, theme_preference,
+              storage_used_bytes, storage_limit_bytes,
               created_at, updated_at, last_login_at
        FROM users WHERE id = ?`
     ).get(req.user?.id) as Record<string, unknown> | undefined;
@@ -94,8 +96,9 @@ router.put('/profile', authenticateToken, (req: AuthRequest, res: Response) => {
 
     // Fetch updated user
     const user = db.prepare(
-      `SELECT id, email, name, bio, avatar_url, role, subscription_status,
-              subscription_expires_at, preferred_language, theme_preference,
+      `SELECT id, email, name, bio, avatar_url, role,
+              preferred_language, theme_preference,
+              storage_used_bytes, storage_limit_bytes,
               created_at, updated_at, last_login_at
        FROM users WHERE id = ?`
     ).get(userId) as Record<string, unknown>;
@@ -341,6 +344,66 @@ router.put('/preferences', authenticateToken, (req: AuthRequest, res: Response) 
     res.json({ message: 'Preferences updated successfully' });
   } catch (error) {
     console.error('[Users] Update preferences error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET /api/users/storage
+// Get current user's storage usage and limit (Feature #404)
+router.get('/storage', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const storageInfo = getUserStorageInfo(userId);
+    const usedMB = Math.round((storageInfo.used / (1024 * 1024)) * 100) / 100;
+    const limitMB = Math.round((storageInfo.limit / (1024 * 1024)) * 100) / 100;
+    const percentUsed = storageInfo.limit > 0
+      ? Math.round((storageInfo.used / storageInfo.limit) * 10000) / 100
+      : 0;
+
+    res.json({
+      storage: {
+        used_bytes: storageInfo.used,
+        limit_bytes: storageInfo.limit,
+        used_mb: usedMB,
+        limit_mb: limitMB,
+        percent_used: percentUsed,
+        available_bytes: Math.max(0, storageInfo.limit - storageInfo.used),
+      },
+    });
+  } catch (error) {
+    console.error('[Users] Get storage error:', error instanceof Error ? error.message : 'Unknown error');
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /api/users/storage/recalculate
+// Recalculate storage from actual source files (Feature #404)
+router.post('/storage/recalculate', authenticateToken, (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const totalBytes = recalculateUserStorage(userId);
+    const usedMB = Math.round((totalBytes / (1024 * 1024)) * 100) / 100;
+
+    console.log(`[Users] Storage recalculated for user ${userId}: ${usedMB} MB`);
+    res.json({
+      message: 'Storage recalculated successfully',
+      storage: {
+        used_bytes: totalBytes,
+        used_mb: usedMB,
+      },
+    });
+  } catch (error) {
+    console.error('[Users] Recalculate storage error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ message: 'Internal server error' });
   }
 });

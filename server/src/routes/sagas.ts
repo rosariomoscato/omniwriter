@@ -3,13 +3,12 @@ import express, { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { requirePremium } from '../middleware/roles';
 
 const router = express.Router();
 
 // GET /api/sagas - List user's sagas
 // Sagas are a premium feature
-router.get('/', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const db = getDatabase();
@@ -27,7 +26,7 @@ router.get('/', authenticateToken, requirePremium, (req: AuthRequest, res: Respo
 });
 
 // POST /api/sagas - Create new saga (premium feature)
-router.post('/', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { title, description, area } = req.body;
@@ -60,7 +59,7 @@ router.post('/', authenticateToken, requirePremium, (req: AuthRequest, res: Resp
 });
 
 // GET /api/sagas/:id - Get single saga
-router.get('/:id', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -82,7 +81,7 @@ router.get('/:id', authenticateToken, requirePremium, (req: AuthRequest, res: Re
 });
 
 // PUT /api/sagas/:id - Update saga
-router.put('/:id', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -118,7 +117,7 @@ router.put('/:id', authenticateToken, requirePremium, (req: AuthRequest, res: Re
 });
 
 // DELETE /api/sagas/:id - Delete saga
-router.delete('/:id', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -141,7 +140,7 @@ router.delete('/:id', authenticateToken, requirePremium, (req: AuthRequest, res:
 });
 
 // GET /api/sagas/:id/projects - Get projects in a saga
-router.get('/:id/projects', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.get('/:id/projects', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -175,7 +174,7 @@ router.get('/:id/projects', authenticateToken, requirePremium, (req: AuthRequest
 });
 
 // POST /api/sagas/:id/projects - Create project within a saga
-router.post('/:id/projects', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.post('/:id/projects', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id: sagaId } = req.params;
     const userId = req.user?.id;
@@ -220,7 +219,7 @@ router.post('/:id/projects', authenticateToken, requirePremium, (req: AuthReques
 
 // GET /api/sagas/:id/continuity - Get saga continuity data (Feature #299)
 // Returns all continuity records for a saga, ordered by episode number
-router.get('/:id/continuity', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.get('/:id/continuity', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -345,7 +344,7 @@ router.get('/:id/continuity', authenticateToken, requirePremium, (req: AuthReque
 
 // POST /api/sagas/:id/create-sequel - Create a sequel project in a saga with continuity (Feature #300)
 // Pre-populates characters (with status_at_end), locations, and links continuity for AI reference
-router.post('/:id/create-sequel', authenticateToken, requirePremium, (req: AuthRequest, res: Response) => {
+router.post('/:id/create-sequel', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id: sagaId } = req.params;
     const userId = req.user?.id;

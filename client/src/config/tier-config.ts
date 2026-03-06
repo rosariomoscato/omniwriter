@@ -1,17 +1,17 @@
 /**
  * Tier Configuration for OmniWriter
  *
- * This file mirrors the backend TIER_LIMITS configuration
- * to allow client-side UI checks before API calls.
+ * Feature #401: Simplified to two roles only: 'user' and 'admin'.
+ * All users have full access to all features.
  *
  * Keep this file synchronized with backend tier configuration.
  */
 
 // User role types
-export type UserRole = 'free' | 'premium' | 'lifetime' | 'admin';
+export type UserRole = 'user' | 'admin';
 
-// Premium tiers (have access to premium features)
-export const PREMIUM_TIERS: UserRole[] = ['premium', 'lifetime', 'admin'];
+// All authenticated users have full access (no premium distinction)
+export const PREMIUM_TIERS: UserRole[] = ['user', 'admin'];
 
 // Tier limits configuration
 export interface TierLimits {
@@ -39,9 +39,9 @@ export interface TierLimits {
   maxDailyWebSearches: number;   // Maximum web searches per day (-1 = unlimited)
 
   // AI model access
-  aiModelTier: 'free' | 'premium'; // Which tier of AI models are available
+  aiModelTier: 'premium'; // All users have full model access
 
-  // Premium features
+  // Features (all enabled for all users)
   canCreateSagas: boolean;       // Can create sagas/series
   canAnalyzeNovels: boolean;     // Can analyze existing novels
   canGoogleDriveSync: boolean;   // Google Drive integration
@@ -50,126 +50,50 @@ export interface TierLimits {
   canFullHumanAnalysis: boolean; // Full Human Model analysis features
 }
 
-// TIER_LIMITS configuration per role
-export const TIER_LIMITS: Record<UserRole, TierLimits> = {
-  free: {
-    // Project limits
-    maxProjects: 10,
-    maxChaptersPerProject: 20,
+// Full access limits (shared by both user and admin)
+const FULL_ACCESS_LIMITS: TierLimits = {
+  // Project limits
+  maxProjects: -1, // Unlimited
+  maxChaptersPerProject: -1, // Unlimited
 
-    // Source upload limits
-    maxSourcesPerProject: 5,
-    maxSourceSizeMB: 5,
-    totalSourceStorageMB: 50,
+  // Source upload limits
+  maxSourcesPerProject: -1, // Unlimited
+  maxSourceSizeMB: 50,
+  totalSourceStorageMB: -1, // Unlimited
 
-    // Generation limits
-    maxGenerationLength: 2000,
-    maxDailyGenerations: 50,
+  // Generation limits
+  maxGenerationLength: -1, // Unlimited
+  maxDailyGenerations: -1, // Unlimited
 
-    // Human Model limits
-    maxHumanModels: 1,
-    humanModelTrainingWords: 50000,
+  // Human Model limits
+  maxHumanModels: -1, // Unlimited
+  humanModelTrainingWords: 50000,
 
-    // Export format availability
-    exportFormats: ['txt', 'docx'],
+  // Export format availability
+  exportFormats: ['txt', 'docx', 'epub', 'pdf', 'rtf'],
 
-    // Web search limits
-    maxDailyWebSearches: 10,
+  // Web search limits
+  maxDailyWebSearches: -1, // Unlimited
 
-    // AI model access
-    aiModelTier: 'free',
+  // AI model access
+  aiModelTier: 'premium',
 
-    // Premium features
-    canCreateSagas: false,
-    canAnalyzeNovels: false,
-    canGoogleDriveSync: false,
-    canAdvancedAIModels: false,
-    canMultipleHumanProfiles: false,
-    canFullHumanAnalysis: false,
-  },
-
-  premium: {
-    // Project limits
-    maxProjects: -1, // Unlimited
-    maxChaptersPerProject: -1, // Unlimited
-
-    // Source upload limits
-    maxSourcesPerProject: -1, // Unlimited
-    maxSourceSizeMB: 50,
-    totalSourceStorageMB: -1, // Unlimited
-
-    // Generation limits
-    maxGenerationLength: -1, // Unlimited
-    maxDailyGenerations: -1, // Unlimited
-
-    // Human Model limits
-    maxHumanModels: -1, // Unlimited
-    humanModelTrainingWords: 50000,
-
-    // Export format availability
-    exportFormats: ['txt', 'docx', 'epub', 'pdf', 'rtf'],
-
-    // Web search limits
-    maxDailyWebSearches: -1, // Unlimited
-
-    // AI model access
-    aiModelTier: 'premium',
-
-    // Premium features
-    canCreateSagas: true,
-    canAnalyzeNovels: true,
-    canGoogleDriveSync: true,
-    canAdvancedAIModels: true,
-    canMultipleHumanProfiles: true,
-    canFullHumanAnalysis: true,
-  },
-
-  lifetime: {
-    // Same as premium
-    maxProjects: -1,
-    maxChaptersPerProject: -1,
-    maxSourcesPerProject: -1,
-    maxSourceSizeMB: 50,
-    totalSourceStorageMB: -1,
-    maxGenerationLength: -1,
-    maxDailyGenerations: -1,
-    maxHumanModels: -1,
-    humanModelTrainingWords: 50000,
-    exportFormats: ['txt', 'docx', 'epub', 'pdf', 'rtf'],
-    maxDailyWebSearches: -1,
-    aiModelTier: 'premium',
-    canCreateSagas: true,
-    canAnalyzeNovels: true,
-    canGoogleDriveSync: true,
-    canAdvancedAIModels: true,
-    canMultipleHumanProfiles: true,
-    canFullHumanAnalysis: true,
-  },
-
-  admin: {
-    // Admin has full access (same as premium)
-    maxProjects: -1,
-    maxChaptersPerProject: -1,
-    maxSourcesPerProject: -1,
-    maxSourceSizeMB: 50,
-    totalSourceStorageMB: -1,
-    maxGenerationLength: -1,
-    maxDailyGenerations: -1,
-    maxHumanModels: -1,
-    humanModelTrainingWords: 50000,
-    exportFormats: ['txt', 'docx', 'epub', 'pdf', 'rtf'],
-    maxDailyWebSearches: -1,
-    aiModelTier: 'premium',
-    canCreateSagas: true,
-    canAnalyzeNovels: true,
-    canGoogleDriveSync: true,
-    canAdvancedAIModels: true,
-    canMultipleHumanProfiles: true,
-    canFullHumanAnalysis: true,
-  },
+  // All features enabled
+  canCreateSagas: true,
+  canAnalyzeNovels: true,
+  canGoogleDriveSync: true,
+  canAdvancedAIModels: true,
+  canMultipleHumanProfiles: true,
+  canFullHumanAnalysis: true,
 };
 
-// Feature names for upgrade prompts
+// TIER_LIMITS configuration per role
+export const TIER_LIMITS: Record<UserRole, TierLimits> = {
+  user: { ...FULL_ACCESS_LIMITS },
+  admin: { ...FULL_ACCESS_LIMITS },
+};
+
+// Feature names for UI display
 export const FEATURE_NAMES: Record<string, string> = {
   sagas: 'Creazione Saghe/Serie',
   novelAnalysis: 'Analisi Romanzi',
@@ -185,7 +109,7 @@ export const FEATURE_NAMES: Record<string, string> = {
   unlimitedWebSearch: 'Ricerca Web Illimitata',
 };
 
-// Helper function to check if a tier is premium
+// All authenticated users are considered "premium" (full access)
 export function isPremiumTier(role: UserRole | undefined): boolean {
   if (!role) return false;
   return PREMIUM_TIERS.includes(role);
@@ -193,11 +117,11 @@ export function isPremiumTier(role: UserRole | undefined): boolean {
 
 // Helper function to get limits for a specific role
 export function getTierLimits(role: UserRole | undefined): TierLimits {
-  if (!role) return TIER_LIMITS.free;
-  return TIER_LIMITS[role] || TIER_LIMITS.free;
+  if (!role) return TIER_LIMITS.user;
+  return TIER_LIMITS[role] || TIER_LIMITS.user;
 }
 
-// Export format tier requirements
+// Export format tier requirements (no longer needed, all formats available to all users)
 export const PREMIUM_EXPORT_FORMATS = ['epub', 'pdf', 'rtf'];
 
 export default TIER_LIMITS;

@@ -95,9 +95,14 @@ export function useTierPermissions(): UseTierPermissionsReturn {
     message: '',
   });
 
-  // Get user role with fallback to 'free'
+  // Get user role with fallback to 'user'
   const role = useMemo((): UserRole => {
-    return (user?.role as UserRole) || 'free';
+    const rawRole = user?.role as string;
+    // Map legacy roles to 'user'
+    if (rawRole === 'free' || rawRole === 'premium' || rawRole === 'lifetime') {
+      return 'user';
+    }
+    return (rawRole as UserRole) || 'user';
   }, [user?.role]);
 
   // Check if user has premium access
@@ -112,7 +117,7 @@ export function useTierPermissions(): UseTierPermissionsReturn {
 
   // Get tier limits for current role
   const limits = useMemo(() => {
-    return TIER_LIMITS[role] || TIER_LIMITS.free;
+    return TIER_LIMITS[role] || TIER_LIMITS.user;
   }, [role]);
 
   /**

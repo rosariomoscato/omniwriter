@@ -2402,7 +2402,7 @@ class ApiService {
   }
 
   // Feature #351: Update user role
-  async updateUserRole(userId: string, role: 'free' | 'premium' | 'lifetime' | 'admin'): Promise<{
+  async updateUserRole(userId: string, role: 'user' | 'admin'): Promise<{
     message: string;
     oldRole: string;
     newRole: string;

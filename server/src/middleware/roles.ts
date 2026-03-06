@@ -2,20 +2,21 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 
 /**
- * Check if user has premium or lifetime role
- * Admins also have premium access
+ * @deprecated Feature #401: No longer needed - all authenticated users have full access.
+ * Kept for backward compatibility but now allows any authenticated user through.
  */
 export function requirePremium(req: AuthRequest, res: Response, next: NextFunction): void {
   const userRole = req.user?.role;
 
-  if (userRole === 'premium' || userRole === 'lifetime' || userRole === 'admin') {
+  // Feature #401: All authenticated users (user or admin) have full access
+  if (userRole === 'user' || userRole === 'admin') {
     next();
     return;
   }
 
   res.status(403).json({
-    message: 'This feature requires a Premium subscription',
-    code: 'PREMIUM_REQUIRED'
+    message: 'Authentication required',
+    code: 'AUTH_REQUIRED'
   });
 }
 

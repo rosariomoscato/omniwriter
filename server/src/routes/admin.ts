@@ -37,7 +37,7 @@ function logAdminAction(
  *   page (number, default 1)
  *   limit (number, default 20)
  *   search (string) - search by email or name
- *   role (string) - filter by role: free, premium, lifetime, admin
+ *   role (string) - filter by role: user, admin
  *   status (string) - filter by status: active, suspended
  */
 router.get(
@@ -55,9 +55,9 @@ router.get(
       const offset = (page - 1) * limit;
 
       let query = `
-        SELECT id, email, name, role, subscription_status, subscription_expires_at,
+        SELECT id, email, name, role,
                preferred_language, theme_preference, created_at, last_login_at,
-               CASE WHEN subscription_status = 'suspended' THEN 1 ELSE 0 END as is_suspended
+               storage_used_bytes, storage_limit_bytes
         FROM users
         WHERE 1=1
       `;
@@ -69,16 +69,13 @@ router.get(
         params.push(searchPattern, searchPattern);
       }
 
-      if (role && ['free', 'premium', 'lifetime', 'admin'].includes(role)) {
+      if (role && ['user', 'admin'].includes(role)) {
         query += ` AND role = ?`;
         params.push(role);
       }
 
-      if (status === 'active') {
-        query += ` AND subscription_status != 'suspended'`;
-      } else if (status === 'suspended') {
-        query += ` AND subscription_status = 'suspended'`;
-      }
+      // Status filter no longer supported (subscription_status removed)
+      // All users are now active by default
 
       query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
       params.push(limit, offset);
@@ -95,16 +92,12 @@ router.get(
         countParams.push(searchPattern, searchPattern);
       }
 
-      if (role && ['free', 'premium', 'lifetime', 'admin'].includes(role)) {
+      if (role && ['user', 'admin'].includes(role)) {
         countQuery += ` AND role = ?`;
         countParams.push(role);
       }
 
-      if (status === 'active') {
-        countQuery += ` AND subscription_status != 'suspended'`;
-      } else if (status === 'suspended') {
-        countQuery += ` AND subscription_status = 'suspended'`;
-      }
+      // Status filter no longer supported (subscription_status removed)
 
       const countResult = db.prepare(countQuery).get(...countParams) as { total: number };
       const total = countResult.total;
@@ -135,8 +128,8 @@ async function handleUpdateRole(req: any, res: any) {
     const { role } = req.body;
     const adminUser = (req as AuthRequest).user;
 
-    if (!['free', 'premium', 'lifetime', 'admin'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role. Must be one of: free, premium, lifetime, admin' });
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be one of: user, admin' });
     }
 
     // Cannot change own role
@@ -197,24 +190,14 @@ async function handleSuspendUser(req: any, res: any) {
     }
 
     // Check if user exists
-    const user = db.prepare('SELECT id, email, subscription_status FROM users WHERE id = ?').get(id) as { id: string; email: string; subscription_status: string } | undefined;
+    const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(id) as { id: string; email: string } | undefined;
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update subscription_status to indicate suspension
-    const newStatus = suspended ? 'suspended' : 'active';
-    db.prepare('UPDATE users SET subscription_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(newStatus, id);
-
-    // Log the action
-    const action = suspended ? 'user_disabled' : 'user_enabled';
-    logAdminAction(db, adminUser!.id, action, id, user.email, { oldStatus: user.subscription_status, newStatus });
-
-    res.json({
-      message: suspended ? 'User suspended successfully' : 'User reactivated successfully',
-      is_suspended: suspended
-    });
+    // Feature #414: User suspension feature removed along with subscription system
+    // All users are now always active
+    return res.status(501).json({ message: 'User suspension feature removed' });
   } catch (error) {
     console.error('[Admin] Error updating user suspension:', error);
     res.status(500).json({ message: 'Failed to update user suspension status' });
@@ -320,10 +303,8 @@ router.get(
       // Total users
       const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
 
-      // Users by role
-      const freeUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'free'").get() as { count: number };
-      const premiumUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'premium'").get() as { count: number };
-      const lifetimeUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'lifetime'").get() as { count: number };
+      // Users by role (Feature #401: simplified to user/admin)
+      const regularUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'user'").get() as { count: number };
       const adminUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number };
 
       // Total projects
@@ -356,9 +337,7 @@ router.get(
       res.json({
         totalUsers: totalUsers.count,
         usersByRole: {
-          free: freeUsers.count,
-          premium: premiumUsers.count,
-          lifetime: lifetimeUsers.count,
+          user: regularUsers.count,
           admin: adminUsers.count
         },
         totalProjects: totalProjects.count,

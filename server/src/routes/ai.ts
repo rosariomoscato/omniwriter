@@ -14,7 +14,7 @@ const AI_MODELS = {
         name: 'GPT-4 Turbo',
         description: 'Fast and intelligent, great for most tasks',
         provider: 'OpenAI',
-        tier: 'premium',
+        tier: 'user',
         features: ['fast', 'creative', 'analytical']
       },
       {
@@ -22,7 +22,7 @@ const AI_MODELS = {
         name: 'GPT-4',
         description: 'Most capable model for complex tasks',
         provider: 'OpenAI',
-        tier: 'premium',
+        tier: 'user',
         features: ['creative', 'analytical', 'detailed']
       },
       {
@@ -30,7 +30,7 @@ const AI_MODELS = {
         name: 'GPT-3.5 Turbo',
         description: 'Fast and cost-effective for simple tasks',
         provider: 'OpenAI',
-        tier: 'free',
+        tier: 'user',
         features: ['fast', 'efficient']
       }
     ]
@@ -43,7 +43,7 @@ const AI_MODELS = {
         name: 'Claude 3 Opus',
         description: 'Most powerful model for complex writing',
         provider: 'Anthropic',
-        tier: 'premium',
+        tier: 'user',
         features: ['creative', 'nuanced', 'long-context']
       },
       {
@@ -51,7 +51,7 @@ const AI_MODELS = {
         name: 'Claude 3 Sonnet',
         description: 'Balanced performance and speed',
         provider: 'Anthropic',
-        tier: 'premium',
+        tier: 'user',
         features: ['balanced', 'intelligent']
       },
       {
@@ -59,7 +59,7 @@ const AI_MODELS = {
         name: 'Claude 3 Haiku',
         description: 'Fastest model for quick generation',
         provider: 'Anthropic',
-        tier: 'premium',
+        tier: 'user',
         features: ['fast', 'efficient']
       }
     ]

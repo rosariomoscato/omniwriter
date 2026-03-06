@@ -564,16 +564,8 @@ router.post('/projects/:id/export', auth_1.authenticateToken, async (req, res) =
         const userRole = req.user?.role;
         const db = (0, database_1.getDatabase)();
         console.log('[Export] Exporting project:', projectId, 'as format:', format);
-        // Check if format requires premium subscription
-        if (PREMIUM_FORMATS.includes(format.toLowerCase())) {
-            if (userRole !== 'premium' && userRole !== 'lifetime' && userRole !== 'admin') {
-                console.log('[Export] Premium format requested by free user:', format);
-                return res.status(403).json({
-                    message: `Export to ${format.toUpperCase()} requires a Premium subscription`,
-                    code: 'PREMIUM_REQUIRED'
-                });
-            }
-        }
+        // Feature #402: All authenticated users have access to all export formats
+        // No premium check needed - user or admin role both have full access
         // Verify project belongs to user and get author name
         const project = db.prepare('SELECT p.*, u.name as author_name FROM projects p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.user_id = ?').get(projectId, userId);
         if (!project) {
@@ -647,17 +639,8 @@ router.post('/projects/:id/export/cover', auth_1.authenticateToken, upload.singl
         const userId = req.user?.id;
         const userRole = req.user?.role;
         const db = (0, database_1.getDatabase)();
-        // Check premium subscription
-        if (userRole !== 'premium' && userRole !== 'lifetime' && userRole !== 'admin') {
-            // Clean up uploaded file
-            if (req.file?.path) {
-                fs_1.default.unlinkSync(req.file.path);
-            }
-            return res.status(403).json({
-                message: 'EPUB export features require a Premium subscription',
-                code: 'PREMIUM_REQUIRED'
-            });
-        }
+        // Feature #402: All authenticated users have access to EPUB export features
+        // No premium check needed - user or admin role both have full access
         // Verify project belongs to user
         const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(projectId, userId);
         if (!project) {
@@ -744,16 +727,8 @@ router.post('/projects/:id/export/batch', auth_1.authenticateToken, async (req, 
             return res.status(404).json({ message: 'No valid chapters found' });
         }
         console.log('[Batch Export] Found', chapters.length, 'chapters to export');
-        // Check premium requirements
-        if (PREMIUM_FORMATS.includes(format.toLowerCase())) {
-            if (userRole !== 'premium' && userRole !== 'lifetime' && userRole !== 'admin') {
-                console.log('[Batch Export] Premium format requested by free user:', format);
-                return res.status(403).json({
-                    message: `Export to ${format.toUpperCase()} requires a Premium subscription`,
-                    code: 'PREMIUM_REQUIRED'
-                });
-            }
-        }
+        // Feature #402: All authenticated users have access to all export formats
+        // No premium check needed - user or admin role both have full access
         // Get cover image path if provided
         let coverImagePath;
         if (coverImageId) {

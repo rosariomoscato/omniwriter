@@ -5,6 +5,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requirePremium } from '../middleware/roles';
 import { checkSourceUploadLimit } from '../middleware/tierCheck'; // Feature #368 - Tier limits
 import { TIER_LIMITS, UserRole } from '../config/tier-permissions'; // Feature #368 - Tier configuration
+import { increaseUserStorage, decreaseUserStorage } from '../utils/storage'; // Feature #404 - Storage quota tracking
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -310,6 +311,9 @@ router.post(
         .prepare('SELECT * FROM sources WHERE id = ?')
         .get(sourceId);
 
+      // Feature #404: Update user storage tracking
+      increaseUserStorage(userId, req.file.size);
+
       console.log(`[Sources] Standalone file uploaded: ${req.file.originalname} for user ${userId}`);
 
       res.status(201).json({ source });
@@ -501,6 +505,9 @@ router.post(
         .prepare('SELECT * FROM sources WHERE id = ?')
         .get(sourceId);
 
+      // Feature #404: Update user storage tracking
+      increaseUserStorage(userId, req.file.size);
+
       console.log(`[Sources] File uploaded: ${req.file.originalname} for project ${projectId}${sagaId ? ' (shared with saga)' : ''}`);
 
       res.status(201).json({ source });
@@ -543,6 +550,11 @@ router.delete('/sources/:id', authenticateToken, (req: any, res: any) => {
 
     // Delete from database
     db.prepare('DELETE FROM sources WHERE id = ?').run(sourceId);
+
+    // Feature #404: Update user storage tracking
+    if (source.file_size && source.file_size > 0) {
+      decreaseUserStorage(userId, source.file_size);
+    }
 
     console.log(`[Sources] Source deleted: ${sourceId}`);
 
@@ -623,6 +635,9 @@ router.post(
 
       // Fetch created source
       const source = db.prepare('SELECT * FROM sources WHERE id = ?').get(sourceId);
+
+      // Feature #404: Update user storage tracking
+      increaseUserStorage(userId, req.file.size);
 
       console.log(`[Sources] File uploaded to saga ${sagaId}: ${req.file.originalname}`);
       res.status(201).json({ source });
