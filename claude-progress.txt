@@ -1,5 +1,59 @@
 # OmniWriter Progress Log
 
+## Session: 2026-03-06 - Feature #412 Implementation
+
+### Completed Features: 414/417 (99.3%)
+
+### Feature #412: Rimozione gestione abbonamenti dal pannello admin
+
+**Objective:** Rimuovere dal pannello admin tutte le sezioni relative alla gestione degli abbonamenti, piani, e statistiche sulle conversioni free-to-premium.
+
+**Implementation:**
+
+#### Modified Files:
+
+1. **client/src/pages/AdminDashboard.tsx**
+   - Removed subscription-related interfaces and calculations
+   - Updated donut chart to show only user/admin distribution (removed free/premium/lifetime)
+   - Updated legend to show only "Utenti" and "Admin"
+   - Removed unused imports (useToastNotification)
+
+2. **client/src/pages/AdminStatsPage.tsx**
+   - Removed premium user stat card from stats grid (4 cols → 3 cols)
+   - Removed entire "Distribuzione Utenti" section showing tier breakdown
+   - Removed free/premium/lifetime calculations
+   - Removed unused imports (TrendingUp, useToastNotification)
+   - Added data adapter to handle API format conversion
+
+3. **server/src/routes/admin.ts**
+   - Updated JSDoc comment for /api/admin/stats endpoint
+   - Changed documentation from { free, premium, lifetime, admin } to { user, admin }
+   - Added reference to Feature #401 in comments
+
+**Feature Test Steps Verified:**
+1. ✅ "Rimuovere la sezione/pagina di gestione abbonamenti se presente" - Removed subscription sections
+2. ✅ "Rimuovere le statistiche relative a distribuzione piani, conversioni, revenue" - Removed all tier metrics
+3. ✅ "Aggiornare la dashboard admin per non mostrare metriche legate ai piani" - Donut chart shows only user/admin
+4. ✅ "Verificare che la navigazione admin sia coerente dopo la rimozione" - Navigation coherent
+5. ✅ "Verificare che non ci siano link rotti verso pagine rimosse" - No broken links
+
+**API Response Format (Verified):**
+```json
+{
+  "usersByRole": {
+    "user": number,
+    "admin": number
+  }
+}
+```
+✅ No premium, lifetime, or free fields in response
+
+### Commit: 68c62e3
+
+**Status: Feature #412 MARKED PASSING**
+
+---
+
 ## Session: 2026-03-06 - Features #405, #407 Implementation
 
 ### Completed Features: 407/417 (97.6%)
