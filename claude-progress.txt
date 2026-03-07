@@ -1,5 +1,33 @@
 ## Session - 2026-03-07 (Afternoon - Extended #3)
 
+### Feature #429: Aggiungere bottone Marketplace nell'hero della landing page
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Added "Esplora il Marketplace" button to landing page hero section (lines 102-107 of LandingPage.tsx)
+- Button has purple border styling to differentiate from the other CTAs
+- Links to /marketplace page
+- Added translation keys:
+  - IT: `landing.exploreMarketplace` = "Esplora il Marketplace"
+  - EN: `landing.exploreMarketplace` = "Explore Marketplace"
+- Also added `landing.noCreditCard` key to IT translations for consistency
+
+**Button Styling:**
+- Purple text (text-purple-600 / dark:text-purple-400)
+- Purple border (border-purple-500)
+- White/dark background with hover effects
+- Same size as other hero buttons (px-8 py-4)
+
+**Verification:**
+- Browser tested: button visible in hero section
+- Both Italian and English versions display correctly
+- Button navigates to /marketplace page correctly
+- No console errors
+
+**Current stats:** 428/429 features passing (99.8%)
+
+---
+
 ### Feature #427: Rimuovere riferimenti agli articoli dal Marketplace nella landing page
 **Status:** COMPLETED and PASSING
 
