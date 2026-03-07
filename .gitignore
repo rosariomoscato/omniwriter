@@ -57,3 +57,7 @@ features.db
 
 .playwright-cli/
 .playwright/
+.playwright-mcp/
+
+# Process ID files
+*.pid
