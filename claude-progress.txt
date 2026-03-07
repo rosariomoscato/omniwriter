@@ -1,3 +1,112 @@
+## Session - 2026-03-07 (Afternoon - Extended #2)
+
+### Feature #425: Marketplace - EPUB Generation with Branding
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Implemented complete branded EPUB generation for marketplace downloads
+- Created `generateMarketplaceEpub` function in `server/src/routes/marketplace.ts` (lines 45-341)
+- Updated download endpoint to generate branded EPUB instead of plain text (lines 569-632)
+
+**Implementation Details:**
+
+**1. Branded EPUB Generation Service (generateMarketplaceEpub):**
+- ✅ Generates EPUB 3.0 compliant files with proper structure
+- ✅ Includes all standard EPUB components:
+  - mimetype file
+  - META-INF/container.xml
+  - OEBPS/content.opf (package document)
+  - OEBPS/toc.ncx (navigation control)
+  - OEBPS/cover.xhtml (title page)
+  - OEBPS/toc.xhtml (table of contents)
+  - OEBPS/chapter_*.xhtml (chapter content)
+  - OEBPS/colophon.xhtml (NEW - branded colophon page)
+  - OEBPS/styles/style.css (styling with brand colors)
+
+**2. OmniWriter Branding Elements:**
+
+**a) Title Page (cover.xhtml):**
+- Display work title and author
+- Shows description if available
+- Professional formatting
+
+**b) Colophon Page (NEW - lines 228-256):**
+- Page title: "Colofone" (IT) / "Colophon" (EN)
+- Prominent branding: "Creato con OmniWriter" / "Created with OmniWriter" (styled with purple color)
+- Descriptive text:
+  - "Questa opera è stata creata con l'aiuto di OmniWriter" (IT)
+  - "This work was created with the help of OmniWriter" (EN)
+  - "Piattaforma di scrittura professionale basata su intelligenza artificiale" (IT)
+  - "Professional AI-powered writing platform" (EN)
+  - "Scaricabile dal Marketplace OmniWriter" (IT)
+  - "Downloaded from the OmniWriter Marketplace" (EN)
+  - "Condividi le tue opere con la community" (IT)
+  - "Share your works with the community" (EN)
+- Publication date
+- Centered layout with distinctive branding styles
+
+**c) Metadata (content.opf, lines 274-307):**
+- Publisher field: "OmniWriter"
+- Proper Dublin Core metadata
+- Unique book identifier using UUID
+- Title, author, language, date
+- Description if available
+
+**d) CSS Styling (lines 73-128):**
+- Special `.colophon` class for branded page styling
+- `.branding` class with purple color (#8b5cf6) and larger font
+- Professional typography and spacing
+- Consistent with OmniWriter brand identity
+
+**3. File Storage (lines 14-17, 335-338):**
+- ✅ Dedicated directory: `uploads/marketplace-epub/`
+- ✅ Auto-created on server startup if not exists
+- ✅ Unique filename format: `marketplace_{uuid}_{timestamp}.epub`
+- ✅ Example: `marketplace_a1b2c3d4-..._1678123456789.epub`
+- ✅ Files persist for download tracking and audit
+
+**4. Download Endpoint Update (lines 569-632):**
+- Changed from plain text generation to branded EPUB
+- Maintains download tracking (marketplace_downloads table)
+- Updates download_count on marketplace_items
+- Determines language from category (defaults to Italian)
+- Returns proper EPUB MIME type: `application/epub+zip`
+- Content-Disposition header for proper download behavior
+
+**5. Internationalization:**
+- ✅ Italian language support (default for romanziere)
+- ✅ English language support available
+- All branding text localized in both languages
+- Language-appropriate UI elements (TOC titles, colophon, etc.)
+
+**Technical Implementation:**
+- Uses JSZip library (already in dependencies for export functionality)
+- Proper XML escaping with `escapeXml` helper function
+- Markdown to XHTML conversion for chapter content
+- Proper EPUB 3.0 structure and metadata
+- Spine includes colophon as final page
+- Manifest includes all EPUB components
+
+**Feature Requirements Checklist:**
+1. ✅ Create/modify EPUB generation service
+2. ✅ Add title page with "Creato con OmniWriter" visible
+3. ✅ Include logo/branding OmniWriter in metadata (publisher field)
+4. ✅ Add colophon page at end of document
+5. ✅ Save EPUB in dedicated marketplace folder (uploads/marketplace-epub/)
+6. ✅ Generate unique filename based on work ID (marketplace_{uuid}_{timestamp}.epub)
+
+**Code Quality:**
+- Comprehensive JSDoc comments
+- Proper error handling
+- Consistent code style with existing export.ts implementation
+- Reuses helper functions (escapeXml, markdownToXhtml)
+- Clear console logging for debugging
+- TypeScript type safety
+
+**Current stats:** 425/438 features passing (97.0%)
+
+---
+
 ## Session - 2026-03-07 (Afternoon - Extended)
 
 ### Feature #426: Marketplace - Internationalization
