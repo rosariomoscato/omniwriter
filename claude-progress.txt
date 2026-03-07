@@ -1,5 +1,40 @@
 ## Session - 2026-03-07 (Afternoon - Extended #3)
 
+### Feature #430: Impedire pubblicazione di articoli nel Marketplace
+**Status:** COMPLETED and PASSING (No code changes needed - already implemented)
+
+**What was verified:**
+The feature was already correctly implemented in both backend and frontend:
+
+**Backend Validation (server/src/routes/marketplace.ts lines 370-373):**
+```typescript
+// Only romanziere and saggista projects can be published
+if (!['romanziere', 'saggista'].includes(project.area)) {
+  return res.status(400).json({ message: 'Only Romanziere and Saggista projects can be published to the marketplace' });
+}
+```
+
+**Frontend UI (client/src/pages/ProjectDetail.tsx lines 1883-1893):**
+The "Pubblica su Marketplace" button is conditionally rendered only for romanziere and saggista:
+```typescript
+{/* Feature #422: Publish to Marketplace - Only for romanziere and saggista */}
+{(project?.area === 'romanziere' || project?.area === 'saggista') && (
+  <button ... >Pubblica su Marketplace</button>
+)}
+```
+
+**Testing Results:**
+1. ✅ Backend API rejects redattore projects with HTTP 400 and proper error message
+2. ✅ Backend API accepts romanziere projects (HTTP 201)
+3. ✅ Backend API accepts saggista projects (HTTP 201)
+4. ✅ UI button NOT visible on redattore project page
+5. ✅ UI button IS visible on romanziere project page
+6. ✅ UI button IS visible on saggista project page
+
+**Current stats:** 426/429 features passing (99.3%)
+
+---
+
 ### Feature #429: Aggiungere bottone Marketplace nell'hero della landing page
 **Status:** COMPLETED and PASSING
 
