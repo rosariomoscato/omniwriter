@@ -23,6 +23,9 @@ import generationLogsRouter from './routes/generation-logs';
 import aiRouter from './routes/ai';
 import chapterCommentsRouter from './routes/chapter-comments';
 import llmProvidersRouter from './routes/llm-providers';
+import marketplaceRouter, { marketplaceAdminStatsHandler } from './routes/marketplace';
+import { authenticateToken } from './middleware/auth';
+import { requireAdmin } from './middleware/roles';
 import { resolve } from 'path';
 
 const envPath = resolve(__dirname, '..', '.env');
@@ -106,6 +109,10 @@ app.use('/api', aiRouter);
 app.use('/api', chapterCommentsRouter);
 app.use('/api', llmProvidersRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/marketplace', marketplaceRouter);
+
+// Admin marketplace stats endpoint (under /api/admin/marketplace/stats)
+app.get('/api/admin/marketplace/stats', authenticateToken as any, requireAdmin as any, marketplaceAdminStatsHandler as any);
 
 // 404 handler
 app.use((_req, res) => {

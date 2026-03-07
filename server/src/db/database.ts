@@ -353,6 +353,45 @@ function runMigrations(db: Database.Database): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Feature #419: Marketplace tables
+    CREATE TABLE IF NOT EXISTS marketplace_items (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      category TEXT NOT NULL DEFAULT '' ,
+      genre TEXT DEFAULT '',
+      tags_json TEXT DEFAULT '[]',
+      epub_file_path TEXT DEFAULT '',
+      cover_image_path TEXT DEFAULT '',
+      word_count INTEGER DEFAULT 0,
+      download_count INTEGER DEFAULT 0,
+      average_rating REAL DEFAULT 0.0,
+      review_count INTEGER DEFAULT 0,
+      is_approved INTEGER NOT NULL DEFAULT 1,
+      is_visible INTEGER NOT NULL DEFAULT 1,
+      published_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS marketplace_reviews (
+      id TEXT PRIMARY KEY,
+      marketplace_item_id TEXT NOT NULL REFERENCES marketplace_items(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+      review_text TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS marketplace_downloads (
+      id TEXT PRIMARY KEY,
+      marketplace_item_id TEXT NOT NULL REFERENCES marketplace_items(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      downloaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Indexes for performance
     CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
     CREATE INDEX IF NOT EXISTS idx_projects_saga_id ON projects(saga_id);
@@ -387,6 +426,17 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_saga_id ON saga_continuity(saga_id);
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_source_project_id ON saga_continuity(source_project_id);
     CREATE INDEX IF NOT EXISTS idx_saga_continuity_episode ON saga_continuity(saga_id, episode_number);
+
+    -- Feature #419: Marketplace indexes
+    CREATE INDEX IF NOT EXISTS idx_marketplace_items_user_id ON marketplace_items(user_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_items_category ON marketplace_items(category);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_items_is_visible ON marketplace_items(is_visible);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_items_published_at ON marketplace_items(published_at);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_items_project_id ON marketplace_items(project_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_item_id ON marketplace_reviews(marketplace_item_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_reviews_user_id ON marketplace_reviews(user_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_downloads_item_id ON marketplace_downloads(marketplace_item_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_downloads_user_id ON marketplace_downloads(user_id);
   `);
 
   // Handle schema migrations for existing tables
