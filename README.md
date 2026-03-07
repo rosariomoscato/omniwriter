@@ -69,10 +69,10 @@ OmniWriter is designed for:
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| **Frontend** | React 18, TypeScript, Tailwind CSS |
 | **Backend** | Node.js, Express.js, TypeScript |
-| **Database** | SQLite (better-sqlite3) |
-| **AI Integration** | Vercel AI SDK, OpenAI, Anthropic |
+| **Database** | SQLite (better-sqlite3 + Drizzle ORM) |
+| **AI Integration** | OpenAI, Anthropic, OpenRouter, Requesty, Gemini, Custom |
 | **Authentication** | Passport.js (email/password + Google OAuth) |
 | **Internationalization** | i18next (Italian + English) |
 
@@ -234,15 +234,6 @@ omniwriter/
 ├── LICENSE.md              # AGPL v3 License
 └── README.md               # This file
 ```
-
-## User Roles
-
-| Role | Features |
-|------|----------|
-| **Free** | Basic access, limited generation length, TXT/DOCX export, basic Human Model |
-| **Premium** | Unlimited generation, all export formats (EPUB, PDF), full Human Model, Google Drive integration |
-| **Lifetime** | All premium features with permanent access |
-| **Admin** | Platform management, user administration, analytics dashboard |
 
 ## Contributing
 
