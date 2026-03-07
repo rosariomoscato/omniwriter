@@ -1,5 +1,28 @@
 ## Session - 2026-03-07 (Afternoon - Extended #4)
 
+### Feature #433: Correggere errori nel README.md
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Replaced landing page screenshot with English version
+- Updated Technology Stack table:
+  - Removed 'Vercel AI SDK' (not present in project)
+  - Removed 'shadcn/ui' (not present in project)
+  - Added 'Drizzle ORM' to Database layer
+  - Updated AI Integration with actual providers: OpenAI, Anthropic, OpenRouter, Requesty, Gemini, Custom
+- Completely REMOVED 'User Roles' section (everything is now free - no more premium/lifetime plans)
+- Verified document coherence and correctness
+
+**Verification:**
+- Screenshot shows English landing page with "AI Writing Without Limits", "Novelist", "Essayist", "Editor", "Marketplace"
+- Technology Stack accurately reflects actual technologies used
+- No User Roles section present
+- All links and references verified correct
+
+**Current stats:** 433/433 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
 ### Feature #432: Spostare LICENSE.md nella root del progetto
 **Status:** COMPLETED and PASSING
 
