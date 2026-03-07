@@ -1,3 +1,35 @@
+## Session - 2026-03-07 (Afternoon - Extended #3)
+
+### Feature #427: Rimuovere riferimenti agli articoli dal Marketplace nella landing page
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Updated landing page marketplace section to remove "articoli" references
+- Modified IT translation: `landing.marketplace.feature1` from "Pubblica romanzi, saggi e articoli" to "Pubblica romanzi e saggi"
+- Modified EN translation: `landing.marketplace.feature1` from "Publish novels, essays and articles" to "Publish novels and essays"
+
+**Verification:**
+- Verified in browser on landing page for both Italian and English languages
+- Marketplace card shows correct text without articles reference
+
+---
+
+### Feature #428: Rimuovere riferimenti agli articoli dalla pagina Marketplace
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Updated Marketplace page hero subtitle to remove "articoli" references
+- Modified IT translation: `marketplace.heroSubtitle` from "Esplora romanzi, saggi e articoli creati con OmniWriter..." to "Esplora romanzi e saggi creati con OmniWriter..."
+- Modified EN translation: `marketplace.heroSubtitle` from "Explore novels, essays, and articles created with OmniWriter..." to "Explore novels and essays created with OmniWriter..."
+
+**Verification:**
+- Verified in browser on /marketplace page for both Italian and English languages
+- Hero subtitle shows correct text without articles reference
+
+**Current stats:** 427/429 features passing (99.5%)
+
+---
+
 ## Session - 2026-03-07 (Afternoon - Extended #2)
 
 ### Feature #425: Marketplace - EPUB Generation with Branding
