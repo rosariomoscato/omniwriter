@@ -119,7 +119,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Romanziere */}
             <FeatureCard
               icon="📚"
@@ -159,6 +159,20 @@ export default function LandingPage() {
                 t('landing.redattore.feature2'),
                 t('landing.redattore.feature3'),
                 t('landing.redattore.feature4')
+              ]}
+            />
+
+            {/* Marketplace */}
+            <FeatureCard
+              icon="🛍️"
+              title={t('landing.marketplace.title')}
+              color="marketplace"
+              description={t('landing.marketplace.description')}
+              features={[
+                t('landing.marketplace.feature1'),
+                t('landing.marketplace.feature2'),
+                t('landing.marketplace.feature3'),
+                t('landing.marketplace.feature4')
               ]}
             />
           </div>
@@ -216,7 +230,7 @@ export default function LandingPage() {
 interface FeatureCardProps {
   icon: string;
   title: string;
-  color: 'romanziere' | 'saggista' | 'redattore';
+  color: 'romanziere' | 'saggista' | 'redattore' | 'marketplace';
   description: string;
   features: string[];
 }
@@ -225,7 +239,8 @@ function FeatureCard({ icon, title, color, description, features }: FeatureCardP
   const colorClasses = {
     romanziere: 'text-romanziere bg-romanziere/10 border-romanziere/20',
     saggista: 'text-saggista bg-saggista/10 border-saggista/20',
-    redattore: 'text-redattore bg-redattore/10 border-redattore/20'
+    redattore: 'text-redattore bg-redattore/10 border-redattore/20',
+    marketplace: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-700'
   };
 
   return (

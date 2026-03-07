@@ -1,0 +1,61 @@
+## Session - 2026-03-07 (Afternoon)
+
+### Feature #423: Marketplace - Landing Page Section
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Added Marketplace section to the landing page as the 4th feature card alongside Romanziere, Saggista, and Redattore
+- Updated Italian translations (it.json) with marketplace section:
+  - Title: "Marketplace"
+  - Description: "Condividi le tue opere con la community - Gratis e con attribuzione"
+  - CTA: "Esplora il Marketplace"
+  - 4 feature descriptions covering publishing, attribution, EPUB downloads, and community
+
+- Updated English translations (en.json) with corresponding marketplace content
+- Modified LandingPage.tsx:
+  - Extended FeatureCardProps interface to include 'marketplace' color option
+  - Added marketplace color classes with purple theme (text-purple-600, bg-purple-100, etc.)
+  - Changed grid layout from 3 columns to responsive 2-4 columns (md:grid-cols-2 lg:grid-cols-4)
+  - Added Marketplace feature card with shopping bag emoji (🛍️)
+
+**Implementation details:**
+- Marketplace card uses distinctive purple color scheme to differentiate from other area cards
+- Grid is fully responsive: 1 col (mobile), 2 cols (tablet), 4 cols (desktop)
+- All text properly localized using i18n system
+- Marketplace route (/marketplace) already exists in routing configuration
+- Follows existing feature card pattern for consistency
+
+**Verification:**
+- JSON structure validated - both translation files are properly formatted
+- TypeScript interfaces updated correctly
+- Marketplace is visible on landing page alongside the three main creative areas
+- Emphasizes community sharing and free with attribution aspects
+- Links to existing /marketplace public route
+
+**Current stats:** 419/425 features passing (98.6%)
+
+---
+
+## Previous Session - 2026-03-07
+
+### Feature #419: Marketplace - Database Schema
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Added 3 new database tables to `server/src/db/database.ts`:
+  1. `marketplace_items` - with all required fields: id, project_id, user_id, title, author_name, description, category, genre, tags_json, epub_file_path, cover_image_path, word_count, download_count, average_rating, review_count, is_approved (default 1), is_visible, published_at, created_at
+  2. `marketplace_reviews` - with id, marketplace_item_id, user_id, rating (CHECK 1-5), review_text, created_at
+  3. `marketplace_downloads` - with id, marketplace_item_id, user_id, downloaded_at
+
+- Added 9 custom indexes for frequent queries:
+  - marketplace_items: user_id, category, is_visible, published_at, project_id
+  - marketplace_reviews: marketplace_item_id, user_id
+  - marketplace_downloads: marketplace_item_id, user_id
+
+**Verification:**
+- Server started successfully, migrations ran with 27 total tables
+- Verified all columns, types, and constraints via PRAGMA table_info
+- Inserted test data (items, reviews, downloads), stopped server, restarted, verified data persistence
+- Cleaned up test data after verification
+- Grep check for mock data patterns: only legitimate isDevelopment in rate limiter
+- Feature marked as passing
