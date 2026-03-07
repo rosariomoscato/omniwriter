@@ -1,3 +1,48 @@
+## Session - 2026-03-07 (Afternoon - Extended #4)
+
+### Feature #432: Spostare LICENSE.md nella root del progetto
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Moved LICENSE.md from docs/LICENSE.md to root LICENSE.md
+- Fixed incorrect copyright notice (Leon van Zyl -> Rosario Moscato)
+- GitHub will now automatically recognize the AGPL v3 license
+
+**Verification:**
+- LICENSE.md now exists in project root
+- Copyright correctly shows "Copyright (C) 2026 Rosario Moscato" in both places (line 1 and line 194)
+- README.md updated to link to correct LICENSE.md path
+
+---
+
+### Feature #431: Aggiornare README.md con documentazione completa
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Completely rewrote README.md with professional documentation in English
+- Added screenshot of landing page (docs/screenshot-landing.png)
+- Added badges: License (AGPL v3), Node.js version, TypeScript, React
+
+**Documentation sections added:**
+1. **Overview**: Complete description of OmniWriter and its 3 areas (Novelist, Essayist, Editor)
+2. **Marketplace**: Description of community sharing feature
+3. **Who Can Use It**: Target audience (writers, journalists, content creators, etc.)
+4. **Key Features**: AI-powered writing, source management, rich editing, exports, marketplace
+5. **Technology Stack**: Table with frontend, backend, database, AI, auth, i18n technologies
+6. **Requirements**: Node.js >= 18, npm/pnpm, SQLite3
+7. **Installation**: Quick start (init.sh) and manual setup instructions
+8. **Environment Variables**: Complete .env configuration guide
+9. **Access Points**: Frontend, API, health check URLs
+10. **Cloud Deployment**: VPS deployment with PM2, Docker example, recommended providers
+11. **Project Structure**: Directory tree with descriptions
+12. **User Roles**: Table with Free, Premium, Lifetime, Admin features
+13. **Contributing**: Pull request guidelines
+14. **License**: AGPL v3 with copyright notice
+
+**Current stats:** 431/431 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
 ## Session - 2026-03-07 (Afternoon - Extended #3)
 
 ### Feature #430: Impedire pubblicazione di articoli nel Marketplace
