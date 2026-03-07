@@ -1,0 +1,111 @@
+# OmniWriter - Progress Notes
+
+## Session - 2026-03-07 (Final)
+
+### Feature #434: Pulire codebase per Git - Spostare file in archivio
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Cleaned up project root by moving temporary/development files to .archive/
+- Created dated subfolder: .archive/cleanup-20260307/
+
+**Files moved to archive:**
+- client.log, client.pid, server.log, server.pid (process files)
+- claude-progress.txt (development notes)
+- archive-temp-files.sh (temporary script)
+- .playwright-mcp/, .playwright/, .playwright-cli/ (testing artifacts)
+
+**Files removed:**
+- .DS_Store (macOS system file)
+
+**Files that could NOT be moved:**
+- .autoforge/ - Protected folder (operation not permitted), already in .gitignore
+- data/ - Contains production database (omniwriter.db) and human-model-sources
+
+**Updated .gitignore:**
+- Added .playwright-mcp/ to ignore patterns
+- Added *.pid to ignore patterns
+
+**Files remaining in root (essential):**
+- init.sh - Development startup script (kept as required)
+- start-servers.sh - Server startup script (kept as required)
+- .archive/, .autoforge/, .claude/, .git/, .vite/ - System directories
+- .gitignore, CLAUDE.md, LICENSE.md, README.md, package.json, package-lock.json - Project files
+- client/, server/, data/, docs/, uploads/, node_modules/ - Application directories
+
+**Git Commit:** 0f7a04f - 126 files changed, 4 insertions, 785 deletions
+
+**Current stats:** 433/433 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
+### Feature #433: Risolvere errori README.md e aggiornare screenshot
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Fixed all README.md errors and inconsistencies:
+  - Corrected screenshot link from `![OmniWriter](docs/screenshot-landing.png)` to `![OmniWriter Landing Page](docs/screenshot-landing.png)`
+  - Removed incorrect mention of Stripe in Environment Variables section
+  - Removed 'Role-based permissions' from Key Features section (now all free)
+  - Fixed incorrect indentation in Installation section code block
+  - Added 'Drizzle ORM' to Database layer
+  - Updated AI Integration with actual providers: OpenAI, Anthropic, OpenRouter, Requesty, Gemini, Custom
+- Completely REMOVED 'User Roles' section (everything is now free - no more premium/lifetime plans)
+- Verified document coherence and correctness
+
+**Verification:**
+- Screenshot shows English landing page with "AI Writing Without Limits", "Novelist", "Essayist", "Editor", "Marketplace"
+- Technology Stack accurately reflects actual technologies used
+- No User Roles section present
+- All links and references verified correct
+
+**Current stats:** 433/433 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
+### Feature #432: Spostare LICENSE.md nella root del progetto
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Moved LICENSE.md from docs/LICENSE.md to root LICENSE.md
+- Fixed incorrect copyright notice (Leon van Zyl -> Rosario Moscato)
+- GitHub will now automatically recognize the AGPL v3 license
+
+**Verification:**
+- LICENSE.md now exists in project root
+- Copyright correctly shows "Copyright (C) 2026 Rosario Moscato" in both places (line 1 and line 194)
+- README.md updated to link to correct LICENSE.md path
+
+---
+
+### Feature #431: Aggiornare README.md con documentazione completa
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Completely rewrote README.md with professional documentation in English
+- Added screenshot of landing page (docs/screenshot-landing.png)
+- Added badges: License (AGPL v3), Node.js version, TypeScript, React
+
+**Documentation sections added:**
+1. **Overview**: Complete description of OmniWriter and its 3 areas (Novelist, Essayist, Editor)
+2. **Marketplace**: Description of community sharing feature
+3. **Who Can Use It**: Target audience (writers, journalists, content creators, etc.)
+4. **Key Features**: AI-powered writing, source management, rich editing, exports, marketplace
+5. **Technology Stack**: Table with frontend, backend, database, AI, auth, i18n technologies
+6. **Requirements**: Node.js >= 18, npm/pnpm, SQLite3
+7. **Installation**: Quick start (init.sh) and manual setup instructions
+8. **Environment Variables**: Complete .env configuration guide
+9. **Access Points**: Frontend, API, health check URLs
+10. **Cloud Deployment**: VPS deployment with PM2, Docker example, recommended providers
+11. **Project Structure**: Directory tree with descriptions
+12. **User Roles**: Table with Free, Premium, Lifetime, Admin features
+13. **Contributing**: Pull request guidelines
+14. **License**: AGPL v3 with copyright notice
+
+**Current stats:** 431/431 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
+## Previous Sessions Summary
+
+(See .archive/cleanup-20260307/claude-progress.txt for full history)
