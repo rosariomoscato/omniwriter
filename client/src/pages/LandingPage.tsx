@@ -99,6 +99,12 @@ export default function LandingPage() {
               >
                 {t('landing.login')}
               </Link>
+              <Link
+                to="/marketplace"
+                className="px-8 py-4 bg-white dark:bg-dark-surface text-purple-600 dark:text-purple-400 text-lg font-semibold rounded-lg border-2 border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+              >
+                {t('landing.exploreMarketplace')}
+              </Link>
             </div>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               {t('landing.noCreditCard')}
