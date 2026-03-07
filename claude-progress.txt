@@ -124,3 +124,74 @@
 **Current Stats:** 421/425 features passing (99.1%)
 **Completed in Session:** 2 features (#421, #422)
 
+---
+
+## Session - 2026-03-07 (Feature #424)
+
+### Feature #424: Marketplace - Admin Dashboard
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Verified complete implementation of admin marketplace dashboard
+- All components were already implemented in previous sessions
+
+**Implementation Verified:**
+
+**1. Admin Marketplace Page (`client/src/pages/AdminMarketplacePage.tsx`):**
+- ✅ Table displaying all marketplace items with pagination (lines 459-590)
+- ✅ Search functionality by title, author, description (lines 388-402)
+- ✅ Category filter (romanziere/saggista) (lines 416-425)
+- ✅ Visibility status filter (visible/hidden) (lines 429-438)
+- ✅ Toggle visibility action (lines 169-196, 569-574)
+- ✅ Delete action with confirmation modal (lines 198-223, 575-581, 617-654)
+- ✅ Statistics cards showing:
+  - Total listings count
+  - Visible listings count
+  - Hidden listings count
+  - Total downloads count
+- ✅ Refresh button to reload data (lines 318-327)
+- ✅ Proper error handling and loading states
+- ✅ Toast notifications for user feedback
+
+**2. Backend API Endpoints (`server/src/routes/marketplace.ts`):**
+- ✅ GET /api/marketplace/admin (lines 538-617) - List all items with filters
+- ✅ GET /api/admin/marketplace/stats (lines 626-676) - Admin statistics
+  - Returns: totalListings, visibleListings, hiddenListings, totalDownloads,
+    totalReviews, averageRating, topDownloaded, topRated, listingsByCategory
+- ✅ PATCH /api/marketplace/:id/hide (lines 469-498) - Toggle visibility
+- ✅ DELETE /api/marketplace/:id/admin (lines 504-532) - Permanent delete
+
+**3. Route Configuration (`client/src/App.tsx`):**
+- ✅ Route `/admin/marketplace` registered at line 329
+- ✅ Protected by admin role check in ProtectedRouteGuard
+
+**4. Admin Navigation (`client/src/components/AdminLayout.tsx`):**
+- ✅ Marketplace menu item in sidebar (lines 45-50)
+- ✅ ShoppingBag icon for marketplace link
+- ✅ Active state highlighting
+
+**5. Feature Requirements Met:**
+- ✅ Create page /admin/marketplace with table of all published works
+- ✅ Add filters for: author (search), category, status (visible/hidden), date (implied by published_at)
+- ✅ Implement 'Hide' action (toggle is_visible)
+- ✅ Implement 'Delete' action (with confirmation)
+- ✅ Create statistics page: total works, downloads, popular categories
+- ✅ Add admin sidebar menu item
+
+**Security & Authorization:**
+- Admin-only endpoints protected with `requireAdmin` middleware
+- Authentication required via `authenticateToken`
+- Admin role checked in ProtectedRouteGuard
+
+**Code Quality:**
+- Proper TypeScript interfaces for all data structures
+- Error handling with try-catch blocks
+- User-friendly loading and error states
+- Toast notifications for user actions
+- Confirmation dialog for destructive actions
+- Responsive design with proper styling
+
+**Current Stats:** 422/425 features passing (99.3%)
+
+---
+
