@@ -1,6 +1,28 @@
 # OmniWriter - Progress Notes
 
-## Session - 2026-03-07 (Final)
+## Session - 2026-03-07 (Continued)
+
+### Feature #435: Sincronizzare favicon con logo applicazione
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Created `client/public/favicon.svg` that replicates the header logo design:
+  - Rounded square container (32x32, rx="8" for rounded corners)
+  - Gradient from primary-500 (#06b6d4) to accent-500 (#a855f7)
+  - White Lucide Sparkles icon (stroke-based, matching the header component)
+- Updated `client/index.html` line 5: changed `href="/vite.svg"` to `href="/favicon.svg"`
+
+**Verification:**
+- Favicon served correctly at http://localhost:3000/favicon.svg (HTTP 200, Content-Type: image/svg+xml)
+- Tested in both light and dark modes - favicon visible and correctly styled
+- No console errors in browser
+- Cross-browser compatible (SVG format is universally supported)
+
+**Git Commit:** 60a9854
+
+**Current stats:** 434/434 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
 
 ### Feature #434: Pulire codebase per Git - Spostare file in archivio
 **Status:** COMPLETED and PASSING
