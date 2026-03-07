@@ -24,9 +24,9 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
   const isAdmin = user?.role === 'admin';
 
   const areas = [
-    { id: 'romanziere', label: t('nav.romanziere'), icon: BookOpen, color: 'text-romanziere' },
-    { id: 'saggista', label: t('nav.saggista'), icon: FileText, color: 'text-saggista' },
-    { id: 'redattore', label: t('nav.redattore'), icon: Edit3, color: 'text-redattore' },
+    { id: 'romanziere', label: t('nav.romanziere'), icon: BookOpen, color: 'text-amber-500', bgColor: 'hover:bg-amber-50 dark:hover:bg-amber-900/20' },
+    { id: 'saggista', label: t('nav.saggista'), icon: FileText, color: 'text-teal-500', bgColor: 'hover:bg-teal-50 dark:hover:bg-teal-900/20' },
+    { id: 'redattore', label: t('nav.redattore'), icon: Edit3, color: 'text-rose-500', bgColor: 'hover:bg-rose-50 dark:hover:bg-rose-900/20' },
   ];
 
   const mainNav = [
@@ -49,25 +49,35 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
   return (
     <aside
       className={`
-        fixed left-0 top-0 h-full bg-white dark:bg-dark-surface border-r border-gray-200 dark:border-gray-700
+        fixed left-0 top-0 h-full bg-white/80 dark:bg-dark-surface/80 backdrop-blur-xl
+        border-r border-gray-100 dark:border-dark-border/50
         transition-all duration-300 z-40 flex flex-col
         ${isCollapsed ? 'w-16' : 'w-64'}
       `}
     >
       {/* Logo */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-100 dark:border-dark-border/50">
         <div className="flex items-center justify-between">
           {!isCollapsed && (
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-500">
-              {t('app.name')}
-            </h1>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-accent-400 bg-clip-text text-transparent">
+                {t('app.name')}
+              </span>
+            </div>
           )}
           <button
             onClick={onToggle}
-            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated transition-all duration-200 group"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? <ChevronRight size={20} className="text-gray-600 dark:text-gray-300" /> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-300" />}
+            {isCollapsed ? (
+              <ChevronRight size={18} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+            ) : (
+              <ChevronLeft size={18} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+            )}
           </button>
         </div>
       </div>
@@ -80,7 +90,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             {/* Admin Navigation */}
             <div>
               {!isCollapsed && (
-                <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 px-2">
+                <p className="text-[10px] font-bold text-accent-600 dark:text-accent-400 uppercase tracking-widest mb-3 px-3">
                   Admin Panel
                 </p>
               )}
@@ -90,17 +100,19 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     <button
                       onClick={() => navigate(item.path)}
                       className={`
-                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                        hover:bg-purple-50 dark:hover:bg-purple-900/20
-                        transition-colors duration-200
+                        w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                        hover:bg-accent-50 dark:hover:bg-accent-900/20
+                        text-gray-600 dark:text-gray-400
+                        hover:text-accent-700 dark:hover:text-accent-300
+                        transition-all duration-200
                         ${isCollapsed ? 'justify-center' : ''}
                       `}
                       aria-label={isCollapsed ? item.label : undefined}
                       title={isCollapsed ? item.label : undefined}
                     >
-                      <item.icon size={20} className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      <item.icon size={20} className="text-accent-500 flex-shrink-0" />
                       {!isCollapsed && (
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <span className="text-sm font-medium">
                           {item.label}
                         </span>
                       )}
@@ -116,7 +128,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             {/* Main Navigation */}
             <div>
               {!isCollapsed && (
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 px-3">
                   {t('nav.dashboard')}
                 </p>
               )}
@@ -133,19 +145,19 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                         }
                       }}
                       className={`
-                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                        w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
                         ${item.id === 'analyze-novel'
-                          ? 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
-                        transition-colors duration-200
+                          ? 'bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 hover:bg-accent-100 dark:hover:bg-accent-900/30'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-elevated hover:text-gray-900 dark:hover:text-white'}
+                        transition-all duration-200
                         ${isCollapsed ? 'justify-center' : ''}
                       `}
                       aria-label={isCollapsed ? item.label : undefined}
                       title={isCollapsed ? item.label : undefined}
                     >
-                      <item.icon size={20} className={`${item.id === 'analyze-novel' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-300'} flex-shrink-0`} />
+                      <item.icon size={20} className={`flex-shrink-0 ${item.id === 'analyze-novel' ? '' : 'text-gray-500 dark:text-gray-400'}`} />
                       {!isCollapsed && (
-                        <span className={`text-sm font-medium ${item.id === 'analyze-novel' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                        <span className="text-sm font-medium">
                           {item.label}
                         </span>
                       )}
@@ -158,7 +170,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             {/* Area Sections */}
             <div>
               {!isCollapsed && (
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 px-3">
                   Aree
                 </p>
               )}
@@ -168,9 +180,11 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     <button
                       onClick={() => navigate(`/projects?area=${area.id}`)}
                       className={`
-                        w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                        hover:bg-gray-100 dark:hover:bg-gray-700
-                        transition-colors duration-200
+                        w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                        ${area.bgColor}
+                        text-gray-600 dark:text-gray-400
+                        hover:text-gray-900 dark:hover:text-white
+                        transition-all duration-200
                         ${isCollapsed ? 'justify-center' : ''}
                       `}
                       aria-label={isCollapsed ? area.label : undefined}
@@ -178,7 +192,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     >
                       <area.icon size={20} className={`${area.color} flex-shrink-0`} />
                       {!isCollapsed && (
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <span className="text-sm font-medium">
                           {area.label}
                         </span>
                       )}
@@ -192,8 +206,8 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
             {recentProjects.length > 0 && (
               <div>
                 {!isCollapsed && (
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2 flex items-center gap-2">
-                    <Clock size={14} />
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 px-3 flex items-center gap-2">
+                    <Clock size={12} />
                     {t('dashboard.recentProjects')}
                   </p>
                 )}
@@ -202,7 +216,7 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                     <li key={project.id}>
                       <button
                         onClick={() => navigate(`/projects/${project.id}`)}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated transition-all duration-200"
                         aria-label={isCollapsed ? project.title : undefined}
                         title={isCollapsed ? project.title : undefined}
                       >
@@ -211,13 +225,13 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
                             <div
                               className={`w-2 h-2 rounded-full ${
                                 project.area === 'romanziere'
-                                  ? 'bg-romanziere'
+                                  ? 'bg-amber-500'
                                   : project.area === 'saggista'
-                                  ? 'bg-saggista'
-                                  : 'bg-redattore'
+                                  ? 'bg-teal-500'
+                                  : 'bg-rose-500'
                               }`}
                             />
-                            <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
+                            <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
                               {project.title}
                             </span>
                           </div>
@@ -234,21 +248,23 @@ export default function Sidebar({ isCollapsed, onToggle, recentProjects = [] }: 
 
       {/* Profile Section - Only for non-admin users */}
       {!isAdmin && (
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-3 border-t border-gray-100 dark:border-dark-border/50">
           <button
             onClick={() => navigate('/profile')}
             className={`
-              w-full flex items-center gap-3 px-3 py-2 rounded-lg
-              hover:bg-gray-100 dark:hover:bg-gray-700
-              transition-colors duration-200
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+              hover:bg-gray-100 dark:hover:bg-dark-elevated
+              text-gray-600 dark:text-gray-400
+              hover:text-gray-900 dark:hover:text-white
+              transition-all duration-200
               ${isCollapsed ? 'justify-center' : ''}
             `}
             aria-label={isCollapsed ? t('nav.profile') : undefined}
             title={isCollapsed ? t('nav.profile') : undefined}
           >
-            <User size={20} className="text-gray-600 dark:text-gray-300 flex-shrink-0" />
+            <User size={20} className="flex-shrink-0 text-gray-500 dark:text-gray-400" />
             {!isCollapsed && (
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              <span className="text-sm font-medium">
                 {t('nav.profile')}
               </span>
             )}

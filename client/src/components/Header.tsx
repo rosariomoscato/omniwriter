@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Globe, Moon, Sun, User, LogOut, ChevronDown } from 'lucide-react';
+import { Search, Globe, Moon, Sun, User, LogOut, ChevronDown, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
@@ -70,17 +70,18 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
   return (
     <header
       className={`
-        fixed top-0 right-0 h-16 bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-gray-700
+        fixed top-0 right-0 h-16 bg-white/70 dark:bg-dark-surface/70 backdrop-blur-xl
+        border-b border-gray-100 dark:border-dark-border/50
         transition-all duration-300 z-30 flex items-center justify-between px-6
         ${isSidebarCollapsed ? 'left-16' : 'left-64'}
       `}
     >
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="flex-1 max-w-xl">
-        <div className="relative">
+        <div className="relative group">
           <Search
-            size={20}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors"
           />
           <input
             type="text"
@@ -89,25 +90,28 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
             placeholder={t('dashboard.search')}
             aria-label="Search projects"
             className="
-              w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800
-              border border-gray-200 dark:border-gray-700 rounded-lg
-              text-gray-900 dark:text-gray-100 placeholder-gray-500
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-              transition-all
+              w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-dark-elevated
+              border border-gray-100 dark:border-dark-border rounded-xl
+              text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500
+              focus:bg-white dark:focus:bg-dark-card
+              focus:border-primary-400 dark:focus:border-primary-500
+              focus:ring-2 focus:ring-primary-500/10
+              transition-all duration-200
             "
           />
         </div>
       </form>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-2 ml-4">
+      <div className="flex items-center gap-1 ml-4">
         {/* Language Switcher */}
         <button
           onClick={toggleLanguage}
           className="
-            p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-            transition-colors duration-200
-            flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200
+            px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+            transition-all duration-200
+            flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400
+            hover:text-gray-900 dark:hover:text-white
           "
           aria-label={`Switch to ${i18n.language === 'it' ? 'English' : 'Italiano'}`}
           title={`Switch to ${i18n.language === 'it' ? 'English' : 'Italiano'}`}
@@ -120,84 +124,99 @@ export default function Header({ isSidebarCollapsed }: HeaderProps) {
         <button
           onClick={handleThemeToggle}
           className="
-            p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700
-            transition-colors duration-200
-            text-gray-700 dark:text-gray-200
+            p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+            transition-all duration-200
+            text-gray-600 dark:text-gray-400
+            hover:text-gray-900 dark:hover:text-white
           "
           aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
         >
-          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
         {/* User Menu */}
-        <div className="relative" ref={userMenuRef}>
+        <div className="relative ml-2" ref={userMenuRef}>
           <button
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             className="
-              flex items-center gap-2 px-3 py-2 rounded-lg
-              hover:bg-gray-100 dark:hover:bg-gray-700
-              transition-colors duration-200
+              flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl
+              hover:bg-gray-100 dark:hover:bg-dark-elevated
+              transition-all duration-200
             "
           >
-            <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-primary-500/20">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-200">
               {user?.name || 'User'}
             </span>
             <ChevronDown
-              size={16}
-              className={`text-gray-500 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
+              size={14}
+              className={`text-gray-400 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`}
             />
           </button>
 
           {/* Dropdown Menu */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
-              <button
-                onClick={() => {
-                  setIsUserMenuOpen(false);
-                  window.location.href = '/profile';
-                }}
-                className="
-                  w-full flex items-center gap-2 px-4 py-2 text-left
-                  hover:bg-gray-100 dark:hover:bg-gray-700
-                  transition-colors
-                "
-              >
-                <User size={16} />
-                <span className="text-sm text-gray-700 dark:text-gray-200">{t('nav.profile')}</span>
-              </button>
-              <button
-                onClick={() => {
-                  setIsUserMenuOpen(false);
-                  window.location.href = '/settings';
-                }}
-                className="
-                  w-full flex items-center gap-2 px-4 py-2 text-left
-                  hover:bg-gray-100 dark:hover:bg-gray-700
-                  transition-colors
-                "
-              >
-                <span className="text-sm text-gray-700 dark:text-gray-200">{t('nav.settings')}</span>
-              </button>
-              <hr className="my-1 border-gray-200 dark:border-gray-700" />
-              <button
-                onClick={async () => {
-                  setIsUserMenuOpen(false);
-                  await logout();
-                  window.location.href = '/';
-                }}
-                className="
-                  w-full flex items-center gap-2 px-4 py-2 text-left
-                  hover:bg-gray-100 dark:hover:bg-gray-700
-                  transition-colors text-red-600 dark:text-red-400
-                "
-              >
-                <LogOut size={16} />
-                <span className="text-sm">{t('nav.logout')}</span>
-              </button>
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border rounded-xl shadow-xl shadow-black/5 dark:shadow-black/20 py-1.5 animate-scale-in origin-top-right">
+              {/* User info header */}
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-border">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+              </div>
+
+              <div className="py-1.5">
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    window.location.href = '/profile';
+                  }}
+                  className="
+                    w-full flex items-center gap-3 px-4 py-2.5 text-left
+                    hover:bg-gray-50 dark:hover:bg-dark-elevated
+                    transition-colors duration-150
+                    text-gray-700 dark:text-gray-200
+                  "
+                >
+                  <User size={16} className="text-gray-400" />
+                  <span className="text-sm">{t('nav.profile')}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    window.location.href = '/settings';
+                  }}
+                  className="
+                    w-full flex items-center gap-3 px-4 py-2.5 text-left
+                    hover:bg-gray-50 dark:hover:bg-dark-elevated
+                    transition-colors duration-150
+                    text-gray-700 dark:text-gray-200
+                  "
+                >
+                  <Settings size={16} className="text-gray-400" />
+                  <span className="text-sm">{t('nav.settings')}</span>
+                </button>
+              </div>
+
+              <div className="border-t border-gray-100 dark:border-dark-border pt-1.5">
+                <button
+                  onClick={async () => {
+                    setIsUserMenuOpen(false);
+                    await logout();
+                    window.location.href = '/';
+                  }}
+                  className="
+                    w-full flex items-center gap-3 px-4 py-2.5 text-left
+                    hover:bg-red-50 dark:hover:bg-red-900/20
+                    transition-colors duration-150
+                    text-red-600 dark:text-red-400
+                  "
+                >
+                  <LogOut size={16} />
+                  <span className="text-sm">{t('nav.logout')}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

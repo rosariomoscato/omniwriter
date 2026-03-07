@@ -20,6 +20,7 @@ import {
   SortAsc,
   X,
   Pen,
+  Sparkles,
 } from 'lucide-react';
 
 interface MarketplaceItem {
@@ -193,7 +194,7 @@ export default function MarketplacePage() {
         <Star
           key={i}
           size={size}
-          className={i <= Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}
+          className={i <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}
         />
       );
     }
@@ -201,16 +202,27 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
+    <div className="min-h-screen bg-surface-light dark:bg-cosmic">
+      {/* Decorative background orbs for dark mode */}
+      <div className="hidden dark:block fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -left-20 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-dark-border/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link to="/" className="text-2xl font-bold text-primary-600 dark:text-primary-500">
-                OmniWriter
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-accent-400 bg-clip-text text-transparent">
+                  OmniWriter
+                </span>
               </Link>
-              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-gray-300 dark:text-dark-border">|</span>
               <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
                 {t('marketplace.title')}
               </h1>
@@ -219,7 +231,12 @@ export default function MarketplacePage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleLanguage}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200"
+                className="
+                  px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+                  transition-all duration-200
+                  flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400
+                  hover:text-gray-900 dark:hover:text-white
+                "
                 title={`Switch to ${currentLang === 'it' ? 'English' : 'Italiano'}`}
               >
                 <Globe size={18} />
@@ -228,15 +245,20 @@ export default function MarketplacePage() {
 
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                className="
+                  p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+                  transition-all duration-200
+                  text-gray-600 dark:text-gray-400
+                  hover:text-gray-900 dark:hover:text-white
+                "
               >
-                {theme === 'dark' ? <Sun size={18} className="text-gray-200" /> : <Moon size={18} className="text-gray-700" />}
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
               {user ? (
                 <Link
                   to="/dashboard"
-                  className="ml-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                  className="btn-primary text-sm ml-2"
                 >
                   {t('nav.dashboard')}
                 </Link>
@@ -244,13 +266,13 @@ export default function MarketplacePage() {
                 <div className="flex items-center gap-2 ml-2">
                   <Link
                     to="/login"
-                    className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
+                    className="btn-secondary text-sm"
                   >
                     {t('auth.login')}
                   </Link>
                   <Link
                     to="/register"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                    className="btn-primary text-sm"
                   >
                     {t('auth.register')}
                   </Link>
@@ -262,30 +284,38 @@ export default function MarketplacePage() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-20 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="pt-20 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Hero Section */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            {t('marketplace.heroTitle')}
+          <h2 className="heading-1 mb-3">
+            <span className="gradient-text-hero">{t('marketplace.heroTitle')}</span>
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
             {t('marketplace.heroSubtitle')}
           </p>
         </div>
 
         {/* Search and Filters Bar */}
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
+        <div className="card mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="flex-1">
-              <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="relative group">
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                 <input
                   type="text"
                   placeholder={t('marketplace.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-colors"
+                  className="
+                    w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-dark-elevated
+                    border border-gray-100 dark:border-dark-border rounded-xl
+                    text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500
+                    focus:bg-white dark:focus:bg-dark-card
+                    focus:border-primary-400 dark:focus:border-primary-500
+                    focus:ring-2 focus:ring-primary-500/10
+                    transition-all duration-200
+                  "
                 />
                 {searchQuery && (
                   <button
@@ -294,7 +324,7 @@ export default function MarketplacePage() {
                       setSearchQuery('');
                       updateFilters({ search: '' });
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -305,23 +335,25 @@ export default function MarketplacePage() {
             {/* Filter Toggle Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors text-sm font-medium ${
-                showFilters || hasActiveFilters
+              className={`
+                flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 text-sm font-medium
+                ${showFilters || hasActiveFilters
                   ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
-                  : 'bg-white dark:bg-dark-bg border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+                  : 'bg-white dark:bg-dark-elevated border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-card hover:border-primary-300 dark:hover:border-primary-700'
+                }
+              `}
             >
               <Filter size={16} />
               {t('marketplace.filters')}
               {hasActiveFilters && (
-                <span className="w-2 h-2 rounded-full bg-primary-500" />
+                <span className="w-2 h-2 rounded-full bg-primary-500 glow-dot" />
               )}
             </button>
           </div>
 
           {/* Expanded Filters */}
           {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-dark-border grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Category Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -333,7 +365,7 @@ export default function MarketplacePage() {
                     setCategory(e.target.value);
                     updateFilters({ category: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl bg-white dark:bg-dark-elevated text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all duration-200"
                 >
                   <option value="">{t('marketplace.allCategories')}</option>
                   <option value="romanziere">{t('marketplace.categoryRomanziere')}</option>
@@ -355,7 +387,7 @@ export default function MarketplacePage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') updateFilters({ genre });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl bg-white dark:bg-dark-elevated text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all duration-200"
                 />
               </div>
 
@@ -370,7 +402,7 @@ export default function MarketplacePage() {
                     setSortBy(e.target.value);
                     updateFilters({ sort: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl bg-white dark:bg-dark-elevated text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all duration-200"
                 >
                   <option value="newest">{t('marketplace.sortNewest')}</option>
                   <option value="oldest">{t('marketplace.sortOldest')}</option>
@@ -386,7 +418,7 @@ export default function MarketplacePage() {
                 <div className="sm:col-span-3 flex justify-end">
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
                   >
                     {t('marketplace.clearFilters')}
                   </button>
@@ -411,7 +443,7 @@ export default function MarketplacePage() {
             <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={() => fetchItems(pagination.page)}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              className="btn-primary"
             >
               {t('marketplace.retry')}
             </button>
@@ -424,14 +456,14 @@ export default function MarketplacePage() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-pulse"
+                className="card overflow-hidden animate-pulse"
               >
-                <div className="h-40 bg-gray-200 dark:bg-gray-700" />
-                <div className="p-4 space-y-3">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+                <div className="h-40 bg-gray-200 dark:bg-dark-elevated rounded-t-xl -mx-6 -mt-6 w-[calc(100%+3rem)]" />
+                <div className="space-y-3 mt-4">
+                  <div className="h-5 bg-gray-200 dark:bg-dark-elevated rounded w-3/4" />
+                  <div className="h-4 bg-gray-200 dark:bg-dark-elevated rounded w-1/2" />
+                  <div className="h-3 bg-gray-200 dark:bg-dark-elevated rounded w-full" />
+                  <div className="h-3 bg-gray-200 dark:bg-dark-elevated rounded w-2/3" />
                 </div>
               </div>
             ))}
@@ -441,8 +473,10 @@ export default function MarketplacePage() {
         {/* Empty State */}
         {!loading && !error && items.length === 0 && (
           <div className="text-center py-16">
-            <BookOpen size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-dark-elevated flex items-center justify-center">
+              <BookOpen size={32} className="text-gray-400 dark:text-gray-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {t('marketplace.noResults')}
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6">
@@ -453,7 +487,7 @@ export default function MarketplacePage() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                className="btn-primary"
               >
                 {t('marketplace.clearFilters')}
               </button>
@@ -486,7 +520,7 @@ export default function MarketplacePage() {
             <button
               onClick={() => handlePageChange(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2.5 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-elevated hover:border-primary-300 dark:hover:border-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <ChevronLeft size={18} />
             </button>
@@ -507,10 +541,10 @@ export default function MarketplacePage() {
                 <button
                   key={pageNum}
                   onClick={() => handlePageChange(pageNum)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                  className={`w-10 h-10 rounded-xl text-sm font-medium transition-all duration-200 ${
                     pagination.page === pageNum
-                      ? 'bg-primary-600 text-white'
-                      : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/25'
+                      : 'border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-elevated hover:border-primary-300 dark:hover:border-primary-700'
                   }`}
                 >
                   {pageNum}
@@ -521,7 +555,7 @@ export default function MarketplacePage() {
             <button
               onClick={() => handlePageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
-              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2.5 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-elevated hover:border-primary-300 dark:hover:border-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <ChevronRight size={18} />
             </button>
@@ -529,7 +563,7 @@ export default function MarketplacePage() {
         )}
 
         {/* Footer Attribution */}
-        <div className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <div className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-dark-border pt-6">
           <p>{t('marketplace.footerAttribution')}</p>
         </div>
       </main>
@@ -560,33 +594,33 @@ function MarketItemCard({
   t,
 }: MarketItemCardProps) {
   const categoryColors: Record<string, string> = {
-    romanziere: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-    saggista: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    romanziere: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
+    saggista: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
   };
 
   return (
     <div
       onClick={onClick}
-      className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 group"
+      className="card overflow-hidden cursor-pointer group"
     >
       {/* Cover / Colored Header */}
       <div
-        className={`h-32 flex items-center justify-center relative ${
+        className={`h-32 flex items-center justify-center relative -mx-6 -mt-6 w-[calc(100%+3rem)] ${
           item.category === 'romanziere'
-            ? 'bg-gradient-to-br from-purple-500 to-purple-700'
-            : 'bg-gradient-to-br from-blue-500 to-blue-700'
+            ? 'bg-gradient-to-br from-violet-500 to-purple-700'
+            : 'bg-gradient-to-br from-teal-500 to-cyan-700'
         }`}
       >
         {item.category === 'romanziere' ? (
-          <BookOpen size={40} className="text-white/60" />
+          <BookOpen size={40} className="text-white/50" />
         ) : (
-          <FileText size={40} className="text-white/60" />
+          <FileText size={40} className="text-white/50" />
         )}
 
         {/* Category Badge */}
         <span
-          className={`absolute top-3 left-3 text-xs font-medium px-2 py-1 rounded-full ${
-            categoryColors[item.category] || 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+          className={`absolute top-3 left-3 text-xs font-medium px-2.5 py-1 rounded-full ${
+            categoryColors[item.category] || 'bg-gray-100 dark:bg-dark-elevated text-gray-700 dark:text-gray-300'
           }`}
         >
           <span className="flex items-center gap-1">
@@ -602,7 +636,7 @@ function MarketItemCard({
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="mt-4">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 line-clamp-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
           {item.title}
         </h3>
@@ -619,7 +653,7 @@ function MarketItemCard({
         )}
 
         {/* Stats */}
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-dark-border">
           <div className="flex items-center gap-3">
             {item.review_count > 0 && (
               <div className="flex items-center gap-1">

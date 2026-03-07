@@ -121,7 +121,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
+    <div className="min-h-screen bg-surface-light dark:bg-cosmic">
       <SessionExpiredBanner />
       <PreferencesSync />
       <ProtectedRouteGuard>

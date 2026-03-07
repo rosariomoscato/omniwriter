@@ -18,6 +18,8 @@ import {
   MessageCircle,
   Clock,
   LogIn,
+  Sparkles,
+  X,
 } from 'lucide-react';
 
 interface MarketplaceItem {
@@ -211,7 +213,7 @@ export default function MarketplaceDetailPage() {
           key={i}
           size={size}
           className={`${
-            i <= Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'
+            i <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'
           } ${interactive ? 'cursor-pointer hover:scale-110 transition-transform' : ''}`}
           onClick={interactive && onSelect ? () => onSelect(i) : undefined}
         />
@@ -222,23 +224,34 @@ export default function MarketplaceDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400 text-lg">{t('marketplace.loading')}</div>
+      <div className="min-h-screen bg-surface-light dark:bg-cosmic flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400 text-lg flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          {t('marketplace.loading')}
+        </div>
       </div>
     );
   }
 
   if (error || !item) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
-        <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-          <BookOpen size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+      <div className="min-h-screen bg-surface-light dark:bg-cosmic">
+        {/* Decorative background orbs for dark mode */}
+        <div className="hidden dark:block fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -left-20 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 py-20 text-center relative">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-dark-elevated flex items-center justify-center">
+            <BookOpen size={32} className="text-gray-400 dark:text-gray-500" />
+          </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
             {error || t('marketplace.itemNotFound')}
           </h2>
           <Link
             to="/marketplace"
-            className="inline-flex items-center gap-2 mt-4 text-primary-600 dark:text-primary-400 hover:underline"
+            className="inline-flex items-center gap-2 mt-4 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
           >
             <ArrowLeft size={16} />
             {t('marketplace.backToMarketplace')}
@@ -251,17 +264,28 @@ export default function MarketplaceDetailPage() {
   const canReview = user && item.user_id !== user.id && !reviews.some(r => r.user_id === String(user.id));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
+    <div className="min-h-screen bg-surface-light dark:bg-cosmic">
+      {/* Decorative background orbs for dark mode */}
+      <div className="hidden dark:block fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -left-20 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-dark-surface/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-dark-border/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link to="/" className="text-2xl font-bold text-primary-600 dark:text-primary-500">
-                OmniWriter
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-accent-400 bg-clip-text text-transparent">
+                  OmniWriter
+                </span>
               </Link>
-              <span className="text-gray-300 dark:text-gray-600">|</span>
-              <Link to="/marketplace" className="text-lg font-semibold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400">
+              <span className="text-gray-300 dark:text-dark-border">|</span>
+              <Link to="/marketplace" className="text-lg font-semibold text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                 {t('marketplace.title')}
               </Link>
             </div>
@@ -269,7 +293,12 @@ export default function MarketplaceDetailPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleLanguage}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-200"
+                className="
+                  px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+                  transition-all duration-200
+                  flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400
+                  hover:text-gray-900 dark:hover:text-white
+                "
               >
                 <Globe size={18} />
                 <span className="hidden sm:inline">{currentLang.toUpperCase()}</span>
@@ -277,22 +306,27 @@ export default function MarketplaceDetailPage() {
 
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                className="
+                  p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-elevated
+                  transition-all duration-200
+                  text-gray-600 dark:text-gray-400
+                  hover:text-gray-900 dark:hover:text-white
+                "
               >
-                {theme === 'dark' ? <Sun size={18} className="text-gray-200" /> : <Moon size={18} className="text-gray-700" />}
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
               {user ? (
                 <Link
                   to="/dashboard"
-                  className="ml-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                  className="btn-primary text-sm ml-2"
                 >
                   {t('nav.dashboard')}
                 </Link>
               ) : (
                 <Link
                   to="/login"
-                  className="ml-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                  className="btn-primary text-sm ml-2"
                 >
                   {t('auth.login')}
                 </Link>
@@ -303,24 +337,24 @@ export default function MarketplaceDetailPage() {
       </header>
 
       {/* Main Content */}
-      <main className="pt-20 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="pt-20 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Back Link */}
         <Link
           to="/marketplace"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 mb-6 font-medium transition-colors"
         >
           <ArrowLeft size={14} />
           {t('marketplace.backToMarketplace')}
         </Link>
 
         {/* Item Header */}
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div className="card overflow-hidden mb-6 !p-0">
           {/* Cover Banner */}
           <div
             className={`h-40 sm:h-48 flex items-center justify-center relative ${
               item.category === 'romanziere'
-                ? 'bg-gradient-to-br from-purple-500 to-purple-700'
-                : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                ? 'bg-gradient-to-br from-violet-500 to-purple-700'
+                : 'bg-gradient-to-br from-teal-500 to-cyan-700'
             }`}
           >
             {item.category === 'romanziere' ? (
@@ -330,7 +364,7 @@ export default function MarketplaceDetailPage() {
             )}
 
             {/* OmniWriter Badge */}
-            <span className="absolute bottom-3 right-3 text-xs text-white/80 font-medium flex items-center gap-1 bg-black/20 px-2 py-1 rounded-full">
+            <span className="absolute bottom-3 right-3 text-xs text-white/80 font-medium flex items-center gap-1 bg-black/20 px-3 py-1.5 rounded-full backdrop-blur-sm">
               <Pen size={12} /> {t('marketplace.createdWithOmniWriter')}
             </span>
           </div>
@@ -339,17 +373,17 @@ export default function MarketplaceDetailPage() {
           <div className="p-6">
             {/* Category */}
             <span
-              className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full mb-3 ${
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full mb-4 ${
                 item.category === 'romanziere'
-                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                  ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400'
+                  : 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400'
               }`}
             >
               {item.category === 'romanziere' ? <BookOpen size={12} /> : <FileText size={12} />}
               {item.category === 'romanziere' ? t('marketplace.categoryRomanziere') : t('marketplace.categorySaggista')}
             </span>
 
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+            <h1 className="heading-1 mb-4">
               {item.title}
             </h1>
 
@@ -369,7 +403,7 @@ export default function MarketplaceDetailPage() {
                 </div>
               )}
               {item.genre && (
-                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded text-xs">
+                <span className="bg-gray-100 dark:bg-dark-elevated text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded-full text-xs font-medium">
                   {item.genre}
                 </span>
               )}
@@ -393,7 +427,7 @@ export default function MarketplaceDetailPage() {
             {/* Description */}
             {item.description && (
               <div className="prose prose-gray dark:prose-invert max-w-none mb-6">
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{item.description}</p>
+                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line leading-relaxed">{item.description}</p>
               </div>
             )}
 
@@ -401,26 +435,35 @@ export default function MarketplaceDetailPage() {
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              className="btn-primary inline-flex items-center gap-2 text-base px-8 py-3"
             >
-              <Download size={18} />
-              {downloading ? t('marketplace.downloading') : t('marketplace.downloadButton')}
+              {downloading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {t('marketplace.downloading')}
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  {t('marketplace.downloadButton')}
+                </>
+              )}
             </button>
           </div>
         </div>
 
         {/* Reviews Section */}
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="card">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <MessageCircle size={20} />
+            <h2 className="heading-3 flex items-center gap-2">
+              <MessageCircle size={20} className="text-primary-500" />
               {t('marketplace.reviewsTitle')} ({reviews.length})
             </h2>
 
             {canReview && !showReviewForm && (
               <button
                 onClick={() => setShowReviewForm(true)}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                className="btn-primary text-sm"
               >
                 {t('marketplace.writeReview')}
               </button>
@@ -429,47 +472,47 @@ export default function MarketplaceDetailPage() {
 
           {/* Review Form */}
           {showReviewForm && user && (
-            <form onSubmit={handleSubmitReview} className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+            <form onSubmit={handleSubmitReview} className="mb-6 p-5 bg-gray-50 dark:bg-dark-elevated rounded-xl border border-gray-100 dark:border-dark-border">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 {t('marketplace.yourReview')}
               </h3>
 
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('marketplace.rating')}
                 </label>
                 {renderStars(reviewRating, 24, true, setReviewRating)}
               </div>
 
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('marketplace.reviewText')}
                 </label>
                 <textarea
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-dark-border rounded-xl bg-white dark:bg-dark-card text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500/10 focus:border-primary-500 outline-none resize-none transition-all duration-200"
                   placeholder={t('marketplace.reviewPlaceholder')}
                 />
               </div>
 
               {reviewError && (
-                <p className="text-sm text-red-500 dark:text-red-400 mb-2">{reviewError}</p>
+                <p className="text-sm text-red-500 dark:text-red-400 mb-3">{reviewError}</p>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   type="submit"
                   disabled={submittingReview}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                  className="btn-primary disabled:opacity-50"
                 >
                   {submittingReview ? t('marketplace.submitting') : t('marketplace.submitReview')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowReviewForm(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                  className="btn-secondary"
                 >
                   {t('marketplace.cancel')}
                 </button>
@@ -479,8 +522,10 @@ export default function MarketplaceDetailPage() {
 
           {/* Reviews List */}
           {reviews.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageCircle size={32} className="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+            <div className="text-center py-10">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gray-100 dark:bg-dark-elevated flex items-center justify-center">
+                <MessageCircle size={24} className="text-gray-400 dark:text-gray-500" />
+              </div>
               <p className="text-gray-500 dark:text-gray-400">{t('marketplace.noReviews')}</p>
             </div>
           ) : (
@@ -488,7 +533,7 @@ export default function MarketplaceDetailPage() {
               {reviews.map((review) => (
                 <div
                   key={review.id}
-                  className="border-b border-gray-100 dark:border-gray-700 last:border-0 pb-4 last:pb-0"
+                  className="border-b border-gray-100 dark:border-dark-border last:border-0 pb-4 last:pb-0"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -503,7 +548,7 @@ export default function MarketplaceDetailPage() {
                     </div>
                   </div>
                   {review.review_text && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{review.review_text}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{review.review_text}</p>
                   )}
                 </div>
               ))}
@@ -512,33 +557,35 @@ export default function MarketplaceDetailPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-dark-border pt-6">
           <p>{t('marketplace.footerAttribution')}</p>
         </div>
       </main>
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-sm mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="card max-w-sm mx-4 animate-scale-in">
             <div className="text-center">
-              <LogIn size={32} className="mx-auto text-primary-600 dark:text-primary-400 mb-3" />
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <LogIn size={28} className="text-primary-600 dark:text-primary-400" />
+              </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 {t('marketplace.loginRequired')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                 {t('marketplace.loginToDownload')}
               </p>
-              <div className="flex items-center gap-3 justify-center">
+              <div className="flex items-center gap-3 justify-center flex-wrap">
                 <button
                   onClick={() => setShowLoginModal(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
+                  className="btn-secondary"
                 >
                   {t('marketplace.cancel')}
                 </button>
                 <Link
                   to="/login"
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                  className="btn-primary"
                   onClick={() => {
                     sessionStorage.setItem('redirectAfterLogin', `/marketplace/${id}`);
                   }}
@@ -547,7 +594,7 @@ export default function MarketplaceDetailPage() {
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 border border-primary-600 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-sm font-medium"
+                  className="btn-secondary !border-primary-500 !text-primary-600 dark:!text-primary-400 hover:!bg-primary-50 dark:hover:!bg-primary-900/20"
                 >
                   {t('auth.register')}
                 </Link>
