@@ -9,7 +9,8 @@ import {
   Shield,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag
 } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,6 +41,12 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     label: 'Progetti',
     path: '/admin/projects',
     icon: FolderOpen
+  },
+  {
+    id: 'marketplace',
+    label: 'Marketplace',
+    path: '/admin/marketplace',
+    icon: ShoppingBag
   },
   {
     id: 'activity',

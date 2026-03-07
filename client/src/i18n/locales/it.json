@@ -680,7 +680,23 @@
       "injured": "Ferito",
       "missing": "Disperso",
       "unknown": "Sconosciuto"
-    }
+    },
+    "publishToMarketplace": "Pubblica su Marketplace",
+    "publishDescription": "Condividi la tua opera con la community OmniWriter. La pubblicazione è gratuita e l'opera includerà l'attribuzione \"Creato con OmniWriter\".",
+    "publishDescriptionLabel": "Descrizione dell'opera",
+    "publishDescriptionPlaceholder": "Descrivi brevemente la tua opera per i lettori...",
+    "publishDisclaimerTitle": "Disclaimer Legale - Leggere attentamente",
+    "publishDisclaimerContent1": "Sei l'unico responsabile del contenuto che pubblichi. Garantisci di possedere i diritti o di avere l'autorizzazione a distribuire questo materiale.",
+    "publishDisclaimerContent2": "La pubblicazione è gratuita ma l'opera verrà marcata con \"Creato con OmniWriter\" come attribuzione obbligatoria.",
+    "publishDisclaimerContent3": "OmniWriter si riserva il diritto di rimuovere contenuti inappropriati, illegali o che violino diritti di terzi.",
+    "publishDisclaimerAccept": "Accetto i termini di cui sopra e dichiaro di avere i diritti per pubblicare questa opera",
+    "publishDisclaimerRequired": "Devi accettare il disclaimer per procedere",
+    "publishAttributionNotice": "Attribuzione",
+    "publishAttributionText": "Ogni opera scaricata dal marketplace conterrà la dicitura \"Creato con OmniWriter\".",
+    "publishButton": "Pubblica",
+    "publishing": "Pubblicazione in corso...",
+    "publishSuccess": "Opera pubblicata con successo!",
+    "publishError": "Errore durante la pubblicazione"
   },
   "common": {
     "save": "Salva",

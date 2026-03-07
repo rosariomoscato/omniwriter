@@ -679,7 +679,23 @@
       "injured": "Injured",
       "missing": "Missing",
       "unknown": "Unknown"
-    }
+    },
+    "publishToMarketplace": "Publish to Marketplace",
+    "publishDescription": "Share your work with the OmniWriter community. Publishing is free and the work will include \"Created with OmniWriter\" attribution.",
+    "publishDescriptionLabel": "Work Description",
+    "publishDescriptionPlaceholder": "Briefly describe your work for readers...",
+    "publishDisclaimerTitle": "Legal Disclaimer - Read Carefully",
+    "publishDisclaimerContent1": "You are solely responsible for the content you publish. You guarantee to own the rights or have authorization to distribute this material.",
+    "publishDisclaimerContent2": "Publishing is free but the work will be marked with \"Created with OmniWriter\" as mandatory attribution.",
+    "publishDisclaimerContent3": "OmniWriter reserves the right to remove inappropriate, illegal, or third-party rights infringing content.",
+    "publishDisclaimerAccept": "I accept the above terms and declare I have the rights to publish this work",
+    "publishDisclaimerRequired": "You must accept the disclaimer to proceed",
+    "publishAttributionNotice": "Attribution",
+    "publishAttributionText": "Every work downloaded from the marketplace will contain the wording \"Created with OmniWriter\".",
+    "publishButton": "Publish",
+    "publishing": "Publishing...",
+    "publishSuccess": "Work published successfully!",
+    "publishError": "Error during publishing"
   },
   "common": {
     "save": "Save",

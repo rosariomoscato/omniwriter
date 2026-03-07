@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -28,6 +61,9 @@ const generation_logs_1 = __importDefault(require("./routes/generation-logs"));
 const ai_1 = __importDefault(require("./routes/ai"));
 const chapter_comments_1 = __importDefault(require("./routes/chapter-comments"));
 const llm_providers_1 = __importDefault(require("./routes/llm-providers"));
+const marketplace_1 = __importStar(require("./routes/marketplace"));
+const auth_2 = require("./middleware/auth");
+const roles_1 = require("./middleware/roles");
 const path_1 = require("path");
 const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
 dotenv_1.default.config({ path: envPath });
@@ -101,6 +137,9 @@ app.use('/api', ai_1.default);
 app.use('/api', chapter_comments_1.default);
 app.use('/api', llm_providers_1.default);
 app.use('/api/admin', admin_1.default);
+app.use('/api/marketplace', marketplace_1.default);
+// Admin marketplace stats endpoint (under /api/admin/marketplace/stats)
+app.get('/api/admin/marketplace/stats', auth_2.authenticateToken, roles_1.requireAdmin, marketplace_1.marketplaceAdminStatsHandler);
 // 404 handler
 app.use((_req, res) => {
     res.status(404).json({ message: 'Route not found' });

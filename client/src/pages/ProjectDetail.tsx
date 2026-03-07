@@ -105,6 +105,16 @@ export default function ProjectDetail() {
   const [batchExportFormat, setBatchExportFormat] = useState<'txt' | 'docx' | 'epub'>('txt');
   const [exportingBatch, setExportingBatch] = useState(false);
   const [selectAllChapters, setSelectAllChapters] = useState(false);
+  // Feature #422: Publish to Marketplace
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishData, setPublishData] = useState({
+    description: '',
+    category: '',
+    genre: '',
+    tags: ''
+  });
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const [shareWithSaga, setShareWithSaga] = useState(false);
@@ -1409,6 +1419,53 @@ export default function ProjectDetail() {
     }
   };
 
+  const handlePublishToMarketplace = async () => {
+    if (!disclaimerAccepted) {
+      setError(t('projectPage.publishDisclaimerRequired'));
+      return;
+    }
+
+    try {
+      setPublishing(true);
+      setError('');
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/marketplace`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: id,
+          description: publishData.description,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to publish to marketplace');
+      }
+
+      const result = await response.json();
+
+      // Show success and redirect to the marketplace item page
+      toast.success(t('projectPage.publishSuccess'));
+      setShowPublishModal(false);
+      setPublishData({ description: '', category: '', genre: '', tags: '' });
+      setDisclaimerAccepted(false);
+
+      // Navigate to the marketplace item page
+      setTimeout(() => {
+        window.location.href = `/marketplace/${result.id}`;
+      }, 500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to publish to marketplace');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1823,6 +1880,17 @@ export default function ProjectDetail() {
                   {t('projectPage.finalizeEpisode.button')}
                 </button>
               )}
+              {/* Feature #422: Publish to Marketplace - Only for romanziere and saggista */}
+              {(project?.area === 'romanziere' || project?.area === 'saggista') && (
+                <button
+                  onClick={() => setShowPublishModal(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  title={t('projectPage.publishToMarketplace')}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {t('projectPage.publishToMarketplace')}
+                </button>
+              )}
               <button
                 onClick={() => setShowExportDialog(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -2110,6 +2178,143 @@ export default function ProjectDetail() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature #422: Publish to Marketplace Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-purple-600" />
+                {t('projectPage.publishToMarketplace')}
+              </h3>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                {t('projectPage.publishDescription')}
+              </p>
+
+              <div className="space-y-4 mb-4">
+                {/* Project Info Preview */}
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {t('projectPage.title')}:
+                    </span>
+                    <span className="text-gray-900 dark:text-gray-100">{project?.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {t('projectPage.area')}:
+                    </span>
+                    <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                      {project?.area === 'romanziere' ? t('areas.romanziere.title') : t('areas.saggista.title')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {t('projectPage.chapters')}:
+                    </span>
+                    <span className="text-gray-900 dark:text-gray-100">{chapters.length}</span>
+                  </div>
+                  {project?.genre && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                        {t('projectPage.genre')}:
+                      </span>
+                      <span className="text-gray-900 dark:text-gray-100">{project.genre}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('projectPage.publishDescriptionLabel')}
+                  </label>
+                  <textarea
+                    value={publishData.description}
+                    onChange={(e) => setPublishData({ ...publishData, description: e.target.value })}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                    placeholder={t('projectPage.publishDescriptionPlaceholder')}
+                  />
+                </div>
+
+                {/* Legal Disclaimer */}
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-2 flex items-center gap-2">
+                    <Flag className="w-4 h-4" />
+                    {t('projectPage.publishDisclaimerTitle')}
+                  </h4>
+                  <ul className="text-xs text-red-700 dark:text-red-300 space-y-1.5 list-disc list-inside">
+                    <li>{t('projectPage.publishDisclaimerContent1')}</li>
+                    <li>{t('projectPage.publishDisclaimerContent2')}</li>
+                    <li>{t('projectPage.publishDisclaimerContent3')}</li>
+                  </ul>
+                  <div className="mt-3">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={disclaimerAccepted}
+                        onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <span className="text-xs text-red-700 dark:text-red-300">
+                        {t('projectPage.publishDisclaimerAccept')}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* OmniWriter Attribution Notice */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    <strong>ℹ️ {t('projectPage.publishAttributionNotice')}:</strong> {t('projectPage.publishAttributionText')}
+                  </p>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowPublishModal(false);
+                    setPublishData({ description: '', category: '', genre: '', tags: '' });
+                    setDisclaimerAccepted(false);
+                    setError('');
+                  }}
+                  disabled={publishing}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={handlePublishToMarketplace}
+                  disabled={publishing || !disclaimerAccepted}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {publishing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      {t('projectPage.publishing')}
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4" />
+                      {t('projectPage.publishButton')}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

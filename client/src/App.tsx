@@ -29,11 +29,14 @@ import AdminProjectsPage from './pages/AdminProjectsPage';
 import AdminActivityPage from './pages/AdminActivityPage';
 import AdminStatsPage from './pages/AdminStatsPage';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminMarketplacePage from './pages/AdminMarketplacePage';
 import AdminLayout from './components/AdminLayout';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import SourcesPage from './pages/SourcesPage';
 import SagasPage from './pages/SagasPage';
+import MarketplacePage from './pages/MarketplacePage';
+import MarketplaceDetailPage from './pages/MarketplaceDetailPage';
 
 // List of protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -130,6 +133,8 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/marketplace" element={<MarketplacePage />} />
+          <Route path="/marketplace/:id" element={<MarketplaceDetailPage />} />
 
           {/* Protected Routes - With Layout */}
           {user ? (
@@ -321,6 +326,7 @@ function AppContent() {
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/admin/projects" element={<AdminProjectsPage />} />
+                <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
                 <Route path="/admin/activity" element={<AdminActivityPage />} />
                 <Route path="/admin/stats" element={<AdminStatsPage />} />
               </Route>
