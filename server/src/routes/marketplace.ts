@@ -4,8 +4,341 @@ import { getDatabase } from '../db/database';
 import { authenticateToken, optionalAuth, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roles';
 import { v4 as uuidv4 } from 'uuid';
+import JSZip from 'jszip';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
+
+// Ensure marketplace EPUB directory exists
+const marketplaceEpubDir = path.resolve(__dirname, '../../../uploads/marketplace-epub');
+if (!fs.existsSync(marketplaceEpubDir)) {
+  fs.mkdirSync(marketplaceEpubDir, { recursive: true });
+}
+
+// Helper function to escape XML content
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// Helper function to convert markdown to XHTML paragraphs
+function markdownToXhtml(text: string): string {
+  if (!text) return '';
+  let html = escapeXml(text);
+  // Bold: **text** -> <strong>text</strong>
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text* -> <em>text</em>
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Line breaks to paragraphs
+  const paragraphs = html.split('\n').filter(p => p.trim());
+  return paragraphs.map(p => `<p>${p.trim()}</p>`).join('\n  ');
+}
+
+/**
+ * Generate branded EPUB for marketplace with OmniWriter branding
+ */
+async function generateMarketplaceEpub(
+  title: string,
+  author: string,
+  description: string,
+  chapters: any[],
+  language: string = 'it'
+): Promise<{ buffer: Buffer; filename: string }> {
+  console.log('[Marketplace] Generating branded EPUB for:', title);
+  const zip = new JSZip();
+  const uuid = uuidv4();
+  const bookId = `urn:uuid:${uuid}`;
+  const now = new Date().toISOString();
+  const epubFilename = `marketplace_${uuid}_${Date.now()}.epub`;
+
+  // Generate unique IDs for chapters
+  const chapterIds = chapters.map((_, i) => `chapter-${i + 1}-${uuidv4().slice(0, 8)}`);
+
+  // ========== mimetype (must be first, uncompressed) ==========
+  zip.file('mimetype', 'application/epub+zip');
+
+  // ========== META-INF/container.xml ==========
+  const metaInf = zip.folder('META-INF');
+  metaInf?.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  // ========== OEBPS folder ==========
+  const oebps = zip.folder('OEBPS');
+
+  // CSS stylesheet with branding styles
+  const cssContent = `body {
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.8;
+  margin: 1em;
+  padding: 0;
+  color: #333;
+}
+h1 {
+  text-align: center;
+  font-size: 1.8em;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  page-break-before: always;
+}
+h1:first-of-type {
+  page-break-before: avoid;
+}
+h2 {
+  text-align: center;
+  font-size: 1.5em;
+  margin: 1em 0;
+}
+p {
+  text-indent: 1.5em;
+  margin: 0.5em 0;
+  text-align: justify;
+}
+p:first-child {
+  text-indent: 0;
+}
+.cover {
+  text-align: center;
+  page-break-after: always;
+  padding: 2em;
+}
+.cover h1 {
+  font-size: 2em;
+  page-break-before: avoid;
+}
+.description {
+  font-style: italic;
+  color: #666;
+  margin: 1em 2em;
+}
+.toc {
+  page-break-after: always;
+}
+.toc ol {
+  list-style: decimal;
+  padding-left: 2em;
+}
+.toc li {
+  margin: 0.5em 0;
+}
+.toc a {
+  text-decoration: none;
+  color: #3b82f6;
+}
+.colophon {
+  page-break-before: always;
+  text-align: center;
+  margin-top: 3em;
+  padding: 2em;
+  font-size: 0.9em;
+  color: #666;
+}
+.colophon h2 {
+  font-size: 1.2em;
+  margin-bottom: 1em;
+}
+.colophon p {
+  text-indent: 0;
+  margin: 0.5em 0;
+  text-align: center;
+}
+.branding {
+  font-weight: bold;
+  color: #8b5cf6;
+  font-size: 1.1em;
+  margin-top: 1em;
+}
+strong { font-weight: bold; }
+em { font-style: italic; }
+`;
+  oebps?.file('styles/style.css', cssContent);
+
+  // Cover page XHTML with OmniWriter branding
+  const coverXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${language}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${escapeXml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body>
+  <div class="cover">
+    <h1>${escapeXml(title)}</h1>
+    ${description ? `<p class="description">${escapeXml(description)}</p>` : ''}
+    <p class="description">${escapeXml(author)}</p>
+  </div>
+</body>
+</html>`;
+  oebps?.file('cover.xhtml', coverXhtml);
+
+  // Table of Contents page
+  const tocTitle = language === 'it' ? 'Indice' : 'Table of Contents';
+  const chapterLabel = language === 'it' ? 'Capitolo' : 'Chapter';
+  const tocXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${language}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${tocTitle}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body>
+  <div class="toc">
+    <h2>${tocTitle}</h2>
+    <nav epub:type="toc">
+      <ol>
+${chapters.map((ch, i) => `        <li><a href="chapter_${i + 1}.xhtml">${escapeXml(ch.title || `${chapterLabel} ${i + 1}`)}</a></li>`).join('\n')}
+      </ol>
+    </nav>
+  </div>
+</body>
+</html>`;
+  oebps?.file('toc.xhtml', tocXhtml);
+
+  // Chapter XHTML files
+  chapters.forEach((chapter, index) => {
+    const chapterTitle = escapeXml(chapter.title || `${chapterLabel} ${index + 1}`);
+    const chapterContent = markdownToXhtml(chapter.content || '');
+
+    const chapterXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${language}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${chapterTitle}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body epub:type="bodymatter">
+  <h1>${chapterTitle}</h1>
+  ${chapterContent}
+</body>
+</html>`;
+    oebps?.file(`chapter_${index + 1}.xhtml`, chapterXhtml);
+  });
+
+  // Colophon page with OmniWriter branding
+  const colophonTitle = language === 'it' ? 'Colofone' : 'Colophon';
+  const brandingText = language === 'it' ? 'Creato con OmniWriter' : 'Created with OmniWriter';
+  const generatedWithText = language === 'it' ? 'Questa opera è stata creata con l\'aiuto di OmniWriter' : 'This work was created with the help of OmniWriter';
+  const platformText = language === 'it' ? 'Piattaforma di scrittura professionale basata su intelligenza artificiale' : 'Professional AI-powered writing platform';
+  const downloadFromText = language === 'it' ? 'Scaricabile dal Marketplace OmniWriter' : 'Downloaded from the OmniWriter Marketplace';
+  const shareText = language === 'it' ? 'Condividi le tue opere con la community' : 'Share your works with the community';
+
+  const colophonXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${language}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${colophonTitle}</title>
+  <link rel="stylesheet" type="text/css" href="styles/style.css"/>
+</head>
+<body>
+  <div class="colophon">
+    <h2>${colophonTitle}</h2>
+    <p class="branding">${brandingText}</p>
+    <p>${generatedWithText}</p>
+    <p>${platformText}</p>
+    <p>${downloadFromText}</p>
+    <p style="margin-top: 2em; font-size: 0.85em;">${shareText}</p>
+    <p style="margin-top: 2em; font-size: 0.8em; color: #999;">${now.split('T')[0]}</p>
+  </div>
+</body>
+</html>`;
+  oebps?.file('colophon.xhtml', colophonXhtml);
+
+  // content.opf - Package document with OmniWriter in metadata
+  const manifestItems = [
+    `<item id="css" href="styles/style.css" media-type="text/css"/>`,
+    `<item id="cover-xhtml" href="cover.xhtml" media-type="application/xhtml+xml"/>`,
+    `<item id="toc-xhtml" href="toc.xhtml" media-type="application/xhtml+xml"/>`,
+    `<item id="colophon-xhtml" href="colophon.xhtml" media-type="application/xhtml+xml"/>`,
+    ...chapters.map((_, i) => `<item id="chapter-${i + 1}" href="chapter_${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
+  ];
+
+  const spineItems = [
+    `<itemref idref="cover-xhtml"/>`,
+    `<itemref idref="toc-xhtml"/>`,
+    ...chapters.map((_, i) => `<itemref idref="chapter-${i + 1}"/>`),
+    `<itemref idref="colophon-xhtml"/>`
+  ];
+
+  const publisher = 'OmniWriter';
+  const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${bookId}</dc:identifier>
+    <dc:title>${escapeXml(title)}</dc:title>
+    <dc:creator>${escapeXml(author)}</dc:creator>
+    <dc:language>${language}</dc:language>
+    <dc:publisher>${escapeXml(publisher)}</dc:publisher>
+    <dc:date>${now}</dc:date>
+    ${description ? `<dc:description>${escapeXml(description)}</dc:description>` : ''}
+    <meta property="dcterms:modified">${now.split('.')[0]}Z</meta>
+  </metadata>
+  <manifest>
+    ${manifestItems.join('\n    ')}
+  </manifest>
+  <spine>
+    ${spineItems.join('\n    ')}
+  </spine>
+</package>`;
+  oebps?.file('content.opf', contentOpf);
+
+  // toc.ncx - Navigation Control file
+  const coverLabel = language === 'it' ? 'Copertina' : 'Cover';
+  const colophonLabel = language === 'it' ? 'Colofone' : 'Colophon';
+  const navPoints = chapters.map((ch, i) => `
+    <navPoint id="chapter-${i + 1}" playOrder="${i + 3}">
+      <navLabel><text>${escapeXml(ch.title || `${chapterLabel} ${i + 1}`)}</text></navLabel>
+      <content src="chapter_${i + 1}.xhtml"/>
+    </navPoint>`).join('');
+
+  const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${bookId}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <navMap>
+    <navPoint id="cover" playOrder="1">
+      <navLabel><text>${coverLabel}</text></navLabel>
+      <content src="cover.xhtml"/>
+    </navPoint>
+    <navPoint id="toc" playOrder="2">
+      <navLabel><text>${tocTitle}</text></navLabel>
+      <content src="toc.xhtml"/>
+    </navPoint>${navPoints}
+    <navPoint id="colophon" playOrder="${chapters.length + 3}">
+      <navLabel><text>${colophonLabel}</text></navLabel>
+      <content src="colophon.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>`;
+  oebps?.file('toc.ncx', tocNcx);
+
+  // Generate the ZIP buffer
+  const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  console.log('[Marketplace] Branded EPUB generated, size:', buffer.length, 'bytes');
+
+  // Save to marketplace-epub directory
+  const epubPath = path.join(marketplaceEpubDir, epubFilename);
+  fs.writeFileSync(epubPath, buffer);
+  console.log('[Marketplace] EPUB saved to:', epubPath);
+
+  return { buffer, filename: epubFilename };
+}
 
 /**
  * POST /api/marketplace

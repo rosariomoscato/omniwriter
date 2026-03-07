@@ -1,5 +1,58 @@
 ## Session - 2026-03-07 (Afternoon)
 
+### Feature #420: Marketplace - Backend API
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- All 10 required marketplace API endpoints were already fully implemented in `server/src/routes/marketplace.ts`
+- Verified implementation is complete and correct through comprehensive testing
+
+**Endpoints Tested and Verified:**
+1. ✅ POST /api/marketplace - Publish work from project (romanziere/saggista only)
+2. ✅ GET /api/marketplace - Public listing with filters (category, genre, search, sort, pagination)
+3. ✅ GET /api/marketplace/:id - Get marketplace item details
+4. ✅ POST /api/marketplace/:id/download - Download content with tracking
+5. ✅ DELETE /api/marketplace/:id - Remove own work (author only)
+6. ✅ POST /api/marketplace/:id/reviews - Add review (1-5 stars, cannot review own work)
+7. ✅ GET /api/marketplace/:id/reviews - List reviews for item
+8. ✅ PATCH /api/marketplace/:id/hide - Admin hide/unhide toggle
+9. ✅ DELETE /api/marketplace/:id/admin - Admin permanent delete
+10. ✅ GET /api/admin/marketplace/stats - Admin statistics
+
+**Security & Authorization Verified:**
+- Authentication required for all mutation endpoints
+- Admin-only endpoints properly protected
+- Users can only delete their own works
+- Users cannot review their own works
+- Only romanziere/saggista projects can be published
+- Hidden items not visible to public
+
+**Data Integrity Verified:**
+- Download tracking works correctly
+- Average rating calculations accurate
+- Review counts properly maintained
+- Cascade deletes work (reviews/downloads deleted with items)
+- No mock data patterns found in codebase
+
+**Testing Method:**
+- Created test users, projects, and marketplace items
+- Tested all endpoints with curl commands
+- Verified filters (category, genre, search, sort)
+- Verified pagination
+- Verified admin operations (hide, delete, stats)
+- Cleaned up all test data after verification
+
+**Code Quality:**
+- All endpoints properly mounted in `server/src/index.ts`
+- Proper error handling with try-catch blocks
+- Input validation (rating 1-5, required fields)
+- SQL injection prevention with prepared statements
+- Clear JSDoc comments for each endpoint
+
+**Current stats:** 420/425 features passing (98.8%)
+
+---
+
 ### Feature #423: Marketplace - Landing Page Section
 **Status:** COMPLETED and PASSING
 
@@ -32,7 +85,7 @@
 - Emphasizes community sharing and free with attribution aspects
 - Links to existing /marketplace public route
 
-**Current stats:** 419/425 features passing (98.6%)
+**Current stats:** 420/425 features passing (98.8%)
 
 ---
 
@@ -59,3 +112,15 @@
 - Cleaned up test data after verification
 - Grep check for mock data patterns: only legitimate isDevelopment in rate limiter
 - Feature marked as passing
+
+## Session - 2025-03-07 (Feature #421, #422)
+
+### Feature #421: Marketplace - Pagina Pubblica
+**Status:** COMPLETED and PASSING
+
+### Feature #422: Marketplace - Publication Flow  
+**Status:** COMPLETED and PASSING
+
+**Current Stats:** 421/425 features passing (99.1%)
+**Completed in Session:** 2 features (#421, #422)
+
