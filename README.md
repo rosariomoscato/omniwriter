@@ -1,43 +1,99 @@
 # OmniWriter
 
-AI-powered professional writing platform for generating novels, essays, and articles.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
+
+**AI-Powered Professional Writing Platform for Novelists, Essayists, and Content Creators**
+
+![OmniWriter Landing Page](docs/screenshot-landing.png)
 
 ## Overview
 
-OmniWriter is a comprehensive writing platform that leverages artificial intelligence to help writers create professional-quality content. It features three specialized areas:
+OmniWriter is a comprehensive, AI-powered writing platform that helps you create professional-quality novels, essays, and articles. It features three specialized creative areas, each designed for a specific type of writing:
 
-- **Romanziere** (Novelist): Chapter-by-chapter novel generation with character management, plot tracking, and style replication
-- **Saggista** (Essayist): Essay creation with source management, citations, and bibliography generation
-- **Redattore** (Editor): Article, press release, and blog post generation with SEO optimization
+- **Novelist (Romanziere)**: Chapter-by-chapter novel generation with character management, plot tracking, and AI-powered style replication. Perfect for fiction writers who want to craft compelling stories.
+
+- **Essayist (Saggista)**: Professional essay and non-fiction writing with source management, automatic citations, and bibliography generation. Ideal for researchers, academics, and non-fiction authors.
+
+- **Editor (Redattore)**: Article, press release, and blog post generation with SEO optimization. Designed for journalists, content marketers, and communications professionals.
+
+### Marketplace
+
+OmniWriter also features a built-in **Marketplace** where users can share their novels and essays with the community. Download works from other writers in EPUB format, leave reviews, and discover inspiring content.
+
+## Who Can Use It
+
+OmniWriter is designed for:
+
+- **Fiction Writers & Novelists**: Create full-length novels with consistent characters and plot development
+- **Non-Fiction Authors & Essayists**: Write well-researched essays with proper citations and bibliography
+- **Journalists & Reporters**: Generate news articles, press releases, and investigative reports
+- **Content Creators & Bloggers**: Produce engaging blog posts and SEO-optimized articles
+- **Academic Researchers**: Develop papers with source integration and proper referencing
+- **Professional Communicators**: Create press materials, newsletters, and corporate content
+
+## Key Features
+
+### AI-Powered Writing
+- **Multi-Model AI Orchestration**: Leverages multiple AI models for different phases of content generation
+- **Visible Generation Phases**: Watch your content being created in real-time with transparent AI processing
+- **Human Model**: Train the AI to replicate your writing style from your existing texts
+
+### Source Management
+- **File Upload**: Import PDF, DOCX, RTF, and TXT files as sources
+- **Web Search**: Real-time web search integration for research
+- **Citation Management**: Automatic citation generation and bibliography
+
+### Rich Editing
+- **Rich Text Editor**: Full-featured editor with formatting options
+- **Version History**: Track changes and restore previous versions
+- **Chapter Organization**: Organize long-form content into manageable sections
+
+### Export Options
+- **Multiple Formats**: Export to DOCX, EPUB, PDF, RTF, and TXT
+- **Branded EPUBs**: Published works include OmniWriter branding with professional formatting
+
+### User Experience
+- **Dark/Light Mode**: Choose your preferred visual theme
+- **Bilingual Support**: Full Italian and English interface
+- **Responsive Design**: Works on desktop and tablet devices
+
+### Marketplace
+- **Publish Works**: Share novels and essays with the community
+- **Download EPUBs**: Download community works for offline reading
+- **Reviews & Ratings**: Rate and review works from other authors
 
 ## Technology Stack
 
-- **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend**: Node.js + Express.js + TypeScript
-- **Database**: SQLite (via better-sqlite3)
-- **AI**: Vercel AI SDK with multi-model orchestration
-- **Auth**: Passport.js (email/password + Google OAuth)
-- **i18n**: Italian + English (i18next)
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| **Backend** | Node.js, Express.js, TypeScript |
+| **Database** | SQLite (better-sqlite3) |
+| **AI Integration** | Vercel AI SDK, OpenAI, Anthropic |
+| **Authentication** | Passport.js (email/password + Google OAuth) |
+| **Internationalization** | i18next (Italian + English) |
 
-## Getting Started
+## Requirements
 
-### Prerequisites
+- **Node.js**: Version 18.0.0 or higher
+- **npm** or **pnpm**: For package management
+- **SQLite3**: Included (no external database setup needed)
 
-- Node.js >= 18.x
-- npm or pnpm
+## Installation
 
 ### Quick Start
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/yourusername/omniwriter.git
 cd omniwriter
 
-# Run the setup script
+# Run the setup script (installs dependencies and starts servers)
 ./init.sh
 ```
-
-This will install dependencies and start both frontend and backend servers.
 
 ### Manual Setup
 
@@ -50,75 +106,164 @@ npm install
 cd ../client
 npm install
 
-# Start backend (port 3001)
+# Start backend server (port 3001)
 cd ../server
 npm run dev
 
-# Start frontend (port 3000) - in a new terminal
+# In a new terminal, start frontend (port 3000)
 cd ../client
 npm run dev
 ```
 
-### Access
+### Environment Variables
+
+Copy `server/.env.example` to `server/.env` and configure:
+
+```env
+# Database
+DATABASE_PATH=./data/omniwriter.db
+
+# Authentication
+JWT_SECRET=your-super-secret-jwt-key
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# AI Providers (at least one required)
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+```
+
+### Access Points
+
+After starting the servers:
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001/api
 - **Health Check**: http://localhost:3001/api/health
 
+## Cloud Deployment
+
+### Prerequisites for Production
+
+1. **Environment Variables**: Set all required environment variables in your production environment
+2. **Database**: The SQLite database file persists in `server/data/`. For production, consider:
+   - Regular backups of the database file
+   - Using a cloud database service for better scalability
+3. **HTTPS**: Use a reverse proxy (nginx, Apache) with SSL certificates
+
+### Deploy to VPS
+
+```bash
+# 1. SSH into your server
+ssh user@your-server
+
+# 2. Clone the repository
+git clone https://github.com/yourusername/omniwriter.git
+cd omniwriter
+
+# 3. Install dependencies
+cd server && npm install --production
+cd ../client && npm install && npm run build
+cd ..
+
+# 4. Set up environment variables
+cp server/.env.example server/.env
+nano server/.env  # Edit with production values
+
+# 5. Use PM2 for process management
+npm install -g pm2
+pm2 start server/npm run dev --name "omniwriter-api"
+pm2 serve client/dist 3000 --name "omniwriter-frontend"
+pm2 save
+pm2 startup
+```
+
+### Deploy to Docker
+
+```dockerfile
+# Example Dockerfile (create in project root)
+FROM node:18-alpine
+
+WORKDIR /app
+COPY . .
+
+WORKDIR /app/server
+RUN npm install --production
+
+WORKDIR /app/client
+RUN npm install && npm run build
+
+EXPOSE 3000 3001
+
+CMD ["sh", "-c", "cd /app/server && npm run dev & cd /app/client && npm run preview -- --host 0.0.0.0 --port 3000"]
+```
+
+### Recommended Cloud Providers
+
+- **VPS**: DigitalOcean, Linode, Hetzner, Vultr
+- **PaaS**: Railway, Render, Fly.io
+- **Container**: Google Cloud Run, AWS ECS, Azure Container Instances
+
 ## Project Structure
 
 ```
 omniwriter/
-├── client/               # React frontend
+├── client/                 # React frontend
 │   ├── src/
-│   │   ├── components/   # Reusable UI components
-│   │   ├── pages/        # Page components
-│   │   ├── hooks/        # Custom React hooks
-│   │   ├── utils/        # Utility functions
-│   │   ├── i18n/         # Internationalization
-│   │   ├── styles/       # Global styles
-│   │   ├── contexts/     # React contexts
-│   │   └── services/     # API service layer
-│   └── public/           # Static assets
-├── server/               # Express backend
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Page components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── utils/          # Utility functions
+│   │   ├── i18n/           # Internationalization files
+│   │   ├── styles/         # Global styles
+│   │   ├── contexts/       # React contexts
+│   │   └── services/       # API service layer
+│   └── public/             # Static assets
+├── server/                 # Express backend
 │   ├── src/
-│   │   ├── routes/       # API route handlers
-│   │   ├── middleware/   # Express middleware
-│   │   ├── models/       # Data models
-│   │   ├── config/       # Configuration
-│   │   ├── db/           # Database setup and migrations
-│   │   └── utils/        # Utility functions
-│   └── data/             # SQLite database (gitignored)
-├── init.sh               # Development setup script
-└── README.md
+│   │   ├── routes/         # API route handlers
+│   │   ├── middleware/     # Express middleware
+│   │   ├── db/             # Database setup and migrations
+│   │   └── utils/          # Utility functions
+│   └── data/               # SQLite database (gitignored)
+├── docs/                   # Documentation and screenshots
+├── uploads/                # User uploaded files
+├── init.sh                 # Development setup script
+├── LICENSE.md              # AGPL v3 License
+└── README.md               # This file
 ```
 
-## Features
+## User Roles
 
-### User Roles
-- **Free**: Basic access with limited generation length and exports
-- **Premium**: Full access with unlimited generation, EPUB export, Google Drive
-- **Lifetime**: Permanent premium access
-- **Admin**: Platform management and analytics
+| Role | Features |
+|------|----------|
+| **Free** | Basic access, limited generation length, TXT/DOCX export, basic Human Model |
+| **Premium** | Unlimited generation, all export formats (EPUB, PDF), full Human Model, Google Drive integration |
+| **Lifetime** | All premium features with permanent access |
+| **Admin** | Platform management, user administration, analytics dashboard |
 
-### Key Features
-- Multi-model AI orchestration with visible generation phases
-- Human Model: AI style replication from user writings
-- Source management with file upload and web search
-- Rich text editor with version history
-- Export to DOCX, EPUB, RTF, PDF, TXT
-- Dark/Light mode with full Italian/English support
-- Responsive design for desktop and tablet
+## Contributing
 
-## Environment Variables
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-Copy `server/.env.example` to `server/.env` and configure:
-
-- `DATABASE_PATH` - SQLite database file path
-- `JWT_SECRET` - JWT signing secret
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
-- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` - AI provider keys
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
-Proprietary - All rights reserved.
+This project is licensed under the **GNU Affero General Public License v3.0**.
+
+See the [LICENSE.md](LICENSE.md) file for details.
+
+Copyright (C) 2026 Rosario Moscato (https://rosmoscato.xyz)
+
+---
+
+<p align="center">
+  <strong>OmniWriter</strong> - Professional AI-Powered Writing Platform
+</p>
