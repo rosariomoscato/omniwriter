@@ -77,11 +77,12 @@
       "title": "Marketplace",
       "description": "Share your works with the community - Free with attribution",
       "cta": "Explore Marketplace",
-      "feature1": "Publish novels, essays and articles",
+      "feature1": "Publish novels and essays",
       "feature2": "Automatic author attribution",
       "feature3": "Download content in EPUB format",
       "feature4": "Community of writers and readers"
     },
+    "exploreMarketplace": "Explore Marketplace",
     "freeForAll": {
       "title": "Completely Free",
       "subtitle": "OmniWriter is free. All features are available for all users.",

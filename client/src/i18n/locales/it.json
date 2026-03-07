@@ -78,11 +78,13 @@
       "title": "Marketplace",
       "description": "Condividi le tue opere con la community - Gratis e con attribuzione",
       "cta": "Esplora il Marketplace",
-      "feature1": "Pubblica romanzi, saggi e articoli",
+      "feature1": "Pubblica romanzi e saggi",
       "feature2": "Attribuzione automatica all'autore",
       "feature3": "Scarica contenuti in formato EPUB",
       "feature4": "Community di scrittori e lettori"
     },
+    "exploreMarketplace": "Esplora il Marketplace",
+    "noCreditCard": "Completamente gratuito • Nessuna carta di credito richiesta",
     "freeForAll": {
       "title": "Completamente Gratuito",
       "subtitle": "OmniWriter è gratuito. Tutte le funzionalità sono disponibili per tutti gli utenti.",
