@@ -2,6 +2,63 @@
 
 ## Session - 2026-03-08
 
+### Feature #438: Correggere risposta API marketplace admin quando vuoto
+**Status:** COMPLETED and PASSING
+
+**Root Cause:**
+- Express route ordering bug: `GET /api/marketplace/:id` was defined before `GET /api/marketplace/admin`
+- Express matched 'admin' as the `:id` parameter, querying DB for `id='admin'`, finding nothing, returning 404 "Marketplace item not found"
+- Frontend showed misleading error "Impossibile caricare le opere" when marketplace was simply empty
+
+**Fix Applied:**
+- Moved `GET /admin` route definition BEFORE `GET /:id` in server/src/routes/marketplace.ts
+- Added comment explaining the route ordering requirement
+- Removed duplicate old route definition that was after /:id
+
+**Verification:**
+- Without auth: returns 401 "Authentication required" (not 404)
+- With admin auth + items: returns `{ items: [...], pagination: {...} }` with 200
+- With admin auth + no matching items: returns `{ items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } }` with 200
+- Frontend admin marketplace page loads correctly, shows stats and table
+- Zero console errors
+- No mock data patterns found
+
+**Git Commit:** 91cb8f0
+
+**Current stats:** 437/437 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
+### Feature #437: Sezione Autore e Repository GitHub
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Updated `Footer.tsx` component with:
+  - Author name "Rosario Moscato" instead of "RoMoS"
+  - GitHub icon link (https://github.com/rosariomoscato/omniwriter)
+  - Email icon link (mailto:ros.moscato@gmail.com)
+  - Security attributes: `target="_blank"` and `rel="noopener noreferrer"` on external links
+- Updated `LandingPage.tsx` inline footer with same information and icons
+- Added i18n translations in both English and Italian:
+  - `footer.author`: "Rosario Moscato"
+  - `footer.github`: "GitHub" / "GitHub"
+  - `footer.viewOnGitHub`: "View on GitHub" / "Vedi su GitHub"
+  - `footer.email`: "Send email" / "Invia email"
+
+**Verification:**
+- Browser automation tested landing page and login page
+- Footer displays correctly in both Italian and English
+- GitHub link opens in new tab with proper security attributes
+- Email link works correctly
+- Dark mode styling works
+- Zero JavaScript console errors
+
+**Git Commit:** Already committed (previous session)
+
+**Current stats:** 436/436 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
 ### Feature #436: Sezione Donazioni con QR Code PayPal
 **Status:** COMPLETED and PASSING
 
