@@ -356,6 +356,54 @@ export default function ProfilePage() {
           </p>
         </button>
       </div>
+
+      {/* Donation Section - Feature #436 */}
+      <div className="mt-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-dark-card dark:to-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="p-6 flex flex-col md:flex-row items-center gap-6">
+          {/* QR Code */}
+          <div className="flex-shrink-0">
+            <img
+              src="/qrcode.png"
+              alt="PayPal QR Code"
+              className="w-40 h-40 rounded-lg shadow-md bg-white p-2"
+            />
+          </div>
+
+          {/* Text Content */}
+          <div className="flex-grow text-center md:text-left">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              {t('profile.donation.title')}
+            </h3>
+            <p className="text-primary-600 dark:text-primary-400 font-medium mb-3">
+              {t('profile.donation.subtitle')}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+              {t('profile.donation.description')}
+            </p>
+            <p className="text-gray-500 dark:text-gray-500 text-xs mb-2">
+              {t('profile.donation.scanQR')}
+            </p>
+            <a
+              href="https://www.paypal.com/paypalme/rosmoscato"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              {t('profile.donation.orVisit')}
+            </a>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 bg-gray-100/50 dark:bg-gray-800/50 text-center">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            {t('profile.donation.thankYou')}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

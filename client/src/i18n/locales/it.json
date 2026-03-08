@@ -1345,6 +1345,14 @@
       "humanModelDesc": "Configura il tuo stile di scrittura",
       "dashboard": "Dashboard",
       "dashboardDesc": "Visualizza i tuoi progetti"
+    },
+    "donation": {
+      "title": "Sostieni OmniWriter",
+      "subtitle": "Ti piace OmniWriter?",
+      "description": "Questa applicazione è completamente gratuita e open source. Se vuoi sostenere il suo sviluppo, considera una donazione volontaria.",
+      "scanQR": "Scansiona il codice QR con PayPal",
+      "orVisit": "Oppure visita direttamente:",
+      "thankYou": "Grazie per il tuo supporto! ❤️"
     }
   },
   "sagas": {
