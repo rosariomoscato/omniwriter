@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Sun, Sparkles } from 'lucide-react';
+import { Globe, Moon, Sun, Sparkles, Github, Mail } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function LandingPage() {
@@ -265,16 +265,33 @@ export default function LandingPage() {
               </div>
               <span className="text-2xl font-bold text-white">{t('app.name')}</span>
             </div>
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-400 text-sm mb-4">
               {t('footer.builtWith')}{' '}
-              <a
-                href="mailto:ros.moscato@gmail.com"
-                className="text-primary-400 hover:text-primary-300 transition-colors font-medium"
-              >
-                RoMoS
-              </a>{' '}
+              <span className="text-white font-medium">
+                {t('footer.author')}
+              </span>{' '}
               {t('footer.allRightsReserved')}
             </p>
+            <div className="flex items-center justify-center gap-6">
+              <a
+                href="mailto:ros.moscato@gmail.com"
+                className="text-gray-400 hover:text-primary-400 transition-colors flex items-center gap-2"
+                title={t('footer.email')}
+              >
+                <Mail className="w-4 h-4" />
+                <span className="text-sm">{t('footer.email')}</span>
+              </a>
+              <a
+                href="https://github.com/rosariomoscato/omniwriter"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-primary-400 transition-colors flex items-center gap-2"
+                title={t('footer.viewOnGitHub')}
+              >
+                <Github className="w-4 h-4" />
+                <span className="text-sm">{t('footer.github')}</span>
+              </a>
+            </div>
           </div>
         </div>
       </footer>

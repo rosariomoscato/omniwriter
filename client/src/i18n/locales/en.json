@@ -1428,7 +1428,11 @@
   },
   "footer": {
     "builtWith": "Built with ❤️ by",
-    "allRightsReserved": "- 2026 - All Rights Reserved"
+    "allRightsReserved": "© 2026 - All Rights Reserved",
+    "author": "Rosario Moscato",
+    "github": "GitHub",
+    "viewOnGitHub": "View on GitHub",
+    "email": "Send email"
   },
   "citations": {
     "title": "Citations",

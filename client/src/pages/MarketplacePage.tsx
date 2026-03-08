@@ -21,6 +21,8 @@ import {
   X,
   Pen,
   Sparkles,
+  Github,
+  Mail,
 } from 'lucide-react';
 
 interface MarketplaceItem {
@@ -562,9 +564,35 @@ export default function MarketplacePage() {
           </div>
         )}
 
-        {/* Footer Attribution */}
+        {/* Footer */}
         <div className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-dark-border pt-6">
-          <p>{t('marketplace.footerAttribution')}</p>
+          <p className="mb-3">
+            {t('footer.builtWith')}{' '}
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              {t('footer.author')}
+            </span>{' '}
+            {t('footer.allRightsReserved')}
+          </p>
+          <div className="flex items-center justify-center gap-6">
+            <a
+              href="mailto:ros.moscato@gmail.com"
+              className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center gap-1"
+              title={t('footer.email')}
+            >
+              <Mail size={14} />
+              <span>{t('footer.email')}</span>
+            </a>
+            <a
+              href="https://github.com/rosariomoscato/omniwriter"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center gap-1"
+              title={t('footer.viewOnGitHub')}
+            >
+              <Github size={14} />
+              <span>{t('footer.github')}</span>
+            </a>
+          </div>
         </div>
       </main>
     </div>

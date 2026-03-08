@@ -1430,7 +1430,11 @@
   },
   "footer": {
     "builtWith": "Costruito con ❤️ da",
-    "allRightsReserved": "- 2026 - Tutti i diritti riservati"
+    "allRightsReserved": "© 2026 - Tutti i diritti riservati",
+    "author": "Rosario Moscato",
+    "github": "GitHub",
+    "viewOnGitHub": "Vedi su GitHub",
+    "email": "Invia email"
   },
   "citations": {
     "title": "Citazioni",
