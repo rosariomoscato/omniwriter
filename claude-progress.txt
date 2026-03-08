@@ -1,5 +1,36 @@
 # OmniWriter - Progress Notes
 
+## Session - 2026-03-08
+
+### Feature #436: Sezione Donazioni con QR Code PayPal
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Copied `qrcode.png` from project root to `client/public/qrcode.png` for static serving
+- Added donation section to ProfilePage.tsx with:
+  - QR code image (PayPal donation QR)
+  - "Support OmniWriter" title with subtitle
+  - Description explaining the free/open-source nature
+  - Direct PayPal link (https://www.paypal.com/paypalme/rosmoscato)
+  - Thank you message with heart emoji
+- Added i18n translations in both English and Italian:
+  - English: "Support OmniWriter", "Enjoying OmniWriter?", "Scan the QR code with PayPal", etc.
+  - Italian: "Sostieni OmniWriter", "Ti piace OmniWriter?", "Scansiona il codice QR con PayPal", etc.
+- Styled with Tailwind CSS including dark mode support
+
+**Verification:**
+- Browser automation tested profile page in both Italian and English
+- QR code image loads correctly (img "PayPal QR Code" visible in DOM)
+- Dark mode styling works correctly
+- No JavaScript console errors (only React Router warnings)
+- PayPal link opens in new tab with correct URL
+
+**Git Commit:** 4a77251
+
+**Current stats:** 435/435 features passing (100%) - ALL FEATURES COMPLETE!
+
+---
+
 ## Session - 2026-03-07 (Continued)
 
 ### Feature #435: Sincronizzare favicon con logo applicazione
