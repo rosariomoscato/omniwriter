@@ -16,6 +16,7 @@ import {
   BarChart3,
   RefreshCw
 } from 'lucide-react';
+import Footer from '../components/Footer';
 import { useToastNotification } from '../components/Toast';
 
 interface MarketplaceItem {
@@ -109,7 +110,7 @@ const AdminMarketplacePage = () => {
       setError('');
     } catch (err) {
       console.error('Error fetching marketplace items:', err);
-      setError('Errore nel caricamento delle opere.');
+      setError('Impossibile caricare le opere. Verifica la connessione e riprova.');
       setItems([]);
     } finally {
       setLoading(false);
@@ -652,6 +653,8 @@ const AdminMarketplacePage = () => {
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 };

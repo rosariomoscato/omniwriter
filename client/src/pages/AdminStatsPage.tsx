@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, FolderOpen, Activity, Calendar } from 'lucide-react';
+import Footer from '../components/Footer';
 
 interface UserStats {
   total: number;
@@ -255,6 +256,8 @@ const AdminStatsPage = () => {
           </div>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

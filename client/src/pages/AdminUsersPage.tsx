@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Shield, Mail, Calendar, Crown, User, Trash2, AlertTriangle } from 'lucide-react';
 import { useToastNotification } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
+import Footer from '../components/Footer';
 
 interface User {
   id: string;
@@ -517,6 +518,8 @@ const AdminUsersPage = () => {
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 };

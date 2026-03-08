@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FolderOpen, BookOpen, TrendingUp, BarChart3, Calendar, FileText } from 'lucide-react';
 import { useToastNotification } from '../components/Toast';
 import apiService from '../services/api';
+import Footer from '../components/Footer';
 
 interface ProjectByMonth {
   year: string;
@@ -407,6 +408,8 @@ const AdminProjectsPage = () => {
           Aggiorna Statistiche
         </button>
       </div>
+
+      <Footer />
     </div>
   );
 };

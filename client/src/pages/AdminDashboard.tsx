@@ -8,6 +8,7 @@ import {
   Calendar,
   RefreshCw
 } from 'lucide-react';
+import Footer from '../components/Footer';
 
 interface StatsResponse {
   totalUsers: number;
@@ -500,6 +501,8 @@ const AdminDashboard = () => {
           <span>{formatDate(registrationTrend[registrationTrend.length - 1].date)}</span>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

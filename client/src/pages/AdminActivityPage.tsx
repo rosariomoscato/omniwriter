@@ -14,6 +14,7 @@ import {
   ChevronRight,
   X
 } from 'lucide-react';
+import Footer from '../components/Footer';
 import { useToastNotification } from '../components/Toast';
 import { apiService } from '../services/api';
 
@@ -453,6 +454,8 @@ const AdminActivityPage = () => {
           )}
         </>
       )}
+
+      <Footer />
     </div>
   );
 };
