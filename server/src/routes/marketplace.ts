@@ -529,6 +529,92 @@ router.get(
 );
 
 /**
+ * GET /api/marketplace/admin
+ * Admin-only: List all marketplace items (including hidden ones) with filters.
+ * NOTE: This route MUST be defined before /:id to prevent Express from matching 'admin' as an :id parameter.
+ */
+router.get(
+  '/admin',
+  authenticateToken,
+  requireAdmin,
+  async (req: AuthRequest, res) => {
+    try {
+      const db = getDatabase();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const offset = (page - 1) * limit;
+      const category = req.query.category as string || '';
+      const search = req.query.search as string || '';
+      const isVisible = req.query.is_visible as string;
+
+      let query = `
+        SELECT mi.*, u.name as author_display_name
+        FROM marketplace_items mi
+        LEFT JOIN users u ON mi.user_id = u.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+
+      if (category && ['romanziere', 'saggista'].includes(category)) {
+        query += ' AND mi.category = ?';
+        params.push(category);
+      }
+
+      if (isVisible) {
+        query += ' AND mi.is_visible = ?';
+        params.push(isVisible === '1' ? 1 : 0);
+      }
+
+      if (search) {
+        query += ' AND (mi.title LIKE ? OR mi.description LIKE ? OR mi.author_name LIKE ?)';
+        const searchPattern = `%${search}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+      }
+
+      query += ' ORDER BY mi.published_at DESC LIMIT ? OFFSET ?';
+      params.push(limit, offset);
+
+      const items = db.prepare(query).all(...params);
+
+      // Get total count with same filters
+      let countQuery = 'SELECT COUNT(*) as total FROM marketplace_items mi WHERE 1=1';
+      const countParams: any[] = [];
+
+      if (category && ['romanziere', 'saggista'].includes(category)) {
+        countQuery += ' AND mi.category = ?';
+        countParams.push(category);
+      }
+
+      if (isVisible) {
+        countQuery += ' AND mi.is_visible = ?';
+        countParams.push(isVisible === '1' ? 1 : 0);
+      }
+
+      if (search) {
+        countQuery += ' AND (mi.title LIKE ? OR mi.description LIKE ? OR mi.author_name LIKE ?)';
+        const searchPattern = `%${search}%`;
+        countParams.push(searchPattern, searchPattern, searchPattern);
+      }
+
+      const countResult = db.prepare(countQuery).get(...countParams) as { total: number };
+
+      res.json({
+        items,
+        pagination: {
+          page,
+          limit,
+          total: countResult.total,
+          totalPages: Math.ceil(countResult.total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('[Marketplace] Error listing admin items:', error);
+      res.status(500).json({ message: 'Failed to fetch marketplace items' });
+    }
+  }
+);
+
+/**
  * GET /api/marketplace/:id
  * Get detail of a public marketplace item.
  * No authentication required.
@@ -860,91 +946,6 @@ router.delete(
     } catch (error) {
       console.error('[Marketplace] Error admin-deleting item:', error);
       res.status(500).json({ message: 'Failed to delete marketplace item' });
-    }
-  }
-);
-
-/**
- * GET /api/marketplace/admin
- * Admin-only: List all marketplace items (including hidden ones) with filters.
- */
-router.get(
-  '/admin',
-  authenticateToken,
-  requireAdmin,
-  async (req: AuthRequest, res) => {
-    try {
-      const db = getDatabase();
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-      const offset = (page - 1) * limit;
-      const category = req.query.category as string || '';
-      const search = req.query.search as string || '';
-      const isVisible = req.query.is_visible as string;
-
-      let query = `
-        SELECT mi.*, u.name as author_display_name
-        FROM marketplace_items mi
-        LEFT JOIN users u ON mi.user_id = u.id
-        WHERE 1=1
-      `;
-      const params: any[] = [];
-
-      if (category && ['romanziere', 'saggista'].includes(category)) {
-        query += ' AND mi.category = ?';
-        params.push(category);
-      }
-
-      if (isVisible) {
-        query += ' AND mi.is_visible = ?';
-        params.push(isVisible === '1' ? 1 : 0);
-      }
-
-      if (search) {
-        query += ' AND (mi.title LIKE ? OR mi.description LIKE ? OR mi.author_name LIKE ?)';
-        const searchPattern = `%${search}%`;
-        params.push(searchPattern, searchPattern, searchPattern);
-      }
-
-      query += ' ORDER BY mi.published_at DESC LIMIT ? OFFSET ?';
-      params.push(limit, offset);
-
-      const items = db.prepare(query).all(...params);
-
-      // Get total count with same filters
-      let countQuery = 'SELECT COUNT(*) as total FROM marketplace_items mi WHERE 1=1';
-      const countParams: any[] = [];
-
-      if (category && ['romanziere', 'saggista'].includes(category)) {
-        countQuery += ' AND mi.category = ?';
-        countParams.push(category);
-      }
-
-      if (isVisible) {
-        countQuery += ' AND mi.is_visible = ?';
-        countParams.push(isVisible === '1' ? 1 : 0);
-      }
-
-      if (search) {
-        countQuery += ' AND (mi.title LIKE ? OR mi.description LIKE ? OR mi.author_name LIKE ?)';
-        const searchPattern = `%${search}%`;
-        countParams.push(searchPattern, searchPattern, searchPattern);
-      }
-
-      const countResult = db.prepare(countQuery).get(...countParams) as { total: number };
-
-      res.json({
-        items,
-        pagination: {
-          page,
-          limit,
-          total: countResult.total,
-          totalPages: Math.ceil(countResult.total / limit)
-        }
-      });
-    } catch (error) {
-      console.error('[Marketplace] Error listing admin items:', error);
-      res.status(500).json({ message: 'Failed to fetch marketplace items' });
     }
   }
 );
