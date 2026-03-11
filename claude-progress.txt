@@ -1,5 +1,41 @@
 # OmniWriter - Progress Notes
 
+## Session - 2026-03-11
+
+### Feature #439: Fix hardcoded localhost:3001 URLs in AdminUsersPage
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Replaced 3 hardcoded `http://localhost:3001` URLs with relative paths:
+  - Line 54: `new URL('http://localhost:3001/api/admin/users')` → `new URL('/api/admin/users', window.location.origin)`
+  - Line 151: `http://localhost:3001/api/admin/users/${userId}` → `/api/admin/users/${userId}`
+  - Line 182: `http://localhost:3001/api/admin/users/${userId}/role` → `/api/admin/users/${userId}/role`
+
+**Verification:**
+- Admin users page loads correctly showing 2 users with all data
+- Search, filter, role change, and delete actions all functional
+- Zero console errors
+- Git Commit: dc4f09a
+
+### Feature #440: Fix hardcoded localhost:3001 URLs in AdminDashboard
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Replaced 2 hardcoded `http://localhost:3001` URLs with relative paths:
+  - Line 48: `http://localhost:3001/api/admin/stats` → `/api/admin/stats`
+  - Line 69: `http://localhost:3001/api/admin/stats/registrations` → `/api/admin/stats/registrations`
+
+**Verification:**
+- Admin dashboard loads all stats correctly (users, active users, projects, words)
+- User distribution chart and project distribution shown
+- Registration trend chart with 30-day data displayed correctly
+- Zero console errors
+- Git Commit: 4375fdb
+
+**Current stats:** 439/442 features passing
+
+---
+
 ## Session - 2026-03-08
 
 ### Feature #438: Correggere risposta API marketplace admin quando vuoto
