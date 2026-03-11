@@ -87,7 +87,7 @@ const AdminMarketplacePage = () => {
       if (visibility === 'visible') params.append('is_visible', '1');
       if (visibility === 'hidden') params.append('is_visible', '0');
 
-      const response = await fetch(`http://localhost:3001/api/marketplace/admin?${params.toString()}`, {
+      const response = await fetch(`/api/marketplace/admin?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -120,7 +120,7 @@ const AdminMarketplacePage = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/admin/marketplace/stats', {
+      const response = await fetch('/api/admin/marketplace/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -170,7 +170,7 @@ const AdminMarketplacePage = () => {
   const toggleVisibility = async (itemId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/marketplace/${itemId}/hide`, {
+      const response = await fetch(`/api/marketplace/${itemId}/hide`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -199,7 +199,7 @@ const AdminMarketplacePage = () => {
   const handleDeleteItem = async (itemId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/marketplace/${itemId}/admin`, {
+      const response = await fetch(`/api/marketplace/${itemId}/admin`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
