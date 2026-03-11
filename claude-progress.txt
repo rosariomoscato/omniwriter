@@ -2,6 +2,32 @@
 
 ## Session - 2026-03-11
 
+### Feature #446: Fix env loading for Docker/Coolify production
+**Status:** COMPLETED and PASSING
+
+**Problem:**
+- In produzione su Docker/Coolify, le variabili d'ambiente vengono passate dal container, non da un file .env
+- Il codice usava `import 'dotenv/config'` incondizionatamente, che cerca di caricare un file .env inutilmente in produzione
+
+**Fix Applied:**
+- Modificato `server/src/index.ts` per caricare dotenv solo se `NODE_ENV !== 'production'`:
+  ```typescript
+  if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+  }
+  ```
+- Il conditional loading viene eseguito PRIMA degli altri import che usano le variabili d'ambiente (es. authRouter con Google OAuth)
+- In produzione (Docker/Coolify): `NODE_ENV=production` è settato nel Dockerfile, quindi dotenv NON viene caricato
+- In sviluppo: dotenv viene caricato dal file .env come prima
+
+**Verification:**
+- TypeScript compilation succeeds without errors
+- In compiled dist/index.js: the conditional `if (process.env.NODE_ENV !== 'production')` wraps `require('dotenv').config()`
+- Dockerfile sets `ENV NODE_ENV=production` on line 52
+- Git Commit: fc85b90
+
+**Current stats:** 445/445 features passing (100%)
+
 ### Feature #445: Fix dotenv config order for Google OAuth
 **Status:** COMPLETED and PASSING
 
