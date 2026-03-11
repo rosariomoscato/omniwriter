@@ -51,7 +51,7 @@ const AdminUsersPage = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const url = new URL('http://localhost:3001/api/admin/users');
+      const url = new URL('/api/admin/users', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('limit', '20');
       if (searchQuery) {
@@ -148,7 +148,7 @@ const AdminUsersPage = () => {
   const handleDeleteUser = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -179,7 +179,7 @@ const AdminUsersPage = () => {
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/role`, {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
