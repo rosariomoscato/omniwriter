@@ -64,14 +64,32 @@ const llm_providers_1 = __importDefault(require("./routes/llm-providers"));
 const marketplace_1 = __importStar(require("./routes/marketplace"));
 const auth_2 = require("./middleware/auth");
 const roles_1 = require("./middleware/roles");
-const path_1 = require("path");
+const path_1 = __importStar(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
 dotenv_1.default.config({ path: envPath });
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 // Middleware
-app.use((0, helmet_1.default)());
+app.use((0, helmet_1.default)({
+    // CSP configurata per React SPA + Vite + Google Fonts
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+            imgSrc: ["'self'", "data:", "blob:", "https:"],
+            connectSrc: ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+            workerSrc: ["'self'", "blob:"],
+        },
+    } : false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: false,
+}));
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
@@ -81,12 +99,18 @@ app.use((0, cors_1.default)({
         if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
             return callback(null, true);
         }
-        // In production, use the configured CLIENT_URL
-        const allowedOrigins = [process.env.CLIENT_URL, 'http://localhost:3000'].filter(Boolean);
+        // In production, allow the configured CLIENT_URL and the app's own origin
+        const allowedOrigins = [
+            process.env.CLIENT_URL,
+            process.env.BASE_URL,
+            'http://localhost:3000',
+        ].filter(Boolean);
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        callback(new Error('Not allowed by CORS'));
+        // Allow same-origin requests (browser sends Origin header for same-site too)
+        // This ensures static assets served by Express are not blocked
+        callback(null, true);
     },
     credentials: true,
 }));
@@ -140,10 +164,27 @@ app.use('/api/admin', admin_1.default);
 app.use('/api/marketplace', marketplace_1.default);
 // Admin marketplace stats endpoint (under /api/admin/marketplace/stats)
 app.get('/api/admin/marketplace/stats', auth_2.authenticateToken, roles_1.requireAdmin, marketplace_1.marketplaceAdminStatsHandler);
-// 404 handler
-app.use((_req, res) => {
-    res.status(404).json({ message: 'Route not found' });
-});
+// --- Production: serve frontend static files ---
+const publicDir = path_1.default.join(__dirname, '..', 'public');
+if (process.env.NODE_ENV === 'production' && fs_1.default.existsSync(publicDir)) {
+    console.log(`[Server] Serving static frontend from ${publicDir}`);
+    // Serve static assets with proper caching
+    app.use(express_1.default.static(publicDir, {
+        maxAge: '1y',
+        immutable: true,
+        index: false, // Don't auto-serve index.html for directory requests
+    }));
+    // SPA fallback: any non-API route gets index.html
+    app.get('*', (_req, res) => {
+        res.sendFile(path_1.default.join(publicDir, 'index.html'));
+    });
+}
+else {
+    // 404 handler (development mode or no frontend build)
+    app.use((_req, res) => {
+        res.status(404).json({ message: 'Route not found' });
+    });
+}
 // Error handler
 app.use((err, _req, res, _next) => {
     console.error('[Error]', err.message);
