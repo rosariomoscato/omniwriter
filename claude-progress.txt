@@ -34,6 +34,34 @@
 
 **Current stats:** 439/442 features passing
 
+### Feature #441: Fix hardcoded localhost:3001 URLs in AdminStatsPage
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Replaced 2 hardcoded `http://localhost:3001` URLs with relative paths in AdminStatsPage.tsx:
+  - Line 43: `http://localhost:3001/api/admin/stats` -> `/api/admin/stats`
+  - Line 64: `http://localhost:3001/api/admin/stats/registrations` -> `/api/admin/stats/registrations`
+
+**Verification:**
+- Admin stats page loads correctly with real data (2 users, 1 project, registration dates)
+- Zero JavaScript console errors
+- Git Commit: be6c4c9
+
+### Feature #442: Fix hardcoded localhost:3001 URLs in AdminProjectsPage
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Replaced 2 hardcoded `http://localhost:3001` URLs with relative paths in AdminProjectsPage.tsx:
+  - Line 57: `http://localhost:3001/api/admin/stats/projects` -> `/api/admin/stats/projects`
+  - Line 78: `http://localhost:3001/api/admin/stats/projects?recent=20` -> `/api/admin/stats/projects?recent=20`
+
+**Verification:**
+- Admin projects page loads correctly with real data (1 project, area breakdown, monthly stats, top projects)
+- Zero JavaScript console errors
+- Git Commit: dc1a2ca
+
+**Current stats:** 441/442 features passing (99.8%)
+
 ---
 
 ## Session - 2026-03-08
