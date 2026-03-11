@@ -2,6 +2,43 @@
 
 ## Session - 2026-03-11
 
+### Feature #447: Lazy-load Google OAuth Strategy configuration
+**Status:** COMPLETED and PASSING
+
+**Problem:**
+- The Google OAuth Strategy was configured at module load time in auth.ts
+- Constants `googleClientId`, `googleClientSecret`, `callbackURL` were read from `process.env` at module import time
+- This caused issues when environment variables weren't available at import time
+
+**Solution Applied:**
+- Created `initGoogleOAuth()` function that:
+  - Reads environment variables at CALL time, not module load time
+  - Validates credentials exist before configuring passport
+  - Uses `googleOAuthInitialized` flag to prevent double initialization
+  - Logs helpful warnings if credentials are missing
+- Exported `initGoogleOAuth` from auth.ts and called it from index.ts after passport middleware setup
+- This ensures env vars are definitely loaded (via dotenv.config()) before Strategy is configured
+
+**Changes:**
+- `server/src/routes/auth.ts`:
+  - Removed module-level constants and immediate `passport.use()` call
+  - Added `initGoogleOAuth()` function with lazy strategy configuration
+  - Added validation and logging for missing credentials
+- `server/src/index.ts`:
+  - Imported `initGoogleOAuth` from auth module
+  - Called `initGoogleOAuth()` after `app.use(passport.session())`
+
+**Verification:**
+- TypeScript compilation succeeds without errors
+- Server starts correctly with lazy loading
+- Without credentials: Shows warning "[Google OAuth] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET"
+- With credentials: Shows "[Google OAuth] Initializing with callback URL: ..."
+- Browser test: Google OAuth button initiates flow correctly, redirects to Google
+- Zero console errors
+- Git Commit: 10a1218
+
+**Current stats:** 446/446 features passing (100%)
+
 ### Feature #446: Fix env loading for Docker/Coolify production
 **Status:** COMPLETED and PASSING
 
