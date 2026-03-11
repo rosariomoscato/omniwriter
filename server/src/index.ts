@@ -1,7 +1,9 @@
+// IMPORTANT: dotenv must be configured BEFORE any imports that use environment variables
+// (e.g., authRouter which configures Google OAuth Strategy using GOOGLE_CLIENT_ID)
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import passport from 'passport';
 import session from 'express-session';
 import { initializeDatabase } from './db/database';
@@ -26,11 +28,8 @@ import llmProvidersRouter from './routes/llm-providers';
 import marketplaceRouter, { marketplaceAdminStatsHandler } from './routes/marketplace';
 import { authenticateToken } from './middleware/auth';
 import { requireAdmin } from './middleware/roles';
-import path, { resolve } from 'path';
+import path from 'path';
 import fs from 'fs';
-
-const envPath = resolve(__dirname, '..', '.env');
-dotenv.config({ path: envPath });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;

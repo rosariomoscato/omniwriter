@@ -36,10 +36,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// IMPORTANT: dotenv must be configured BEFORE any imports that use environment variables
+// (e.g., authRouter which configures Google OAuth Strategy using GOOGLE_CLIENT_ID)
+require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const passport_1 = __importDefault(require("passport"));
 const express_session_1 = __importDefault(require("express-session"));
 const database_1 = require("./db/database");
@@ -64,10 +66,8 @@ const llm_providers_1 = __importDefault(require("./routes/llm-providers"));
 const marketplace_1 = __importStar(require("./routes/marketplace"));
 const auth_2 = require("./middleware/auth");
 const roles_1 = require("./middleware/roles");
-const path_1 = __importStar(require("path"));
+const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const envPath = (0, path_1.resolve)(__dirname, '..', '.env');
-dotenv_1.default.config({ path: envPath });
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
