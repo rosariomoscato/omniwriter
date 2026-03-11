@@ -1,6 +1,13 @@
-// IMPORTANT: dotenv must be configured BEFORE any imports that use environment variables
+// IMPORTANT: Environment variable loading must happen BEFORE any imports that use them
 // (e.g., authRouter which configures Google OAuth Strategy using GOOGLE_CLIENT_ID)
-import 'dotenv/config';
+//
+// In production (Docker/Coolify), environment variables are passed directly to the container,
+// so we should NOT try to load from .env file. Only load dotenv in development.
+if (process.env.NODE_ENV !== 'production') {
+  // In development, load environment variables from .env file
+  // Using require() instead of import to make this conditional
+  require('dotenv').config();
+}
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
