@@ -268,7 +268,8 @@ router.post('/forgot-password', (req: Request, res: Response) => {
     if (user) {
       // Generate reset token
       const resetToken = uuidv4();
-      const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+      const frontendUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
       // Store token in database (expires in 1 hour)
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -475,8 +476,9 @@ router.get(
 
       console.log('[Google OAuth] Login successful for user:', user.id);
 
-      // Redirect to frontend with token
-      res.redirect(`http://localhost:3000/auth/callback?token=${token}&userId=${user.id}`);
+      // Redirect to frontend with token (use CLIENT_URL env var for production support)
+      const frontendUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/auth/callback?token=${token}&userId=${user.id}`);
     } catch (error) {
       console.error('[Google OAuth] Callback error:', error);
       res.redirect('/login?error=callback_failed');
