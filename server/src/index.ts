@@ -26,7 +26,8 @@ import llmProvidersRouter from './routes/llm-providers';
 import marketplaceRouter, { marketplaceAdminStatsHandler } from './routes/marketplace';
 import { authenticateToken } from './middleware/auth';
 import { requireAdmin } from './middleware/roles';
-import { resolve } from 'path';
+import path, { resolve } from 'path';
+import fs from 'fs';
 
 const envPath = resolve(__dirname, '..', '.env');
 dotenv.config({ path: envPath });
@@ -36,7 +37,19 @@ const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+    },
+  } : false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
@@ -114,10 +127,28 @@ app.use('/api/marketplace', marketplaceRouter);
 // Admin marketplace stats endpoint (under /api/admin/marketplace/stats)
 app.get('/api/admin/marketplace/stats', authenticateToken as any, requireAdmin as any, marketplaceAdminStatsHandler as any);
 
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+// --- Production: serve frontend static files ---
+const publicDir = path.join(__dirname, '..', 'public');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(publicDir)) {
+  console.log(`[Server] Serving static frontend from ${publicDir}`);
+
+  // Serve static assets with proper caching
+  app.use(express.static(publicDir, {
+    maxAge: '1y',
+    immutable: true,
+    index: false, // Don't auto-serve index.html for directory requests
+  }));
+
+  // SPA fallback: any non-API route gets index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+} else {
+  // 404 handler (development mode or no frontend build)
+  app.use((_req, res) => {
+    res.status(404).json({ message: 'Route not found' });
+  });
+}
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

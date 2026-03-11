@@ -1,0 +1,61 @@
+# Dependencies (will be installed fresh in Docker)
+node_modules
+server/node_modules
+client/node_modules
+
+# Build outputs
+dist
+client/dist
+server/dist
+build
+
+# Git
+.git
+.gitignore
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment files (will be set via Coolify)
+.env
+.env.local
+.env.*.local
+server/.env
+client/.env.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+logs
+
+# Dev/temp files
+.archive
+.autoforge
+.agents
+.playwright-cli
+.playwright
+.playwright-mcp
+.vite
+coverage
+tmp
+temp
+*.pid
+claude-progress.txt
+qrcode.png
+skills-lock.json
+features.db
+
+# Uploaded files (will use volumes)
+uploads
+server/uploads
+data/human-model-sources
+data/sources
+server/data
