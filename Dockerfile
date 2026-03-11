@@ -27,13 +27,14 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 # Installa le dipendenze di sistema necessarie per better-sqlite3 (native module)
-RUN apk add --no-cache python3 make g++
+# curl è necessario per l'healthcheck di Coolify
+RUN apk add --no-cache python3 make g++ curl
 
 WORKDIR /app
 
 # Copia package.json e installa solo le dipendenze di produzione
 COPY server/package.json server/package-lock.json ./
-RUN npm ci --omit=dev && apk del python3 make g++
+RUN npm ci --omit=dev && apk del python3 make g++ && rm -rf /var/cache/apk/*
 
 # Copia il backend compilato
 COPY --from=backend-build /build/server/dist ./dist
@@ -57,9 +58,9 @@ ENV UPLOAD_DIR=/uploads
 # Esponi la porta
 EXPOSE 3000
 
-# Nessun HEALTHCHECK nel Dockerfile — lo gestisce Coolify dalla UI
-# Se vuoi riabilitarlo, configura l'healthcheck nella sezione "Health Check"
-# di Coolify con: curl http://localhost:3000/api/health
+# Healthcheck per Coolify rolling updates
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=6 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Avvia il server
 CMD ["node", "dist/index.js"]
