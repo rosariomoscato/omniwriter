@@ -40,7 +40,7 @@ const AdminStatsPage = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch('http://localhost:3001/api/admin/stats', {
+      const response = await fetch('/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -61,7 +61,7 @@ const AdminStatsPage = () => {
       const newData: NewStatsResponse = await response.json();
 
       // Fetch registration data separately
-      const regResponse = await fetch('http://localhost:3001/api/admin/stats/registrations', {
+      const regResponse = await fetch('/api/admin/stats/registrations', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
