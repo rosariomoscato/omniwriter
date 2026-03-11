@@ -57,9 +57,9 @@ ENV UPLOAD_DIR=/uploads
 # Esponi la porta
 EXPOSE 3000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+# Nessun HEALTHCHECK nel Dockerfile — lo gestisce Coolify dalla UI
+# Se vuoi riabilitarlo, configura l'healthcheck nella sezione "Health Check"
+# di Coolify con: curl http://localhost:3000/api/health
 
 # Avvia il server
 CMD ["node", "dist/index.js"]
