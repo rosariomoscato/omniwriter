@@ -54,7 +54,7 @@ const AdminProjectsPage = () => {
       const token = localStorage.getItem('token');
 
       // Fetch project stats
-      const statsResponse = await fetch('http://localhost:3001/api/admin/stats/projects', {
+      const statsResponse = await fetch('/api/admin/stats/projects', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -75,7 +75,7 @@ const AdminProjectsPage = () => {
 
       // Fetch recent projects
       const recentResponse = await fetch(
-        'http://localhost:3001/api/admin/stats/projects?recent=20',
+        '/api/admin/stats/projects?recent=20',
         {
           headers: {
             'Authorization': `Bearer ${token}`,
