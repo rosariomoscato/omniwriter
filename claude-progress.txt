@@ -2,6 +2,26 @@
 
 ## Session - 2026-03-11
 
+### Feature #444: Fix Google OAuth redirect URL per produzione
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Fixed Google OAuth redirect URL to use `process.env.CLIENT_URL` instead of hardcoded `http://localhost:3000`:
+  - Line 479-481 in auth.ts: Added `const frontendUrl = process.env.CLIENT_URL || 'http://localhost:3000'`
+  - Changed redirect from hardcoded to `${frontendUrl}/auth/callback?token=${token}&userId=${user.id}`
+- Also fixed password reset URL which had the same issue:
+  - Line 271-272 in auth.ts: Added same CLIENT_URL pattern for reset URL
+- Updated `.env.example` comment to clarify CLIENT_URL is used for both CORS and OAuth redirects
+
+**Verification:**
+- Server health check passes (API healthy, database connected)
+- Login page renders correctly with Google OAuth button
+- No hardcoded localhost URLs remaining in auth routes (except as fallback defaults)
+- Zero console errors
+- Git Commit: dbb9071
+
+**Current stats:** 443/443 features passing (100%) - ALL FEATURES COMPLETE!
+
 ### Feature #439: Fix hardcoded localhost:3001 URLs in AdminUsersPage
 **Status:** COMPLETED and PASSING
 
@@ -59,8 +79,6 @@
 - Admin projects page loads correctly with real data (1 project, area breakdown, monthly stats, top projects)
 - Zero JavaScript console errors
 - Git Commit: dc1a2ca
-
-**Current stats:** 441/442 features passing (99.8%)
 
 ### Feature #443: Fix hardcoded localhost:3001 URLs in AdminMarketplacePage
 **Status:** COMPLETED and PASSING
