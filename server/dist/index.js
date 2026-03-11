@@ -53,7 +53,7 @@ const passport_1 = __importDefault(require("passport"));
 const express_session_1 = __importDefault(require("express-session"));
 const database_1 = require("./db/database");
 const health_1 = __importDefault(require("./routes/health"));
-const auth_1 = __importDefault(require("./routes/auth"));
+const auth_1 = __importStar(require("./routes/auth"));
 const projects_1 = __importDefault(require("./routes/projects"));
 const human_models_1 = __importDefault(require("./routes/human-models"));
 const chapters_1 = __importDefault(require("./routes/chapters"));
@@ -136,6 +136,9 @@ app.use((0, express_session_1.default)({
 }));
 app.use(passport_1.default.initialize());
 app.use(passport_1.default.session());
+// Initialize Google OAuth Strategy AFTER passport middleware is set up
+// and environment variables are loaded (dotenv.config() was called at the top)
+(0, auth_1.initGoogleOAuth)();
 // Request logging middleware - logs all API requests
 app.use('/api', (req, _res, next) => {
     console.log(`[API] ${req.method} ${req.originalUrl}`);

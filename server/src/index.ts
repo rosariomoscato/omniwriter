@@ -15,7 +15,7 @@ import passport from 'passport';
 import session from 'express-session';
 import { initializeDatabase } from './db/database';
 import healthRouter from './routes/health';
-import authRouter from './routes/auth';
+import authRouter, { initGoogleOAuth } from './routes/auth';
 import projectsRouter from './routes/projects';
 import humanModelsRouter from './routes/human-models';
 import chaptersRouter from './routes/chapters';
@@ -104,6 +104,10 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Initialize Google OAuth Strategy AFTER passport middleware is set up
+// and environment variables are loaded (dotenv.config() was called at the top)
+initGoogleOAuth();
 
 // Request logging middleware - logs all API requests
 app.use('/api', (req, _res, next) => {
