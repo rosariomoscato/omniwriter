@@ -62,6 +62,23 @@
 
 **Current stats:** 441/442 features passing (99.8%)
 
+### Feature #443: Fix hardcoded localhost:3001 URLs in AdminMarketplacePage
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Verified all 4 hardcoded `http://localhost:3001` URLs were already replaced with relative paths:
+  - Line 90: `/api/marketplace/admin?${params.toString()}` ✅
+  - Line 123: `/api/admin/marketplace/stats` ✅
+  - Line 173: `/api/marketplace/${itemId}/hide` ✅
+  - Line 202: `/api/marketplace/${itemId}/admin` ✅
+
+**Verification:**
+- No hardcoded localhost:3001 URLs found in AdminMarketplacePage.tsx
+- All API calls now use relative paths that work in both development and production
+- Git Commit: N/A (already fixed in previous session)
+
+**Current stats:** 442/442 features passing (100%) - ALL FEATURES COMPLETE!
+
 ---
 
 ## Session - 2026-03-08
