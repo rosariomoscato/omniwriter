@@ -2,6 +2,30 @@
 
 ## Session - 2026-03-11
 
+### Feature #445: Fix dotenv config order for Google OAuth
+**Status:** COMPLETED and PASSING
+
+**Root Cause:**
+- In `server/src/index.ts`, `dotenv.config()` was called AFTER the import statements
+- When `authRouter` was imported, it immediately configured the Google OAuth Strategy
+- At that point, `process.env.GOOGLE_CLIENT_ID` and `process.env.GOOGLE_CLIENT_SECRET` were undefined
+- This caused Google OAuth to fail in production with "invalid client" errors
+
+**Fix Applied:**
+- Changed `import dotenv from 'dotenv'` + `dotenv.config({ path: envPath })` to `import 'dotenv/config'` as the FIRST import
+- This ensures environment variables are loaded before any module that uses them
+- Removed the redundant `dotenv.config()` call that was after all imports
+- Added explanatory comment about the importance of import order
+
+**Verification:**
+- TypeScript compilation succeeds without errors
+- Server starts successfully with the new import order
+- Health check returns healthy status
+- In compiled dist/index.js: `require("dotenv/config")` is at line 41, `require("./routes/auth")` is at line 49
+- Git Commit: d2b062a
+
+**Current stats:** 444/444 features passing (100%)
+
 ### Feature #444: Fix Google OAuth redirect URL per produzione
 **Status:** COMPLETED and PASSING
 
