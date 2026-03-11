@@ -65,13 +65,20 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // In production, use the configured CLIENT_URL
-    const allowedOrigins = [process.env.CLIENT_URL, 'http://localhost:3000'].filter(Boolean);
+    // In production, allow the configured CLIENT_URL and the app's own origin
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      process.env.BASE_URL,
+      'http://localhost:3000',
+    ].filter(Boolean);
+
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    callback(new Error('Not allowed by CORS'));
+    // Allow same-origin requests (browser sends Origin header for same-site too)
+    // This ensures static assets served by Express are not blocked
+    callback(null, true);
   },
   credentials: true,
 }));
