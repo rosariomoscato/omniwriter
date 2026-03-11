@@ -45,7 +45,7 @@ const AdminDashboard = () => {
       const token = localStorage.getItem('token');
 
       // Fetch main stats
-      const statsResponse = await fetch('http://localhost:3001/api/admin/stats', {
+      const statsResponse = await fetch('/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -66,7 +66,7 @@ const AdminDashboard = () => {
       setStats(data);
 
       // Fetch registration trend data
-      const registrationsResponse = await fetch('http://localhost:3001/api/admin/stats/registrations', {
+      const registrationsResponse = await fetch('/api/admin/stats/registrations', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
