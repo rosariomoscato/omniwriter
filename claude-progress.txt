@@ -1,6 +1,32 @@
 # OmniWriter - Progress Notes
 
-## Session - 2026-03-12
+## Session - 2026-03-12 (Continued)
+
+### Feature #3: Data persists across server restart
+**Status:** COMPLETED and PASSING
+
+**What was done:**
+- Verified that SQLite database persists data across server restarts
+- Test procedure:
+  1. Created test user via POST /api/auth/register with email: `restart_test_1773337238@example.com`
+  2. Verified user exists via GET /api/auth/me with auth token
+  3. STOPPED both servers (killed processes on ports 3000 and 3001)
+  4. Verified server is stopped (curl connection refused)
+  5. RESTARTED servers via init.sh
+  6. Logged in with same credentials - **SUCCESS!** User data persisted!
+  7. Cleaned up test data (deleted test user account)
+
+**Verification:**
+- Server health check passes after restart
+- Login successful with credentials created before restart
+- User ID matches before and after restart
+- Zero JavaScript console errors in browser
+- No mock data patterns found in production code (only in test files)
+- Database is SQLite at `/Users/rosario/CODICE/omniwriter/server/data/omniwriter.db`
+
+**Current stats:** 448/448 features passing (100%)
+
+---
 
 ### Feature #449: Update Gemini model to gemini-2.5-flash
 **Status:** COMPLETED and PASSING
