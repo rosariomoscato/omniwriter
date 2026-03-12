@@ -1,5 +1,43 @@
 # OmniWriter - Progress Notes
 
+## Session - 2026-03-12
+
+### Feature #448: Fix Gemini API - Aggiornamento modelli deprecati
+**Status:** COMPLETED and PASSING
+
+**Problem:**
+- The Gemini test connection was using the deprecated `gemini-pro` model
+- Google has deprecated `gemini-pro` and `gemini-pro-vision` models
+- The available models are now: gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash, gemini-2.0-flash-lite, gemini-2.5-flash-lite
+
+**Solution Applied:**
+1. `server/src/routes/llm-providers.ts`:
+   - Line 212-214: Changed test connection from `gemini-pro` to `gemini-2.0-flash`
+   - Added comment explaining the change
+
+2. `server/src/services/ai/providers/GeminiProvider.ts`:
+   - Updated `DEFAULT_MODEL` from `gemini-1.5-flash` to `gemini-2.5-flash`
+   - Added new Gemini 2.x and 2.5x models to `KNOWN_MODELS`:
+     - gemini-2.5-pro (2M context, 65K output)
+     - gemini-2.5-flash (1M context, 65K output)
+     - gemini-2.5-flash-lite (1M context, 65K output)
+     - gemini-2.0-flash (1M context, 8K output)
+     - gemini-2.0-flash-lite (1M context, 8K output)
+   - Removed deprecated models: `gemini-pro`, `gemini-pro-vision`
+   - Updated `testConnection()` to use `gemini-2.0-flash`
+
+**Verification:**
+- Code review confirms all changes are in place
+- No `gemini-pro` references remain (except in comments)
+- KNOWN_MODELS contains all current Gemini models
+- Server starts correctly with new configuration
+- Zero console errors in browser
+- Git Commit: 2eac58a
+
+**Current stats:** 447/447 features passing (100%)
+
+---
+
 ## Session - 2026-03-11
 
 ### Feature #447: Lazy-load Google OAuth Strategy configuration
