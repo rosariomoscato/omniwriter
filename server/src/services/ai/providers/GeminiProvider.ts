@@ -45,13 +45,53 @@ interface GeminiModelsResponse {
 
 export class GeminiProvider extends BaseProvider {
   private static readonly PROVIDER_TYPE = 'google_gemini';
-  private static readonly DEFAULT_MODEL = 'gemini-1.5-flash';
+  private static readonly DEFAULT_MODEL = 'gemini-2.5-flash';
   private static readonly MODELS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   private modelsCache: { models: ModelInfo[]; timestamp: number } | null = null;
 
-  // Known Gemini models with their capabilities
+  // Known Gemini models with their capabilities (updated 2026)
   private static readonly KNOWN_MODELS: ModelInfo[] = [
+    {
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      provider: 'google_gemini',
+      contextWindow: 2097152, // 2M tokens
+      maxOutputTokens: 65536,
+      features: ['long-context', 'multimodal', 'reasoning']
+    },
+    {
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash',
+      provider: 'google_gemini',
+      contextWindow: 1048576, // 1M tokens
+      maxOutputTokens: 65536,
+      features: ['fast', 'multimodal', 'efficient']
+    },
+    {
+      id: 'gemini-2.5-flash-lite',
+      name: 'Gemini 2.5 Flash-Lite',
+      provider: 'google_gemini',
+      contextWindow: 1048576,
+      maxOutputTokens: 65536,
+      features: ['fast', 'efficient', 'lightweight']
+    },
+    {
+      id: 'gemini-2.0-flash',
+      name: 'Gemini 2.0 Flash',
+      provider: 'google_gemini',
+      contextWindow: 1048576,
+      maxOutputTokens: 8192,
+      features: ['fast', 'multimodal', 'efficient']
+    },
+    {
+      id: 'gemini-2.0-flash-lite',
+      name: 'Gemini 2.0 Flash-Lite',
+      provider: 'google_gemini',
+      contextWindow: 1048576,
+      maxOutputTokens: 8192,
+      features: ['fast', 'efficient', 'lightweight']
+    },
     {
       id: 'gemini-1.5-pro',
       name: 'Gemini 1.5 Pro',
@@ -75,22 +115,6 @@ export class GeminiProvider extends BaseProvider {
       contextWindow: 1048576,
       maxOutputTokens: 8192,
       features: ['fast', 'efficient', 'small']
-    },
-    {
-      id: 'gemini-pro',
-      name: 'Gemini Pro',
-      provider: 'google_gemini',
-      contextWindow: 32768,
-      maxOutputTokens: 2048,
-      features: ['legacy', 'balanced']
-    },
-    {
-      id: 'gemini-pro-vision',
-      name: 'Gemini Pro Vision',
-      provider: 'google_gemini',
-      contextWindow: 16384,
-      maxOutputTokens: 2048,
-      features: ['legacy', 'multimodal']
     }
   ];
 
@@ -376,8 +400,9 @@ export class GeminiProvider extends BaseProvider {
 
   async testConnection(): Promise<ProviderStatus> {
     try {
+      // Use gemini-2.0-flash for connection test (gemini-pro is deprecated)
       const response = await fetch(
-        `${this.getBaseUrl()}/models/gemini-pro:generateContent?key=${this.config.apiKey}`,
+        `${this.getBaseUrl()}/models/gemini-2.0-flash:generateContent?key=${this.config.apiKey}`,
         {
           method: 'POST',
           headers: this.getHeaders(),
