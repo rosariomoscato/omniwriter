@@ -400,9 +400,9 @@ export class GeminiProvider extends BaseProvider {
 
   async testConnection(): Promise<ProviderStatus> {
     try {
-      // Use gemini-2.0-flash for connection test (gemini-pro is deprecated)
+      // Use gemini-2.5-flash for connection test (best availability and performance)
       const response = await fetch(
-        `${this.getBaseUrl()}/models/gemini-2.0-flash:generateContent?key=${this.config.apiKey}`,
+        `${this.getBaseUrl()}/models/gemini-2.5-flash:generateContent?key=${this.config.apiKey}`,
         {
           method: 'POST',
           headers: this.getHeaders(),
