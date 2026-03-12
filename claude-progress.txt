@@ -2,6 +2,33 @@
 
 ## Session - 2026-03-12
 
+### Feature #449: Update Gemini model to gemini-2.5-flash
+**Status:** COMPLETED and PASSING
+
+**Problem:**
+- The Gemini test connection was using `gemini-2.0-flash` which has quota issues
+- The feature requires updating to `gemini-2.5-flash` for better availability and performance
+
+**Solution Applied:**
+1. `server/src/routes/llm-providers.ts`:
+   - Line 212-214: Changed test connection from `gemini-2.0-flash` to `gemini-2.5-flash`
+   - Updated comment to reflect the change
+
+2. `server/src/services/ai/providers/GeminiProvider.ts`:
+   - Line 403-405: Updated `testConnection()` from `gemini-2.0-flash` to `gemini-2.5-flash`
+   - The `DEFAULT_MODEL` was already set to `gemini-2.5-flash` (from feature #448)
+
+**Verification:**
+- Code review confirms all changes are in place
+- Server health check passes
+- Zero JavaScript console errors in browser
+- No mock data patterns found
+- Git Commit: fb4f62d
+
+**Current stats:** 448/448 features passing (100%)
+
+---
+
 ### Feature #448: Fix Gemini API - Aggiornamento modelli deprecati
 **Status:** COMPLETED and PASSING
 
