@@ -496,3 +496,49 @@
 ## Previous Sessions Summary
 
 (See .archive/cleanup-20260307/claude-progress.txt for full history)
+
+## Session - 2026-03-16 (Continued)
+
+### Feature #451: Contextual Chapter Summaries
+**Status:** COMPLETED and PASSING
+
+**What was implemented:**
+The chapter outline generation now produces contextualized summaries that reference the project's specific story elements instead of using generic template text.
+
+**Implementation Details:**
+
+1. **Context Extraction** (lines 4688-4692):
+   - storyTitle: Project title for referencing throughout summaries
+   - storyDesc: First 120 characters of project description
+   - storyGenre: Genre for genre-specific narrative elements
+   - storyPov: Point of view for narrative style references
+
+2. **Tone-Specific Adjectives** (lines 4672-4686):
+   - 10 tone types mapped to bilingual adjectives
+   - Examples: dark→ominous/ominoso, light→hopeful/speranzoso
+   - Fallback to engaging/coinvolgente for undefined tones
+
+3. **Contextual Template Builder** (lines 4696-4738):
+   - Six template types: first, risingAction, midpoint, complication, climax, last
+   - All templates include story title references
+   - Bilingual support (Italian/English) throughout
+
+4. **Varied Progression Descriptions** (lines 4742-4778):
+   - 8 unique rising action progression texts per language
+   - 4 unique complication position descriptions per language
+
+5. **Smart Template Application** (lines 4780-4809):
+   - First chapter → introduction template
+   - Last chapter → resolution template
+   - Midpoint (50%) → turning point template
+   - Second-to-last → climax template
+   - Early chapters (0-40%) → rising action with rotation
+   - Middle chapters (40-80%) → complication with rotation
+
+**Verification:**
+- All 5 feature requirements satisfied
+- Code review confirms complete implementation
+- Git commit: 5274613
+
+**Current stats:** 450/450 features passing (100%) - ALL FEATURES COMPLETE\!
+
