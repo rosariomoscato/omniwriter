@@ -4666,50 +4666,143 @@ ${pov ? `- The narration is in ${pov}` : ''}
       const genreStructure = genreStructuresLocalized[genre as keyof typeof genreStructuresLocalized] || genreStructuresLocalized.default;
       const chapterTitles = genreStructure[userLang as keyof typeof genreStructure] || genreStructure.en;
 
-      // Generate chapter summaries based on tone - localized
+      // Feature #451: Contextual Chapter Summaries
+      // Generate chapter summaries that reference the project's specific story elements
+      // (title, description, genre, tone, POV) instead of generic template text.
       const toneAdjectives: Record<string, Record<string, string>> = {
         dark: { en: 'ominous', it: 'ominoso' },
         light: { en: 'hopeful', it: 'speranzoso' },
         serious: { en: 'grave', it: 'serio' },
         humorous: { en: 'witty', it: 'spiritoso' },
         dramatic: { en: 'intense', it: 'intenso' },
-        romantic: { en: 'passionate', it: 'appassionato' }
+        romantic: { en: 'passionate', it: 'appassionato' },
+        suspense: { en: 'suspenseful', it: 'carico di suspense' },
+        adventurous: { en: 'adventurous', it: 'avventuroso' },
+        poetic: { en: 'poetic', it: 'poetico' },
+        ironic: { en: 'ironic', it: 'ironico' }
       };
 
       const toneKey = tone as keyof typeof toneAdjectives;
       const toneAdj = toneAdjectives[toneKey] ? toneAdjectives[toneKey][userLang as keyof typeof toneAdjectives['dark']] : (isItalian ? 'coinvolgente' : 'engaging');
 
-      // Localized summary templates
-      const summaryTemplates = {
-        en: {
-          first: (t: string) => `Introduce the main character and their world. Establish the ${t} tone and the central conflict that will drive the narrative forward.`,
-          midpoint: () => `The midpoint of the story. A major revelation or plot twist shifts the direction of the narrative. The stakes are raised significantly.`,
-          last: (g: string) => `The conclusion. All plot threads are resolved. The character arc completes, and the thematic elements of the ${g || 'story'} find fulfillment.`,
-          middle: (t: string) => `Develop the narrative with ${t} pacing. Advance both plot and character development while building tension toward the story's climax.`
-        },
-        it: {
-          first: (t: string) => `Introduci il personaggio principale e il suo mondo. Stabilisci il tono ${t} e il conflitto centrale che guiderà la narrazione in avanti.`,
-          midpoint: () => `Il punto medio della storia. Una rivelazione importante o un colpo di scena cambia la direzione della narrazione. Le poste in gioco aumentano significativamente.`,
-          last: (g: string) => `La conclusione. Tutti i fili della trama vengono risolti. L'arco del personaggio si completa e gli elementi tematici del ${g || 'racconto'} trovano compimento.`,
-          middle: (t: string) => `Sviluppa la narrazione con un ritmo ${t}. Fai avanzare sia la trama che lo sviluppo del personaggio, costruendo tensione verso il climax della storia.`
+      // Extract contextual info from project description for richer summaries
+      const storyTitle = project.title || '';
+      const storyDesc = project.description || '';
+      const storyGenre = project.genre || '';
+      const storyPov = pov || '';
+
+      // Feature #451: Contextual summary templates that incorporate project-specific details
+      // Each template references the project's title, description elements, and genre
+      const buildContextualSummaries = () => {
+        if (isItalian) {
+          return {
+            first: (t: string, chTitle: string) =>
+              `Introduci il mondo di "${storyTitle}". ${storyDesc ? `La storia inizia con le premesse della trama: ${storyDesc.substring(0, 120)}...` : `Stabilisci l'ambientazione e presenta il protagonista.`} Il tono ${t} permea l'atmosfera del capitolo "${chTitle}", gettando le basi per il conflitto principale.${storyPov ? ` La narrazione in ${storyPov} immerge il lettore nella storia.` : ''}`,
+
+            risingAction: (t: string, chTitle: string, progress: string) =>
+              `In "${chTitle}", la trama di "${storyTitle}" avanza con ritmo ${t}. ${progress} I personaggi iniziano a confrontarsi con ostacoli crescenti che mettono alla prova le loro motivazioni e relazioni.${storyGenre ? ` Gli elementi tipici del genere ${storyGenre} arricchiscono lo sviluppo narrativo.` : ''}`,
+
+            midpoint: (chTitle: string) =>
+              `"${chTitle}" segna il punto di svolta di "${storyTitle}". Una rivelazione cruciale cambia la prospettiva del protagonista e ridefinisce le alleanze. Le poste in gioco aumentano drasticamente, e ciò che sembrava certo viene messo in discussione. Nulla sarà più come prima.`,
+
+            complication: (t: string, chTitle: string, position: string) =>
+              `Nel capitolo "${chTitle}", ${position} "${storyTitle}". Il tono diventa più ${t} mentre le complicazioni si moltiplicano. I personaggi devono fare scelte difficili con conseguenze irreversibili sulla trama.`,
+
+            climax: (chTitle: string) =>
+              `"${chTitle}" rappresenta il climax di "${storyTitle}". Tutti i fili narrativi convergono in un momento di massima tensione. Il protagonista affronta la sfida definitiva che determinerà l'esito della storia.${storyGenre ? ` Il genere ${storyGenre} raggiunge qui la sua massima espressione.` : ''}`,
+
+            last: (chTitle: string) =>
+              `In "${chTitle}", la conclusione di "${storyTitle}". Tutti i conflitti trovano risoluzione. L'arco narrativo del protagonista si completa, e i temi centrali della storia trovano il loro compimento. Il lettore scopre le ultime rivelazioni che danno senso all'intero viaggio.`
+          };
+        } else {
+          return {
+            first: (t: string, chTitle: string) =>
+              `Introduce the world of "${storyTitle}". ${storyDesc ? `The story begins with the premise: ${storyDesc.substring(0, 120)}...` : `Establish the setting and introduce the protagonist.`} The ${t} tone permeates the atmosphere of "${chTitle}", laying the groundwork for the central conflict.${storyPov ? ` The ${storyPov} narration draws the reader into the story.` : ''}`,
+
+            risingAction: (t: string, chTitle: string, progress: string) =>
+              `In "${chTitle}", the plot of "${storyTitle}" advances with ${t} pacing. ${progress} The characters begin facing growing obstacles that test their motivations and relationships.${storyGenre ? ` The ${storyGenre} genre elements enrich the narrative development.` : ''}`,
+
+            midpoint: (chTitle: string) =>
+              `"${chTitle}" marks the turning point of "${storyTitle}". A crucial revelation changes the protagonist's perspective and redefines alliances. The stakes rise dramatically, and what seemed certain is called into question. Nothing will be the same.`,
+
+            complication: (t: string, chTitle: string, position: string) =>
+              `In the chapter "${chTitle}", ${position} "${storyTitle}". The tone becomes more ${t} as complications multiply. The characters must make difficult choices with irreversible consequences on the plot.`,
+
+            climax: (chTitle: string) =>
+              `"${chTitle}" represents the climax of "${storyTitle}". All narrative threads converge in a moment of maximum tension. The protagonist faces the ultimate challenge that will determine the story's outcome.${storyGenre ? ` The ${storyGenre} genre reaches its fullest expression here.` : ''}`,
+
+            last: (chTitle: string) =>
+              `In "${chTitle}", the conclusion of "${storyTitle}". All conflicts find resolution. The protagonist's narrative arc is completed, and the central themes of the story find fulfillment. The reader discovers the final revelations that give meaning to the entire journey.`
+          };
         }
       };
 
-      const tmpl = summaryTemplates[userLang as keyof typeof summaryTemplates] || summaryTemplates.en;
+      const ctxTmpl = buildContextualSummaries();
+
+      // Contextual progression descriptions for rising action chapters
+      const risingActionProgress = isItalian
+        ? [
+            'Le prime tensioni emergono e il protagonista scopre indizi che complicano la situazione.',
+            'Nuovi personaggi entrano in scena, portando alleanze inaspettate e potenziali tradimenti.',
+            'Un evento imprevisto costringe il protagonista a riconsiderare la propria strategia.',
+            'Le relazioni tra i personaggi si approfondiscono, rivelando motivazioni nascoste.',
+            'La posta in gioco cresce mentre il protagonista si avvicina a una verità scomoda.',
+            'Un confronto diretto rivela le vere intenzioni di un personaggio chiave.',
+            'Il protagonista subisce una perdita significativa che cambia il corso degli eventi.',
+            'Sotto la pressione crescente, vengono rivelati segreti che cambiano tutto.',
+          ]
+        : [
+            'Initial tensions emerge and the protagonist discovers clues that complicate the situation.',
+            'New characters enter the scene, bringing unexpected alliances and potential betrayals.',
+            'An unforeseen event forces the protagonist to reconsider their strategy.',
+            'Relationships between characters deepen, revealing hidden motivations.',
+            'The stakes grow as the protagonist approaches an uncomfortable truth.',
+            'A direct confrontation reveals the true intentions of a key character.',
+            'The protagonist suffers a significant loss that changes the course of events.',
+            'Under mounting pressure, secrets are revealed that change everything.',
+          ];
+
+      // Position descriptions for complication chapters
+      const complicationPositions = isItalian
+        ? [
+            'le complicazioni raggiungono un nuovo livello nella trama di',
+            'un colpo di scena inaspettato sconvolge l\'equilibrio in',
+            'le conseguenze delle azioni passate si manifestano in',
+            'il conflitto si intensifica verso il punto di non ritorno in',
+          ]
+        : [
+            'complications reach a new level in the plot of',
+            'an unexpected twist upsets the balance in',
+            'the consequences of past actions manifest in',
+            'the conflict intensifies toward the point of no return in',
+          ];
 
       for (let i = 0; i < numChapters; i++) {
         const titleIndex = i % chapterTitles.length;
         const title = chapterTitles[titleIndex];
+        const progress = (i / numChapters); // 0.0 to ~1.0
 
         let summary = '';
         if (i === 0) {
-          summary = tmpl.first(toneAdj);
-        } else if (i === Math.floor(numChapters / 2)) {
-          summary = tmpl.midpoint();
+          // First chapter: introduce the world
+          summary = ctxTmpl.first(toneAdj, title);
         } else if (i === numChapters - 1) {
-          summary = tmpl.last(project.genre || '');
+          // Last chapter: resolution
+          summary = ctxTmpl.last(title);
+        } else if (i === Math.floor(numChapters / 2)) {
+          // Midpoint: major turning point
+          summary = ctxTmpl.midpoint(title);
+        } else if (i === numChapters - 2) {
+          // Climax (second to last)
+          summary = ctxTmpl.climax(title);
+        } else if (progress < 0.4) {
+          // Rising action (first 40%)
+          const progressIdx = (i - 1) % risingActionProgress.length;
+          summary = ctxTmpl.risingAction(toneAdj, title, risingActionProgress[progressIdx]);
         } else {
-          summary = tmpl.middle(toneAdj);
+          // Complications (40%-80%)
+          const compIdx = (i - Math.floor(numChapters * 0.4)) % complicationPositions.length;
+          summary = ctxTmpl.complication(toneAdj, title, complicationPositions[compIdx]);
         }
 
         chapters.push({ title, summary });
